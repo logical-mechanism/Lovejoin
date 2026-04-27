@@ -6,3 +6,4 @@
 // around without churning every importer.
 
 export * from "./params.js";
+export * from "./fee.js";
