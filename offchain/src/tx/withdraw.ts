@@ -59,6 +59,7 @@ import {
   type CollateralProvider,
   WalletProvider,
 } from "./collateral.js";
+import { getMeshProvider } from "./mesh-bridge.js";
 import {
   fetchProtocolParams,
   type LovejoinAddresses,
@@ -334,13 +335,14 @@ export async function buildWithdrawTx(args: BuildWithdrawArgs): Promise<Withdraw
 
   const walletUtxos = normalizeWalletUtxos(await args.wallet.getUtxos());
   const changeAddress = await args.wallet.getChangeAddress();
+  const meshProvider = await getMeshProvider(args.provider);
 
   // Pass 1: placeholder proof.
   const placeholderRedeemer = PLACEHOLDER_OWNER_REDEEMER_CBOR_HEX;
   const buildOnce = (redeemerCborHex: string): Promise<string> => {
     const tx = new MeshTxBuilder({
-      fetcher: args.provider as unknown as never,
-      submitter: args.provider as unknown as never,
+      fetcher: meshProvider as never,
+      submitter: meshProvider as never,
       verbose: false,
     });
     tx

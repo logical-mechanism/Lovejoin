@@ -29,6 +29,7 @@ import {
   type CollateralProvider,
   WalletProvider,
 } from "./collateral.js";
+import { getMeshProvider } from "./mesh-bridge.js";
 import {
   pickRandomFeeShard,
   replenishOutputLovelace,
@@ -338,9 +339,15 @@ export async function buildDepositTx(args: BuildDepositArgs): Promise<DepositRes
   // that don't exercise this function. See wallet/cip30.ts for context.
   const { MeshTxBuilder } = await import("@meshsdk/core");
 
+  // mesh's tx builder needs a real `IFetcher` / `ISubmitter` (with
+  // `fetchUTxOs`, `fetchProtocolParameters`, ...) — our `ChainProvider`
+  // doesn't satisfy that surface. The provider exposes a lazy mesh
+  // sibling via `.meshProvider()` that's the same Blockfrost data, but
+  // shaped for mesh.
+  const meshProvider = await getMeshProvider(args.provider);
   const txBuilder = new MeshTxBuilder({
-    fetcher: args.provider as unknown as never,
-    submitter: args.provider as unknown as never,
+    fetcher: meshProvider as never,
+    submitter: meshProvider as never,
     verbose: false,
   });
 

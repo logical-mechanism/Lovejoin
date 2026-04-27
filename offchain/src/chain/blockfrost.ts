@@ -6,8 +6,14 @@
 // Why hand-rolled vs mesh's `BlockfrostProvider`: we need a stable, narrow
 // interface (`ChainProvider`) that downstream SDK code can depend on, and that
 // we can test under mocked HTTP without dragging in mesh's full surface.
-// Internally the SDK can still use mesh for tx-building; BlockfrostProvider
-// only handles chain queries + submission.
+//
+// One-provider story: callers (CLI, UI, integration tests) only ever construct
+// our `BlockfrostProvider`. For the Lovejoin-specific queries
+// (`getReferenceUtxo`, `getProtocolParams`, `getUtxoByRef`, ...) we use the
+// hand-rolled fetch path. For mesh's tx-builder needs (`fetchUTxOs`,
+// `fetchProtocolParameters`, `submitTx` with mesh shapes) we lazily build a
+// mesh `BlockfrostProvider` and expose it via `.mesh`. Tx builders pull
+// `provider.mesh` and pass it as `fetcher`/`submitter` to `MeshTxBuilder`.
 //
 // The `fetch` dependency is constructor-injectable so tests don't need to
 // network. Production code passes the global `fetch` (Node 18+ / browsers).
@@ -50,11 +56,30 @@ export interface BlockfrostConfig {
 
 const DEFAULT_POLL_INTERVAL_MS = 5_000;
 
+/**
+ * Minimum mesh-shaped surface our tx builders pass to `MeshTxBuilder`.
+ * Mesh's actual `IFetcher` + `ISubmitter` interfaces have many more methods,
+ * but the tx builders only ever call `fetchUTxOs`, `fetchProtocolParameters`,
+ * and `submitTx`. Narrow type so callers don't have to import mesh.
+ */
+export interface MeshFetcherSubmitter {
+  fetchUTxOs(hash: string, index?: number): Promise<unknown>;
+  fetchProtocolParameters(epoch?: number): Promise<unknown>;
+  submitTx(tx: string): Promise<string>;
+}
+
 export class BlockfrostProvider implements ChainProvider {
   private readonly baseUrl: string;
   private readonly projectId: string;
   private readonly fetchFn: FetchFn;
   private readonly pollIntervalMs: number;
+  /**
+   * Lazily-constructed mesh `BlockfrostProvider`. We don't build it eagerly
+   * because importing `@meshsdk/provider` pulls libsodium and the rest of
+   * mesh's stack — unnecessary cost for callers (most unit tests; the M2
+   * provider tests) that only need the chain queries.
+   */
+  private _mesh: MeshFetcherSubmitter | null = null;
 
   constructor(config: BlockfrostConfig) {
     this.baseUrl = config.baseUrl.replace(/\/$/, "");
@@ -72,6 +97,29 @@ export class BlockfrostProvider implements ChainProvider {
     // through unmodified so mocks see their normal `this`.
     this.fetchFn = injected ?? (globalFetch!.bind(globalThis) as FetchFn);
     this.pollIntervalMs = config.pollIntervalMs ?? DEFAULT_POLL_INTERVAL_MS;
+  }
+
+  /**
+   * Mesh-shaped fetcher + submitter, suitable for `new MeshTxBuilder({
+   * fetcher, submitter })`. Lazily constructed on first access.
+   *
+   * Not awaited because callers want a sync handle they can drop straight
+   * into MeshTxBuilder; the underlying mesh class loads its axios + shape
+   * helpers up front but defers any network I/O until a method is called.
+   */
+  async meshProvider(): Promise<MeshFetcherSubmitter> {
+    if (this._mesh) return this._mesh;
+    // Lazy import — see file-header comment on the libsodium / bundle cost.
+    // We pull from `@meshsdk/core` (which re-exports `@meshsdk/provider`)
+    // so we don't need a separate workspace dep on the provider package.
+    const { BlockfrostProvider: MeshBlockfrost } = await import(
+      "@meshsdk/core"
+    );
+    // Mesh's BlockfrostProvider(projectId) infers the network from the
+    // project id prefix ("preprod...", "preview...", "mainnet..."), which
+    // matches what we already require callers to set.
+    this._mesh = new MeshBlockfrost(this.projectId) as MeshFetcherSubmitter;
+    return this._mesh;
   }
 
   async submitTx(signedTxCborHex: string): Promise<Hex32> {
