@@ -832,7 +832,11 @@ async function evaluateExUnits(
     if (!b || typeof b.mem !== "number" || typeof b.steps !== "number") continue;
     const u: ExUnits = { mem: b.mem, steps: b.steps };
     if (tag === "SPEND" && !spend) spend = u;
-    else if (tag === "WITHDRAW" && !withdraw) withdraw = u;
+    // Mesh's evaluator surfaces withdrawal redeemers under the `REWARD`
+    // tag (matches Conway's redeemer-tag enum where the withdrawal
+    // purpose is "rewarding"). Accept both names defensively in case
+    // a future mesh version normalizes to "WITHDRAW".
+    else if ((tag === "REWARD" || tag === "WITHDRAW") && !withdraw) withdraw = u;
   }
   if (!spend || !withdraw) {
     throw new Error(
