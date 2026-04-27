@@ -9,7 +9,7 @@
 #   TESTNET_MAGIC      — default 1 (Preprod)
 #   BOOTSTRAP_ADDR     — wallet supplying lovelace
 #   PAYMENT_SKEY       — bootstrap wallet signing key
-#   FUNDING_UTXO       — "<txid>#<idx>" with enough lovelace to fund 10 shards
+#   FUNDING_STAGE3     — "<txid>#<idx>" with enough lovelace to fund 10 shards
 #                        + tx fee
 #   SHARD_LOVELACE     — per-shard lovelace (default: max_fee_per_mix * 5 so a
 #                        shard can absorb ~5 Mix txs before needing replenish).
@@ -29,7 +29,7 @@ NETWORK="${NETWORK:-preprod}"
 TESTNET_MAGIC="${TESTNET_MAGIC:-1}"
 BOOTSTRAP_ADDR="${BOOTSTRAP_ADDR:?}"
 PAYMENT_SKEY="${PAYMENT_SKEY:?}"
-FUNDING_UTXO="${FUNDING_UTXO:?}"
+FUNDING_STAGE3="${FUNDING_STAGE3:?FUNDING_STAGE3 required (run ./balance.sh to see the four export lines)}"
 
 REPO_ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 ARTIFACTS_DIR="$REPO_ROOT/artifacts/$NETWORK"
@@ -58,7 +58,7 @@ done
 
 cardano-cli conway transaction build \
   --testnet-magic "$TESTNET_MAGIC" \
-  --tx-in "$FUNDING_UTXO" \
+  --tx-in "$FUNDING_STAGE3" \
   "${TX_OUT_ARGS[@]}" \
   --change-address "$BOOTSTRAP_ADDR" \
   --out-file "$TX_RAW"

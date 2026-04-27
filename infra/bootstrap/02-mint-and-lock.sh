@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # 02-mint-and-lock.sh — single tx that:
-#   * spends SEED_UTXO from BOOTSTRAP_ADDR (consumed by one_shot_mint policy)
-#   * mints exactly 1 NFT under one_shot_mint(SEED_UTXO)
+#   * spends SEED from BOOTSTRAP_ADDR (consumed by one_shot_mint policy)
+#   * mints exactly 1 NFT under one_shot_mint(SEED)
 #   * locks the NFT at reference_holder with the inline ReferenceDatum carrying
 #     ProtocolParams.
 #
@@ -15,9 +15,9 @@
 #   TESTNET_MAGIC      — default 1 (Preprod)
 #   CARDANO_NODE_SOCKET_PATH must point to a synced node.
 #   BOOTSTRAP_ADDR     — wallet address.
-#   SEED_UTXO          — same value used in 00-build-reference.sh; consumed.
-#   COLLATERAL_UTXO    — separate ada-only UTxO ≥ 5 ADA. MUST NOT overlap
-#                        with SEED_UTXO (ledger forbids overlap).
+#   SEED               — same value used in 00-build-reference.sh; consumed.
+#   COLLATERAL         — separate ada-only UTxO ≥ 5 ADA. MUST NOT overlap
+#                        with SEED (ledger forbids overlap).
 #   PAYMENT_SKEY       — bootstrap wallet signing key.
 #   LOCKED_LOVELACE    — lovelace at the reference UTxO (default 5_000_000;
 #                        comfortably above the inline-datum min-UTxO floor).
@@ -40,13 +40,13 @@ __ENV_FILE="$(cd "$(dirname "$0")" && pwd)/.env"
 NETWORK="${NETWORK:-preprod}"
 TESTNET_MAGIC="${TESTNET_MAGIC:-1}"
 BOOTSTRAP_ADDR="${BOOTSTRAP_ADDR:?}"
-SEED_UTXO="${SEED_UTXO:?SEED_UTXO required (must match 00-build-reference.sh)}"
-COLLATERAL_UTXO="${COLLATERAL_UTXO:?}"
+SEED="${SEED:?SEED required — must match the value used in 00-build-reference. Run ./balance.sh for the export lines.}"
+COLLATERAL="${COLLATERAL:?COLLATERAL required (run ./balance.sh)}"
 PAYMENT_SKEY="${PAYMENT_SKEY:?}"
 LOCKED_LOVELACE="${LOCKED_LOVELACE:-5000000}"
 
-if [[ "$SEED_UTXO" == "$COLLATERAL_UTXO" ]]; then
-  echo "02-mint-and-lock: SEED_UTXO and COLLATERAL_UTXO must differ (ledger forbids overlap)" >&2
+if [[ "$SEED" == "$COLLATERAL" ]]; then
+  echo "02-mint-and-lock: SEED and COLLATERAL must differ (ledger forbids overlap)" >&2
   exit 1
 fi
 
@@ -105,8 +105,8 @@ TX_RAW="$ARTIFACTS_DIR/02-mint-and-lock.txraw"
 
 cardano-cli conway transaction build \
   --testnet-magic "$TESTNET_MAGIC" \
-  --tx-in "$SEED_UTXO" \
-  --tx-in-collateral "$COLLATERAL_UTXO" \
+  --tx-in "$SEED" \
+  --tx-in-collateral "$COLLATERAL" \
   --mint "1 $REF_NFT_POLICY.$REF_NFT_NAME" \
   --mint-script-file "$ARTIFACTS_DIR/one_shot_mint.plutus" \
   --mint-redeemer-file "$EMPTY_REDEEMER_FILE" \

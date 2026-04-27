@@ -29,10 +29,10 @@
 #   BOOTSTRAP_ADDR     — wallet address; receives the 3 ref-script UTxOs +
 #                        change. Also the cert-deposit refund-target if you
 #                        ever (don't) deregister.
-#   FUNDING_UTXO       — UTxO at BOOTSTRAP_ADDR funding the chain. Needs ≈ 80
+#   FUNDING_STAGE1     — UTxO at BOOTSTRAP_ADDR funding the chain. Needs ≈ 80
 #                        ADA on Preprod (3 ref outputs at ~25 ADA each + cert
 #                        deposit ~2 ADA + 4 tx fees + comfortable change).
-#   COLLATERAL_UTXO    — separate ada-only UTxO ≥ 5 ADA. Held in reserve in
+#   COLLATERAL         — separate ada-only UTxO ≥ 5 ADA. Held in reserve in
 #                        case mix_logic.publish (tx 4) fails. The publish
 #                        handler is trivially True for RegisterCredential, so
 #                        the collateral is never seized in practice.
@@ -49,13 +49,14 @@ __ENV_FILE="$(cd "$(dirname "$0")" && pwd)/.env"
 NETWORK="${NETWORK:-preprod}"
 TESTNET_MAGIC="${TESTNET_MAGIC:-1}"
 BOOTSTRAP_ADDR="${BOOTSTRAP_ADDR:?}"
-FUNDING_UTXO="${FUNDING_UTXO:?}"
-COLLATERAL_UTXO="${COLLATERAL_UTXO:?}"
+# Canonical names from prep-utxos / balance — paste-and-run.
+FUNDING_STAGE1="${FUNDING_STAGE1:?FUNDING_STAGE1 required (run ./balance.sh to see the four export lines)}"
+COLLATERAL="${COLLATERAL:?COLLATERAL required (run ./balance.sh to see the four export lines)}"
 PAYMENT_SKEY="${PAYMENT_SKEY:?}"
 REF_PUBLISH_LOVELACE="${REF_PUBLISH_LOVELACE:-25000000}"
 
-if [[ "$FUNDING_UTXO" == "$COLLATERAL_UTXO" ]]; then
-  echo "01-publish-and-register: FUNDING_UTXO and COLLATERAL_UTXO must differ" >&2
+if [[ "$FUNDING_STAGE1" == "$COLLATERAL" ]]; then
+  echo "01-publish-and-register: FUNDING_STAGE1 and COLLATERAL must differ" >&2
   exit 1
 fi
 
@@ -107,11 +108,11 @@ submit() {
 }
 
 # ---------------------------------------------------------------------------
-# Tx 1: publish mix_box. Funds from FUNDING_UTXO. Output 0 = ref script;
+# Tx 1: publish mix_box. Funds from FUNDING_STAGE1. Output 0 = ref script;
 # output 1 = change (becomes tx 2's funding).
 # ---------------------------------------------------------------------------
 echo "01a/4 — publishing mix_box ref script"
-publish_step "01a-publish-mix-box" "mix_box.plutus" "$FUNDING_UTXO"
+publish_step "01a-publish-mix-box" "mix_box.plutus" "$FUNDING_STAGE1"
 TX1=$(txid_of "01a-publish-mix-box")
 submit "01a-publish-mix-box"
 echo "  mix_box ref UTxO:      ${TX1}#0"
@@ -153,7 +154,7 @@ TX4_RAW="$ARTIFACTS_DIR/01d-register-mix-logic.txraw"
 cardano-cli conway transaction build \
   --testnet-magic "$TESTNET_MAGIC" \
   --tx-in "${TX3}#1" \
-  --tx-in-collateral "$COLLATERAL_UTXO" \
+  --tx-in-collateral "$COLLATERAL" \
   --certificate-file "$STAKE_REG_CERT" \
   --certificate-tx-in-reference "${TX2}#0" \
   --certificate-plutus-script-v3 \

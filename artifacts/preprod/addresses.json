@@ -1,0 +1,18 @@
+{
+  "network": "preprod",
+  "protocol": {
+    "denom_lovelace": 10000000,
+    "max_fee_per_mix_lovelace": 800000,
+    "max_n": 6,
+    "fee_shard_target": 10
+  },
+  "referenceNftPolicy": null,
+  "referenceNftAssetName": null,
+  "referenceUtxoRef": null,
+  "referenceHolderScriptHash": null,
+  "mixLogicScriptHash": null,
+  "mixBoxScriptHash": null,
+  "feeScriptHash": null,
+  "feeShardUtxos": [],
+  "referenceScriptUtxos": {}
+}

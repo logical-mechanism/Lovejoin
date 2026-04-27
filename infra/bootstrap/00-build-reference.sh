@@ -4,7 +4,7 @@
 #
 # Inputs (env):
 #   NETWORK              — "preprod" | "test" (default: preprod)
-#   SEED_UTXO            — "<txid>#<idx>" of an unspent UTxO at BOOTSTRAP_ADDR
+#   SEED                 — "<txid>#<idx>" of an unspent UTxO at BOOTSTRAP_ADDR
 #                          that 01-mint-and-lock.sh will consume in the same tx
 #                          as the one_shot_mint policy fires.
 #   REF_NFT_ASSET_NAME   — hex-encoded asset name (default 6c6f76656a6f696e =
@@ -28,14 +28,15 @@ __ENV_FILE="$(cd "$(dirname "$0")" && pwd)/.env"
 [[ -f "$__ENV_FILE" ]] && { set -a; source "$__ENV_FILE"; set +a; }
 
 NETWORK="${NETWORK:-preprod}"
-# Accept SEED_UTXO from either the env var or the first positional arg, since
-# both are natural reflexes:
-#   SEED_UTXO=<txid>#<idx> ./00-build-reference.sh
+# Accept SEED from env var (the canonical name printed by prep-utxos / balance)
+# or the first positional arg, since both are natural reflexes:
+#   SEED=<txid>#<idx> ./00-build-reference.sh
 #   ./00-build-reference.sh <txid>#<idx>
-SEED_UTXO="${SEED_UTXO:-${1:-}}"
-if [[ -z "$SEED_UTXO" ]]; then
-  echo "00-build-reference: SEED_UTXO is required (env var or first positional)." >&2
+SEED="${SEED:-${1:-}}"
+if [[ -z "$SEED" ]]; then
+  echo "00-build-reference: SEED is required (env var or first positional)." >&2
   echo "  format: <txid>#<idx>  e.g. abc123…#2  (no quotes needed)" >&2
+  echo "  hint:   ./balance.sh prints the four export lines you need." >&2
   exit 1
 fi
 REF_NFT_ASSET_NAME="${REF_NFT_ASSET_NAME:-6c6f76656a6f696e}"
@@ -52,8 +53,8 @@ if [[ ! -f "$ARTIFACTS_DIR/blueprint.json" ]]; then
   "$REPO_ROOT/contracts/build.sh" "config/network.$NETWORK.json"
 fi
 
-SEED_TX_ID="${SEED_UTXO%#*}"
-SEED_IDX="${SEED_UTXO#*#}"
+SEED_TX_ID="${SEED%#*}"
+SEED_IDX="${SEED#*#}"
 
 cd "$REPO_ROOT/contracts"
 

@@ -100,7 +100,7 @@ Four stages under [`infra/bootstrap/`](infra/bootstrap/) — one operator comman
 
 1. **`00-build-reference.sh`** — offline. Parameterizes the validators in dependency order (`one_shot_mint(seed) → mix_logic(NFT) → mix_box(mix_logic) → fee_contract(NFT)`) and writes resolved hashes into `artifacts/<network>/addresses.json`.
 2. **`01-publish-and-register.sh`** — recursive tx chain (4 txs internally): publishes `mix_box`, `mix_logic`, `fee_contract` as CIP-33 reference scripts (one tx per script, so every tx stays under the 16 KiB max-tx-size as the validators grow), then registers the `mix_logic` stake credential by referencing the script published in tx 2 via `--certificate-tx-in-reference`. Each tx spends the previous tx's change output as funding — operator only supplies one funding UTxO and one collateral UTxO.
-3. **`02-mint-and-lock.sh`** — **irreversible.** Spends `SEED_UTXO`, mints the one-of-one NFT, locks at `reference_holder` with the inline `ProtocolParams` datum.
+3. **`02-mint-and-lock.sh`** — **irreversible.** Spends `SEED`, mints the one-of-one NFT, locks at `reference_holder` with the inline `ProtocolParams` datum.
 4. **`03-fund-fee-contract.sh`** — seeds 10 shards at `fee_contract`.
 
 Configure once, then run the stages:
@@ -112,11 +112,12 @@ cp infra/bootstrap/.env.example infra/bootstrap/.env     # set NETWORK + node so
 ./infra/bootstrap/balance.sh                             # confirm the drop arrived
 ./infra/bootstrap/prep-utxos.sh                          # split into A/B/C/D — copy the `export` lines it prints
 
-# Then run stages 0..3 in order, waiting for each to confirm:
-SEED_UTXO=$SEED ./infra/bootstrap/00-build-reference.sh
-FUNDING_UTXO=$FUNDING_STAGE1 COLLATERAL_UTXO=$COLLATERAL ./infra/bootstrap/01-publish-and-register.sh
-SEED_UTXO=$SEED COLLATERAL_UTXO=$COLLATERAL ./infra/bootstrap/02-mint-and-lock.sh
-FUNDING_UTXO=$FUNDING_STAGE3 ./infra/bootstrap/03-fund-fee-contract.sh
+# After exporting FUNDING_STAGE1 / COLLATERAL / SEED / FUNDING_STAGE3, the
+# stages read those env vars directly — no renaming at the call site:
+./infra/bootstrap/00-build-reference.sh
+./infra/bootstrap/01-publish-and-register.sh   # wait for confirmation
+./infra/bootstrap/02-mint-and-lock.sh           # wait — IRREVERSIBLE
+./infra/bootstrap/03-fund-fee-contract.sh
 ```
 
 `.env` is gitignored. Every bootstrap script auto-sources it, so no `export` per shell beyond the per-stage UTxO refs.

@@ -139,18 +139,15 @@ export COLLATERAL=${TX_ID}#1       # ${COLLATERAL_LOVELACE} lovelace — collate
 export SEED=${TX_ID}#2             # ${SEED_LOVELACE} lovelace — seed for one_shot_mint, consumed in stage 2 (C)
 export FUNDING_STAGE3=${TX_ID}#3   # ${STAGE3_LOVELACE} lovelace — stage 3 funding (D)
 
-# Stage 0 — offline
-SEED_UTXO=\$SEED ./infra/bootstrap/00-build-reference.sh
+# Stage 0 — offline (env vars are read directly; no renaming)
+./infra/bootstrap/00-build-reference.sh
 
 # Stage 1 — publish refs + register cert (chain of 4 txs)
-FUNDING_UTXO=\$FUNDING_STAGE1 COLLATERAL_UTXO=\$COLLATERAL \\
-  ./infra/bootstrap/01-publish-and-register.sh
+./infra/bootstrap/01-publish-and-register.sh
 
 # Stage 2 — IRREVERSIBLE mint + lock
-SEED_UTXO=\$SEED COLLATERAL_UTXO=\$COLLATERAL \\
-  ./infra/bootstrap/02-mint-and-lock.sh
+./infra/bootstrap/02-mint-and-lock.sh
 
 # Stage 3 — fund 10 fee shards
-FUNDING_UTXO=\$FUNDING_STAGE3 \\
-  ./infra/bootstrap/03-fund-fee-contract.sh
+./infra/bootstrap/03-fund-fee-contract.sh
 EOF

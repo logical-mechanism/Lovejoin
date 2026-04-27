@@ -26,7 +26,7 @@ stake credential).
 |---|--------|--------------|---------:|
 | 0 | `00-build-reference.sh`           | offline. Parameterizes the validators in dependency order (`one_shot_mint(seed) → mix_logic(NFT) → mix_box(mix_logic) → fee_contract(NFT)`), writes resolved hashes to `addresses.json`. | 0 |
 | 1 | `01-publish-and-register.sh`      | recursive tx chain: publishes `mix_box`, `mix_logic`, `fee_contract` as CIP-33 reference scripts (one tx per script — keeps every tx well under the 16 KiB limit as validators grow), then registers the `mix_logic` stake credential, attaching the script via `--certificate-tx-in-reference` against tx 2's output. Each tx after the first spends the previous tx's change output as funding. | 4 |
-| 2 | `02-mint-and-lock.sh`             | **irreversible.** Spends `SEED_UTXO`, mints the one-of-one NFT, locks at `reference_holder` with the inline `ProtocolParams` datum. | 1 |
+| 2 | `02-mint-and-lock.sh`             | **irreversible.** Spends `SEED`, mints the one-of-one NFT, locks at `reference_holder` with the inline `ProtocolParams` datum. | 1 |
 | 3 | `03-fund-fee-contract.sh`         | seeds 10 shards at `fee_contract`. | 1 |
 
 The single-script-per-tx convention inside stage 1 isolates failures (a publish
@@ -130,19 +130,16 @@ cat infra/bootstrap/wallets/payment.preprod.addr   # paste into the faucet
 # Paste the four export lines from prep-utxos's output (or balance.sh —
 # they're identical), then run the stages in order:
 
-SEED_UTXO=$SEED \
-  ./infra/bootstrap/00-build-reference.sh
+# Each stage reads the canonical names directly — no renaming on the call site.
+./infra/bootstrap/00-build-reference.sh
 
-FUNDING_UTXO=$FUNDING_STAGE1 COLLATERAL_UTXO=$COLLATERAL \
-  ./infra/bootstrap/01-publish-and-register.sh
-# wait for confirmation (cardano-cli query utxo --tx-in <txid>#0 or another balance.sh)
+./infra/bootstrap/01-publish-and-register.sh
+# wait for confirmation (./balance.sh, or cardano-cli query utxo --tx-in <txid>#0)
 
-SEED_UTXO=$SEED COLLATERAL_UTXO=$COLLATERAL \
-  ./infra/bootstrap/02-mint-and-lock.sh
+./infra/bootstrap/02-mint-and-lock.sh
 # wait for confirmation — this is the IRREVERSIBLE step
 
-FUNDING_UTXO=$FUNDING_STAGE3 \
-  ./infra/bootstrap/03-fund-fee-contract.sh
+./infra/bootstrap/03-fund-fee-contract.sh
 # wait for confirmation
 ```
 
@@ -189,7 +186,7 @@ between submissions.
   `--address <reference_holder_addr> --output-json`).
 - **Stage 1 chain breaks mid-flight.** If tx 2 or 3 of stage 1 fails to
   confirm, re-run only the tail. The simplest recovery is to re-run stage 1
-  with a fresh `FUNDING_UTXO` — the already-published ref scripts from the
+  with a fresh `FUNDING_STAGE1` — the already-published ref scripts from the
   failed run cost only their funding (no protocol meaning until stage 2's
   reference UTxO exists). `addresses.json` will be overwritten on the
   re-run; the old ref-script UTxOs become orphan.
