@@ -74,7 +74,7 @@
         "contracts/build.sh produces artifacts/<network>/{*.plutus, addresses.json}",
         "offchain/src/chain/provider.ts: ChainProvider interface (submitTx, getUtxos, awaitConfirmation, getReferenceUtxo, getProtocolParams). BlockfrostProvider implementation. Mesh wired to use it.",
         "config/network.preprod.json gains a 'provider' block (provider: 'blockfrost', projectId env var) so swapping providers is config-only.",
-        "infra/bootstrap/00-build-reference.sh, 01-mint-and-lock.sh, 02-fund-fee-contract.sh, 03-publish-reference-scripts.sh — cardano-cli driven; submission via Blockfrost",
+        "infra/bootstrap/00-build-reference.sh (offline data build), 01..03-publish-{mix_box,mix_logic,fee_contract}.sh (CIP-33 ref scripts, single-script-per-tx so per-tx size is predictable as validators grow), 04-register-mix-logic.sh (Plutus stake-credential registration via --certificate-tx-in-reference), 05-mint-and-lock.sh (irreversible mint + lock at reference_holder), 06-fund-fee-contract.sh (10 fee shards). cardano-cli driven; runs on a synced node socket. Publish + register stages can be tx-chained for a one-block bootstrap.",
         "Reference NFT minted on Preprod, locked at reference_holder",
         "10 fee shards funded on Preprod",
         "Reference scripts published as CIP-33 references on Preprod",

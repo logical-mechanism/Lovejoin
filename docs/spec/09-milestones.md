@@ -58,11 +58,12 @@ v1 ships through M7. M8+ is post-v1.
 - `contracts/validators/{reference_holder,one_shot_mint,mix_box,mix_logic,fee_contract}.ak`. `mix_box` is the cheap spend-side delegator; `mix_logic` is the withdraw-zero validator that handles **variable N** at runtime. See [03-contracts.md](03-contracts.md) §0 for the design rationale.
 - `contracts/test/{reference_test,mix_box_test,mix_logic_test,fee_contract_test}.ak`. Mix tests cover N ∈ {2, 3, 4, 6, 8} positive + negative.
 - `contracts/build.sh`.
-- `infra/bootstrap/` complete:
-  - `00-build-reference.sh`
-  - `01-mint-and-lock.sh` (one-shot mint + lock to reference_holder)
-  - `02-fund-fee-contract.sh` (10 fee shards)
-  - `03-publish-reference-scripts.sh` (CIP-33 reference scripts)
+- `infra/bootstrap/` complete (six stages, one tx each):
+  - `00-build-reference.sh` (offline; parameterizes validators)
+  - `01-publish-mix-box.sh`, `02-publish-mix-logic.sh`, `03-publish-fee-contract.sh` (CIP-33 reference scripts, single-script-per-tx so per-tx size stays under the 16 KiB limit even as validators grow)
+  - `04-register-mix-logic.sh` (registers the `mix_logic` Plutus stake credential; uses `--certificate-tx-in-reference` against the UTxO from step 2)
+  - `05-mint-and-lock.sh` (one-shot mint + lock to reference_holder — irreversible step)
+  - `06-fund-fee-contract.sh` (10 fee shards)
 - `artifacts/test/` and `artifacts/preprod/` with compiled `.plutus` files and `addresses.json`.
 - **Stress tests for OQ-A and `max_n`:** `stress-tests/fee-calibration.ts` and `stress-tests/max-n-calibration.ts`. Submit Mix txs at varied N on Preprod, measure script CPU/mem and Cardano-charged fees, recommend:
   - `max_n` = highest N where total tx CPU stays < 70% of mainnet limit.

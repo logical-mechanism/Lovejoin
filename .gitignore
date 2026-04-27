@@ -26,6 +26,12 @@ crypto/ref/target/
 *.skey
 *.vkey
 
+# Bootstrap wallets — recommended location for the per-network wallet files
+# (payment.skey/vkey, payment.addr) used by infra/bootstrap/*.sh. The bootstrap
+# scripts only ever read these via env vars, but keeping the conventional path
+# gitignored avoids accidents.
+infra/bootstrap/wallets/
+
 # Editor
 .vscode/
 .idea/

@@ -20,6 +20,7 @@ use aiken/collection/list
 use aiken/primitive/bytearray
 use cardano/address.{Credential}
 use cardano/assets
+use cardano/certificate.{Certificate, RegisterCredential}
 use cardano/transaction.{InlineDatum, Input, Output, Transaction}
 use lovejoin/mixbox.{
   output_at_script, try_decode_well_formed_inline,
@@ -39,6 +40,20 @@ validator mix_logic(ref: ReferenceParams) {
     when redeemer is {
       Owner { proof } -> validate_owner(self, params, mix_inputs, proof)
       Mix { proofs } -> validate_mix(self, params, mix_inputs, proofs)
+    }
+  }
+
+  // The stake credential registration cert in 01-mint-and-lock fires `mix_logic`
+  // with purpose=Publish. We allow ONLY the one-time RegisterCredential cert and
+  // reject every other publish operation — including UnregisterCredential, which
+  // would brick the protocol (no more withdraw-zero, every mix_box spend rejected
+  // forever after). Delegation, redelegation, and governance certs are likewise
+  // rejected: hyperstructure-coherent default is "the credential exists, is
+  // registered, and nothing else can ever happen to it."
+  publish(_redeemer: Data, certificate: Certificate, _self: Transaction) {
+    when certificate is {
+      RegisterCredential { .. } -> True
+      _ -> False
     }
   }
 }

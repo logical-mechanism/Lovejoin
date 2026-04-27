@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# 02-fund-fee-contract.sh — create exactly fee_shard_target (=10) UTxOs at the
+# 03-fund-fee-contract.sh — create exactly fee_shard_target (=10) UTxOs at the
 # fee_contract address, each carrying SHARD_LOVELACE lovelace and an inline ()
 # datum. PayMixFee and Replenish both preserve the shard count, so seeding the
 # pool here is a one-time event.
@@ -44,7 +44,7 @@ UNIT_DATUM_FILE="$ARTIFACTS_DIR/unit-datum.json"
 echo '{"constructor":0,"fields":[]}' > "$UNIT_DATUM_FILE"
 
 # Build the tx with N --tx-out flags, one per shard.
-TX_RAW="$ARTIFACTS_DIR/02-fund-fee-contract.txraw"
+TX_RAW="$ARTIFACTS_DIR/03-fund-fee-contract.txraw"
 TX_OUT_ARGS=()
 for ((i = 0; i < SHARD_TARGET; i++)); do
   TX_OUT_ARGS+=(
@@ -64,14 +64,14 @@ cardano-cli conway transaction sign \
   --tx-body-file "$TX_RAW" \
   --signing-key-file "$PAYMENT_SKEY" \
   --testnet-magic "$TESTNET_MAGIC" \
-  --out-file "$ARTIFACTS_DIR/02-fund-fee-contract.tx"
+  --out-file "$ARTIFACTS_DIR/03-fund-fee-contract.tx"
 
 cardano-cli conway transaction submit \
   --testnet-magic "$TESTNET_MAGIC" \
-  --tx-file "$ARTIFACTS_DIR/02-fund-fee-contract.tx"
+  --tx-file "$ARTIFACTS_DIR/03-fund-fee-contract.tx"
 
-TX_ID=$(cardano-cli conway transaction txid --tx-file "$ARTIFACTS_DIR/02-fund-fee-contract.tx")
-echo "02-fund-fee-contract: submitted txid $TX_ID"
+TX_ID=$(cardano-cli conway transaction txid --tx-file "$ARTIFACTS_DIR/03-fund-fee-contract.tx")
+echo "03-fund-fee-contract: submitted txid $TX_ID"
 
 # Persist the shard refs (output indices 0..SHARD_TARGET-1).
 TMP=$(mktemp)
@@ -80,4 +80,4 @@ jq --arg txId "$TX_ID" --argjson n "$SHARD_TARGET" '
 ' "$ARTIFACTS_DIR/addresses.json" > "$TMP"
 mv "$TMP" "$ARTIFACTS_DIR/addresses.json"
 
-echo "02-fund-fee-contract: $SHARD_TARGET shards funded at $SHARD_LOVELACE lovelace each"
+echo "03-fund-fee-contract: $SHARD_TARGET shards funded at $SHARD_LOVELACE lovelace each"

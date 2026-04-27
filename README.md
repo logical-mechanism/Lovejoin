@@ -91,3 +91,25 @@ Milestones live in [milestones.json](milestones.json). Inside Claude Code:
 - `/work <id>` — work on a milestone end-to-end (reads spec, implements, writes tests, verifies exit criteria, marks done)
 
 Both commands read/update milestones.json directly. No external CLI. State transitions: `pending` → `in-progress` → `done`. The slash commands enforce that exit criteria pass before a milestone can be marked done.
+
+## Bootstrap (one-shot, per network)
+
+The protocol is a hyperstructure: parameters are minted into an inline datum on a permanent UTxO at the always-False `reference_holder` script, identified by a one-of-one NFT. Once that UTxO exists, the protocol is live and immutable.
+
+Six stages, one tx each, all under [`infra/bootstrap/`](infra/bootstrap/):
+
+1. **`00-build-reference.sh`** — offline. Parameterizes the validators in dependency order (`one_shot_mint(seed) → mix_logic(NFT) → mix_box(mix_logic) → fee_contract(NFT)`) and writes resolved hashes into `artifacts/<network>/addresses.json`.
+2. **`01-publish-mix-box.sh`** — publishes `mix_box.plutus` as a CIP-33 reference script.
+3. **`02-publish-mix-logic.sh`** — publishes `mix_logic.plutus` as a CIP-33 reference script.
+4. **`03-publish-fee-contract.sh`** — publishes `fee_contract.plutus` as a CIP-33 reference script.
+5. **`04-register-mix-logic.sh`** — registers the `mix_logic` stake credential, attaching the script via `--certificate-tx-in-reference` (UTxO from step 2). The cert is the only Publish-purpose op `mix_logic` ever allows; de-registration is rejected (would brick every `mix_box` spend forever).
+6. **`05-mint-and-lock.sh`** — **irreversible.** Spends `SEED_UTXO`, mints the one-of-one NFT, locks at `reference_holder` with the inline `ProtocolParams` datum.
+7. **`06-fund-fee-contract.sh`** — seeds 10 shards at `fee_contract`.
+
+Single-script-per-tx by convention: keeps per-tx size predictable as the validators grow and isolates failures. The publish + register stages can be tx-chained for a one-block bootstrap (each step spends the previous step's change output) — see the bootstrap README for the manual procedure.
+
+Wallet keys go under `infra/bootstrap/wallets/<network>/` (gitignored). You'll need ~150 ADA on the [Preprod faucet](https://docs.cardano.org/cardano-testnets/tools/faucet/) and a synced cardano-node socket.
+
+Step-by-step instructions including env-var setup, expected wallet budget, and recovery from common failures: [`infra/bootstrap/README.md`](infra/bootstrap/README.md).
+
+After a clean run, commit `artifacts/preprod/addresses.json` — that's the canonical address book for the network.

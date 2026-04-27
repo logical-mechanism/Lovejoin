@@ -200,11 +200,11 @@ By the end of M1, you have three independent implementations agreeing on bytes. 
 
 ### Layer 8: Bootstrap scripts
 - `00-build-reference.sh`: derives all hashes from config (note the dependency order: `mix_logic` before `mix_box`).
-- `01-mint-and-lock.sh`: mints NFT + locks reference datum.
-- `02-fund-fee-contract.sh`: creates 10 fee shards.
-- `03-publish-reference-scripts.sh`: publishes validators as reference scripts.
-- Also: register the `mix_logic` stake credential — without it, `mix_box` spends can never satisfy the withdraw-zero check.
-- `addresses.preprod.json` committed.
+- `01-publish-mix-box.sh`, `02-publish-mix-logic.sh`, `03-publish-fee-contract.sh`: one ref-script publish per tx (single-script-per-tx convention). Step 02 is what step 04 references via `--certificate-tx-in-reference`.
+- `04-register-mix-logic.sh`: registers the `mix_logic` Plutus stake credential. Without registration, `mix_box` spends can never satisfy the withdraw-zero check.
+- `05-mint-and-lock.sh`: mints NFT + locks the inline `ProtocolParams` datum at `reference_holder`. **Irreversible step.**
+- `06-fund-fee-contract.sh`: creates 10 fee shards.
+- `addresses.preprod.json` committed after the run.
 
 ### Layer 9: Stress test
 - `max-n-calibration.ts`. Determine real `max_n`.

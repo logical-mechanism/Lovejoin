@@ -18,14 +18,16 @@
 
 use aiken/collection/list
 use cardano/assets
+use cardano/address.{Script}
+use cardano/certificate.{RegisterCredential, UnregisterCredential}
 use cardano/transaction.{Input, Output, Transaction}
 use lovejoin/schnorr.{SchnorrProof}
 use lovejoin/sigma_or.{SigmaOrBranch, SigmaOrProof}
 use lovejoin/test_fixtures.{
   default_reference_input, default_reference_params, denom_lovelace,
   fee_shard_output, max_n, mix_box_input, mix_box_input_bad_datum,
-  mix_box_output, mix_box_output_with_value, mix_script_hash, random_user_vk,
-  script_address, vk_output_lovelace, a48, b48, c48,
+  mix_box_output, mix_box_output_with_value, mix_logic_hash, mix_script_hash,
+  random_user_vk, script_address, vk_output_lovelace, a48, b48, c48,
 }
 use lovejoin/types.{Mix, MixDatum, Owner}
 use mix_logic
@@ -423,5 +425,43 @@ test owner_rejects_no_reference_input() fail {
     Owner { proof: bogus_schnorr() },
     script_address(mix_script_hash).payment_credential,
     tx,
+  )
+}
+
+// ---------------------------------------------------------------------------
+// Publish purpose — stake credential lifecycle. Spec: docs/spec/03-contracts.md §0.
+//
+// The mix_logic credential MUST be registered exactly once (per network) so
+// withdraw-zero spends are valid going forward. After that, no further cert
+// involving the credential should ever succeed — particularly de-registration,
+// which would brick every mix_box spend forever after.
+// ---------------------------------------------------------------------------
+
+test publish_allows_register_credential() {
+  let cert =
+    RegisterCredential {
+      credential: Script(mix_logic_hash),
+      deposit: Never,
+    }
+  mix_logic.mix_logic.publish(
+    default_reference_params(),
+    Void,
+    cert,
+    transaction.placeholder,
+  )
+}
+
+test publish_rejects_unregister_credential() {
+  // Hyperstructure: unregistering would brick the protocol. Must reject.
+  let cert =
+    UnregisterCredential {
+      credential: Script(mix_logic_hash),
+      refund: Never,
+    }
+  !mix_logic.mix_logic.publish(
+    default_reference_params(),
+    Void,
+    cert,
+    transaction.placeholder,
   )
 }
