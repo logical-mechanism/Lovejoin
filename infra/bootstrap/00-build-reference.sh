@@ -43,9 +43,13 @@ REF_NFT_ASSET_NAME="${REF_NFT_ASSET_NAME:-6c6f76656a6f696e}"
 REPO_ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 ARTIFACTS_DIR="$REPO_ROOT/artifacts/$NETWORK"
 
+# Self-heal: blueprint comes from contracts/build.sh (which runs `aiken build`
+# then emits artifacts/<network>/{blueprint.json, *.plutus, addresses.json}).
+# Operators reasonably expect `make build` or just running this script to work
+# from a clean checkout, so we run build.sh implicitly when needed.
 if [[ ! -f "$ARTIFACTS_DIR/blueprint.json" ]]; then
-  echo "00-build-reference: $ARTIFACTS_DIR/blueprint.json missing — run contracts/build.sh first" >&2
-  exit 1
+  echo "00-build-reference: $ARTIFACTS_DIR/blueprint.json missing — running contracts/build.sh"
+  "$REPO_ROOT/contracts/build.sh" "config/network.$NETWORK.json"
 fi
 
 SEED_TX_ID="${SEED_UTXO%#*}"
