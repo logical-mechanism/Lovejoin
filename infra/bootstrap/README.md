@@ -73,6 +73,26 @@ Budget for a clean Preprod bootstrap (defaults assumed):
 
 Round up to ~150 ADA so you don't have to top up mid-bootstrap.
 
+### UTxO layout
+
+The faucet hands you ~10,000 ADA as a single UTxO. The bootstrap stages each
+need a distinct UTxO with specific properties (Cardano forbids
+`--tx-in-collateral` from overlapping with `--tx-in`, and the seed UTxO must
+be a separate input from the funding UTxO too). So before running the stages
+you split the faucet drop into the four shapes below:
+
+| label | size       | used by                                                      |
+|-------|-----------:|--------------------------------------------------------------|
+| **A** FUNDING (stage 1) |  85 ADA | `01-publish-and-register.sh` (3 ref outputs + cert + chain fees) |
+| **B** COLLATERAL        |  10 ADA | stages 1 & 2 (cert reg + mint); ada-only, returned by ledger so it persists across both |
+| **C** SEED              |   7 ADA | `02-mint-and-lock.sh` (consumed by `one_shot_mint`) |
+| **D** FUNDING (stage 3) |  45 ADA | `03-fund-fee-contract.sh` (10 shards × 4 ADA + fee) |
+|       | + change   | leftover, sits at the wallet for next time |
+
+`prep-utxos.sh` does the split in one tx and prints the UTxO refs you need
+for each stage. Idempotent: if the wallet already has 4+ ada-only UTxOs at
+the bootstrap address, it logs a "skipping" notice instead of double-splitting.
+
 ## Running it
 
 ```sh
@@ -85,27 +105,35 @@ export CARDANO_NODE_SOCKET_PATH=/path/to/preprod-node.socket
 export BOOTSTRAP_ADDR=$(cat infra/bootstrap/wallets/payment.preprod.addr)
 export PAYMENT_SKEY=infra/bootstrap/wallets/payment.skey
 
-# Stage 0 — offline. Pick a SEED_UTXO from the wallet first; it'll be consumed
-# by 02-mint-and-lock.
+# Fund BOOTSTRAP_ADDR from the Preprod faucet. Wait for it to confirm.
+echo "$BOOTSTRAP_ADDR"   # paste this into the faucet form
+
+# Split the faucet drop into the 4 UTxO shapes the stages need.
+# Prints the UTxO refs (A, B, C, D) you'll use below.
+./infra/bootstrap/prep-utxos.sh
+
+# Take the UTxO refs from prep-utxos's output and pin them as env vars:
+FUNDING_STAGE1=<prep_txid>#0   # 85 ADA — A
+COLLATERAL=<prep_txid>#1       # 10 ADA — B (reused across stages)
+SEED=<prep_txid>#2             #  7 ADA — C
+FUNDING_STAGE3=<prep_txid>#3   # 45 ADA — D
+
+# Stage 0 — offline. Builds artifacts and parameterizes validators against the seed.
 ./contracts/build.sh config/network.preprod.json
-SEED_UTXO=<txid>#<idx>           # an unspent UTxO at BOOTSTRAP_ADDR
-NETWORK=$NETWORK SEED_UTXO=$SEED_UTXO ./infra/bootstrap/00-build-reference.sh
+SEED_UTXO=$SEED ./infra/bootstrap/00-build-reference.sh
 
 # Stage 1 — chains 4 txs (publish mix_box, mix_logic, fee_contract; register
-# mix_logic). Operator provides one FUNDING_UTXO and one COLLATERAL_UTXO.
-FUNDING_UTXO=<txid>#<idx> COLLATERAL_UTXO=<txid>#<idx> \
+# mix_logic). Wait for the chain's last tx to confirm.
+FUNDING_UTXO=$FUNDING_STAGE1 COLLATERAL_UTXO=$COLLATERAL \
   ./infra/bootstrap/01-publish-and-register.sh
 
-# Wait for stage 1 to confirm before continuing — addresses.json now has
-# referenceScriptUtxos populated.
-
-# Stage 2 — IRREVERSIBLE. Spends SEED_UTXO from stage 0; collateral separate.
-SEED_UTXO=$SEED_UTXO COLLATERAL_UTXO=<txid>#<idx> \
+# Stage 2 — IRREVERSIBLE. Spends $SEED, mints NFT, locks reference UTxO.
+SEED_UTXO=$SEED COLLATERAL_UTXO=$COLLATERAL \
   ./infra/bootstrap/02-mint-and-lock.sh
 # wait for confirmation
 
 # Stage 3 — seed 10 fee shards.
-FUNDING_UTXO=<txid>#<idx> ./infra/bootstrap/03-fund-fee-contract.sh
+FUNDING_UTXO=$FUNDING_STAGE3 ./infra/bootstrap/03-fund-fee-contract.sh
 ```
 
 Then commit:
