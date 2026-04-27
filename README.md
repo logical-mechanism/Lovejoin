@@ -103,13 +103,16 @@ Four stages under [`infra/bootstrap/`](infra/bootstrap/) — one operator comman
 3. **`02-mint-and-lock.sh`** — **irreversible.** Spends `SEED_UTXO`, mints the one-of-one NFT, locks at `reference_holder` with the inline `ProtocolParams` datum.
 4. **`03-fund-fee-contract.sh`** — seeds 10 shards at `fee_contract`.
 
-Recommended path is one command:
+Recommended path is one config file + one command:
 
 ```sh
+cp infra/bootstrap/.env.example infra/bootstrap/.env     # set NETWORK + node socket
 ./infra/bootstrap/init-wallet.sh                         # one-time keypair + per-network addrs
 # fund infra/bootstrap/wallets/payment.preprod.addr from the Preprod faucet
 ./infra/bootstrap/run.sh                                 # split → 0 → 1 → 2 → 3, with waits
 ```
+
+`.env` is gitignored. Every bootstrap script auto-sources it, so no `export` per shell.
 
 `run.sh` orchestrates the whole bootstrap with confirmation polling between stages, so you can walk away while it runs. It calls these helpers, all of which work standalone for debugging or recovery:
 

@@ -25,6 +25,9 @@
 
 set -euo pipefail
 
+__ENV_FILE="$(cd "$(dirname "$0")" && pwd)/.env"
+[[ -f "$__ENV_FILE" ]] && { set -a; source "$__ENV_FILE"; set +a; }
+
 WALLETS_DIR="$(cd "$(dirname "$0")" && pwd)/wallets"
 mkdir -p "$WALLETS_DIR"
 

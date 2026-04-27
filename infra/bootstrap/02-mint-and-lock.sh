@@ -34,6 +34,9 @@
 
 set -euo pipefail
 
+__ENV_FILE="$(cd "$(dirname "$0")" && pwd)/.env"
+[[ -f "$__ENV_FILE" ]] && { set -a; source "$__ENV_FILE"; set +a; }
+
 NETWORK="${NETWORK:-preprod}"
 TESTNET_MAGIC="${TESTNET_MAGIC:-1}"
 BOOTSTRAP_ADDR="${BOOTSTRAP_ADDR:?}"

@@ -117,20 +117,31 @@ The recommended path is **`run.sh`** — it drives everything end-to-end with
 confirmation polling between stages. Each per-stage script is still callable
 on its own for recovery / debugging.
 
-```sh
-# One-time setup.
-./infra/bootstrap/init-wallet.sh
+### Configure once via .env
 
-export NETWORK=preprod
-export TESTNET_MAGIC=1
-export CARDANO_NODE_SOCKET_PATH=/path/to/preprod-node.socket
+Every script under `infra/bootstrap/` auto-sources `infra/bootstrap/.env` if
+it exists. The file is gitignored (via the top-level `.env` pattern), so
+your live values stay local.
+
+```sh
+cp infra/bootstrap/.env.example infra/bootstrap/.env
+$EDITOR infra/bootstrap/.env       # set NETWORK, TESTNET_MAGIC, CARDANO_NODE_SOCKET_PATH
+```
+
+After that, no `export` per shell. CLI env-var passing still works for
+overrides (e.g. `NETWORK=preview ./balance.sh` overrides the .env value
+just for that invocation).
+
+### Bootstrap, end-to-end
+
+```sh
+./infra/bootstrap/init-wallet.sh                # one-time keypair + addrs
 
 # Fund infra/bootstrap/wallets/payment.preprod.addr from the Preprod faucet.
 cat infra/bootstrap/wallets/payment.preprod.addr
-./infra/bootstrap/balance.sh    # confirm the faucet drop arrived
+./infra/bootstrap/balance.sh                    # confirm the faucet drop
 
-# Run the whole thing.
-./infra/bootstrap/run.sh
+./infra/bootstrap/run.sh                        # split → 0 → 1 → 2 → 3, with waits
 ```
 
 `run.sh` does:

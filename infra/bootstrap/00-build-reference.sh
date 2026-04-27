@@ -23,6 +23,10 @@
 
 set -euo pipefail
 
+# Auto-load infra/bootstrap/.env (gitignored). See .env.example for the keys.
+__ENV_FILE="$(cd "$(dirname "$0")" && pwd)/.env"
+[[ -f "$__ENV_FILE" ]] && { set -a; source "$__ENV_FILE"; set +a; }
+
 NETWORK="${NETWORK:-preprod}"
 SEED_UTXO="${SEED_UTXO:?SEED_UTXO must be set to <txid>#<idx>}"
 REF_NFT_ASSET_NAME="${REF_NFT_ASSET_NAME:-6c6f76656a6f696e}"
