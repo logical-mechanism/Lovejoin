@@ -57,7 +57,7 @@
     {
       "id": "M2",
       "name": "Validators + Preprod bootstrap + N calibration",
-      "status": "pending",
+      "status": "in-progress",
       "depends_on": ["M1"],
       "spec": "docs/spec/09-milestones.md#m2--validators-3-of-them--preprod-bootstrap",
       "notes": [
