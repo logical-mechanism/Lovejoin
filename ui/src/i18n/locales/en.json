@@ -3,6 +3,7 @@
     "title": "Lovejoin",
     "tagline": "Sigmajoin privacy mixer on Cardano. Hyperstructure.",
     "status": "Pre-alpha — see docs/spec for design.",
+    "vertical_slice_banner": "M3.5 vertical slice — deposit + withdraw only. Mix lands in M4.",
     "connect_wallet": "Connect wallet",
     "disconnect_wallet": "Disconnect wallet"
   },
@@ -13,6 +14,24 @@
     "vault": "Vault",
     "withdraw": "Withdraw"
   },
+  "config": {
+    "section_title": "Configuration",
+    "network_label": "Network",
+    "blockfrost_label": "Blockfrost project ID",
+    "blockfrost_help": "Free key at blockfrost.io. Required for chain queries + tx submission.",
+    "save": "Save",
+    "saved": "Saved",
+    "missing_addresses": "addresses.{{network}}.json missing under ui/public/. Copy from artifacts/{{network}}/."
+  },
+  "wallet": {
+    "section_title": "Wallet",
+    "no_wallets": "No CIP-30 wallets detected. Install Lace, Eternl, or Nami.",
+    "connecting": "Connecting…",
+    "connected_as": "Connected as {{wallet}}",
+    "address": "Change address",
+    "refresh": "Refresh wallets",
+    "connect_error": "Failed to connect: {{message}}"
+  },
   "pool": {
     "size": "Pool size",
     "estimated_mixes_available": "Estimated mixes available",
@@ -20,11 +39,38 @@
     "mix_width": "Mix width (N)"
   },
   "deposit": {
+    "section_title": "Deposit",
     "rounds_label": "Mix rounds",
-    "rounds_help": "Higher rounds = more privacy. Funds the fee shard for future mixes."
+    "rounds_help": "Higher rounds = more privacy. Funds the fee shard for future mixes.",
+    "submit": "Deposit",
+    "submitting": "Building deposit…",
+    "success": "Deposit submitted. Tx {{txId}}",
+    "error": "Deposit failed: {{message}}"
+  },
+  "boxes": {
+    "section_title": "My boxes (this session)",
+    "empty": "Nothing yet. Successful deposits will land here.",
+    "empty_hint": "Persistence across reloads is M6 — for now keep this tab open until you withdraw.",
+    "header_label": "Label",
+    "header_secret": "Owner secret",
+    "header_tx": "Deposit tx",
+    "header_action": "Action",
+    "use_for_withdraw": "Use",
+    "copy": "Copy"
   },
   "withdraw": {
+    "section_title": "Withdraw",
+    "from_my_boxes": "From: {{label}}",
+    "select_a_box": "Select a deposited box from the list, or paste below.",
+    "secret_label": "Owner secret (32-byte hex)",
+    "box_ref_label": "Mix-box ref (txId#index)",
+    "box_a_label": "Mix-box a (48-byte hex)",
+    "box_b_label": "Mix-box b (48-byte hex)",
     "destination_label": "Destination address",
+    "submit": "Withdraw",
+    "submitting": "Building withdraw…",
+    "success": "Withdraw submitted. Tx {{txId}}",
+    "error": "Withdraw failed: {{message}}",
     "seedelf_detected": "Seedelf address detected. Wallet identity will be hidden after withdraw.",
     "seedelf_hint": "Use a Seedelf address to hide your wallet identity at the destination."
   },

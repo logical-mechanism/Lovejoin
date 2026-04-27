@@ -112,7 +112,8 @@ describe("loadAddresses", () => {
     const addresses = await loadAddresses("preprod");
     expect(addresses).toEqual(fakeAddresses);
     expect(fetchMock).toHaveBeenCalledTimes(1);
-    const url = String(fetchMock.mock.calls[0]?.[0] ?? "");
+    const firstCall = fetchMock.mock.calls[0] as unknown as [unknown, unknown];
+    const url = String(firstCall[0] ?? "");
     expect(url).toMatch(/addresses\.preprod\.json$/);
   });
 
