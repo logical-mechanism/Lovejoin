@@ -46,3 +46,35 @@ for marking M2 fully `done`.
 
 Once items 1–4 produce numbers, append the calibration runs below in
 chronological order.
+
+## M3 — mesh viability assessment (2026-04-27)
+
+**Question:** can `@meshsdk/core@1.8.14`'s `MeshTxBuilder` build the three
+Lovejoin tx shapes — Deposit, Withdraw, and (the harder one) Mix?
+
+**Method:** static read of mesh's TS surface against the spec's tx
+diagrams (docs/spec/01-protocol.md), plus type-level wiring in
+`offchain/src/tx/{deposit,withdraw}.ts` against `MeshTxBuilder`'s
+fluent API. No Preprod submission yet — that is the M3 integration
+test's job, not the SDK module's.
+
+**Findings:**
+
+| Shape             | mesh fit | Notes |
+|-------------------|----------|-------|
+| Deposit           | clean    | `txIn` (script, fee shard, Replenish) + `txOut` (mix-box, fee replen) + `selectUtxosFrom` (wallet) + `txInCollateral` (wallet) covers it. Reference inputs via `readOnlyTxInReference`. CIP-33 reference scripts via `spendingTxInReference`. |
+| Withdraw          | clean    | Adds the withdraw-zero leg (`withdrawalPlutusScriptV3` + `withdrawal(rewardAddr, "0")` + `withdrawalRedeemerValue` + `withdrawalTxInReference`). Mix-box spend uses an unused `Void`-shaped redeemer (mesh requires *some* CBOR; we pass `d87980`). Two-pass build to bind the Schnorr proof to final outputs is straightforward — same redeemer size on both passes keeps fee + outputs stable. |
+| Mix (deferred M4) | **unverified — biggest open risk** | The unconventional shape (no submitter wallet input, externally-supplied collateral input + key witness, exact-fee constraint linking shard input value to shard output value via `tx.fee`) is exactly the case spec build-guide §Risk 2 calls out. mesh's `txInCollateral` accepts a UTxO ref + amount + address but the witness for the collateral input must come via the wallet's `signTx` path; we need a way to inject an externally-pre-signed `VkeyWitness` directly. Path forward: (a) check whether mesh's `appendWitness` / `setSigners` accepts a raw vkey witness; (b) if not, switch to lucid-evolution before going deep on M4 Mix. Resolved at M4 start. |
+
+**Decision (M3 close):** mesh stays. Deposit + withdraw are buildable
+with mesh's first-class API. Mix viability is M4's first test.
+
+**Encoding parity for `serialise_data(self.outputs)`:** the Withdraw
+Schnorr proof's `ctx` requires a TS encoder that byte-matches Aiken's
+`builtin.serialise_data`. We rely on mesh's CST bindings
+(`@meshsdk/core-cst`) inside `tx/withdraw.ts`'s `serializeOutputsForCtx`
+helper — see the comment block there. The Preprod integration test on
+Withdraw is the parity test; if it fails with "Schnorr verify rejected"
+on a tx whose math is correct, that helper is the single point of
+failure to debug.
+
