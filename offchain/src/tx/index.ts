@@ -8,3 +8,5 @@
 export * from "./params.js";
 export * from "./fee.js";
 export * from "./collateral.js";
+export * from "./address.js";
+export * from "./deposit.js";
