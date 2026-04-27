@@ -15,14 +15,14 @@
 ////      anyone can sweep them.
 
 use aiken/collection/pairs
+use aiken/crypto.{ScriptHash}
 use cardano/address.{Credential, Script}
 use cardano/transaction.{OutputReference, Transaction}
 use lovejoin/mixbox.{try_decode_well_formed_optional}
 
-// Flat param (mix_logic_script_hash: ByteArray) so `aiken blueprint apply` can
-// supply it as a single CBOR bytes atom. We build the Credential from the hash
-// inside the body.
-validator mix_box(mix_logic_script_hash: ByteArray) {
+// Flat param (ScriptHash of mix_logic) — one CBOR bytes atom for
+// `aiken blueprint apply`. We build the Credential from the hash inside.
+validator mix_box(mix_logic_script_hash: ScriptHash) {
   spend(
     datum: Option<Data>,
     _redeemer: Data,

@@ -134,15 +134,12 @@ echo "==> Parameterizing fee_contract(reference_nft_policy, asset_name)"
 parameterize fee_contract "fee_contract =" "$REF_NFT_POLICY_CBOR" "$REF_NFT_NAME_CBOR"
 FEE_HASH=$(cat "$ARTIFACTS_DIR/fee_contract.hash")
 
-# --- step 5: reference_holder (no params) ----------------------------------
-echo "==> Emitting reference_holder (no params)"
-( cd "$REPO_ROOT/contracts" && aiken blueprint convert -m reference_holder ) \
-  > "$ARTIFACTS_DIR/reference_holder.plutus"
-cardano-cli conway transaction policyid \
-  --script-file "$ARTIFACTS_DIR/reference_holder.plutus" \
-  > "$ARTIFACTS_DIR/reference_holder.hash"
+# --- step 5: reference_holder(reference_nft_policy, asset_name) -----------
+# Parameterized with the NFT identity so each protocol deployment gets a
+# unique reference_holder address even though the body is always-False.
+echo "==> Parameterizing reference_holder(reference_nft_policy, asset_name)"
+parameterize reference_holder "reference =" "$REF_NFT_POLICY_CBOR" "$REF_NFT_NAME_CBOR"
 REF_HOLDER_HASH=$(cat "$ARTIFACTS_DIR/reference_holder.hash")
-printf "    %-16s %s\n" "reference =" "$REF_HOLDER_HASH"
 
 # --- update addresses.json --------------------------------------------------
 TMP=$(mktemp)

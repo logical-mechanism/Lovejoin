@@ -25,24 +25,22 @@ use cardano/transaction.{InlineDatum, Input, Output, Transaction}
 use lovejoin/mixbox.{
   output_at_script, try_decode_well_formed_inline,
 }
-use lovejoin/reference.{read_protocol_params}
+use cardano/assets.{AssetName, PolicyId}
+use lovejoin/reference.{read_reference_datum}
 use lovejoin/schnorr
 use lovejoin/sigma_or.{DHTupleStatement, SigmaOrProof}
-use lovejoin/types.{
-  MixDatum, MixLogicRedeemer, Mix, Owner, ProtocolParams, ReferenceParams,
-}
+use lovejoin/types.{MixDatum, Mix, MixLogicRedeemer, Owner, ReferenceDatum}
 
-// Flat params (reference_nft_policy, reference_nft_name) so `aiken blueprint
-// apply` can supply them as separate CBOR atoms.
-validator mix_logic(reference_nft_policy: ByteArray, reference_nft_name: ByteArray) {
+// Flat params (PolicyId, AssetName of the protocol's reference NFT) — one
+// CBOR atom per `aiken blueprint apply` call.
+validator mix_logic(reference_nft_policy: PolicyId, reference_nft_name: AssetName) {
   withdraw(redeemer: MixLogicRedeemer, _account: Credential, self: Transaction) {
-    let ref = ReferenceParams { reference_nft_policy, reference_nft_name }
-    let params = read_protocol_params(self, ref)
-    let mix_inputs = collect_well_formed_mix_inputs(self, params.mix_script_hash)
+    let datum = read_reference_datum(self, reference_nft_policy, reference_nft_name)
+    let mix_inputs = collect_well_formed_mix_inputs(self, datum.mix_script_hash)
 
     when redeemer is {
-      Owner { proof } -> validate_owner(self, params, mix_inputs, proof)
-      Mix { proofs } -> validate_mix(self, params, mix_inputs, proofs)
+      Owner { proof } -> validate_owner(self, datum, mix_inputs, proof)
+      Mix { proofs } -> validate_mix(self, datum, mix_inputs, proofs)
     }
   }
 
@@ -67,7 +65,7 @@ validator mix_logic(reference_nft_policy: ByteArray, reference_nft_name: ByteArr
 
 fn validate_owner(
   self: Transaction,
-  params: ProtocolParams,
+  datum: ReferenceDatum,
   mix_inputs: List<MixDatum>,
   proof: schnorr.SchnorrProof,
 ) -> Bool {
@@ -76,7 +74,7 @@ fn validate_owner(
   // ctx = blake2b_256( serialize(self.outputs) || mix_script_hash )
   let outputs_bytes = builtin.serialise_data(self.outputs)
   let ctx_preimage =
-    outputs_bytes |> bytearray.concat(params.mix_script_hash)
+    outputs_bytes |> bytearray.concat(datum.mix_script_hash)
   let ctx = builtin.blake2b_256(ctx_preimage)
 
   // Owner: prover knows x with b = [x] a → Schnorr with base = a, u = b.
@@ -89,32 +87,32 @@ fn validate_owner(
 
 fn validate_mix(
   self: Transaction,
-  params: ProtocolParams,
+  datum: ReferenceDatum,
   mix_inputs: List<MixDatum>,
   proofs: List<SigmaOrProof>,
 ) -> Bool {
   let n = list.length(mix_inputs)
   expect n >= 2
-  expect n <= params.max_n
+  expect n <= datum.max_n
   expect list.length(proofs) == n
 
   // Outputs at mix_script_hash MUST occupy the first N positions; later positions
   // (typically the fee-contract output and change) must NOT be at the mix script.
   let prefix_outputs = list.take(self.outputs, n)
   let tail_outputs = list.drop(self.outputs, n)
-  expect list.all(prefix_outputs, fn(o) { output_at_script(o, params.mix_script_hash) })
-  expect list.all(tail_outputs, fn(o) { !output_at_script(o, params.mix_script_hash) })
+  expect list.all(prefix_outputs, fn(o) { output_at_script(o, datum.mix_script_hash) })
+  expect list.all(tail_outputs, fn(o) { !output_at_script(o, datum.mix_script_hash) })
 
   // Per-output well-formedness (denom, no native assets, valid MixDatum).
   let mix_output_data: List<MixDatum> =
-    list.map(prefix_outputs, fn(o) { check_and_decode_mix_output(o, params) })
+    list.map(prefix_outputs, fn(o) { check_and_decode_mix_output(o, datum) })
 
   // ctx = blake2b_256(
   //     serialise(out_0.datum) || ... || serialise(out_{N-1}.datum)
   //  || serialise(out_0.value) || ... || serialise(out_{N-1}.value)
   //  || mix_script_hash
   // )
-  let ctx = compute_mix_ctx(prefix_outputs, params.mix_script_hash)
+  let ctx = compute_mix_ctx(prefix_outputs, datum.mix_script_hash)
 
   // Build the OR-statement vector once: every input's OR-proof is over the SAME N
   // output (a', b') pairs.
@@ -131,10 +129,10 @@ fn validate_mix(
   })
 }
 
-fn check_and_decode_mix_output(output: Output, params: ProtocolParams) -> MixDatum {
+fn check_and_decode_mix_output(output: Output, datum: ReferenceDatum) -> MixDatum {
   // Lovelace == denom and no native assets. Same `ada_only` check as fee_contract.
   expect ada_only(output.value)
-  expect assets.lovelace_of(output.value) == params.denom_lovelace
+  expect assets.lovelace_of(output.value) == datum.denom_lovelace
   expect Some(d) = try_decode_well_formed_inline(output.datum)
   d
 }

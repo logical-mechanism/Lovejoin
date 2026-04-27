@@ -11,7 +11,7 @@ use aiken/primitive/bytearray as aiken_bytearray
 use cardano/address.{Address, Credential, Script, VerificationKey}
 use cardano/assets.{Value}
 use cardano/transaction.{InlineDatum, Input, NoDatum, Output, OutputReference}
-use lovejoin/types.{MixDatum, ProtocolParams, ReferenceDatum, ReferenceParams}
+use lovejoin/types.{MixDatum, ReferenceDatum}
 
 // ---------------------------------------------------------------------------
 // Reusable byte-array constants
@@ -60,8 +60,8 @@ pub const c48: ByteArray =
 // Defaults
 // ---------------------------------------------------------------------------
 
-pub fn default_protocol_params() -> ProtocolParams {
-  ProtocolParams {
+pub fn default_reference_datum() -> ReferenceDatum {
+  ReferenceDatum {
     denom_lovelace: denom_lovelace,
     max_fee_per_mix_lovelace: max_fee_per_mix_lovelace,
     max_n: max_n,
@@ -70,14 +70,6 @@ pub fn default_protocol_params() -> ProtocolParams {
     fee_script_hash: fee_script_hash,
     fee_shard_target: fee_shard_target,
   }
-}
-
-pub fn default_reference_params() -> ReferenceParams {
-  ReferenceParams { reference_nft_policy: ref_nft_policy, reference_nft_name: ref_nft_name }
-}
-
-pub fn default_reference_datum() -> ReferenceDatum {
-  ReferenceDatum { protocol: default_protocol_params() }
 }
 
 // ---------------------------------------------------------------------------
@@ -124,9 +116,10 @@ pub fn script_credential(hash: ByteArray) -> Credential {
 // ---------------------------------------------------------------------------
 
 /// An Input that holds the reference NFT and an InlineDatum carrying the
-/// supplied `ProtocolParams`. Use this in `reference_inputs` of a synthetic tx.
-pub fn reference_input_with(params: ProtocolParams) -> Input {
-  let datum: Data = ReferenceDatum { protocol: params }
+/// supplied flat `ReferenceDatum`. Use this in `reference_inputs` of a
+/// synthetic tx.
+pub fn reference_input_with(ref_datum: ReferenceDatum) -> Input {
+  let datum: Data = ref_datum
   Input {
     output_reference: out_ref(0xee, 0),
     output: Output {
@@ -143,9 +136,9 @@ pub fn reference_input_with(params: ProtocolParams) -> Input {
   }
 }
 
-/// Default reference input using the default ProtocolParams.
+/// Default reference input using the default `ReferenceDatum`.
 pub fn default_reference_input() -> Input {
-  reference_input_with(default_protocol_params())
+  reference_input_with(default_reference_datum())
 }
 
 // ---------------------------------------------------------------------------

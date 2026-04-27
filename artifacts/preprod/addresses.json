@@ -9,10 +9,10 @@
   "referenceNftPolicy": "17f0a9ea13a38b0037364bbbb01d04f518a637bedf7c679458775f9a",
   "referenceNftAssetName": "6c6f76656a6f696e",
   "referenceUtxoRef": null,
-  "referenceHolderScriptHash": "288fea77a0f674c6080aadd8ed3ca42cd5a920bf1f00c0d3e63306e4",
-  "mixLogicScriptHash": "0dfe43e222b17f9eea108d045bb76a50ed47b4cda6552734ca079a43",
-  "mixBoxScriptHash": "a6f997d6e11fb2fad21049a4f063a51ca62f9d5682afa10789e65223",
-  "feeScriptHash": "4923d4e699ddd60528b3465ac9cedff911d8da05f364de6a2c2b8175",
+  "referenceHolderScriptHash": "560297b6a969be1aab1d2b67c4bf76cf21d195d03b424f92e1ae6f96",
+  "mixLogicScriptHash": "3e3e76b5490be9f6e45379a1b03d710383d6e8a9745ffc928ee521cf",
+  "mixBoxScriptHash": "edea81e4dea70f0ee0f7ced52289002e5af99b188e93fceb554014b4",
+  "feeScriptHash": "e85e9ccb83f02234b84847ed6d06dc49dbe3b8f91a2cd18cb9aad040",
   "feeShardUtxos": [],
   "referenceScriptUtxos": {}
 }
