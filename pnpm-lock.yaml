@@ -32,6 +32,9 @@ importers:
       '@meshsdk/core':
         specifier: 1.8.14
         version: 1.8.14(@babel/core@7.29.0)(@bufbuild/protobuf@1.10.1)(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(bare-url@2.4.2)(bufferutil@4.1.0)(react-dom@19.2.5(react@19.2.5))(react@19.2.5)(rxjs@7.8.2)(utf-8-validate@6.0.6)
+      '@meshsdk/core-cst':
+        specifier: 1.8.14
+        version: 1.8.14(bufferutil@4.1.0)(rxjs@7.8.2)(utf-8-validate@6.0.6)
       '@noble/curves':
         specifier: 2.2.0
         version: 2.2.0
@@ -4144,8 +4147,8 @@ snapshots:
     dependencies:
       '@cardano-ogmios/client': 6.3.0(bufferutil@4.1.0)(utf-8-validate@6.0.6)
       '@cardano-ogmios/schema': 6.3.0
-      '@cardano-sdk/crypto': 0.1.28
-      '@cardano-sdk/util': 0.15.4
+      '@cardano-sdk/crypto': 0.1.32
+      '@cardano-sdk/util': 0.15.7
       '@cardano-sdk/util-dev': 0.21.8(bufferutil@4.1.0)(utf-8-validate@6.0.6)
       '@foxglove/crc': 0.0.3
       '@scure/base': 1.2.6
@@ -4173,7 +4176,7 @@ snapshots:
       '@cardano-ogmios/client': 6.5.0(bufferutil@4.1.0)(utf-8-validate@6.0.6)
       '@cardano-ogmios/schema': 6.5.0
       '@cardano-sdk/crypto': 0.1.32
-      '@cardano-sdk/util': 0.15.4
+      '@cardano-sdk/util': 0.15.7
       '@cardano-sdk/util-dev': 0.22.10(bufferutil@4.1.0)(utf-8-validate@6.0.6)
       '@foxglove/crc': 0.0.3
       '@scure/base': 1.2.6
@@ -4250,7 +4253,7 @@ snapshots:
 
   '@cardano-sdk/crypto@0.1.28':
     dependencies:
-      '@cardano-sdk/util': 0.15.4
+      '@cardano-sdk/util': 0.15.7
       blake2b: 2.1.4
       i: 0.3.7
       libsodium-wrappers-sumo: 0.7.16
@@ -4299,7 +4302,7 @@ snapshots:
       '@cardano-sdk/core': 0.36.0(bufferutil@4.1.0)(rxjs@7.8.2)(utf-8-validate@6.0.6)
       '@cardano-sdk/crypto': 0.1.32
       '@cardano-sdk/dapp-connector': 0.12.48(bufferutil@4.1.0)(rxjs@7.8.2)(utf-8-validate@6.0.6)
-      '@cardano-sdk/util': 0.15.4
+      '@cardano-sdk/util': 0.15.7
       '@emurgo/cardano-message-signing-nodejs': 1.1.0
       bip39: 3.1.0
       chacha: 2.1.0
@@ -4347,9 +4350,9 @@ snapshots:
   '@cardano-sdk/util-dev@0.21.8(bufferutil@4.1.0)(utf-8-validate@6.0.6)':
     dependencies:
       '@cardano-sdk/core': 0.35.4(bufferutil@4.1.0)(rxjs@7.8.2)(utf-8-validate@6.0.6)
-      '@cardano-sdk/crypto': 0.1.28
+      '@cardano-sdk/crypto': 0.1.32
       '@cardano-sdk/key-management': 0.21.2(bufferutil@4.1.0)(utf-8-validate@6.0.6)
-      '@cardano-sdk/util': 0.15.4
+      '@cardano-sdk/util': 0.15.7
       '@types/dockerode': 3.3.47
       axios: 0.28.1
       delay: 5.0.0
