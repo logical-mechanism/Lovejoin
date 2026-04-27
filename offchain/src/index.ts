@@ -11,3 +11,4 @@ export * from "./chain/index.js";
 // M3: tx-builder surface (deposit + withdraw + collateral provider). See
 // docs/spec/04-offchain.md and docs/spec/09-milestones.md M3.
 export * from "./tx/index.js";
+export * from "./wallet/index.js";
