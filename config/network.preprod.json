@@ -1,0 +1,17 @@
+{
+  "network": "preprod",
+  "denom_lovelace": 10000000,
+  "max_fee_per_mix_lovelace": 800000,
+  "max_n": 6,
+  "fee_shard_target": 10,
+  "min_mix_rounds": 5,
+  "default_mix_rounds": 30,
+  "mix_script_hash": null,
+  "fee_script_hash": null,
+  "reference_nft_policy": null,
+  "reference_nft_asset_name": null,
+  "reference_utxo_ref": null,
+  "ogmios_url": "ws://localhost:1337",
+  "dbsync_url": null,
+  "collateral_provider_endpoint": "https://giveme.my"
+}

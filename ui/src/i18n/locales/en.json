@@ -1,0 +1,35 @@
+{
+  "app": {
+    "title": "Lovejoin",
+    "tagline": "Sigmajoin privacy mixer on Cardano. Hyperstructure.",
+    "status": "Pre-alpha — see docs/spec for design.",
+    "connect_wallet": "Connect wallet",
+    "disconnect_wallet": "Disconnect wallet"
+  },
+  "nav": {
+    "home": "Home",
+    "deposit": "Deposit",
+    "pool": "Pool",
+    "vault": "Vault",
+    "withdraw": "Withdraw"
+  },
+  "pool": {
+    "size": "Pool size",
+    "estimated_mixes_available": "Estimated mixes available",
+    "mix_n_random_boxes": "Mix N random boxes",
+    "mix_width": "Mix width (N)"
+  },
+  "deposit": {
+    "rounds_label": "Mix rounds",
+    "rounds_help": "Higher rounds = more privacy. Funds the fee shard for future mixes."
+  },
+  "withdraw": {
+    "destination_label": "Destination address",
+    "seedelf_detected": "Seedelf address detected. Wallet identity will be hidden after withdraw.",
+    "seedelf_hint": "Use a Seedelf address to hide your wallet identity at the destination."
+  },
+  "collateral_provider": {
+    "ok": "Collateral provider online",
+    "down": "Collateral provider unreachable. Mix is disabled until it recovers."
+  }
+}

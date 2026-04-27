@@ -1,0 +1,59 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  contracts:
+    name: Aiken (lint + test)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Aiken
+        run: |
+          curl -sSfL https://install.aiken-lang.org | bash
+          echo "$HOME/.aiken/bin" >> "$GITHUB_PATH"
+
+      - name: Pin Aiken 1.1.21
+        run: aikup install 1.1.21 && aikup use 1.1.21
+
+      - name: aiken --version
+        run: aiken --version
+
+      - name: aiken check
+        working-directory: contracts
+        run: aiken check
+
+  ts:
+    name: TS (lint + build + test)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.28.2
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - name: Install
+        run: pnpm install --frozen-lockfile
+
+      - name: Lint
+        run: pnpm -r --filter ./offchain --filter ./backend --filter ./ui run lint
+
+      - name: Build
+        run: pnpm -r --filter ./offchain --filter ./backend --filter ./ui run build
+
+      - name: Test
+        run: pnpm -r --filter ./offchain --filter ./backend --filter ./ui run test

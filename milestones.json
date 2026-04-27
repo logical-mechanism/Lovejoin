@@ -1,0 +1,194 @@
+{
+  "schema_version": 1,
+  "milestones": [
+    {
+      "id": "M0",
+      "name": "Foundations and tooling",
+      "status": "done",
+      "depends_on": [],
+      "spec": "docs/spec/09-milestones.md#m0--foundations-and-tooling",
+      "deliverables": [
+        "Monorepo skeleton (contracts/, offchain/, backend/, ui/, infra/, integration-tests/, stress-tests/, crypto/, bench/)",
+        "Aiken 1.1.21 pinned in contracts/aiken.toml",
+        "TS packages with vitest configured (offchain, backend)",
+        "UI scaffolded with React 19 + Vite + Tailwind v4 + react-i18next + en.json",
+        "Makefile with: build, test, ui-dev, backend-dev",
+        "GitHub Actions: lint + test on every PR",
+        "config/network.test.json and config/network.preprod.json",
+        "package.json at repo root wiring up pnpm workspaces"
+      ],
+      "exit_criteria": [
+        { "description": "Aiken version pinned to 1.1.21", "check": "grep -F '1.1.21' contracts/aiken.toml" },
+        { "description": "make build exits 0", "check": "make build" },
+        { "description": "make test exits 0", "check": "make test" },
+        { "description": "config/network.test.json exists and parses", "check": "node -e \"JSON.parse(require('fs').readFileSync('config/network.test.json','utf8'))\"" },
+        { "description": "config/network.preprod.json exists and parses", "check": "node -e \"JSON.parse(require('fs').readFileSync('config/network.preprod.json','utf8'))\"" },
+        { "description": "react-i18next is a UI dependency", "check": "grep -F 'react-i18next' ui/package.json" },
+        { "description": "en.json locale file exists", "check": "test -f ui/src/i18n/locales/en.json" },
+        { "description": "GitHub Actions workflow exists", "check": "test -f .github/workflows/ci.yml" }
+      ]
+    },
+    {
+      "id": "M1",
+      "name": "Cryptography (variable N)",
+      "status": "pending",
+      "depends_on": ["M0"],
+      "spec": "docs/spec/09-milestones.md#m1--cryptography-variable-n",
+      "deliverables": [
+        "TS sigma protocols (Schnorr, DH-tuple, N-way sigma-OR) in offchain/src/crypto/",
+        "Aiken verifiers in contracts/lib/lovejoin/{schnorr,dhtuple,sigma_or}.ak",
+        "Rust reference impl using blst in crypto/ref/",
+        "RFC 6979 deterministic nonce derivation in offchain/src/crypto/nonce.ts",
+        "Encoding-parity test (TS hash output == Aiken hash output for 1000 random inputs)",
+        "KAT vectors in crypto/test-vectors/{provedlog,provedhtuple,sigma-or,negative}.json at N ∈ {2,3,4,6,8}",
+        "All KAT vectors verify in TS, Aiken, and Rust ref",
+        "All negative vectors are rejected by all three impls"
+      ],
+      "exit_criteria": [
+        { "description": "TS encoding-parity test passes", "check": "pnpm --filter @lovejoin/sdk test -- encoding-parity" },
+        { "description": "TS crypto unit tests pass", "check": "pnpm --filter @lovejoin/sdk test -- crypto" },
+        { "description": "Aiken crypto tests pass", "check": "cd contracts && aiken check" },
+        { "description": "Rust reference tests pass", "check": "cd crypto/ref && cargo test --release" },
+        { "description": "KAT vector files exist", "check": "test -f crypto/test-vectors/provedlog.json && test -f crypto/test-vectors/provedhtuple.json && test -f crypto/test-vectors/sigma-or.json && test -f crypto/test-vectors/negative.json" },
+        { "description": "Sigma-OR KATs cover N values 2,3,4,6,8", "check": "node -e \"const v = JSON.parse(require('fs').readFileSync('crypto/test-vectors/sigma-or.json','utf8')); const ns = new Set(v.map(x => x.N)); for (const n of [2,3,4,6,8]) if (!ns.has(n)) { console.error('missing N=' + n); process.exit(1); }\"" },
+        { "description": "RFC 6979 reproducibility: same (x, msg) yields byte-identical proof", "check": "pnpm --filter @lovejoin/sdk test -- rfc6979-determinism" }
+      ]
+    },
+    {
+      "id": "M2",
+      "name": "Validators + Preprod bootstrap + N calibration",
+      "status": "pending",
+      "depends_on": ["M1"],
+      "spec": "docs/spec/09-milestones.md#m2--validators-3-of-them--preprod-bootstrap",
+      "deliverables": [
+        "validators/{reference_holder,one_shot_mint,mix_box,fee_contract}.ak compiled successfully",
+        "Mix branch handles variable N at runtime (2 ≤ N ≤ max_n)",
+        "test files cover every rule with positive + negative tests at multiple N values",
+        "contracts/build.sh produces artifacts/<network>/{*.plutus, addresses.json}",
+        "infra/bootstrap/00-build-reference.sh, 01-mint-and-lock.sh, 02-fund-fee-contract.sh, 03-publish-reference-scripts.sh",
+        "Reference NFT minted on Preprod, locked at reference_holder",
+        "10 fee shards funded on Preprod",
+        "Reference scripts published as CIP-33 references on Preprod",
+        "stress-tests/max-n-calibration.ts and stress-tests/fee-calibration.ts run against Preprod and update network.preprod.json",
+        "docs/perf.md committed with empirical numbers",
+        "30-minute fuzz run completes with no panics or unexpected accepts"
+      ],
+      "exit_criteria": [
+        { "description": "All Aiken validator tests pass", "check": "cd contracts && aiken check" },
+        { "description": "Aiken contracts build successfully", "check": "cd contracts && aiken build" },
+        { "description": "artifacts/preprod/addresses.json exists and has reference NFT info", "check": "node -e \"const a = JSON.parse(require('fs').readFileSync('artifacts/preprod/addresses.json','utf8')); if (!a.referenceNftPolicy || !a.referenceUtxoRef) { console.error('missing reference NFT'); process.exit(1); }\"" },
+        { "description": "docs/perf.md exists", "check": "test -f docs/perf.md" },
+        { "description": "max_n recorded in network.preprod.json", "check": "node -e \"const c = JSON.parse(require('fs').readFileSync('config/network.preprod.json','utf8')); if (!c.max_n || c.max_n < 2) { console.error('max_n not set or invalid'); process.exit(1); }\"" },
+        { "description": "Mix tx CPU at max_n is under 70% of mainnet limit", "check": "test -f docs/perf.md && grep -E 'cpu_pct.*[0-6][0-9]\\.|cpu_pct.*70\\.0' docs/perf.md" },
+        { "description": "Fuzz test passes a 30-minute run", "check": "test -f tests/fuzz/last-run-status.txt && grep -q PASS tests/fuzz/last-run-status.txt" }
+      ]
+    },
+    {
+      "id": "M3",
+      "name": "SDK: deposit + withdraw + collateral provider client",
+      "status": "pending",
+      "depends_on": ["M2"],
+      "spec": "docs/spec/09-milestones.md#m3--sdk-deposit--withdraw",
+      "deliverables": [
+        "offchain/src/tx/{deposit,withdraw,fee,params,collateral}.ts",
+        "offchain/src/wallet/cip30.ts mesh integration",
+        "GivemeMyProvider implementation against giveme.my Preprod endpoint",
+        "WalletProvider implementation for Deposit/Withdraw fallback",
+        "lovejoin CLI: deposit and withdraw subcommands",
+        "Mesh viability check: confirms mesh handles externally-supplied collateral; fallback to lucid-evolution documented if blocked",
+        "Integration test on Preprod: deposit (with Replenish), withdraw to a different address — passes 10 consecutive runs"
+      ],
+      "exit_criteria": [
+        { "description": "SDK builds without errors", "check": "pnpm --filter @lovejoin/sdk build" },
+        { "description": "SDK unit tests pass", "check": "pnpm --filter @lovejoin/sdk test" },
+        { "description": "lovejoin CLI is executable", "check": "test -x offchain/dist/cli/index.js || pnpm --filter @lovejoin/sdk run cli -- --help" },
+        { "description": "Preprod integration test deposit-withdraw passes", "check": "pnpm --filter integration-tests test -- deposit-withdraw" },
+        { "description": "Mesh viability decision documented", "check": "grep -F 'mesh viability' docs/spec/11-open-questions.md || grep -F 'mesh viability' docs/perf.md || grep -rli 'mesh viability' docs/" }
+      ]
+    },
+    {
+      "id": "M4",
+      "name": "Mix tx builder (variable N + collateral provider)",
+      "status": "pending",
+      "depends_on": ["M3"],
+      "spec": "docs/spec/09-milestones.md#m4--mix-tx-builder",
+      "deliverables": [
+        "offchain/src/tx/mix.ts variable-N Mix tx builder",
+        "offchain/src/pool/{identify,select}.ts pool scanner and uniform random N-tuple selector",
+        "lovejoin CLI: mix subcommand with --n and --rounds",
+        "Integration tests: 30 mixes at varied N, full lifecycle, fee-shard exhaustion behavior, collateral provider unreachable behavior",
+        "All integration tests pass 10 consecutive runs"
+      ],
+      "exit_criteria": [
+        { "description": "Mix tx builder unit tests pass", "check": "pnpm --filter @lovejoin/sdk test -- mix" },
+        { "description": "Pool selector unit tests pass", "check": "pnpm --filter @lovejoin/sdk test -- pool" },
+        { "description": "Preprod integration test full-lifecycle passes", "check": "pnpm --filter integration-tests test -- full-lifecycle" },
+        { "description": "Preprod integration test mix-n2 passes", "check": "pnpm --filter integration-tests test -- mix-n2" },
+        { "description": "Preprod integration test mix-at-max-n passes", "check": "pnpm --filter integration-tests test -- mix-at-max-n" },
+        { "description": "Preprod integration test fee-exhaustion passes", "check": "pnpm --filter integration-tests test -- fee-exhaustion" }
+      ]
+    },
+    {
+      "id": "M5",
+      "name": "Backend indexer + API",
+      "status": "pending",
+      "depends_on": ["M2"],
+      "spec": "docs/spec/09-milestones.md#m5--backend-indexer--api",
+      "deliverables": [
+        "backend/src/indexer/{ogmios,pool,fee,reference,reorg}.ts",
+        "backend/src/api/ with all routes from 05-backend.md",
+        "backend/Dockerfile",
+        "Load test demonstrates p99 < 100ms for /pool with 50k boxes",
+        "Recovery test demonstrates 500-block rollback recovery",
+        "Reference-UTxO sanity alarm test"
+      ],
+      "exit_criteria": [
+        { "description": "Backend builds", "check": "pnpm --filter backend build" },
+        { "description": "Backend unit tests pass", "check": "pnpm --filter backend test" },
+        { "description": "Load test exists and passes", "check": "pnpm --filter backend test -- load" },
+        { "description": "Rollback recovery test passes", "check": "pnpm --filter backend test -- reorg" },
+        { "description": "API tests pass", "check": "pnpm --filter backend test -- api" }
+      ]
+    },
+    {
+      "id": "M6",
+      "name": "UI v1",
+      "status": "pending",
+      "depends_on": ["M3", "M4", "M5"],
+      "spec": "docs/spec/09-milestones.md#m6--ui-v1",
+      "deliverables": [
+        "All screens from 06-ui.md (Home, Deposit, Pool, Vault, Box, Withdraw)",
+        "Wallet integration via mesh + CIP-30",
+        "IndexedDB encrypted storage for box secrets (Argon2id passphrase)",
+        "i18n English at minimum; lint rule against raw English in JSX",
+        "N-width slider on Pool screen",
+        "Collateral provider status indicator + disabled-mix-button when down",
+        "Seedelf destination detection on Withdraw screen",
+        "E2E Playwright test on Preprod"
+      ],
+      "exit_criteria": [
+        { "description": "UI builds for production", "check": "pnpm --filter ui build" },
+        { "description": "UI unit tests pass", "check": "pnpm --filter ui test" },
+        { "description": "i18n lint rule passes", "check": "pnpm --filter ui lint" },
+        { "description": "E2E Playwright test passes on Preprod", "check": "pnpm --filter ui test:e2e" }
+      ]
+    },
+    {
+      "id": "M7",
+      "name": "CI/CD and release engineering",
+      "status": "pending",
+      "depends_on": ["M0", "M1", "M2", "M3", "M4", "M5", "M6"],
+      "spec": "docs/spec/09-milestones.md#m7--cicd-and-release-engineering",
+      "deliverables": [
+        "GitHub Actions workflow that on PR + merge: builds all, runs unit + validator + property tests, runs integration nightly on Preprod, runs fuzz nightly 30 min",
+        "On merge to main: publishes SDK to npm (dev tag), builds backend Docker image, uploads UI bundle as release artifact",
+        "Reproducible-build verification script",
+        "Pipeline runs in < 30 minutes"
+      ],
+      "exit_criteria": [
+        { "description": "GitHub Actions workflow exists with all jobs", "check": "grep -E 'integration|fuzz|publish|docker|ui-bundle' .github/workflows/*.yml" },
+        { "description": "Reproducible build script exists and passes", "check": "test -x scripts/check-reproducibility.sh && ./scripts/check-reproducibility.sh" }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,45 @@
+node_modules/
+dist/
+build/
+.cache/
+.pnpm-store/
+
+# TypeScript
+*.tsbuildinfo
+
+# Vite / UI
+ui/dist/
+ui/.vite/
+
+# Aiken
+contracts/build/
+contracts/.build/
+
+# Rust
+crypto/ref/target/
+
+# Local secrets / env
+.env
+.env.local
+*.skey
+*.vkey
+
+# Editor
+.vscode/
+.idea/
+*.swp
+.DS_Store
+
+# Logs
+*.log
+npm-debug.log*
+pnpm-debug.log*
+
+# Test artifacts
+coverage/
+playwright-report/
+test-results/
+
+# Generated artifacts kept out of source control until bootstrap commits them deliberately
+artifacts/test/*.plutus
+artifacts/preprod/*.plutus

@@ -1,0 +1,13 @@
+packages:
+  - "offchain"
+  - "backend"
+  - "ui"
+  # integration-tests, stress-tests, bench join the workspace as later milestones populate them
+  # (integration-tests at M3, stress-tests at M2, bench at M2).
+
+# pnpm 10 refuses to run package install scripts by default. esbuild's postinstall
+# is unnecessary because esbuild ships per-platform binaries via @esbuild/<platform>
+# optional packages. neverBuiltDependencies declares the skip as intentional and
+# suppresses the on-every-install warning.
+neverBuiltDependencies:
+  - esbuild
