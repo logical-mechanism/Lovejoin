@@ -18,23 +18,21 @@ After bootstrap finishes:
 
 ## Stages
 
-Four stages, run sequentially. Stage 1 internally chains four txs (publish
-mix_box → publish mix_logic → publish fee_contract → register mix_logic
-stake credential).
-
-Four operator commands, one tx each (stage 1 internally chains four).
+Five operator commands, run sequentially. Stage 1 is split in two so each half
+can be inspected on-chain before the next runs.
 
 | # | script | what it does |
 |---|--------|--------------|
-| 0 | `00-build-reference.sh`           | offline. Parameterizes the validators, writes resolved hashes to `addresses.json`. |
-| 1 | `01-publish-and-register.sh`      | builds + signs all 4 txs offline (publish mix_box, publish mix_logic, publish fee_contract, register mix_logic stake credential), then submits them in order. Each subsequent tx spends the previous tx's change output via `build-raw` (manual fee + change math, since `transaction build` queries on-ledger UTxOs and would fail on the unconfirmed predecessors). The cert tx references mix_logic's publish output via `--certificate-tx-in-reference`. |
-| 2 | `02-mint-and-lock.sh`             | **irreversible.** Spends `SEED`, mints the one-of-one NFT, locks at `reference_holder` with the inline `ReferenceDatum`. |
-| 3 | `03-fund-fee-contract.sh`         | seeds 10 shards at `fee_contract`. |
+| 0  | `00-build-reference.sh`     | offline. Parameterizes the validators, writes resolved hashes to `addresses.json`. |
+| 1a | `01a-publish.sh`            | builds + signs three publish txs offline (mix_box, mix_logic, fee_contract) using `build-raw`, chained via change outputs (manual fee + change math, since `transaction build` queries on-ledger UTxOs and would fail on the unconfirmed predecessors). Submits them in order. Writes `referenceScriptUtxos` and `stage1ChangeUtxo` to `addresses.json`. |
+| 1b | `01b-register.sh`           | registers the `mix_logic` stake credential. Run after `01a` confirms — uses `transaction build` (auto fee + change), references the published mix_logic ref script via `--certificate-tx-in-reference`, and consumes the chain's final change UTxO (`stage1ChangeUtxo` from `addresses.json`). |
+| 2  | `02-mint-and-lock.sh`       | **irreversible.** Spends `SEED`, mints the one-of-one NFT, locks at `reference_holder` with the inline `ReferenceDatum`. |
+| 3  | `03-fund-fee-contract.sh`   | seeds 10 shards at `fee_contract`. |
 
 > **Plutus collateral note.** Under the Babbage/Conway happy path, collateral
 > inputs are *preserved* (not consumed) — they're only seized if a script
-> fails. So the same `COLLATERAL` UTxO from `prep-utxos` works for stages 1
-> and 2 without rotation.
+> fails. So the same `COLLATERAL` UTxO from `prep-utxos` works for `01b` and
+> stage 2 without rotation.
 
 ## Wallet
 
@@ -87,8 +85,8 @@ you split the faucet drop into the four shapes below:
 
 | label | size       | used by                                                      |
 |-------|-----------:|--------------------------------------------------------------|
-| **A** FUNDING (stage 1) |  85 ADA | shared across `01a` / `01b` / `01c` / `01d` (3 ref outputs + cert + fees, picked from wallet) |
-| **B** COLLATERAL        |  10 ADA | stages 1 & 2 (cert reg + mint); ada-only, returned by ledger so it persists across both |
+| **A** FUNDING (stage 1) |  85 ADA | funds `01a-publish`'s 3-tx chain; the chain's final change UTxO funds `01b-register` |
+| **B** COLLATERAL        |  10 ADA | `01b-register` + `02-mint-and-lock`; ada-only, returned by ledger so it persists across both |
 | **C** SEED              |   7 ADA | `02-mint-and-lock.sh` (consumed by `one_shot_mint`) |
 | **D** FUNDING (stage 3) |  45 ADA | `03-fund-fee-contract.sh` (10 shards × 4 ADA + fee) |
 |       | + change   | leftover, sits at the wallet for next time |
@@ -130,8 +128,11 @@ cat infra/bootstrap/wallets/payment.preprod.addr   # paste into the faucet
 # Each stage reads the canonical names directly — no renaming on the call site.
 ./infra/bootstrap/00-build-reference.sh
 
-./infra/bootstrap/01-publish-and-register.sh    # builds + signs + submits 4 chained txs
+./infra/bootstrap/01a-publish.sh                # 3 chained publish txs (build-raw)
 # wait for confirmation (./balance.sh)
+
+./infra/bootstrap/01b-register.sh               # stake-cred registration (transaction build)
+# wait for confirmation
 
 ./infra/bootstrap/02-mint-and-lock.sh
 # wait for confirmation — this is the IRREVERSIBLE step
@@ -159,16 +160,19 @@ git add artifacts/preprod/addresses.json
 git commit -m "bootstrap(preprod): mint NFT <policy>, ref UTxO <txid>#<idx>"
 ```
 
-### How the chain in stage 1 works
+### How the chain in 01a works
 
-The script uses `cardano-cli conway transaction txid --tx-file <signed-tx>`
-to derive each tx's id offline (no node call), then references that id as the
-input of the next tx. Submission is sequential — `cardano-cli conway
-transaction build` resolves the next input against the local node's UTxO set
-+ mempool, so each tx must already be in flight before the next one builds.
-On Preprod that means stage 1 takes one block window (~20 s) end to end; on a
-slower node you may see "input not found" errors and need to add `sleep 5`
-between submissions.
+`01a-publish.sh` uses `cardano-cli conway transaction txid --tx-file
+<signed-tx>` to derive each tx's id offline (no node call), then references
+that id as the input of the next tx. Submission is sequential — the local
+node accepts each tx because the chain is internally consistent (each input
+is the previous tx's known-shape change output). On Preprod that means 01a
+takes one block window (~20 s) end to end.
+
+`01b-register.sh` is the opposite shape: it runs *after* 01a confirms, so
+`transaction build` (which resolves on-ledger UTxOs and computes fee + change
++ Plutus exec budget automatically) works directly. It picks up the chain's
+final change UTxO from `addresses.json`'s `stage1ChangeUtxo` field.
 
 ## What can go wrong
 
@@ -181,12 +185,14 @@ between submissions.
   `ProtocolParams` will hard-fail if the datum doesn't decode. After 02
   confirms, sanity-check the inline datum (`cardano-cli query utxo`
   `--address <reference_holder_addr> --output-json`).
-- **Stage 1 chain breaks mid-flight.** If tx 2 or 3 of stage 1 fails to
-  confirm, re-run only the tail. The simplest recovery is to re-run stage 1
-  with a fresh `FUNDING_STAGE1` — the already-published ref scripts from the
-  failed run cost only their funding (no protocol meaning until stage 2's
-  reference UTxO exists). `addresses.json` will be overwritten on the
-  re-run; the old ref-script UTxOs become orphan.
+- **01a chain breaks mid-flight.** If tx 2 or 3 of 01a fails to confirm,
+  re-run with a fresh `FUNDING_STAGE1` — the already-published ref scripts
+  from the failed run cost only their funding (no protocol meaning until
+  stage 2's reference UTxO exists). `addresses.json` will be overwritten on
+  the re-run; the old ref-script UTxOs become orphan.
+- **01b fails after 01a confirmed.** Just re-run `01b-register.sh`. It reads
+  `stage1ChangeUtxo` from `addresses.json`, so as long as that UTxO is still
+  on-chain the cert tx rebuilds against the same funding.
 - **Stake registration cert deposit refund.** If you ever needed to recover
   the ~2 ADA cert deposit, you'd have to deregister the credential.
   `mix_logic.publish` rejects deregistration (Rule 2 hyperstructure stance),

@@ -70,4 +70,5 @@ artifacts/*/one_shot_mint.json
 artifacts/*/mix_logic.json
 artifacts/*/mix_box.json
 artifacts/*/fee_contract.json
+artifacts/*/tmp/
 

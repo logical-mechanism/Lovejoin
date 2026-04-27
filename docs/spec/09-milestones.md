@@ -58,9 +58,10 @@ v1 ships through M7. M8+ is post-v1.
 - `contracts/validators/{reference_holder,one_shot_mint,mix_box,mix_logic,fee_contract}.ak`. `mix_box` is the cheap spend-side delegator; `mix_logic` is the withdraw-zero validator that handles **variable N** at runtime. See [03-contracts.md](03-contracts.md) §0 for the design rationale.
 - `contracts/test/{reference_test,mix_box_test,mix_logic_test,fee_contract_test}.ak`. Mix tests cover N ∈ {2, 3, 4, 6, 8} positive + negative.
 - `contracts/build.sh`.
-- `infra/bootstrap/` complete (four operator commands):
+- `infra/bootstrap/` complete (five operator commands; stage 1 is split so each half is independently testable):
   - `00-build-reference.sh` (offline; parameterizes validators)
-  - `01-publish-and-register.sh` (recursive tx chain: publishes mix_box, mix_logic, fee_contract as CIP-33 reference scripts — single-script-per-tx so each stays under the 16 KiB limit — then registers the `mix_logic` Plutus stake credential by referencing the script published in tx 2 via `--certificate-tx-in-reference`. Each tx after the first spends the previous tx's change output, so the operator only supplies one funding UTxO and one collateral UTxO)
+  - `01a-publish.sh` (recursive tx chain via `transaction build-raw`: publishes mix_box, mix_logic, fee_contract as CIP-33 reference scripts — single-script-per-tx so each stays under the 16 KiB limit. Each tx after the first spends the previous tx's change output, so the operator supplies one funding UTxO; the chain's final change is recorded in `addresses.json` for `01b` to consume.)
+  - `01b-register.sh` (registers the `mix_logic` Plutus stake credential; run after `01a` confirms. Uses `transaction build` so on-ledger UTxOs resolve cleanly. References the script published by `01a` via `--certificate-tx-in-reference`.)
   - `02-mint-and-lock.sh` (one-shot mint + lock to reference_holder — irreversible step)
   - `03-fund-fee-contract.sh` (10 fee shards)
 - `artifacts/test/` and `artifacts/preprod/` with compiled `.plutus` files and `addresses.json`.

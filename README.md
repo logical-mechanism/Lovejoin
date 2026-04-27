@@ -96,12 +96,13 @@ Both commands read/update milestones.json directly. No external CLI. State trans
 
 The protocol is a hyperstructure: parameters are minted into an inline datum on a permanent UTxO at the always-False `reference_holder` script, identified by a one-of-one NFT. Once that UTxO exists, the protocol is live and immutable.
 
-Four stages under [`infra/bootstrap/`](infra/bootstrap/) — one operator command each:
+Five stages under [`infra/bootstrap/`](infra/bootstrap/), one operator command each (1a + 1b are split so each half can be inspected on-chain before the next runs):
 
 1. **`00-build-reference.sh`** — offline. Parameterizes the validators in dependency order (`one_shot_mint(seed) → mix_logic(NFT) → mix_box(mix_logic) → fee_contract(NFT)`) and writes resolved hashes into `artifacts/<network>/addresses.json`.
-2. **`01-publish-and-register.sh`** — single script that builds + signs four chained txs offline (publish `mix_box`, publish `mix_logic`, publish `fee_contract`, register `mix_logic` stake credential), then submits them in order. Each subsequent tx spends the previous tx's change output via `build-raw` so we don't have to wait for confirmations. The cert tx references `mix_logic`'s publish output via `--certificate-tx-in-reference`.
-3. **`02-mint-and-lock.sh`** — **irreversible.** Spends `SEED`, mints the one-of-one NFT, locks at `reference_holder` with the inline `ProtocolParams` datum.
-4. **`03-fund-fee-contract.sh`** — seeds 10 shards at `fee_contract`.
+2. **`01a-publish.sh`** — builds + signs three publish txs offline (`mix_box`, `mix_logic`, `fee_contract`) using `build-raw`, chained via change outputs, and submits them in order. Writes `referenceScriptUtxos` and `stage1ChangeUtxo` to `addresses.json`.
+3. **`01b-register.sh`** — registers the `mix_logic` stake credential. Run after `01a` confirms; uses `transaction build` (auto fee + change) and references `mix_logic`'s publish output via `--certificate-tx-in-reference`.
+4. **`02-mint-and-lock.sh`** — **irreversible.** Spends `SEED`, mints the one-of-one NFT, locks at `reference_holder` with the inline `ProtocolParams` datum.
+5. **`03-fund-fee-contract.sh`** — seeds 10 shards at `fee_contract`.
 
 Configure once, then run the stages:
 
@@ -115,7 +116,9 @@ cp infra/bootstrap/.env.example infra/bootstrap/.env     # set NETWORK + node so
 # After exporting FUNDING_STAGE1 / COLLATERAL / SEED / FUNDING_STAGE3, the
 # stages read those env vars directly — no renaming at the call site:
 ./infra/bootstrap/00-build-reference.sh
-./infra/bootstrap/01-publish-and-register.sh    # 4 chained txs, one operator command
+./infra/bootstrap/01a-publish.sh                # 3 chained publish txs (build-raw)
+# wait for confirmation
+./infra/bootstrap/01b-register.sh               # register mix_logic stake cred (transaction build)
 ./infra/bootstrap/02-mint-and-lock.sh           # wait — IRREVERSIBLE
 ./infra/bootstrap/03-fund-fee-contract.sh
 ```

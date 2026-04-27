@@ -6,9 +6,9 @@
 #     ProtocolParams.
 #
 # This is the IRREVERSIBLE moment of the bootstrap. Everything before it
-# (00-build-reference, 01-publish-and-register) can be re-run with a different
-# seed if you mess up. Once this tx confirms, the protocol's parameters live
-# forever at the always-False reference_holder address.
+# (00-build-reference, 01a-publish, 01b-register) can be re-run with a
+# different seed if you mess up. Once this tx confirms, the protocol's
+# parameters live forever at the always-False reference_holder address.
 #
 # Inputs (env):
 #   NETWORK            — "preprod" | "test" (default: preprod)
