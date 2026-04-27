@@ -1,0 +1,19 @@
+{
+  "name": "stress-tests",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "calibrate:max-n": "tsx max-n-calibration.ts",
+    "calibrate:fee": "tsx fee-calibration.ts",
+    "fuzz": "tsx fuzz-runner.ts"
+  },
+  "dependencies": {
+    "@lovejoin/sdk": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.2"
+  }
+}

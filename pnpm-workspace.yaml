@@ -2,8 +2,9 @@ packages:
   - "offchain"
   - "backend"
   - "ui"
-  # integration-tests, stress-tests, bench join the workspace as later milestones populate them
-  # (integration-tests at M3, stress-tests at M2, bench at M2).
+  - "stress-tests"
+  # integration-tests and bench join the workspace as later milestones populate them
+  # (integration-tests at M3, bench at M2).
 
 # pnpm 10 refuses to run package install scripts by default. esbuild's postinstall
 # is unnecessary because esbuild ships per-platform binaries via @esbuild/<platform>
