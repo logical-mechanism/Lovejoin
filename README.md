@@ -103,16 +103,25 @@ Four stages under [`infra/bootstrap/`](infra/bootstrap/) — one operator comman
 3. **`02-mint-and-lock.sh`** — **irreversible.** Spends `SEED_UTXO`, mints the one-of-one NFT, locks at `reference_holder` with the inline `ProtocolParams` datum.
 4. **`03-fund-fee-contract.sh`** — seeds 10 shards at `fee_contract`.
 
-Recommended path is one config file + one command:
+Configure once, then run the stages:
 
 ```sh
 cp infra/bootstrap/.env.example infra/bootstrap/.env     # set NETWORK + node socket
 ./infra/bootstrap/init-wallet.sh                         # one-time keypair + per-network addrs
 # fund infra/bootstrap/wallets/payment.preprod.addr from the Preprod faucet
-./infra/bootstrap/run.sh                                 # split → 0 → 1 → 2 → 3, with waits
+./infra/bootstrap/balance.sh                             # confirm the drop arrived
+./infra/bootstrap/prep-utxos.sh                          # split into A/B/C/D — copy the `export` lines it prints
+
+# Then run stages 0..3 in order, waiting for each to confirm:
+SEED_UTXO=$SEED ./infra/bootstrap/00-build-reference.sh
+FUNDING_UTXO=$FUNDING_STAGE1 COLLATERAL_UTXO=$COLLATERAL ./infra/bootstrap/01-publish-and-register.sh
+SEED_UTXO=$SEED COLLATERAL_UTXO=$COLLATERAL ./infra/bootstrap/02-mint-and-lock.sh
+FUNDING_UTXO=$FUNDING_STAGE3 ./infra/bootstrap/03-fund-fee-contract.sh
 ```
 
-`.env` is gitignored. Every bootstrap script auto-sources it, so no `export` per shell.
+`.env` is gitignored. Every bootstrap script auto-sources it, so no `export` per shell beyond the per-stage UTxO refs.
+
+`balance.sh` labels each UTxO with its bootstrap-stage role (FUNDING_STAGE1, COLLATERAL, SEED, FUNDING_STAGE3) once `prep-utxos.sh` has run, so you can re-derive the env vars anytime by re-running `balance.sh`.
 
 `run.sh` orchestrates the whole bootstrap with confirmation polling between stages, so you can walk away while it runs. It calls these helpers, all of which work standalone for debugging or recovery:
 

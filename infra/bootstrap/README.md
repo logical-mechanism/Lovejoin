@@ -18,18 +18,16 @@ After bootstrap finishes:
 
 ## Stages
 
-Four stages, orchestrated by `run.sh`. Stage 1 internally chains four txs.
+Four stages, run sequentially. Stage 1 internally chains four txs (publish
+mix_box → publish mix_logic → publish fee_contract → register mix_logic
+stake credential).
 
 | # | script | what it does | tx count |
 |---|--------|--------------|---------:|
 | 0 | `00-build-reference.sh`           | offline. Parameterizes the validators in dependency order (`one_shot_mint(seed) → mix_logic(NFT) → mix_box(mix_logic) → fee_contract(NFT)`), writes resolved hashes to `addresses.json`. | 0 |
-| 1 | `01-publish-and-register.sh`      | recursive tx chain: publishes `mix_box`, `mix_logic`, `fee_contract` as CIP-33 reference scripts (one tx per script — keeps every tx well under the 16 KiB limit as validators grow), then registers the `mix_logic` stake credential, attaching the script via `--certificate-tx-in-reference` against tx 2's output. Each tx after the first spends the previous tx's change output as funding, so the operator only supplies one funding UTxO + one collateral UTxO. | 4 |
+| 1 | `01-publish-and-register.sh`      | recursive tx chain: publishes `mix_box`, `mix_logic`, `fee_contract` as CIP-33 reference scripts (one tx per script — keeps every tx well under the 16 KiB limit as validators grow), then registers the `mix_logic` stake credential, attaching the script via `--certificate-tx-in-reference` against tx 2's output. Each tx after the first spends the previous tx's change output as funding. | 4 |
 | 2 | `02-mint-and-lock.sh`             | **irreversible.** Spends `SEED_UTXO`, mints the one-of-one NFT, locks at `reference_holder` with the inline `ProtocolParams` datum. | 1 |
 | 3 | `03-fund-fee-contract.sh`         | seeds 10 shards at `fee_contract`. | 1 |
-
-`run.sh` calls these in sequence with confirmation polling between, and is
-the recommended path. The per-stage scripts remain callable on their own for
-recovery (see "Running a stage manually" below).
 
 The single-script-per-tx convention inside stage 1 isolates failures (a publish
 that fails costs only its own funding + fee, not the whole infrastructure
@@ -113,69 +111,52 @@ NETWORK=preview ./infra/bootstrap/balance.sh
 
 ## Running it
 
-The recommended path is **`run.sh`** — it drives everything end-to-end with
-confirmation polling between stages. Each per-stage script is still callable
-on its own for recovery / debugging.
-
-### Configure once via .env
-
-Every script under `infra/bootstrap/` auto-sources `infra/bootstrap/.env` if
-it exists. The file is gitignored (via the top-level `.env` pattern), so
-your live values stay local.
-
 ```sh
 cp infra/bootstrap/.env.example infra/bootstrap/.env
-$EDITOR infra/bootstrap/.env       # set NETWORK, TESTNET_MAGIC, CARDANO_NODE_SOCKET_PATH
-```
+$EDITOR infra/bootstrap/.env        # set NETWORK + TESTNET_MAGIC + CARDANO_NODE_SOCKET_PATH
 
-After that, no `export` per shell. CLI env-var passing still works for
-overrides (e.g. `NETWORK=preview ./balance.sh` overrides the .env value
-just for that invocation).
+./infra/bootstrap/init-wallet.sh    # one-time keypair + per-network addrs
+cat infra/bootstrap/wallets/payment.preprod.addr   # paste into the faucet
+./infra/bootstrap/balance.sh        # confirm the faucet drop arrived
 
-### Bootstrap, end-to-end
+./infra/bootstrap/prep-utxos.sh     # splits faucet drop into A/B/C/D and prints
+                                    # the four `export` lines you need next.
 
-```sh
-./infra/bootstrap/init-wallet.sh                # one-time keypair + addrs
+# Wait for the prep tx to confirm. balance.sh now labels the four UTxOs
+# (FUNDING_STAGE1 / COLLATERAL / SEED / FUNDING_STAGE3) so you can verify
+# the split landed.
+./infra/bootstrap/balance.sh
 
-# Fund infra/bootstrap/wallets/payment.preprod.addr from the Preprod faucet.
-cat infra/bootstrap/wallets/payment.preprod.addr
-./infra/bootstrap/balance.sh                    # confirm the faucet drop
+# Paste the four export lines from prep-utxos's output (or balance.sh —
+# they're identical), then run the stages in order:
 
-./infra/bootstrap/run.sh                        # split → 0 → 1 → 2 → 3, with waits
-```
+SEED_UTXO=$SEED \
+  ./infra/bootstrap/00-build-reference.sh
 
-`run.sh` does:
-
-1. Sanity-checks the wallet (calls `balance.sh`).
-2. Splits the faucet drop via `prep-utxos.sh`.
-3. Polls until prep-utxos confirms.
-4. Runs `00-build-reference.sh` (offline parameterization).
-5. Runs `01-publish-and-register.sh`. Polls until the cert-registration tx confirms.
-6. Runs `02-mint-and-lock.sh`. Polls until the reference UTxO is on chain. **(Irreversible step.)**
-7. Runs `03-fund-fee-contract.sh`. Polls until the fee shards are on chain.
-8. Prints the protocol identifiers + the `git commit` line for `addresses.json`.
-
-Polling is via `cardano-cli query utxo --tx-in <ref>`: as soon as the previous
-stage's first output is in the on-chain UTxO set, the next stage starts.
-Default per-tx timeout is 5 minutes (override with `CONFIRMATION_TIMEOUT_S`).
-
-### Running a stage manually
-
-If `run.sh` fails partway, the per-stage scripts pick up from the artifact
-state. `addresses.json` is the source of truth — re-run only the stages
-whose fields aren't populated yet. Env-var contract:
-
-```sh
-SEED_UTXO=$SEED ./infra/bootstrap/00-build-reference.sh
 FUNDING_UTXO=$FUNDING_STAGE1 COLLATERAL_UTXO=$COLLATERAL \
   ./infra/bootstrap/01-publish-and-register.sh
+# wait for confirmation (cardano-cli query utxo --tx-in <txid>#0 or another balance.sh)
+
 SEED_UTXO=$SEED COLLATERAL_UTXO=$COLLATERAL \
   ./infra/bootstrap/02-mint-and-lock.sh
-FUNDING_UTXO=$FUNDING_STAGE3 ./infra/bootstrap/03-fund-fee-contract.sh
+# wait for confirmation — this is the IRREVERSIBLE step
+
+FUNDING_UTXO=$FUNDING_STAGE3 \
+  ./infra/bootstrap/03-fund-fee-contract.sh
+# wait for confirmation
 ```
 
-`prep-utxos.sh` prints the four UTxO refs in copy-pasteable form so you can
-set the env vars without hand-editing.
+Then commit the address book:
+
+```sh
+git add artifacts/preprod/addresses.json
+git commit -m "bootstrap(preprod): mint NFT <policy>, ref UTxO <txid>#<idx>"
+```
+
+`addresses.json` is the source of truth for what has already been done — its
+`referenceScriptUtxos`, `referenceUtxoRef`, and `feeShardUtxos` fields get
+populated as the corresponding stages confirm. If a stage fails partway,
+re-run only the stages whose fields aren't populated yet.
 
 Then commit:
 
