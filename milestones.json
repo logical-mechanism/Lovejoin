@@ -57,7 +57,7 @@
     {
       "id": "M2",
       "name": "Validators + Preprod bootstrap + N calibration",
-      "status": "pending",
+      "status": "in-progress",
       "depends_on": ["M1"],
       "spec": "docs/spec/09-milestones.md#m2--validators-3-of-them--preprod-bootstrap",
       "notes": [
@@ -66,13 +66,15 @@
         "Provider abstraction (offchain/src/chain/provider.ts) is introduced at M2 because the stress-test submitters need it; M3/M4/M5 inherit it. Bootstrap scripts in infra/bootstrap/ continue to use cardano-cli — they're one-shot ceremonies, not steady-state ops."
       ],
       "deliverables": [
-        "validators/{reference_holder,one_shot_mint,mix_box,fee_contract}.ak compiled successfully",
+        "validators/{reference_holder,one_shot_mint,mix_box,mix_logic,fee_contract}.ak compiled successfully",
+        "mix_box is a cheap spend-side delegator; mix_logic is the withdraw-zero validator that handles Owner + Mix logic once per tx (see docs/spec/03-contracts.md §0)",
+        "Spend validators tolerate bad/missing datums (return True) per the hyperstructure principle; mix_logic silently ignores malformed mix inputs",
         "Mix branch handles variable N at runtime (2 ≤ N ≤ max_n)",
         "test files cover every rule with positive + negative tests at multiple N values",
         "contracts/build.sh produces artifacts/<network>/{*.plutus, addresses.json}",
         "offchain/src/chain/provider.ts: ChainProvider interface (submitTx, getUtxos, awaitConfirmation, getReferenceUtxo, getProtocolParams). BlockfrostProvider implementation. Mesh wired to use it.",
         "config/network.preprod.json gains a 'provider' block (provider: 'blockfrost', projectId env var) so swapping providers is config-only.",
-        "infra/bootstrap/00-build-reference.sh, 01-mint-and-lock.sh, 02-fund-fee-contract.sh, 03-publish-reference-scripts.sh — cardano-cli driven; submission via Blockfrost",
+        "infra/bootstrap/00-build-reference.sh (offline data build), 01a-publish.sh (recursive tx chain via build-raw: 3 single-script-per-tx publishes), 01b-register.sh (Plutus stake-credential registration via transaction build with --certificate-tx-in-reference + --certificate-reference-tx-in-redeemer-file; run after 01a confirms), 02-mint-and-lock.sh (irreversible mint + lock at reference_holder), 03-fund-fee-contract.sh (10 fee shards). cardano-cli driven; runs on a synced node socket.",
         "Reference NFT minted on Preprod, locked at reference_holder",
         "10 fee shards funded on Preprod",
         "Reference scripts published as CIP-33 references on Preprod",

@@ -14,6 +14,7 @@ ui/.vite/
 # Aiken
 contracts/build/
 contracts/.build/
+contracts/plutus.json
 
 # Rust — Cargo.lock IS committed for reproducible KAT cross-checks
 # (see docs/spec/12-build-guide.md §"Reproducibility").
@@ -24,6 +25,12 @@ crypto/ref/target/
 .env.local
 *.skey
 *.vkey
+
+# Bootstrap wallets — recommended location for the per-network wallet files
+# (payment.skey/vkey, payment.addr) used by infra/bootstrap/*.sh. The bootstrap
+# scripts only ever read these via env vars, but keeping the conventional path
+# gitignored avoids accidents.
+infra/bootstrap/wallets/
 
 # Editor
 .vscode/
@@ -41,7 +48,27 @@ coverage/
 playwright-report/
 test-results/
 
-# Generated artifacts kept out of source control until bootstrap commits them deliberately
+# Generated artifacts kept out of source control until bootstrap commits them deliberately.
+# addresses.json IS tracked once a network has been bootstrapped — the canonical
+# protocol identifiers (NFT policy id, reference UTxO ref, script hashes) live there.
 artifacts/test/*.plutus
 artifacts/preprod/*.plutus
+artifacts/test/blueprint.json
+artifacts/preprod/blueprint.json
+
+# Bootstrap intermediates — per-run tx state from cardano-cli, never canonical.
+artifacts/*/*.tx
+artifacts/*/*.txraw
+artifacts/*/*.cert
+artifacts/*/*.utxo.json
+artifacts/*/*.hash
+artifacts/*/blueprint.json
+artifacts/*/reference_datum.json
+artifacts/*/empty-redeemer.json
+artifacts/*/unit-datum.json
+artifacts/*/one_shot_mint.json
+artifacts/*/mix_logic.json
+artifacts/*/mix_box.json
+artifacts/*/fee_contract.json
+artifacts/*/tmp/
 

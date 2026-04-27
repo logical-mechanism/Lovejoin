@@ -91,3 +91,50 @@ Milestones live in [milestones.json](milestones.json). Inside Claude Code:
 - `/work <id>` — work on a milestone end-to-end (reads spec, implements, writes tests, verifies exit criteria, marks done)
 
 Both commands read/update milestones.json directly. No external CLI. State transitions: `pending` → `in-progress` → `done`. The slash commands enforce that exit criteria pass before a milestone can be marked done.
+
+## Bootstrap (one-shot, per network)
+
+The protocol is a hyperstructure: parameters are minted into an inline datum on a permanent UTxO at the always-False `reference_holder` script, identified by a one-of-one NFT. Once that UTxO exists, the protocol is live and immutable.
+
+Five stages under [`infra/bootstrap/`](infra/bootstrap/), one operator command each (1a + 1b are split so each half can be inspected on-chain before the next runs):
+
+1. **`00-build-reference.sh`** — offline. Parameterizes the validators in dependency order (`one_shot_mint(seed) → mix_logic(NFT) → mix_box(mix_logic) → fee_contract(NFT)`) and writes resolved hashes into `artifacts/<network>/addresses.json`.
+2. **`01a-publish.sh`** — builds + signs three publish txs offline (`mix_box`, `mix_logic`, `fee_contract`) using `build-raw`, chained via change outputs, and submits them in order. Writes `referenceScriptUtxos` and `stage1ChangeUtxo` to `addresses.json`.
+3. **`01b-register.sh`** — registers the `mix_logic` stake credential. Run after `01a` confirms; uses `transaction build` (auto fee + change) and references `mix_logic`'s publish output via `--certificate-tx-in-reference`.
+4. **`02-mint-and-lock.sh`** — **irreversible.** Spends `SEED`, mints the one-of-one NFT, locks at `reference_holder` with the inline `ProtocolParams` datum.
+5. **`03-fund-fee-contract.sh`** — seeds 10 shards at `fee_contract`.
+
+Configure once, then run the stages:
+
+```sh
+cp infra/bootstrap/.env.example infra/bootstrap/.env     # set NETWORK + node socket
+./infra/bootstrap/init-wallet.sh                         # one-time keypair + per-network addrs
+# fund infra/bootstrap/wallets/payment.preprod.addr from the Preprod faucet
+./infra/bootstrap/balance.sh                             # confirm the drop arrived
+./infra/bootstrap/prep-utxos.sh                          # split into A/B/C/D — copy the `export` lines it prints
+
+# After exporting FUNDING_STAGE1 / COLLATERAL / SEED / FUNDING_STAGE3, the
+# stages read those env vars directly — no renaming at the call site:
+./infra/bootstrap/00-build-reference.sh
+./infra/bootstrap/01a-publish.sh                # 3 chained publish txs (build-raw)
+# wait for confirmation
+./infra/bootstrap/01b-register.sh               # register mix_logic stake cred (transaction build)
+./infra/bootstrap/02-mint-and-lock.sh           # wait — IRREVERSIBLE
+./infra/bootstrap/03-fund-fee-contract.sh
+```
+
+`.env` is gitignored. Every bootstrap script auto-sources it, so no `export` per shell beyond the per-stage UTxO refs.
+
+`balance.sh` labels each UTxO with its bootstrap-stage role (FUNDING_STAGE1, COLLATERAL, SEED, FUNDING_STAGE3) once `prep-utxos.sh` has run, so you can re-derive the env vars anytime by re-running `balance.sh`.
+
+`run.sh` orchestrates the whole bootstrap with confirmation polling between stages, so you can walk away while it runs. It calls these helpers, all of which work standalone for debugging or recovery:
+
+- **`init-wallet.sh`** — generates one payment keypair under `infra/bootstrap/wallets/` (gitignored) and derives a per-network address file (preprod + preview by default; mainnet via `--include-mainnet`). Idempotent.
+- **`balance.sh`** — pretty-prints the wallet's UTxOs and total ADA.
+- **`prep-utxos.sh`** — splits the faucet drop into the four UTxO shapes the stages need (FUNDING_STAGE1, COLLATERAL, SEED, FUNDING_STAGE3) and prints copy-pasteable `export` lines + per-stage commands. Idempotent.
+
+You'll need ~150 ADA on the [Preprod faucet](https://docs.cardano.org/cardano-testnets/tools/faucet/) and a synced cardano-node socket.
+
+Full operator playbook (env-var setup, UTxO-layout table, chained-submit details, recovery from common failures): [`infra/bootstrap/README.md`](infra/bootstrap/README.md).
+
+After a clean run, commit `artifacts/preprod/addresses.json` — that's the canonical address book for the network.

@@ -16,13 +16,10 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install Aiken
-        run: |
-          curl -sSfL https://install.aiken-lang.org | bash
-          echo "$HOME/.aiken/bin" >> "$GITHUB_PATH"
-
-      - name: Pin Aiken 1.1.21
-        run: aikup install v1.1.21
+      - name: Install Aiken 1.1.21
+        uses: aiken-lang/setup-aiken@v1.0.3
+        with:
+          version: v1.1.21
 
       - name: aiken --version
         run: aiken --version
