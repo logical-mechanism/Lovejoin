@@ -65,6 +65,12 @@ export interface LovejoinAddresses {
   stage1ChangeUtxo?: string;
   /// Optional. The tx that registered the mix_logic stake credential.
   mixLogicRegisterTx?: Hex32;
+  /// Optional. 28-byte hex stake-key hash baked into every dApp UTxO so
+  /// the protocol's pool delegation accrues rewards. When absent the SDK
+  /// builds enterprise addresses (matches the legacy bootstrap output).
+  /// Validators only inspect `payment_credential`, so the stake side
+  /// changes nothing on-chain.
+  dappStakeKeyHashHex?: Hex28;
 }
 
 /// Convert a "<txid>#<index>" string into our typed UtxoRef.

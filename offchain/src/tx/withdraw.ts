@@ -66,7 +66,6 @@ import {
   type ProtocolParams,
   parseUtxoRef,
 } from "./params.js";
-import { buildEnterpriseScriptAddress } from "./address.js";
 import {
   type LovejoinNetworkId,
   type LovejoinWallet,

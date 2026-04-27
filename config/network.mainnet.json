@@ -1,12 +1,12 @@
 {
-  "network": "preprod",
+  "network": "mainnet",
   "denom_lovelace": 10000000,
   "max_fee_per_mix_lovelace": 800000,
   "max_n": 6,
   "fee_shard_target": 10,
   "min_mix_rounds": 5,
   "default_mix_rounds": 30,
-  "dapp_stake_key_hash": "1e3105f23f2ac91b3fb4c35fa4fe301421028e356e114944e902005b",
+  "dapp_stake_key_hash": "07ac7dee6c82177096b70ccf21cfb8965c1fb08e079f9ca4af4b2b3e",
   "mix_script_hash": null,
   "fee_script_hash": null,
   "reference_nft_policy": null,
@@ -14,8 +14,8 @@
   "reference_utxo_ref": null,
   "provider": {
     "kind": "blockfrost",
-    "baseUrl": "https://cardano-preprod.blockfrost.io/api/v0",
-    "projectIdEnv": "BLOCKFROST_PROJECT_ID_PREPROD"
+    "baseUrl": "https://cardano-mainnet.blockfrost.io/api/v0",
+    "projectIdEnv": "BLOCKFROST_PROJECT_ID_MAINNET"
   },
   "ogmios_url": null,
   "dbsync_url": null,

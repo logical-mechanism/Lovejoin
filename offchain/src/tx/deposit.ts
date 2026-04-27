@@ -40,7 +40,7 @@ import {
   type ProtocolParams,
   parseUtxoRef,
 } from "./params.js";
-import { buildEnterpriseScriptAddress } from "./address.js";
+import { buildScriptAddress } from "./address.js";
 import {
   type LovejoinNetworkId,
   type LovejoinWallet,
@@ -227,13 +227,15 @@ export function planDepositTx(args: PlanDepositArgs): DepositPlan {
   const a = pointToBytes(generator());
   const b = pointToBytes(publicPointG(ownerSecret));
 
-  const mixBoxAddress = buildEnterpriseScriptAddress(
+  const mixBoxAddress = buildScriptAddress(
     args.addresses.mixBoxScriptHash,
     args.networkId,
+    args.addresses.dappStakeKeyHashHex ?? null,
   );
-  const feeAddress = buildEnterpriseScriptAddress(
+  const feeAddress = buildScriptAddress(
     args.addresses.feeScriptHash,
     args.networkId,
+    args.addresses.dappStakeKeyHashHex ?? null,
   );
 
   const replenishedLovelace = replenishOutputLovelace({
@@ -304,9 +306,10 @@ export async function buildDepositTx(args: BuildDepositArgs): Promise<DepositRes
   const networkId = networkIdFor(args.network);
 
   const { params } = await fetchProtocolParams(args.addresses, args.provider);
-  const feeAddress = buildEnterpriseScriptAddress(
+  const feeAddress = buildScriptAddress(
     args.addresses.feeScriptHash,
     networkId,
+    args.addresses.dappStakeKeyHashHex ?? null,
   );
   const feeShard = args.feeShard ?? (await pickRandomFeeShard({
     provider: args.provider,
