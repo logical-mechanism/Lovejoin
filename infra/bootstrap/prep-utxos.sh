@@ -123,7 +123,8 @@ cardano-cli conway transaction submit \
   --testnet-magic "$TESTNET_MAGIC" \
   --tx-file "$ARTIFACTS_DIR/prep-utxos.tx"
 
-TX_ID=$(cardano-cli conway transaction txid --tx-file "$ARTIFACTS_DIR/prep-utxos.tx")
+TX_ID=$(cardano-cli conway transaction txid --tx-file "$ARTIFACTS_DIR/prep-utxos.tx" \
+        | grep -oE '[a-f0-9]{64}' | head -n1)
 echo
 echo "prep-utxos: submitted txid $TX_ID"
 

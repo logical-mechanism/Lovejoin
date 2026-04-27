@@ -28,7 +28,16 @@ __ENV_FILE="$(cd "$(dirname "$0")" && pwd)/.env"
 [[ -f "$__ENV_FILE" ]] && { set -a; source "$__ENV_FILE"; set +a; }
 
 NETWORK="${NETWORK:-preprod}"
-SEED_UTXO="${SEED_UTXO:?SEED_UTXO must be set to <txid>#<idx>}"
+# Accept SEED_UTXO from either the env var or the first positional arg, since
+# both are natural reflexes:
+#   SEED_UTXO=<txid>#<idx> ./00-build-reference.sh
+#   ./00-build-reference.sh <txid>#<idx>
+SEED_UTXO="${SEED_UTXO:-${1:-}}"
+if [[ -z "$SEED_UTXO" ]]; then
+  echo "00-build-reference: SEED_UTXO is required (env var or first positional)." >&2
+  echo "  format: <txid>#<idx>  e.g. abc123…#2  (no quotes needed)" >&2
+  exit 1
+fi
 REF_NFT_ASSET_NAME="${REF_NFT_ASSET_NAME:-6c6f76656a6f696e}"
 
 REPO_ROOT="$(cd "$(dirname "$0")/../.." && pwd)"

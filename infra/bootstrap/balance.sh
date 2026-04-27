@@ -44,10 +44,14 @@ if [[ -z "${BOOTSTRAP_ADDR:-}" ]]; then
 fi
 
 # Discover the prep-utxos tx (if any) so we can label outputs 0..3.
+# `cardano-cli conway transaction txid` returns plain hex on older releases
+# and JSON ({"txhash": "..."}) on newer ones; the txid is always a 64-char
+# lowercase hex string, so grep extracts it identically from either shape.
 PREP_TXID=""
 PREP_TX_FILE="$ARTIFACTS_DIR/prep-utxos.tx"
 if [[ -f "$PREP_TX_FILE" ]]; then
-  PREP_TXID=$(cardano-cli conway transaction txid --tx-file "$PREP_TX_FILE" 2>/dev/null || echo "")
+  PREP_TXID=$(cardano-cli conway transaction txid --tx-file "$PREP_TX_FILE" 2>/dev/null \
+              | grep -oE '[a-f0-9]{64}' | head -n1 || true)
 fi
 
 UTXO_JSON=$(mktemp)

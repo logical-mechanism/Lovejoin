@@ -92,9 +92,12 @@ publish_step() {
     --out-file "$ARTIFACTS_DIR/$stage.tx"
 }
 
-# txid of a signed tx file (offline; doesn't need the node).
+# txid of a signed tx file (offline; doesn't need the node). Newer cardano-cli
+# returns JSON ({"txhash": "..."}); older returns plain hex. The txid is always
+# a 64-char lowercase hex string, so grep gets it from either form.
 txid_of() {
-  cardano-cli conway transaction txid --tx-file "$ARTIFACTS_DIR/$1.tx"
+  cardano-cli conway transaction txid --tx-file "$ARTIFACTS_DIR/$1.tx" \
+    | grep -oE '[a-f0-9]{64}' | head -n1
 }
 
 submit() {

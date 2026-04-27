@@ -125,7 +125,8 @@ cardano-cli conway transaction submit \
   --testnet-magic "$TESTNET_MAGIC" \
   --tx-file "$ARTIFACTS_DIR/02-mint-and-lock.tx"
 
-TX_ID=$(cardano-cli conway transaction txid --tx-file "$ARTIFACTS_DIR/02-mint-and-lock.tx")
+TX_ID=$(cardano-cli conway transaction txid --tx-file "$ARTIFACTS_DIR/02-mint-and-lock.tx" \
+        | grep -oE '[a-f0-9]{64}' | head -n1)
 echo "02-mint-and-lock: submitted txid $TX_ID"
 
 # Output index 0 is the NFT output (it's the first --tx-out flag).

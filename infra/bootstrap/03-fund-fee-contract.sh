@@ -73,7 +73,8 @@ cardano-cli conway transaction submit \
   --testnet-magic "$TESTNET_MAGIC" \
   --tx-file "$ARTIFACTS_DIR/03-fund-fee-contract.tx"
 
-TX_ID=$(cardano-cli conway transaction txid --tx-file "$ARTIFACTS_DIR/03-fund-fee-contract.tx")
+TX_ID=$(cardano-cli conway transaction txid --tx-file "$ARTIFACTS_DIR/03-fund-fee-contract.tx" \
+        | grep -oE '[a-f0-9]{64}' | head -n1)
 echo "03-fund-fee-contract: submitted txid $TX_ID"
 
 # Persist the shard refs (output indices 0..SHARD_TARGET-1).
