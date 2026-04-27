@@ -18,13 +18,12 @@
 //// names are correct: they're "unused inside the body" but very much used by
 //// the script-hash derivation.
 
-use aiken/primitive/bytearray
 use cardano/assets.{AssetName, PolicyId}
 use cardano/transaction.{OutputReference, Transaction}
 
 validator reference_holder(
-  reference_nft_policy: PolicyId,
-  reference_nft_name: AssetName,
+  _reference_nft_policy: PolicyId,
+  _reference_nft_name: AssetName,
 ) {
   spend(
     _d: Option<Data>,
@@ -32,13 +31,6 @@ validator reference_holder(
     _utxo: OutputReference,
     _self: Transaction,
   ) {
-    // Always-False, with the parameters folded into the result expression so
-    // the optimizer can't strip them. `bytearray.length` is non-negative, so
-    // both `< 0` checks are always False and the `||` is always False — but
-    // because the parameters appear in the returned value, they're part of the
-    // compiled UPLC and therefore part of the script hash. (Aiken eliminates
-    // unused let-bindings, so a `let _ = …` would NOT keep them.)
-    bytearray.length(reference_nft_policy) < 0
-      || bytearray.length(reference_nft_name) < 0
+    False
   }
 }
