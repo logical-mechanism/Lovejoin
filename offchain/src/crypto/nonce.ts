@@ -34,7 +34,7 @@ const HMAC_BLOCK = 32; // SHA-256 output size in bytes
 const BLEN_BITS = HMAC_BLOCK * 8; // 256
 const BITS2INT_SHIFT = BigInt(BLEN_BITS - QLEN_BITS); // 1n
 
-function hmacSha256(key: Uint8Array, ...data: Uint8Array[]): Uint8Array {
+function hmacSha256(key: Uint8Array, ...data: Uint8Array[]) {
   let total = 0;
   for (const d of data) total += d.length;
   const concatenated = new Uint8Array(total);
@@ -43,7 +43,7 @@ function hmacSha256(key: Uint8Array, ...data: Uint8Array[]): Uint8Array {
     concatenated.set(d, off);
     off += d.length;
   }
-  return hmac(sha256, key, concatenated);
+  return new Uint8Array(hmac(sha256, key, concatenated));
 }
 
 /// RFC 6979 §2.3.2 bits2int: read the first `qlen` leftmost bits of the input and

@@ -9,10 +9,13 @@
 import { bls12_381, bls12_381_Fr } from "@noble/curves/bls12-381.js";
 
 const Point = bls12_381.G1.Point;
-type G1Point = InstanceType<typeof Point>;
 
-// Re-export for downstream modules.
-export { Point as G1Point };
+// G1Point exposes both:
+//   * a value (the class constructor — used for `G1Point.ZERO`, etc.)
+//   * a type alias for instances (used in function signatures).
+// TypeScript merges these under one name when value+type share the identifier.
+export const G1Point = Point;
+export type G1Point = InstanceType<typeof Point>;
 
 // Scalar field order r.
 export const SCALAR_ORDER: bigint = bls12_381_Fr.ORDER;

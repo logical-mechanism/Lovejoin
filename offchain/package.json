@@ -25,7 +25,8 @@
     "gen:schnorr-kat": "tsx scripts/gen-schnorr-kat.ts",
     "gen:dhtuple-kat": "tsx scripts/gen-dhtuple-kat.ts",
     "gen:sigmaor-kat": "tsx scripts/gen-sigmaor-kat.ts",
-    "gen:kat": "tsx scripts/gen-kat.ts"
+    "gen:negative-kat": "tsx scripts/gen-negative-kat.ts",
+    "gen:kat": "tsx scripts/gen-schnorr-kat.ts && tsx scripts/gen-dhtuple-kat.ts && tsx scripts/gen-sigmaor-kat.ts && tsx scripts/gen-negative-kat.ts"
   },
   "dependencies": {
     "@noble/curves": "2.2.0",
