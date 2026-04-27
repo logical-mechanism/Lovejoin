@@ -11,7 +11,12 @@
   "reference_nft_policy": null,
   "reference_nft_asset_name": null,
   "reference_utxo_ref": null,
-  "ogmios_url": "ws://localhost:1337",
+  "provider": {
+    "kind": "blockfrost",
+    "baseUrl": "https://cardano-preprod.blockfrost.io/api/v0",
+    "projectIdEnv": "BLOCKFROST_PROJECT_ID_PREPROD"
+  },
+  "ogmios_url": null,
   "dbsync_url": null,
   "collateral_provider_endpoint": "https://giveme.my"
 }

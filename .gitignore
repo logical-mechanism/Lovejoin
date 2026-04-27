@@ -42,7 +42,11 @@ coverage/
 playwright-report/
 test-results/
 
-# Generated artifacts kept out of source control until bootstrap commits them deliberately
+# Generated artifacts kept out of source control until bootstrap commits them deliberately.
+# addresses.json IS tracked once a network has been bootstrapped — the canonical
+# protocol identifiers (NFT policy id, reference UTxO ref, script hashes) live there.
 artifacts/test/*.plutus
 artifacts/preprod/*.plutus
+artifacts/test/blueprint.json
+artifacts/preprod/blueprint.json
 
