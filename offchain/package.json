@@ -20,7 +20,9 @@
     "build": "tsc -p tsconfig.json",
     "test": "vitest run --passWithNoTests",
     "test:watch": "vitest",
-    "lint": "tsc -p tsconfig.json --noEmit"
+    "lint": "tsc -p tsconfig.json --noEmit",
+    "gen:parity": "tsx scripts/gen-encoding-parity.ts",
+    "gen:kat": "tsx scripts/gen-kat.ts"
   },
   "dependencies": {
     "@noble/curves": "2.2.0",
@@ -28,6 +30,7 @@
   },
   "devDependencies": {
     "@types/node": "^22.10.0",
+    "tsx": "^4.19.2",
     "typescript": "^5.7.2",
     "vitest": "^2.1.8"
   }
