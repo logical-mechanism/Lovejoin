@@ -55,8 +55,8 @@ v1 ships through M7. M8+ is post-v1.
 **Scope:** all validators, bootstrapped to Preprod, **with `max_n` empirically calibrated**.
 
 **Deliverables:**
-- `contracts/validators/{reference_holder,one_shot_mint,mix_box,fee_contract}.ak`. Mix branch handles **variable N** at runtime.
-- `contracts/test/{reference_test,mix_box_test,fee_contract_test}.ak`. Mix tests cover N ∈ {2, 3, 4, 6, 8} positive + negative.
+- `contracts/validators/{reference_holder,one_shot_mint,mix_box,mix_logic,fee_contract}.ak`. `mix_box` is the cheap spend-side delegator; `mix_logic` is the withdraw-zero validator that handles **variable N** at runtime. See [03-contracts.md](03-contracts.md) §0 for the design rationale.
+- `contracts/test/{reference_test,mix_box_test,mix_logic_test,fee_contract_test}.ak`. Mix tests cover N ∈ {2, 3, 4, 6, 8} positive + negative.
 - `contracts/build.sh`.
 - `infra/bootstrap/` complete:
   - `00-build-reference.sh`

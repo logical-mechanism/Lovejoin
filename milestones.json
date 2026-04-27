@@ -66,7 +66,9 @@
         "Provider abstraction (offchain/src/chain/provider.ts) is introduced at M2 because the stress-test submitters need it; M3/M4/M5 inherit it. Bootstrap scripts in infra/bootstrap/ continue to use cardano-cli — they're one-shot ceremonies, not steady-state ops."
       ],
       "deliverables": [
-        "validators/{reference_holder,one_shot_mint,mix_box,fee_contract}.ak compiled successfully",
+        "validators/{reference_holder,one_shot_mint,mix_box,mix_logic,fee_contract}.ak compiled successfully",
+        "mix_box is a cheap spend-side delegator; mix_logic is the withdraw-zero validator that handles Owner + Mix logic once per tx (see docs/spec/03-contracts.md §0)",
+        "Spend validators tolerate bad/missing datums (return True) per the hyperstructure principle; mix_logic silently ignores malformed mix inputs",
         "Mix branch handles variable N at runtime (2 ≤ N ≤ max_n)",
         "test files cover every rule with positive + negative tests at multiple N values",
         "contracts/build.sh produces artifacts/<network>/{*.plutus, addresses.json}",

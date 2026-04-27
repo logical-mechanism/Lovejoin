@@ -168,38 +168,45 @@ By the end of M1, you have three independent implementations agreeing on bytes. 
 
 ### Layer 0: types + helpers
 - `contracts/lib/lovejoin/types.ak`, `reference.ak`, `mixbox.ak`, `fee.ak`.
-- `find_reference_utxo` helper: takes the NFT identifier, returns the protocol params from `tx.reference_inputs`.
+- `read_protocol_params` helper: takes the NFT identifier, returns the protocol params from `tx.reference_inputs`.
+- `try_decode_well_formed_mix_datum` helper: returns `Option<MixDatum>`; the `None` arm drives Rule 2 (hyperstructure datum tolerance, see [03-contracts.md](03-contracts.md) §0).
 
 ### Layer 1: one_shot_mint
 - Simplest possible validator. ~10 lines. Get it deployed and minting on Preprod first.
 
 ### Layer 2: reference_holder
 - 1 line of logic (`False`). The interesting part is the bootstrap tx that locks the NFT and datum.
-- Run `infra/bootstrap/01-mint-and-lock.sh` on Preprod and verify the reference UTxO is queryable via ogmios.
+- Run `infra/bootstrap/01-mint-and-lock.sh` on Preprod and verify the reference UTxO is queryable via ogmios / Blockfrost.
 
-### Layer 3: mix_box Owner branch
-- Just calls Schnorr verify on the redeemer's proof against the datum.
-- Test in Aiken simulator with KAT-derived test cases.
-- Smoke test: deploy on Preprod via cardano-cli, deposit a box manually, spend it via Owner — confirm.
+### Layer 3: mix_logic Owner branch
+- The withdraw-zero withdrawal validator (see [03-contracts.md](03-contracts.md) §0/§2).
+- Owner mode: filter mix-script inputs, drop malformed-datum ones, expect exactly 1 well-formed input, Schnorr verify against `(a, b)`.
+- Test in the Aiken simulator with KAT-derived test cases.
 
-### Layer 4: mix_box Mix branch at N=2
-- Hard-code N=2 first. Get the OR proof verification working.
-- Test the rule list (value preservation, datum well-formedness, etc.) one by one.
+### Layer 4: mix_box (spend; pass-through)
+- Trivial: decode the datum; if well-formed require `pairs.has_key(self.withdrawals, mix_logic_credential)`; else True.
+- Smoke test: deposit a box on Preprod, spend it via Owner — the spend succeeds only when withdraw-zero is present.
 
-### Layer 5: fee_contract
-- Both PayMixFee and Replenish paths.
+### Layer 5: mix_logic Mix branch at N=2
+- Hard-code N=2 first while you stabilize the rule list (value preservation, datum well-formedness, output positions, ctx, OR-proof verification).
+
+### Layer 6: fee_contract
+- Both PayMixFee and Replenish paths. Rule 2 applies to its datum (`()` only; bad datum → True).
 - Test in isolation with synthetic Mix-tx contexts.
 
-### Layer 6: Generalize mix_box to variable N
-- Replace the hard-coded N=2 with `N = length(mix_inputs)` and generalize the OR-proof verification.
+### Layer 7: Generalize mix_logic Mix to variable N
+- Replace the hard-coded N=2 with `N = length(well_formed_mix_inputs)` and loop the OR-proof verification.
 - Test at N ∈ {2, 3, 4, 6}.
 
-### Layer 7: Bootstrap scripts
+### Layer 8: Bootstrap scripts
+- `00-build-reference.sh`: derives all hashes from config (note the dependency order: `mix_logic` before `mix_box`).
+- `01-mint-and-lock.sh`: mints NFT + locks reference datum.
 - `02-fund-fee-contract.sh`: creates 10 fee shards.
-- `03-publish-reference-scripts.sh`: publishes both validators as reference scripts.
+- `03-publish-reference-scripts.sh`: publishes validators as reference scripts.
+- Also: register the `mix_logic` stake credential — without it, `mix_box` spends can never satisfy the withdraw-zero check.
 - `addresses.preprod.json` committed.
 
-### Layer 8: Stress test
+### Layer 9: Stress test
 - `max-n-calibration.ts`. Determine real `max_n`.
 - `fee-calibration.ts`. Determine real `MAX_FEE_PER_MIX`.
 - Update `network.preprod.json`.
