@@ -60,22 +60,31 @@
       "status": "pending",
       "depends_on": ["M1"],
       "spec": "docs/spec/09-milestones.md#m2--validators-3-of-them--preprod-bootstrap",
+      "notes": [
+        "Chain provider for v1: Blockfrost (https://blockfrost.io). Local cardano-node + ogmios + db-sync are NOT required to ship M2/M3/M4 — Blockfrost's hosted API covers tx submission + chain queries via mesh's BlockfrostProvider. The backend's ogmios + db-sync indexer (M5 spec) becomes the second implementation of the same provider interface, swappable at runtime.",
+        "Canonical test network: Preprod (via Blockfrost Preprod project ID, free at blockfrost.io). Mainnet remains gated behind the audit gate per spec OQ-Y — the bootstrap ceremony is irreversible per network and creates permanent on-chain artifacts, so do NOT run it against mainnet during pre-alpha.",
+        "Provider abstraction (offchain/src/chain/provider.ts) is introduced at M2 because the stress-test submitters need it; M3/M4/M5 inherit it. Bootstrap scripts in infra/bootstrap/ continue to use cardano-cli — they're one-shot ceremonies, not steady-state ops."
+      ],
       "deliverables": [
         "validators/{reference_holder,one_shot_mint,mix_box,fee_contract}.ak compiled successfully",
         "Mix branch handles variable N at runtime (2 ≤ N ≤ max_n)",
         "test files cover every rule with positive + negative tests at multiple N values",
         "contracts/build.sh produces artifacts/<network>/{*.plutus, addresses.json}",
-        "infra/bootstrap/00-build-reference.sh, 01-mint-and-lock.sh, 02-fund-fee-contract.sh, 03-publish-reference-scripts.sh",
+        "offchain/src/chain/provider.ts: ChainProvider interface (submitTx, getUtxos, awaitConfirmation, getReferenceUtxo, getProtocolParams). BlockfrostProvider implementation. Mesh wired to use it.",
+        "config/network.preprod.json gains a 'provider' block (provider: 'blockfrost', projectId env var) so swapping providers is config-only.",
+        "infra/bootstrap/00-build-reference.sh, 01-mint-and-lock.sh, 02-fund-fee-contract.sh, 03-publish-reference-scripts.sh — cardano-cli driven; submission via Blockfrost",
         "Reference NFT minted on Preprod, locked at reference_holder",
         "10 fee shards funded on Preprod",
         "Reference scripts published as CIP-33 references on Preprod",
-        "stress-tests/max-n-calibration.ts and stress-tests/fee-calibration.ts run against Preprod and update network.preprod.json",
+        "stress-tests/max-n-calibration.ts and stress-tests/fee-calibration.ts run against Preprod via Blockfrost and update network.preprod.json",
         "docs/perf.md committed with empirical numbers",
         "30-minute fuzz run completes with no panics or unexpected accepts"
       ],
       "exit_criteria": [
         { "description": "All Aiken validator tests pass", "check": "cd contracts && aiken check" },
         { "description": "Aiken contracts build successfully", "check": "cd contracts && aiken build" },
+        { "description": "ChainProvider abstraction exists and BlockfrostProvider implements it", "check": "test -f offchain/src/chain/provider.ts && grep -q 'BlockfrostProvider' offchain/src/chain/blockfrost.ts" },
+        { "description": "ChainProvider unit tests pass (with a mocked HTTP layer; no live Blockfrost call required)", "check": "pnpm --filter @lovejoin/sdk test -- chain-provider" },
         { "description": "artifacts/preprod/addresses.json exists and has reference NFT info", "check": "node -e \"const a = JSON.parse(require('fs').readFileSync('artifacts/preprod/addresses.json','utf8')); if (!a.referenceNftPolicy || !a.referenceUtxoRef) { console.error('missing reference NFT'); process.exit(1); }\"" },
         { "description": "docs/perf.md exists", "check": "test -f docs/perf.md" },
         { "description": "max_n recorded in network.preprod.json", "check": "node -e \"const c = JSON.parse(require('fs').readFileSync('config/network.preprod.json','utf8')); if (!c.max_n || c.max_n < 2) { console.error('max_n not set or invalid'); process.exit(1); }\"" },
