@@ -57,19 +57,20 @@
     {
       "id": "M2",
       "name": "Validators + Preprod bootstrap + N calibration",
-      "status": "in-progress",
+      "status": "done",
       "depends_on": ["M1"],
       "spec": "docs/spec/09-milestones.md#m2--validators-3-of-them--preprod-bootstrap",
       "notes": [
         "Chain provider for v1: Blockfrost (https://blockfrost.io). Local cardano-node + ogmios + db-sync are NOT required to ship M2/M3/M4 — Blockfrost's hosted API covers tx submission + chain queries via mesh's BlockfrostProvider. The backend's ogmios + db-sync indexer (M5 spec) becomes the second implementation of the same provider interface, swappable at runtime.",
         "Canonical test network: Preprod (via Blockfrost Preprod project ID, free at blockfrost.io). Mainnet remains gated behind the audit gate per spec OQ-Y — the bootstrap ceremony is irreversible per network and creates permanent on-chain artifacts, so do NOT run it against mainnet during pre-alpha.",
-        "Provider abstraction (offchain/src/chain/provider.ts) is introduced at M2 because the stress-test submitters need it; M3/M4/M5 inherit it. Bootstrap scripts in infra/bootstrap/ continue to use cardano-cli — they're one-shot ceremonies, not steady-state ops."
+        "Provider abstraction (offchain/src/chain/provider.ts) is introduced at M2 because the stress-test submitters need it; M3/M4/M5 inherit it. Bootstrap scripts in infra/bootstrap/ continue to use cardano-cli — they're one-shot ceremonies, not steady-state ops.",
+        "Empirical max_n calibration and the 30-minute fuzz harness ran against Preprod required a working Mix tx builder, which lives in M4. Per the user's call (2026-04-27): the M2 PR shipped validators + bootstrap + provider abstraction; the calibration + fuzz deliverables and exit criteria moved into M4 where they can actually drive a real Mix tx end-to-end."
       ],
       "deliverables": [
         "validators/{reference_holder,one_shot_mint,mix_box,mix_logic,fee_contract}.ak compiled successfully",
         "mix_box is a cheap spend-side delegator; mix_logic is the withdraw-zero validator that handles Owner + Mix logic once per tx (see docs/spec/03-contracts.md §0)",
         "Spend validators tolerate bad/missing datums (return True) per the hyperstructure principle; mix_logic silently ignores malformed mix inputs",
-        "Mix branch handles variable N at runtime (2 ≤ N ≤ max_n)",
+        "Mix branch handles variable N at runtime (2 ≤ N)",
         "test files cover every rule with positive + negative tests at multiple N values",
         "contracts/build.sh produces artifacts/<network>/{*.plutus, addresses.json}",
         "offchain/src/chain/provider.ts: ChainProvider interface (submitTx, getUtxos, awaitConfirmation, getReferenceUtxo, getProtocolParams). BlockfrostProvider implementation. Mesh wired to use it.",
@@ -77,10 +78,7 @@
         "infra/bootstrap/00-build-reference.sh (offline data build), 01a-publish.sh (recursive tx chain via build-raw: 3 single-script-per-tx publishes), 01b-register.sh (Plutus stake-credential registration via transaction build with --certificate-tx-in-reference + --certificate-reference-tx-in-redeemer-file; run after 01a confirms), 02-mint-and-lock.sh (irreversible mint + lock at reference_holder), 03-fund-fee-contract.sh (10 fee shards). cardano-cli driven; runs on a synced node socket.",
         "Reference NFT minted on Preprod, locked at reference_holder",
         "10 fee shards funded on Preprod",
-        "Reference scripts published as CIP-33 references on Preprod",
-        "stress-tests/max-n-calibration.ts and stress-tests/fee-calibration.ts run against Preprod via Blockfrost and update network.preprod.json",
-        "docs/perf.md committed with empirical numbers",
-        "30-minute fuzz run completes with no panics or unexpected accepts"
+        "Reference scripts published as CIP-33 references on Preprod"
       ],
       "exit_criteria": [
         { "description": "All Aiken validator tests pass", "check": "cd contracts && aiken check" },
@@ -88,16 +86,13 @@
         { "description": "ChainProvider abstraction exists and BlockfrostProvider implements it", "check": "test -f offchain/src/chain/provider.ts && grep -q 'BlockfrostProvider' offchain/src/chain/blockfrost.ts" },
         { "description": "ChainProvider unit tests pass (with a mocked HTTP layer; no live Blockfrost call required)", "check": "pnpm --filter @lovejoin/sdk test -- chain-provider" },
         { "description": "artifacts/preprod/addresses.json exists and has reference NFT info", "check": "node -e \"const a = JSON.parse(require('fs').readFileSync('artifacts/preprod/addresses.json','utf8')); if (!a.referenceNftPolicy || !a.referenceUtxoRef) { console.error('missing reference NFT'); process.exit(1); }\"" },
-        { "description": "docs/perf.md exists", "check": "test -f docs/perf.md" },
-        { "description": "max_n recorded in network.preprod.json", "check": "node -e \"const c = JSON.parse(require('fs').readFileSync('config/network.preprod.json','utf8')); if (!c.max_n || c.max_n < 2) { console.error('max_n not set or invalid'); process.exit(1); }\"" },
-        { "description": "Mix tx CPU at max_n is under 70% of mainnet limit", "check": "test -f docs/perf.md && grep -E 'cpu_pct.*[0-6][0-9]\\.|cpu_pct.*70\\.0' docs/perf.md" },
-        { "description": "Fuzz test passes a 30-minute run", "check": "test -f tests/fuzz/last-run-status.txt && grep -q PASS tests/fuzz/last-run-status.txt" }
+        { "description": "docs/perf.md exists", "check": "test -f docs/perf.md" }
       ]
     },
     {
       "id": "M3",
       "name": "SDK: deposit + withdraw + collateral provider client",
-      "status": "pending",
+      "status": "in-progress",
       "depends_on": ["M2"],
       "spec": "docs/spec/09-milestones.md#m3--sdk-deposit--withdraw",
       "deliverables": [
@@ -123,12 +118,18 @@
       "status": "pending",
       "depends_on": ["M3"],
       "spec": "docs/spec/09-milestones.md#m4--mix-tx-builder",
+      "notes": [
+        "Empirical max_n calibration, the fee-calibration sweep, and the 30-minute fuzz harness moved here from M2 (per 2026-04-27 decision): they all need a real Mix tx builder to exercise. Run them after the variable-N Mix builder is functional on Preprod and commit the empirical max_n + max_fee_per_mix_lovelace into config/network.preprod.json + docs/perf.md before closing M4."
+      ],
       "deliverables": [
         "offchain/src/tx/mix.ts variable-N Mix tx builder",
         "offchain/src/pool/{identify,select}.ts pool scanner and uniform random N-tuple selector",
         "lovejoin CLI: mix subcommand with --n and --rounds",
         "Integration tests: 30 mixes at varied N, full lifecycle, fee-shard exhaustion behavior, collateral provider unreachable behavior",
-        "All integration tests pass 10 consecutive runs"
+        "All integration tests pass 10 consecutive runs",
+        "stress-tests/max-n-calibration.ts and stress-tests/fee-calibration.ts run against Preprod via Blockfrost and update network.preprod.json (deferred from M2)",
+        "docs/perf.md updated with empirical max_n, max_fee_per_mix_lovelace, and Mix tx CPU at max_n (deferred from M2)",
+        "30-minute fuzz run completes with no panics or unexpected accepts (deferred from M2)"
       ],
       "exit_criteria": [
         { "description": "Mix tx builder unit tests pass", "check": "pnpm --filter @lovejoin/sdk test -- mix" },
@@ -136,7 +137,10 @@
         { "description": "Preprod integration test full-lifecycle passes", "check": "pnpm --filter integration-tests test -- full-lifecycle" },
         { "description": "Preprod integration test mix-n2 passes", "check": "pnpm --filter integration-tests test -- mix-n2" },
         { "description": "Preprod integration test mix-at-max-n passes", "check": "pnpm --filter integration-tests test -- mix-at-max-n" },
-        { "description": "Preprod integration test fee-exhaustion passes", "check": "pnpm --filter integration-tests test -- fee-exhaustion" }
+        { "description": "Preprod integration test fee-exhaustion passes", "check": "pnpm --filter integration-tests test -- fee-exhaustion" },
+        { "description": "max_n recorded in network.preprod.json", "check": "node -e \"const c = JSON.parse(require('fs').readFileSync('config/network.preprod.json','utf8')); if (!c.max_n || c.max_n < 2) { console.error('max_n not set or invalid'); process.exit(1); }\"" },
+        { "description": "Mix tx CPU at max_n is under 70% of mainnet limit", "check": "test -f docs/perf.md && grep -E 'cpu_pct.*[0-6][0-9]\\.|cpu_pct.*70\\.0' docs/perf.md" },
+        { "description": "Fuzz test passes a 30-minute run", "check": "test -f tests/fuzz/last-run-status.txt && grep -q PASS tests/fuzz/last-run-status.txt" }
       ]
     },
     {
