@@ -113,18 +113,44 @@
       ]
     },
     {
-      "id": "M4",
-      "name": "Mix tx builder (variable N + collateral provider)",
+      "id": "M3.5",
+      "name": "UI vertical slice — wallet + deposit + withdraw",
       "status": "pending",
       "depends_on": ["M3"],
+      "spec": "docs/spec/12-build-guide.md#the-thin-happy-path-slice-target-end-of-m3",
+      "notes": [
+        "Inserted between M3 and M4 (per 2026-04-27 decision): headless integration testing of M3 is hard to debug and not how users will interact, so build the smallest possible UI that exercises the SDK with a real CIP-30 browser wallet. This validates buildDepositTx + buildWithdrawTx + the BrowserWallet adapter together, and surfaces any browser-only issues (mesh bundling, libsodium polyfill, window globals) before we go deep on M4's Mix builder.",
+        "Scope is intentionally minimal: wallet picker, deposit form, in-memory list of just-deposited boxes, withdraw form. NO IndexedDB encryption, NO i18n lint rule, NO Pool screen, NO Mix screen, NO Playwright E2E. Those land in M6 with the rest of the polish.",
+        "Build-guide §'The thin happy-path slice (target: end of M3)' prescribes this; spec just assumed CLI for the slice."
+      ],
+      "deliverables": [
+        "ui/src/lib/sdk.ts — bridge that wires @lovejoin/sdk into the React app (provider config, addresses.json loading, BrowserWallet helper)",
+        "Wallet-connect button using BrowserWallet.enable; lists installed CIP-30 wallets via BrowserWallet.getInstalledWallets",
+        "Deposit screen: rounds field + Deposit button → buildDepositTx → shows tx hash + saves (a, b, x) in component state",
+        "In-memory 'My boxes' list — only the boxes deposited this session; full pool view waits for M5/M6",
+        "Withdraw screen: pick a box from the list (or paste secret + ref + a + b) + destination address → buildWithdrawTx → shows tx hash",
+        "Manual verification on Preprod: deposit + withdraw round-trip from a browser wallet; confirmation screenshots / cardanoscan links pasted into docs/m3.5-verification.md"
+      ],
+      "exit_criteria": [
+        { "description": "UI builds for production", "check": "pnpm --filter ui build" },
+        { "description": "Verification report exists with Preprod tx links", "check": "test -f docs/m3.5-verification.md" }
+      ]
+    },
+    {
+      "id": "M4",
+      "name": "Mix tx builder + Mix UI",
+      "status": "pending",
+      "depends_on": ["M3.5"],
       "spec": "docs/spec/09-milestones.md#m4--mix-tx-builder",
       "notes": [
-        "Empirical max_n calibration, the fee-calibration sweep, and the 30-minute fuzz harness moved here from M2 (per 2026-04-27 decision): they all need a real Mix tx builder to exercise. Run them after the variable-N Mix builder is functional on Preprod and commit the empirical max_n + max_fee_per_mix_lovelace into config/network.preprod.json + docs/perf.md before closing M4."
+        "Empirical max_n calibration, the fee-calibration sweep, and the 30-minute fuzz harness moved here from M2 (per 2026-04-27 decision): they all need a real Mix tx builder to exercise. Run them after the variable-N Mix builder is functional on Preprod and commit the empirical max_n + max_fee_per_mix_lovelace into config/network.preprod.json + docs/perf.md before closing M4.",
+        "Bundles the Mix UI screen with the SDK work (per 2026-04-27 decision): same reasoning as M3.5 — verifying Mix headlessly is harder than just building the UI to drive it. Pool view (which requires backend chain-scan) stays deferred until M5/M6."
       ],
       "deliverables": [
         "offchain/src/tx/mix.ts variable-N Mix tx builder",
         "offchain/src/pool/{identify,select}.ts pool scanner and uniform random N-tuple selector",
         "lovejoin CLI: mix subcommand with --n and --rounds",
+        "ui Mix screen: pick boxes from the M3.5 'my boxes' list (or paste explicit refs), choose N, run mix, show tx hash. Pool-wide random selection is M5/M6.",
         "Integration tests: 30 mixes at varied N, full lifecycle, fee-shard exhaustion behavior, collateral provider unreachable behavior",
         "All integration tests pass 10 consecutive runs",
         "stress-tests/max-n-calibration.ts and stress-tests/fee-calibration.ts run against Preprod via Blockfrost and update network.preprod.json (deferred from M2)",
@@ -149,6 +175,9 @@
       "status": "pending",
       "depends_on": ["M2"],
       "spec": "docs/spec/09-milestones.md#m5--backend-indexer--api",
+      "notes": [
+        "Execution-ordering decision (2026-04-27): deferred until after M4 + M6 polish. The M2 ChainProvider abstraction means Blockfrost is sufficient for the alpha — every SDK + UI call goes through it. The self-hosted ogmios + db-sync indexer is a second ChainProvider implementation, swap-in via config when Blockfrost rate limits or self-hosting needs hit. Pool-view UI in M6 reads from whichever provider is wired."
+      ],
       "deliverables": [
         "backend/src/indexer/{ogmios,pool,fee,reference,reorg}.ts",
         "backend/src/api/ with all routes from 05-backend.md",
@@ -167,14 +196,16 @@
     },
     {
       "id": "M6",
-      "name": "UI v1",
+      "name": "UI v1 — polish + remaining screens",
       "status": "pending",
-      "depends_on": ["M3", "M4", "M5"],
+      "depends_on": ["M3.5", "M4", "M5"],
       "spec": "docs/spec/09-milestones.md#m6--ui-v1",
+      "notes": [
+        "Scope updated 2026-04-27: deposit + withdraw screens shipped in M3.5 (vertical slice); Mix screen shipped in M4. M6 now finishes the rest — Pool/Vault/Box/Home screens, IndexedDB encrypted box-secret storage (Argon2id), i18n lint, the N-width slider, Seedelf destination detection, Playwright E2E. Pool view depends on M5's indexer being wired (or Blockfrost-direct as a fallback)."
+      ],
       "deliverables": [
-        "All screens from 06-ui.md (Home, Deposit, Pool, Vault, Box, Withdraw)",
-        "Wallet integration via mesh + CIP-30",
-        "IndexedDB encrypted storage for box secrets (Argon2id passphrase)",
+        "Remaining screens from 06-ui.md (Home, Pool, Vault, Box) — Deposit + Withdraw shipped in M3.5; Mix shipped in M4",
+        "IndexedDB encrypted storage for box secrets (Argon2id passphrase) — replaces M3.5's in-memory state",
         "i18n English at minimum; lint rule against raw English in JSX",
         "N-width slider on Pool screen",
         "Collateral provider status indicator + disabled-mix-button when down",
@@ -192,7 +223,7 @@
       "id": "M7",
       "name": "CI/CD and release engineering",
       "status": "pending",
-      "depends_on": ["M0", "M1", "M2", "M3", "M4", "M5", "M6"],
+      "depends_on": ["M0", "M1", "M2", "M3", "M3.5", "M4", "M5", "M6"],
       "spec": "docs/spec/09-milestones.md#m7--cicd-and-release-engineering",
       "deliverables": [
         "GitHub Actions workflow that on PR + merge: builds all, runs unit + validator + property tests, runs integration nightly on Preprod, runs fuzz nightly 30 min",
