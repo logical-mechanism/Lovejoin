@@ -8,8 +8,15 @@
 //// actually runs in normal operation. Always-False is defense-in-depth: even if
 //// someone tried to *spend* the reference UTxO, the script rejects.
 
+use cardano/transaction.{OutputReference, Transaction}
+
 validator reference_holder {
-  spend(_d: Option<Data>, _r: Data, _utxo: Data, _self: Data) {
+  spend(
+    _d: Option<Data>,
+    _r: Data,
+    _utxo: OutputReference,
+    _self: Transaction,
+  ) {
     False
   }
 }
