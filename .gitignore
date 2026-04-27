@@ -61,6 +61,7 @@ artifacts/*/*.tx
 artifacts/*/*.txraw
 artifacts/*/*.cert
 artifacts/*/*.utxo.json
+artifacts/*/*.hash
 artifacts/*/blueprint.json
 artifacts/*/reference_datum.json
 artifacts/*/empty-redeemer.json
