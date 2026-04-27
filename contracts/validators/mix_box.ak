@@ -15,17 +15,21 @@
 ////      anyone can sweep them.
 
 use aiken/collection/pairs
-use cardano/address.{Credential}
+use cardano/address.{Credential, Script}
 use cardano/transaction.{OutputReference, Transaction}
 use lovejoin/mixbox.{try_decode_well_formed_optional}
 
-validator mix_box(mix_logic_credential: Credential) {
+// Flat param (mix_logic_script_hash: ByteArray) so `aiken blueprint apply` can
+// supply it as a single CBOR bytes atom. We build the Credential from the hash
+// inside the body.
+validator mix_box(mix_logic_script_hash: ByteArray) {
   spend(
     datum: Option<Data>,
     _redeemer: Data,
     _utxo: OutputReference,
     self: Transaction,
   ) {
+    let mix_logic_credential: Credential = Script(mix_logic_script_hash)
     when try_decode_well_formed_optional(datum) is {
       Some(_md) -> pairs.has_key(self.withdrawals, mix_logic_credential)
       None -> True

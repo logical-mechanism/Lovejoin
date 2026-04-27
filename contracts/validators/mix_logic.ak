@@ -32,8 +32,11 @@ use lovejoin/types.{
   MixDatum, MixLogicRedeemer, Mix, Owner, ProtocolParams, ReferenceParams,
 }
 
-validator mix_logic(ref: ReferenceParams) {
+// Flat params (reference_nft_policy, reference_nft_name) so `aiken blueprint
+// apply` can supply them as separate CBOR atoms.
+validator mix_logic(reference_nft_policy: ByteArray, reference_nft_name: ByteArray) {
   withdraw(redeemer: MixLogicRedeemer, _account: Credential, self: Transaction) {
+    let ref = ReferenceParams { reference_nft_policy, reference_nft_name }
     let params = read_protocol_params(self, ref)
     let mix_inputs = collect_well_formed_mix_inputs(self, params.mix_script_hash)
 

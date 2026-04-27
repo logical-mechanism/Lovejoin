@@ -24,10 +24,11 @@ use cardano/transaction.{Input, Output, Transaction}
 use lovejoin/schnorr.{SchnorrProof}
 use lovejoin/sigma_or.{SigmaOrBranch, SigmaOrProof}
 use lovejoin/test_fixtures.{
-  default_reference_input, default_reference_params, denom_lovelace,
-  fee_shard_output, max_n, mix_box_input, mix_box_input_bad_datum,
-  mix_box_output, mix_box_output_with_value, mix_logic_hash, mix_script_hash,
-  random_user_vk, script_address, vk_output_lovelace, a48, b48, c48,
+  default_reference_input, denom_lovelace, fee_shard_output, max_n,
+  mix_box_input, mix_box_input_bad_datum, mix_box_output,
+  mix_box_output_with_value, mix_logic_hash, mix_script_hash, random_user_vk,
+  ref_nft_name, ref_nft_policy, script_address, vk_output_lovelace, a48, b48,
+  c48,
 }
 use lovejoin/types.{Mix, MixDatum, Owner}
 use mix_logic
@@ -78,7 +79,8 @@ test owner_rejects_zero_well_formed_inputs() fail {
       fee: 200_000,
     }
   mix_logic.mix_logic.withdraw(
-    default_reference_params(),
+    ref_nft_policy,
+    ref_nft_name,
     Owner { proof: bogus_schnorr() },
     script_address(mix_script_hash).payment_credential,
     tx,
@@ -98,7 +100,8 @@ test owner_rejects_two_well_formed_inputs() fail {
       fee: 200_000,
     }
   mix_logic.mix_logic.withdraw(
-    default_reference_params(),
+    ref_nft_policy,
+    ref_nft_name,
     Owner { proof: bogus_schnorr() },
     script_address(mix_script_hash).payment_credential,
     tx,
@@ -121,7 +124,8 @@ test owner_with_one_well_formed_input_rejects_bogus_proof() fail {
       fee: 200_000,
     }
   mix_logic.mix_logic.withdraw(
-    default_reference_params(),
+    ref_nft_policy,
+    ref_nft_name,
     Owner { proof: bogus_schnorr() },
     script_address(mix_script_hash).payment_credential,
     tx,
@@ -148,7 +152,8 @@ test owner_ignores_bad_datum_inputs() fail {
       fee: 200_000,
     }
   mix_logic.mix_logic.withdraw(
-    default_reference_params(),
+    ref_nft_policy,
+    ref_nft_name,
     Owner { proof: bogus_schnorr() },
     script_address(mix_script_hash).payment_credential,
     tx,
@@ -200,7 +205,8 @@ test mix_rejects_n_eq_1() fail {
       fee: 200_000,
     }
   mix_logic.mix_logic.withdraw(
-    default_reference_params(),
+    ref_nft_policy,
+    ref_nft_name,
     Mix { proofs: [bogus_sigma_or(2)] },
     script_address(mix_script_hash).payment_credential,
     tx,
@@ -222,7 +228,8 @@ test mix_rejects_n_above_max_n() fail {
     }
   let proofs: List<SigmaOrProof> = build_proofs_at_n(n_over)
   mix_logic.mix_logic.withdraw(
-    default_reference_params(),
+    ref_nft_policy,
+    ref_nft_name,
     Mix { proofs: proofs },
     script_address(mix_script_hash).payment_credential,
     tx,
@@ -254,7 +261,8 @@ test mix_rejects_proofs_count_mismatch() fail {
       fee: 200_000,
     }
   mix_logic.mix_logic.withdraw(
-    default_reference_params(),
+    ref_nft_policy,
+    ref_nft_name,
     Mix { proofs: [bogus_sigma_or(3), bogus_sigma_or(3)] },
     script_address(mix_script_hash).payment_credential,
     tx,
@@ -283,7 +291,8 @@ test mix_rejects_mix_output_in_tail() fail {
       fee: 200_000,
     }
   mix_logic.mix_logic.withdraw(
-    default_reference_params(),
+    ref_nft_policy,
+    ref_nft_name,
     Mix { proofs: [bogus_sigma_or(2), bogus_sigma_or(2)] },
     script_address(mix_script_hash).payment_credential,
     tx,
@@ -304,7 +313,8 @@ test mix_rejects_non_mix_output_in_prefix() fail {
       fee: 200_000,
     }
   mix_logic.mix_logic.withdraw(
-    default_reference_params(),
+    ref_nft_policy,
+    ref_nft_name,
     Mix { proofs: [bogus_sigma_or(2), bogus_sigma_or(2)] },
     script_address(mix_script_hash).payment_credential,
     tx,
@@ -329,7 +339,8 @@ test mix_rejects_wrong_denom_output() fail {
       fee: 200_000,
     }
   mix_logic.mix_logic.withdraw(
-    default_reference_params(),
+    ref_nft_policy,
+    ref_nft_name,
     Mix { proofs: [bogus_sigma_or(2), bogus_sigma_or(2)] },
     script_address(mix_script_hash).payment_credential,
     tx,
@@ -358,7 +369,8 @@ test mix_rejects_native_asset_in_output() fail {
       fee: 200_000,
     }
   mix_logic.mix_logic.withdraw(
-    default_reference_params(),
+    ref_nft_policy,
+    ref_nft_name,
     Mix { proofs: [bogus_sigma_or(2), bogus_sigma_or(2)] },
     script_address(mix_script_hash).payment_credential,
     tx,
@@ -379,7 +391,8 @@ test mix_rejects_a_eq_b_output_datum() fail {
       fee: 200_000,
     }
   mix_logic.mix_logic.withdraw(
-    default_reference_params(),
+    ref_nft_policy,
+    ref_nft_name,
     Mix { proofs: [bogus_sigma_or(2), bogus_sigma_or(2)] },
     script_address(mix_script_hash).payment_credential,
     tx,
@@ -403,7 +416,8 @@ test mix_rejects_no_reference_input() fail {
       fee: 200_000,
     }
   mix_logic.mix_logic.withdraw(
-    default_reference_params(),
+    ref_nft_policy,
+    ref_nft_name,
     Mix { proofs: [bogus_sigma_or(2), bogus_sigma_or(2)] },
     script_address(mix_script_hash).payment_credential,
     tx,
@@ -421,7 +435,8 @@ test owner_rejects_no_reference_input() fail {
       fee: 200_000,
     }
   mix_logic.mix_logic.withdraw(
-    default_reference_params(),
+    ref_nft_policy,
+    ref_nft_name,
     Owner { proof: bogus_schnorr() },
     script_address(mix_script_hash).payment_credential,
     tx,
@@ -444,7 +459,8 @@ test publish_allows_register_credential() {
       deposit: Never,
     }
   mix_logic.mix_logic.publish(
-    default_reference_params(),
+    ref_nft_policy,
+    ref_nft_name,
     Void,
     cert,
     transaction.placeholder,
@@ -459,7 +475,8 @@ test publish_rejects_unregister_credential() {
       refund: Never,
     }
   !mix_logic.mix_logic.publish(
-    default_reference_params(),
+    ref_nft_policy,
+    ref_nft_name,
     Void,
     cert,
     transaction.placeholder,

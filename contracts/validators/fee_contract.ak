@@ -24,7 +24,8 @@ use lovejoin/types.{
   FeeRedeemer, PayMixFee, ProtocolParams, ReferenceParams, Replenish,
 }
 
-validator fee_contract(ref: ReferenceParams) {
+// Flat params for `aiken blueprint apply` (one CBOR atom per call).
+validator fee_contract(reference_nft_policy: ByteArray, reference_nft_name: ByteArray) {
   spend(
     datum: Option<Data>,
     redeemer: FeeRedeemer,
@@ -35,6 +36,7 @@ validator fee_contract(ref: ReferenceParams) {
       // Rule 2: not a real fee shard. Allow recovery.
       True
     } else {
+      let ref = ReferenceParams { reference_nft_policy, reference_nft_name }
       let params = read_protocol_params(self, ref)
 
       // Locate this input among self.inputs to discover own_hash.

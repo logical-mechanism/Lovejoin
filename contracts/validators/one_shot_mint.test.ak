@@ -56,7 +56,13 @@ test one_shot_mint_positive() {
       [placeholder_input(seed)],
       assets.from_asset(policy_id, asset_name, 1),
     )
-  one_shot_mint.one_shot_mint.mint(seed, Void, policy_id, tx)
+  one_shot_mint.one_shot_mint.mint(
+    seed.transaction_id,
+    seed.output_index,
+    Void,
+    policy_id,
+    tx,
+  )
 }
 
 test one_shot_mint_positive_seed_among_others() {
@@ -66,7 +72,13 @@ test one_shot_mint_positive_seed_among_others() {
       [placeholder_input(other_ref), placeholder_input(seed)],
       assets.from_asset(policy_id, asset_name, 1),
     )
-  one_shot_mint.one_shot_mint.mint(seed, Void, policy_id, tx)
+  one_shot_mint.one_shot_mint.mint(
+    seed.transaction_id,
+    seed.output_index,
+    Void,
+    policy_id,
+    tx,
+  )
 }
 
 // ---------------------------------------------------------------------------
@@ -79,13 +91,25 @@ test one_shot_mint_rejects_seed_missing() {
       [placeholder_input(other_ref)],
       assets.from_asset(policy_id, asset_name, 1),
     )
-  !one_shot_mint.one_shot_mint.mint(seed, Void, policy_id, tx)
+  !one_shot_mint.one_shot_mint.mint(
+    seed.transaction_id,
+    seed.output_index,
+    Void,
+    policy_id,
+    tx,
+  )
 }
 
 test one_shot_mint_rejects_no_inputs() {
   let tx =
     tx_with_inputs_and_mint([], assets.from_asset(policy_id, asset_name, 1))
-  !one_shot_mint.one_shot_mint.mint(seed, Void, policy_id, tx)
+  !one_shot_mint.one_shot_mint.mint(
+    seed.transaction_id,
+    seed.output_index,
+    Void,
+    policy_id,
+    tx,
+  )
 }
 
 // ---------------------------------------------------------------------------
@@ -94,7 +118,13 @@ test one_shot_mint_rejects_no_inputs() {
 
 test one_shot_mint_rejects_quantity_zero() {
   let tx = tx_with_inputs_and_mint([placeholder_input(seed)], assets.zero)
-  !one_shot_mint.one_shot_mint.mint(seed, Void, policy_id, tx)
+  !one_shot_mint.one_shot_mint.mint(
+    seed.transaction_id,
+    seed.output_index,
+    Void,
+    policy_id,
+    tx,
+  )
 }
 
 test one_shot_mint_rejects_quantity_two() {
@@ -103,7 +133,13 @@ test one_shot_mint_rejects_quantity_two() {
       [placeholder_input(seed)],
       assets.from_asset(policy_id, asset_name, 2),
     )
-  !one_shot_mint.one_shot_mint.mint(seed, Void, policy_id, tx)
+  !one_shot_mint.one_shot_mint.mint(
+    seed.transaction_id,
+    seed.output_index,
+    Void,
+    policy_id,
+    tx,
+  )
 }
 
 test one_shot_mint_rejects_burn() {
@@ -113,7 +149,13 @@ test one_shot_mint_rejects_burn() {
       [placeholder_input(seed)],
       assets.from_asset(policy_id, asset_name, -1),
     )
-  !one_shot_mint.one_shot_mint.mint(seed, Void, policy_id, tx)
+  !one_shot_mint.one_shot_mint.mint(
+    seed.transaction_id,
+    seed.output_index,
+    Void,
+    policy_id,
+    tx,
+  )
 }
 
 test one_shot_mint_rejects_two_asset_names() {
@@ -127,5 +169,11 @@ test one_shot_mint_rejects_two_asset_names() {
       assets.from_asset(policy_id, "alt", -1),
     )
   let tx = tx_with_inputs_and_mint([placeholder_input(seed)], value)
-  !one_shot_mint.one_shot_mint.mint(seed, Void, policy_id, tx)
+  !one_shot_mint.one_shot_mint.mint(
+    seed.transaction_id,
+    seed.output_index,
+    Void,
+    policy_id,
+    tx,
+  )
 }

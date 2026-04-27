@@ -7,9 +7,9 @@ use cardano/assets
 use cardano/transaction.{InlineDatum, Input, Output, OutputReference, Transaction}
 use fee_contract
 use lovejoin/test_fixtures.{
-  default_reference_input, default_reference_params, denom_lovelace,
-  fee_shard_input, fee_shard_output, fee_shard_output_no_datum, fee_script_hash,
-  max_fee_per_mix_lovelace, mix_box_input, out_ref, random_user_vk,
+  default_reference_input, denom_lovelace, fee_shard_input, fee_shard_output,
+  fee_shard_output_no_datum, fee_script_hash, max_fee_per_mix_lovelace,
+  mix_box_input, out_ref, random_user_vk, ref_nft_name, ref_nft_policy,
   script_address, vk_output_lovelace, a48, b48,
 }
 use lovejoin/types.{PayMixFee, Replenish}
@@ -25,7 +25,8 @@ const default_fee_in: Int = 5_000_000
 test fee_contract_accepts_no_datum_recovery() {
   let utxo = out_ref(fee_input_byte, 0)
   fee_contract.fee_contract.spend(
-    default_reference_params(),
+    ref_nft_policy,
+    ref_nft_name,
     None,
     PayMixFee,
     utxo,
@@ -37,7 +38,8 @@ test fee_contract_accepts_int_datum_recovery() {
   let utxo = out_ref(fee_input_byte, 0)
   let bad: Data = 1
   fee_contract.fee_contract.spend(
-    default_reference_params(),
+    ref_nft_policy,
+    ref_nft_name,
     Some(bad),
     PayMixFee,
     utxo,
@@ -90,7 +92,8 @@ test pay_mix_fee_positive_n2() {
   let (tx, utxo) = pay_mix_fee_tx(default_fee_in, default_fee_in - 200_000, 200_000, 2)
   let unit: Data = Void
   fee_contract.fee_contract.spend(
-    default_reference_params(),
+    ref_nft_policy,
+    ref_nft_name,
     Some(unit),
     PayMixFee,
     utxo,
@@ -102,7 +105,8 @@ test pay_mix_fee_positive_n6() {
   let (tx, utxo) = pay_mix_fee_tx(default_fee_in, default_fee_in - 700_000, 700_000, 6)
   let unit: Data = Void
   fee_contract.fee_contract.spend(
-    default_reference_params(),
+    ref_nft_policy,
+    ref_nft_name,
     Some(unit),
     PayMixFee,
     utxo,
@@ -121,7 +125,8 @@ test pay_mix_fee_positive_at_max_fee() {
     )
   let unit: Data = Void
   fee_contract.fee_contract.spend(
-    default_reference_params(),
+    ref_nft_policy,
+    ref_nft_name,
     Some(unit),
     PayMixFee,
     utxo,
@@ -139,7 +144,8 @@ test pay_mix_fee_rejects_one_mix_input() fail {
   let (tx, utxo) = pay_mix_fee_tx(default_fee_in, default_fee_in - 200_000, 200_000, 1)
   let unit: Data = Void
   fee_contract.fee_contract.spend(
-    default_reference_params(),
+    ref_nft_policy,
+    ref_nft_name,
     Some(unit),
     PayMixFee,
     utxo,
@@ -151,7 +157,8 @@ test pay_mix_fee_rejects_zero_mix_inputs() fail {
   let (tx, utxo) = pay_mix_fee_tx(default_fee_in, default_fee_in - 200_000, 200_000, 0)
   let unit: Data = Void
   fee_contract.fee_contract.spend(
-    default_reference_params(),
+    ref_nft_policy,
+    ref_nft_name,
     Some(unit),
     PayMixFee,
     utxo,
@@ -164,7 +171,8 @@ test pay_mix_fee_rejects_fee_diff_too_small() fail {
   let (tx, utxo) = pay_mix_fee_tx(default_fee_in, default_fee_in - 100_000, 200_000, 2)
   let unit: Data = Void
   fee_contract.fee_contract.spend(
-    default_reference_params(),
+    ref_nft_policy,
+    ref_nft_name,
     Some(unit),
     PayMixFee,
     utxo,
@@ -178,7 +186,8 @@ test pay_mix_fee_rejects_fee_diff_too_large() fail {
   let (tx, utxo) = pay_mix_fee_tx(default_fee_in, default_fee_in - 300_000, 200_000, 2)
   let unit: Data = Void
   fee_contract.fee_contract.spend(
-    default_reference_params(),
+    ref_nft_policy,
+    ref_nft_name,
     Some(unit),
     PayMixFee,
     utxo,
@@ -192,7 +201,8 @@ test pay_mix_fee_rejects_fee_above_max() {
   let (tx, utxo) = pay_mix_fee_tx(default_fee_in, default_fee_in - over, over, 2)
   let unit: Data = Void
   !fee_contract.fee_contract.spend(
-    default_reference_params(),
+    ref_nft_policy,
+    ref_nft_name,
     Some(unit),
     PayMixFee,
     utxo,
@@ -214,7 +224,8 @@ test pay_mix_fee_rejects_no_fee_output() fail {
     }
   let unit: Data = Void
   fee_contract.fee_contract.spend(
-    default_reference_params(),
+    ref_nft_policy,
+    ref_nft_name,
     Some(unit),
     PayMixFee,
     fee_in.output_reference,
@@ -237,7 +248,8 @@ test pay_mix_fee_rejects_two_fee_outputs() fail {
     }
   let unit: Data = Void
   fee_contract.fee_contract.spend(
-    default_reference_params(),
+    ref_nft_policy,
+    ref_nft_name,
     Some(unit),
     PayMixFee,
     fee_in.output_reference,
@@ -259,7 +271,8 @@ test pay_mix_fee_rejects_no_datum_on_output() fail {
     }
   let unit: Data = Void
   fee_contract.fee_contract.spend(
-    default_reference_params(),
+    ref_nft_policy,
+    ref_nft_name,
     Some(unit),
     PayMixFee,
     fee_in.output_reference,
@@ -296,7 +309,8 @@ test pay_mix_fee_rejects_native_asset_in_output() fail {
       fee: 200_000,
     }
   fee_contract.fee_contract.spend(
-    default_reference_params(),
+    ref_nft_policy,
+    ref_nft_name,
     Some(unit),
     PayMixFee,
     fee_in.output_reference,
@@ -331,7 +345,8 @@ test replenish_positive() {
   let (tx, utxo) = replenish_tx(5_000_000, 8_000_000)
   let unit: Data = Void
   fee_contract.fee_contract.spend(
-    default_reference_params(),
+    ref_nft_policy,
+    ref_nft_name,
     Some(unit),
     Replenish,
     utxo,
@@ -343,7 +358,8 @@ test replenish_rejects_decrease() {
   let (tx, utxo) = replenish_tx(5_000_000, 4_000_000)
   let unit: Data = Void
   !fee_contract.fee_contract.spend(
-    default_reference_params(),
+    ref_nft_policy,
+    ref_nft_name,
     Some(unit),
     Replenish,
     utxo,
@@ -356,7 +372,8 @@ test replenish_rejects_unchanged() {
   let (tx, utxo) = replenish_tx(5_000_000, 5_000_000)
   let unit: Data = Void
   !fee_contract.fee_contract.spend(
-    default_reference_params(),
+    ref_nft_policy,
+    ref_nft_name,
     Some(unit),
     Replenish,
     utxo,
@@ -377,7 +394,8 @@ test replenish_rejects_no_fee_output() fail {
     }
   let unit: Data = Void
   fee_contract.fee_contract.spend(
-    default_reference_params(),
+    ref_nft_policy,
+    ref_nft_name,
     Some(unit),
     Replenish,
     fee_in.output_reference,

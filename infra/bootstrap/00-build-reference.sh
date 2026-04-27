@@ -1,37 +1,53 @@
 #!/usr/bin/env bash
-# 00-build-reference.sh — Stage 2 of the build. Picks the seed UTxO, parameterizes
-# every validator, and writes the resolved hashes into artifacts/<net>/addresses.json.
+# 00-build-reference.sh — parameterize every validator with the chosen seed
+# UTxO and emit deployable .plutus TextEnvelopes + script hashes into
+# artifacts/<network>/.
 #
-# Inputs (env):
+# Spec: docs/spec/03-contracts.md §4.
+#
+# Parameter chain (each step's hash flows into the next):
+#
+#     one_shot_mint(seed_tx_id, seed_idx)            → policy_id (= reference NFT policy)
+#     mix_logic(reference_nft_policy, asset_name)    → mix_logic_script_hash
+#     mix_box(mix_logic_script_hash)                 → mix_box_script_hash
+#     fee_contract(reference_nft_policy, asset_name) → fee_script_hash
+#     reference_holder                               → reference_holder_script_hash (no params)
+#
+# Every validator takes flat scalar params (ByteArray / Int) so that
+# `aiken blueprint apply` can supply each one as a single CBOR atom — that's
+# the official tool for parameterization. Hand-rolling Constr-wrapped CBOR for
+# struct params doesn't work reliably across aiken versions.
+#
+# Inputs (env or first positional):
+#   SEED                 — "<txid>#<idx>" of an unspent UTxO at BOOTSTRAP_ADDR.
 #   NETWORK              — "preprod" | "test" (default: preprod)
-#   SEED                 — "<txid>#<idx>" of an unspent UTxO at BOOTSTRAP_ADDR
-#                          that 01-mint-and-lock.sh will consume in the same tx
-#                          as the one_shot_mint policy fires.
-#   REF_NFT_ASSET_NAME   — hex-encoded asset name (default 6c6f76656a6f696e =
-#                          "lovejoin").
+#   REF_NFT_ASSET_NAME   — hex-encoded asset name for the reference NFT
+#                          (default: "lovejoin" hex-encoded → 6c6f76656a6f696e).
 #
-# Reads:
-#   contracts/config/network.<network>.json
-#   artifacts/<network>/blueprint.json     (produced by contracts/build.sh)
+# Tool deps:
+#   aiken (1.1.21)        — `aiken build`, `aiken blueprint apply`,
+#                            `aiken blueprint convert`.
+#   cardano-cli (Conway)  — `cardano-cli conway transaction policyid` to derive
+#                            script hashes from the .plutus files.
+#   python3 + cbor2       — used to encode int / bytes parameters as CBOR.
+#                           `pip install cbor2` if missing.
 #
 # Writes:
-#   artifacts/<network>/{one_shot_mint,mix_logic,mix_box,fee_contract}.plutus
-#       (parameterized; overwrites the unparameterized templates from Stage 1)
-#   artifacts/<network>/addresses.json     (referenceNftPolicy, *ScriptHash)
-#
-# Spec: docs/spec/03-contracts.md §4 (build chain).
+#   contracts/plutus.json (parameterized — every `aiken blueprint apply` call
+#                          mutates it in place; this script always starts from
+#                          a fresh `aiken build`)
+#   artifacts/<network>/{one_shot_mint,reference_holder,mix_logic,mix_box,
+#                        fee_contract}.plutus
+#   artifacts/<network>/{one_shot_mint,reference_holder,mix_logic,mix_box,
+#                        fee_contract}.hash
+#   artifacts/<network>/addresses.json    (referenceNftPolicy, *ScriptHash)
 
 set -euo pipefail
 
-# Auto-load infra/bootstrap/.env (gitignored). See .env.example for the keys.
 __ENV_FILE="$(cd "$(dirname "$0")" && pwd)/.env"
 [[ -f "$__ENV_FILE" ]] && { set -a; source "$__ENV_FILE"; set +a; }
 
 NETWORK="${NETWORK:-preprod}"
-# Accept SEED from env var (the canonical name printed by prep-utxos / balance)
-# or the first positional arg, since both are natural reflexes:
-#   SEED=<txid>#<idx> ./00-build-reference.sh
-#   ./00-build-reference.sh <txid>#<idx>
 SEED="${SEED:-${1:-}}"
 if [[ -z "$SEED" ]]; then
   echo "00-build-reference: SEED is required (env var or first positional)." >&2
@@ -39,102 +55,96 @@ if [[ -z "$SEED" ]]; then
   echo "  hint:   ./balance.sh prints the four export lines you need." >&2
   exit 1
 fi
+
 REF_NFT_ASSET_NAME="${REF_NFT_ASSET_NAME:-6c6f76656a6f696e}"
 
 REPO_ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 ARTIFACTS_DIR="$REPO_ROOT/artifacts/$NETWORK"
-
-# Self-heal: blueprint comes from contracts/build.sh (which runs `aiken build`
-# then emits artifacts/<network>/{blueprint.json, *.plutus, addresses.json}).
-# Operators reasonably expect `make build` or just running this script to work
-# from a clean checkout, so we run build.sh implicitly when needed.
-if [[ ! -f "$ARTIFACTS_DIR/blueprint.json" ]]; then
-  echo "00-build-reference: $ARTIFACTS_DIR/blueprint.json missing — running contracts/build.sh"
-  "$REPO_ROOT/contracts/build.sh" "config/network.$NETWORK.json"
-fi
+mkdir -p "$ARTIFACTS_DIR"
 
 SEED_TX_ID="${SEED%#*}"
 SEED_IDX="${SEED#*#}"
 
-cd "$REPO_ROOT/contracts"
+if ! [[ "$SEED_TX_ID" =~ ^[0-9a-fA-F]{64}$ ]]; then
+  echo "00-build-reference: SEED txid must be 64 lowercase hex chars (got: $SEED_TX_ID)" >&2
+  exit 1
+fi
+if ! [[ "$SEED_IDX" =~ ^[0-9]+$ ]]; then
+  echo "00-build-reference: SEED idx must be a non-negative integer (got: $SEED_IDX)" >&2
+  exit 1
+fi
 
-# Step 1: parameterize one_shot_mint(seed) → derive policy_id.
-#
-# `aiken blueprint apply` takes a CBOR-encoded parameter and rewrites the
-# blueprint slot in place. The parameter is `OutputReference { tx_id, idx }`,
-# which encodes as Constr 0 [ByteArray, Int].
-#
-# Per docs/spec/03-contracts.md §4 the chain is:
-#   one_shot_mint(seed) → policy_id        (this step)
-#   mix_logic(NFT)      → mix_logic hash   (after policy_id known)
-#   mix_box(mix_logic_credential) → mix_box hash
-#   fee_contract(NFT)   → fee_script hash
-# This script computes the four hashes and writes them to addresses.json.
+# Sanity: cbor2 importable?
+if ! python3 -c "import cbor2" 2>/dev/null; then
+  echo "00-build-reference: python3 cbor2 not installed (pip install cbor2)" >&2
+  exit 1
+fi
 
-OUT_REF_CBOR=$(printf 'd8799f5820%s%02xff' "$SEED_TX_ID" "$SEED_IDX")
+echo "==> Compiling contracts (fresh aiken build)"
+( cd "$REPO_ROOT/contracts" && aiken build )
 
-aiken blueprint apply \
-  -m one_shot_mint.one_shot_mint.mint \
-  -v "$OUT_REF_CBOR" \
-  > "$ARTIFACTS_DIR/one_shot_mint.json"
-
-ONE_SHOT_HASH=$(jq -r '.validators[] | select(.title=="one_shot_mint.one_shot_mint.mint") | .hash' "$ARTIFACTS_DIR/one_shot_mint.json")
-
-REF_NFT_POLICY="$ONE_SHOT_HASH"
-
-# Step 2: parameterize mix_logic(reference_nft).
-REF_PARAMS_CBOR=$(printf 'd8799f581c%s4c%s00ff' "$REF_NFT_POLICY" "$REF_NFT_ASSET_NAME")
-
-aiken blueprint apply \
-  -m mix_logic.mix_logic.withdraw \
-  -v "$REF_PARAMS_CBOR" \
-  > "$ARTIFACTS_DIR/mix_logic.json"
-
-MIX_LOGIC_HASH=$(jq -r '.validators[] | select(.title=="mix_logic.mix_logic.withdraw") | .hash' "$ARTIFACTS_DIR/mix_logic.json")
-
-# Step 3: parameterize mix_box(Script(mix_logic_hash)). Credential::Script
-# is the second constructor → Constr 1.
-MIX_LOGIC_CRED_CBOR=$(printf 'd87a9f581c%sff' "$MIX_LOGIC_HASH")
-
-aiken blueprint apply \
-  -m mix_box.mix_box.spend \
-  -v "$MIX_LOGIC_CRED_CBOR" \
-  > "$ARTIFACTS_DIR/mix_box.json"
-
-MIX_BOX_HASH=$(jq -r '.validators[] | select(.title=="mix_box.mix_box.spend") | .hash' "$ARTIFACTS_DIR/mix_box.json")
-
-# Step 4: parameterize fee_contract(reference_nft).
-aiken blueprint apply \
-  -m fee_contract.fee_contract.spend \
-  -v "$REF_PARAMS_CBOR" \
-  > "$ARTIFACTS_DIR/fee_contract.json"
-
-FEE_HASH=$(jq -r '.validators[] | select(.title=="fee_contract.fee_contract.spend") | .hash' "$ARTIFACTS_DIR/fee_contract.json")
-
-# reference_holder is unparameterized.
-REF_HOLDER_HASH=$(jq -r '.validators[] | select(.title=="reference_holder.reference_holder.spend") | .hash' "$ARTIFACTS_DIR/blueprint.json")
-
-# Re-emit per-validator TextEnvelope .plutus files (now parameterized).
-emit_plutus() {
-  local title="$1" src="$2" out="$3"
-  local cbor
-  cbor=$(jq -r --arg t "$title" '.validators[] | select(.title == $t) | .compiledCode' "$src")
-  jq -n --arg cbor "$cbor" --arg title "$title" '{
-    type: "PlutusScriptV3",
-    description: ("lovejoin: " + $title + " (parameterized)"),
-    cborHex: $cbor
-  }' > "$out"
+# --- helpers ---------------------------------------------------------------
+encode_bytes_cbor() {
+  python3 -c "import cbor2,sys;print(cbor2.dumps(bytes.fromhex(sys.argv[1])).hex())" "$1"
+}
+encode_int_cbor() {
+  python3 -c "import cbor2,sys;print(cbor2.dumps(int(sys.argv[1])).hex())" "$1"
 }
 
-emit_plutus "reference_holder.reference_holder.spend" "$ARTIFACTS_DIR/blueprint.json"      "$ARTIFACTS_DIR/reference_holder.plutus"
-emit_plutus "one_shot_mint.one_shot_mint.mint"        "$ARTIFACTS_DIR/one_shot_mint.json"  "$ARTIFACTS_DIR/one_shot_mint.plutus"
-emit_plutus "mix_logic.mix_logic.withdraw"            "$ARTIFACTS_DIR/mix_logic.json"      "$ARTIFACTS_DIR/mix_logic.plutus"
-emit_plutus "mix_box.mix_box.spend"                   "$ARTIFACTS_DIR/mix_box.json"        "$ARTIFACTS_DIR/mix_box.plutus"
-emit_plutus "fee_contract.fee_contract.spend"         "$ARTIFACTS_DIR/fee_contract.json"   "$ARTIFACTS_DIR/fee_contract.plutus"
+# Apply N cbor-hex parameters to validator $1, then convert to TextEnvelope and
+# derive its script hash via cardano-cli policyid.
+parameterize() {
+  local validator="$1"; shift
+  local stage_label="$1"; shift   # human-readable label for the log line
+  cd "$REPO_ROOT/contracts"
+  for cbor_hex in "$@"; do
+    aiken blueprint apply -o plutus.json -m "$validator" "$cbor_hex" >/dev/null
+  done
+  aiken blueprint convert -m "$validator" > "$ARTIFACTS_DIR/$validator.plutus"
+  cardano-cli conway transaction policyid \
+    --script-file "$ARTIFACTS_DIR/$validator.plutus" \
+    > "$ARTIFACTS_DIR/$validator.hash"
+  cd - >/dev/null
+  printf "    %-16s %s\n" "$stage_label" "$(cat "$ARTIFACTS_DIR/$validator.hash")"
+}
 
-# Update addresses.json with the resolved hashes (preserving any existing
-# referenceUtxoRef / feeShardUtxos / referenceScriptUtxos that later bootstrap
-# scripts may have populated).
+# --- step 1: one_shot_mint(seed_tx_id, seed_idx) ---------------------------
+echo "==> Parameterizing one_shot_mint(seed_tx_id, seed_idx)"
+SEED_TX_ID_CBOR=$(encode_bytes_cbor "$SEED_TX_ID")
+SEED_IDX_CBOR=$(encode_int_cbor "$SEED_IDX")
+parameterize one_shot_mint "policy_id =" "$SEED_TX_ID_CBOR" "$SEED_IDX_CBOR"
+
+REF_NFT_POLICY=$(cat "$ARTIFACTS_DIR/one_shot_mint.hash")
+REF_NFT_POLICY_CBOR=$(encode_bytes_cbor "$REF_NFT_POLICY")
+REF_NFT_NAME_CBOR=$(encode_bytes_cbor "$REF_NFT_ASSET_NAME")
+
+# --- step 2: mix_logic(reference_nft_policy, asset_name) -------------------
+echo "==> Parameterizing mix_logic(reference_nft_policy, asset_name)"
+parameterize mix_logic "mix_logic =" "$REF_NFT_POLICY_CBOR" "$REF_NFT_NAME_CBOR"
+MIX_LOGIC_HASH=$(cat "$ARTIFACTS_DIR/mix_logic.hash")
+
+# --- step 3: mix_box(mix_logic_script_hash) --------------------------------
+echo "==> Parameterizing mix_box(mix_logic_script_hash)"
+MIX_LOGIC_HASH_CBOR=$(encode_bytes_cbor "$MIX_LOGIC_HASH")
+parameterize mix_box "mix_box =" "$MIX_LOGIC_HASH_CBOR"
+MIX_BOX_HASH=$(cat "$ARTIFACTS_DIR/mix_box.hash")
+
+# --- step 4: fee_contract(reference_nft_policy, asset_name) ----------------
+echo "==> Parameterizing fee_contract(reference_nft_policy, asset_name)"
+parameterize fee_contract "fee_contract =" "$REF_NFT_POLICY_CBOR" "$REF_NFT_NAME_CBOR"
+FEE_HASH=$(cat "$ARTIFACTS_DIR/fee_contract.hash")
+
+# --- step 5: reference_holder (no params) ----------------------------------
+echo "==> Emitting reference_holder (no params)"
+( cd "$REPO_ROOT/contracts" && aiken blueprint convert -m reference_holder ) \
+  > "$ARTIFACTS_DIR/reference_holder.plutus"
+cardano-cli conway transaction policyid \
+  --script-file "$ARTIFACTS_DIR/reference_holder.plutus" \
+  > "$ARTIFACTS_DIR/reference_holder.hash"
+REF_HOLDER_HASH=$(cat "$ARTIFACTS_DIR/reference_holder.hash")
+printf "    %-16s %s\n" "reference =" "$REF_HOLDER_HASH"
+
+# --- update addresses.json --------------------------------------------------
 TMP=$(mktemp)
 jq \
   --arg refNftPolicy "$REF_NFT_POLICY" \
@@ -152,10 +162,10 @@ jq \
 ' "$ARTIFACTS_DIR/addresses.json" > "$TMP"
 mv "$TMP" "$ARTIFACTS_DIR/addresses.json"
 
-echo "00-build-reference: parameterized $NETWORK"
-echo "  reference NFT policy: $REF_NFT_POLICY"
-echo "  reference NFT name:   $REF_NFT_ASSET_NAME (hex)"
-echo "  reference_holder:     $REF_HOLDER_HASH"
-echo "  mix_logic:            $MIX_LOGIC_HASH"
-echo "  mix_box:              $MIX_BOX_HASH"
-echo "  fee_contract:         $FEE_HASH"
+echo
+echo "00-build-reference: $NETWORK addresses.json updated."
+echo "  reference NFT:    $REF_NFT_POLICY.$REF_NFT_ASSET_NAME"
+echo "  reference_holder: $REF_HOLDER_HASH"
+echo "  mix_logic:        $MIX_LOGIC_HASH"
+echo "  mix_box:          $MIX_BOX_HASH"
+echo "  fee_contract:     $FEE_HASH"

@@ -10,10 +10,16 @@
 use aiken/collection/dict
 use aiken/collection/list
 use cardano/assets
-use cardano/transaction.{OutputReference, Transaction}
+use cardano/transaction.{OutputReference, Transaction, TransactionId}
 
-validator one_shot_mint(seed: OutputReference) {
+// Flat params so `aiken blueprint apply` can supply them as separate CBOR
+// atoms (one CBOR atom per call). The bash side encodes seed_tx_id as bytes
+// and seed_idx as int via cbor2; the validator reconstructs the
+// OutputReference internally for the consumption check.
+validator one_shot_mint(seed_tx_id: TransactionId, seed_idx: Int) {
   mint(_r: Data, policy_id: assets.PolicyId, self: Transaction) {
+    let seed =
+      OutputReference { transaction_id: seed_tx_id, output_index: seed_idx }
     let seed_consumed =
       self.inputs
         |> list.any(fn(input) { input.output_reference == seed })
