@@ -31,7 +31,11 @@ import type {
 /** Subset of `fetch` we depend on. Lets tests inject a mock cleanly. */
 export type FetchFn = (
   input: string,
-  init?: { method?: string; headers?: Record<string, string>; body?: string },
+  init?: {
+    method?: string;
+    headers?: Record<string, string>;
+    body?: string | Uint8Array;
+  },
 ) => Promise<{
   ok: boolean;
   status: number;
@@ -58,14 +62,20 @@ const DEFAULT_POLL_INTERVAL_MS = 5_000;
 
 /**
  * Minimum mesh-shaped surface our tx builders pass to `MeshTxBuilder`.
- * Mesh's actual `IFetcher` + `ISubmitter` interfaces have many more methods,
- * but the tx builders only ever call `fetchUTxOs`, `fetchProtocolParameters`,
- * and `submitTx`. Narrow type so callers don't have to import mesh.
+ * Mesh's actual `IFetcher` + `ISubmitter` + `IEvaluator` interfaces have
+ * many more methods, but the tx builders only ever call a handful.
+ * Narrow type so callers don't have to import mesh.
  */
 export interface MeshFetcherSubmitter {
   fetchUTxOs(hash: string, index?: number): Promise<unknown>;
   fetchProtocolParameters(epoch?: number): Promise<unknown>;
   submitTx(tx: string): Promise<string>;
+  /**
+   * Mesh's `IEvaluator.evaluateTx` — script execution-unit budget.
+   * Without this MeshTxBuilder falls back to coarse upper-bound defaults
+   * that inflate the fee 10x or worse.
+   */
+  evaluateTx(cbor: string): Promise<unknown>;
 }
 
 export class BlockfrostProvider implements ChainProvider {
@@ -123,13 +133,18 @@ export class BlockfrostProvider implements ChainProvider {
   }
 
   async submitTx(signedTxCborHex: string): Promise<Hex32> {
+    // Blockfrost's `Content-Type: application/cbor` endpoint expects raw
+    // bytes — a Uint8Array body. Earlier we passed the hex string itself
+    // and let `fetch` send it; the browser UTF-8-encoded the string and
+    // mangled the CBOR (Blockfrost rejected with "expected list len or
+    // indef" on the first byte). Decode the hex to bytes here.
     const res = await this.fetchFn(`${this.baseUrl}/tx/submit`, {
       method: "POST",
       headers: {
         "Content-Type": "application/cbor",
         project_id: this.projectId,
       },
-      body: hexToBinaryString(signedTxCborHex),
+      body: hexToBytes(signedTxCborHex),
     });
     if (!res.ok) {
       const body = await res.text();
@@ -349,15 +364,20 @@ function networkFromBaseUrl(baseUrl: string): string {
   return "unknown";
 }
 
-function hexToBinaryString(hex: string): string {
-  // POST /tx/submit accepts the raw CBOR bytes as the body. fetch's `body`
-  // parameter is `string | ArrayBuffer | …`; for tx submission we forward the
-  // hex unchanged — the wrapper takes care of converting it on the wire if the
-  // injected fetch wants to (real fetch will need ArrayBuffer; tests don't
-  // care about the body shape).
-  return hex;
-}
-
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function hexToBytes(hex: string): Uint8Array {
+  const cleaned = hex.startsWith("0x") || hex.startsWith("0X") ? hex.slice(2) : hex;
+  if (cleaned.length % 2 !== 0) {
+    throw new Error("hex string must have even length");
+  }
+  const out = new Uint8Array(cleaned.length / 2);
+  for (let i = 0; i < out.length; i++) {
+    const v = Number.parseInt(cleaned.slice(i * 2, i * 2 + 2), 16);
+    if (!Number.isFinite(v)) throw new Error(`bad hex byte at offset ${i * 2}`);
+    out[i] = v;
+  }
+  return out;
 }

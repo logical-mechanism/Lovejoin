@@ -342,6 +342,7 @@ export async function buildWithdrawTx(args: BuildWithdrawArgs): Promise<Withdraw
     const tx = new MeshTxBuilder({
       fetcher: meshProvider as never,
       submitter: meshProvider as never,
+      evaluator: meshProvider as never,
       verbose: false,
     });
     tx
