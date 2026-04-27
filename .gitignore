@@ -15,7 +15,8 @@ ui/.vite/
 contracts/build/
 contracts/.build/
 
-# Rust
+# Rust — Cargo.lock IS committed for reproducible KAT cross-checks
+# (see docs/spec/12-build-guide.md §"Reproducibility").
 crypto/ref/target/
 
 # Local secrets / env
@@ -43,3 +44,4 @@ test-results/
 # Generated artifacts kept out of source control until bootstrap commits them deliberately
 artifacts/test/*.plutus
 artifacts/preprod/*.plutus
+
