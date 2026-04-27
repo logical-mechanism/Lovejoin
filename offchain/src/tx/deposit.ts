@@ -379,6 +379,13 @@ export async function buildDepositTx(args: BuildDepositArgs): Promise<DepositRes
     .spendingTxInReference(
       plan.feeContractRefScriptUtxoRef.txId,
       plan.feeContractRefScriptUtxoRef.outputIndex,
+      // mesh's `(txHash, txIndex, scriptSize?, scriptHash?)`. Pass both
+      // explicitly: the hash because without it mesh derived an empty
+      // bytestring downstream and CSL bailed on "expected hash length 28
+      // but got Len(0)"; the size because mesh uses it for the
+      // size-based fee component.
+      args.addresses.referenceScriptSizes?.fee_contract?.toString(),
+      args.addresses.feeScriptHash,
     )
     // Output 0: new mix-box.
     .txOut(plan.mixBoxOutput.addressBech32, [

@@ -361,6 +361,12 @@ export async function buildWithdrawTx(args: BuildWithdrawArgs): Promise<Withdraw
       .spendingTxInReference(
         plan.mixBoxRefScriptUtxoRef.txId,
         plan.mixBoxRefScriptUtxoRef.outputIndex,
+        // mesh's `(txHash, txIndex, scriptSize?, scriptHash?)`. Without
+        // these mesh derived an empty hash downstream and CSL bailed on
+        // "expected hash length 28 but got Len(0)"; the size is needed
+        // for accurate fee computation (size-based component).
+        sizeStr(args.addresses.referenceScriptSizes?.mix_box),
+        args.addresses.mixBoxScriptHash,
       )
       // Withdrawal-zero on the mix_logic stake credential — this is what
       // actually runs the Owner branch.
@@ -370,6 +376,8 @@ export async function buildWithdrawTx(args: BuildWithdrawArgs): Promise<Withdraw
       .withdrawalTxInReference(
         plan.mixLogicRefScriptUtxoRef.txId,
         plan.mixLogicRefScriptUtxoRef.outputIndex,
+        sizeStr(args.addresses.referenceScriptSizes?.mix_logic),
+        params.mixLogicScriptHash,
       )
       // Output 0: destination.
       .txOut(plan.destinationAddressBech32, [
@@ -723,6 +731,17 @@ function hexToBytes(hex: string): Uint8Array {
     out[i] = Number.parseInt(cleaned.slice(i * 2, i * 2 + 2), 16);
   }
   return out;
+}
+
+/**
+ * Mesh's tx builder takes `scriptSize` as a string (it's wired into
+ * a CSL bigint somewhere downstream). Convert our number → decimal
+ * string; pass `undefined` if we don't know the size, in which case
+ * mesh resolves it from the on-chain UTxO at the cost of an extra
+ * Blockfrost call.
+ */
+function sizeStr(n: number | undefined): string | undefined {
+  return typeof n === "number" ? n.toString() : undefined;
 }
 
 function bytesToHex(b: Uint8Array): string {

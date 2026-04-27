@@ -61,6 +61,18 @@ export interface LovejoinAddresses {
     mix_logic: string;
     fee_contract: string;
   };
+  /**
+   * Optional. Byte sizes of each published reference script (the
+   * `cborHex` length from the .plutus file). Mesh's tx builder uses
+   * this when computing the size-based portion of the tx fee — without
+   * it the fee is undercounted and submission fails with a "min fee not
+   * met" error from the ledger.
+   */
+  referenceScriptSizes?: {
+    mix_box: number;
+    mix_logic: number;
+    fee_contract: number;
+  };
   /// Optional. Present in newer bootstrap outputs but tolerated when missing.
   stage1ChangeUtxo?: string;
   /// Optional. The tx that registered the mix_logic stake credential.
