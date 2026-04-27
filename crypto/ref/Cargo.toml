@@ -1,0 +1,24 @@
+[package]
+name = "lovejoin-ref"
+version = "0.0.0"
+edition = "2021"
+description = "Lovejoin reference cryptography implementation (blst). Verifies the canonical KAT vectors emitted by the TS SDK."
+license = "MIT"
+
+[dependencies]
+blst = "0.3"
+blake2 = "0.10"
+num-bigint = "0.4"
+num-traits = "0.2"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+hex = "0.4"
+
+[lib]
+path = "src/lib.rs"
+
+# Reproducibility-first: release builds for KAT cross-checks. Opt-in to overflow
+# checks even in release for crypto correctness.
+[profile.release]
+overflow-checks = true
+debug-assertions = true

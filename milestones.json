@@ -31,7 +31,7 @@
     {
       "id": "M1",
       "name": "Cryptography (variable N)",
-      "status": "pending",
+      "status": "done",
       "depends_on": ["M0"],
       "spec": "docs/spec/09-milestones.md#m1--cryptography-variable-n",
       "deliverables": [
