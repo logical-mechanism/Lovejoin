@@ -336,25 +336,33 @@ export async function buildWithdrawTx(args: BuildWithdrawArgs): Promise<Withdraw
   const changeAddress = await args.wallet.getChangeAddress();
   const meshProvider = await getMeshProvider(args.provider);
 
-  // Pass 1: placeholder proof.
+  // The two-pass Schnorr build has a chicken-and-egg with mesh's
+  // evaluator (placeholder proof fails the validator → no exec units), so
+  // we drive the build manually:
   //
-  // We deliberately do NOT pass an `evaluator` here. The two-pass build has
-  // a chicken-and-egg with mesh's evaluator: pass 1 has a zero-bytes
-  // Schnorr proof, the evaluator runs the validator against it, the
-  // validator rejects → mesh throws before we ever get to compute the
-  // real proof in pass 2. Without the evaluator mesh uses constant
-  // upper-bound exec units; both passes use the same units, so the fee
-  // (and therefore the change output, and therefore `ctx`) is stable
-  // across passes — the proof we compute against pass 1's outputs
-  // remains valid for pass 2's submission.
+  //   1.  Build with placeholder proof + default upper-bound exec units.
+  //       Outputs depend only on (redeemer size, exec units, fee), and
+  //       the placeholder is the same size as the real Schnorr proof.
+  //   2.  Compute proof_1 against pass-1 outputs.
+  //   3.  Build with proof_1 + default exec units → call evaluator.
+  //       Validator runs successfully, evaluator returns tight exec units.
+  //   4.  Build with proof_1 + tight exec units → outputs change because
+  //       the fee shrinks (smaller redeemer-cost component) → bigger
+  //       change. Proof_1 no longer matches.
+  //   5.  Compute proof_3 against pass-3 outputs.
+  //   6.  Build with proof_3 + tight exec units → outputs match pass 3
+  //       (same redeemer size, same exec units, same fee). Sign + submit.
   //
-  // Trade-off: the resulting fee is inflated (default exec units are a
-  // large constant). M4 / M5 can revisit by either (a) doing a third
-  // pass that re-evaluates after the real proof is in place and
-  // adjusting the exec-unit slot only, or (b) precomputing exec units
-  // off-chain. Not worth it for a single Schnorr verify.
+  // 4 builds + 1 evaluation. Schnorr proofs are constant-time, so the
+  // exec units don't depend on the proof bytes — we can pin them
+  // confidently across passes 4-6.
+  const DEFAULT_EX_UNITS: ExUnits = { mem: 7_000_000, steps: 3_000_000_000 };
   const placeholderRedeemer = PLACEHOLDER_OWNER_REDEEMER_CBOR_HEX;
-  const buildOnce = (redeemerCborHex: string): Promise<string> => {
+  const buildOnce = (
+    redeemerCborHex: string,
+    spendExUnits: ExUnits,
+    withdrawExUnits: ExUnits,
+  ): Promise<string> => {
     const tx = new MeshTxBuilder({
       fetcher: meshProvider as never,
       submitter: meshProvider as never,
@@ -372,7 +380,7 @@ export async function buildWithdrawTx(args: BuildWithdrawArgs): Promise<Withdraw
         mixBoxUtxo.address,
       )
       .txInInlineDatumPresent()
-      .txInRedeemerValue("d87980", "CBOR") // Constr 0 [] — placeholder; the spend redeemer is unused
+      .txInRedeemerValue("d87980", "CBOR", spendExUnits) // Constr 0 [] — spend redeemer is unused
       .spendingTxInReference(
         plan.mixBoxRefScriptUtxoRef.txId,
         plan.mixBoxRefScriptUtxoRef.outputIndex,
@@ -387,7 +395,7 @@ export async function buildWithdrawTx(args: BuildWithdrawArgs): Promise<Withdraw
       // actually runs the Owner branch.
       .withdrawalPlutusScriptV3()
       .withdrawal(plan.mixLogicRewardAddressBech32, "0")
-      .withdrawalRedeemerValue(redeemerCborHex, "CBOR")
+      .withdrawalRedeemerValue(redeemerCborHex, "CBOR", withdrawExUnits)
       .withdrawalTxInReference(
         plan.mixLogicRefScriptUtxoRef.txId,
         plan.mixLogicRefScriptUtxoRef.outputIndex,
@@ -411,20 +419,46 @@ export async function buildWithdrawTx(args: BuildWithdrawArgs): Promise<Withdraw
     return tx.complete();
   };
 
-  const unsignedHexPlaceholder = await buildOnce(placeholderRedeemer);
-  const outputsCbor = serializeOutputsForCtx(unsignedHexPlaceholder, cst);
-  const ctx = computeOwnerCtx({
-    outputsCbor,
-    mixScriptHashHex: params.mixScriptHash,
-  });
-  const proof = generateOwnerSchnorrProof({
-    ownerSecret: args.ownerSecret,
-    a: plan.mixBoxInput.a,
-    b: plan.mixBoxInput.b,
-    ctx,
-  });
-  const realRedeemer = encodeOwnerRedeemer({ proofT: proof.t, proofZ: proof.z });
-  const unsignedHexFinal = await buildOnce(realRedeemer);
+  const computeProofForOutputs = (txCborHex: string): string => {
+    const outputsCbor = serializeOutputsForCtx(txCborHex, cst);
+    const ctx = computeOwnerCtx({
+      outputsCbor,
+      mixScriptHashHex: params.mixScriptHash,
+    });
+    const proof = generateOwnerSchnorrProof({
+      ownerSecret: args.ownerSecret,
+      a: plan.mixBoxInput.a,
+      b: plan.mixBoxInput.b,
+      ctx,
+    });
+    return encodeOwnerRedeemer({ proofT: proof.t, proofZ: proof.z });
+  };
+
+  // 1: placeholder + default exec units.
+  const txPlaceholder = await buildOnce(
+    placeholderRedeemer,
+    DEFAULT_EX_UNITS,
+    DEFAULT_EX_UNITS,
+  );
+  // 2: proof against placeholder outputs.
+  const proof1 = computeProofForOutputs(txPlaceholder);
+  // 3: proof_1 + default exec units → real evaluation.
+  const txForEval = await buildOnce(proof1, DEFAULT_EX_UNITS, DEFAULT_EX_UNITS);
+  const tightUnits = await evaluateExUnits(meshProvider, txForEval);
+  // 4: proof_1 + tight exec units → outputs shift (fee shrinks).
+  const txTightOutputs = await buildOnce(
+    proof1,
+    tightUnits.spend,
+    tightUnits.withdraw,
+  );
+  // 5: re-compute proof against the new outputs.
+  const proof3 = computeProofForOutputs(txTightOutputs);
+  // 6: final tx — proof_3 + tight exec units → outputs match step 4.
+  const unsignedHexFinal = await buildOnce(
+    proof3,
+    tightUnits.spend,
+    tightUnits.withdraw,
+  );
 
   const signedTx = await args.wallet.signTx(unsignedHexFinal);
   const owner = deriveOwner(args.ownerSecret);
@@ -757,6 +791,57 @@ function hexToBytes(hex: string): Uint8Array {
  */
 function sizeStr(n: number | undefined): string | undefined {
   return typeof n === "number" ? n.toString() : undefined;
+}
+
+/** Mesh's exec-unit shape (mirrors `Budget` from `@meshsdk/common`). */
+interface ExUnits {
+  mem: number;
+  steps: number;
+}
+
+interface WithdrawExUnits {
+  spend: ExUnits;
+  withdraw: ExUnits;
+}
+
+/**
+ * Run the mesh evaluator against a tx CBOR and return per-redeemer exec
+ * units. Mesh's `evaluateTx` returns an array of actions; we pick the
+ * first SPEND and the first WITHDRAW since the withdraw tx has exactly
+ * one of each. If either is missing the chain will reject the tx, so we
+ * fail loudly here instead.
+ */
+async function evaluateExUnits(
+  mesh: { evaluateTx(cbor: string): Promise<unknown> },
+  unsignedTxCborHex: string,
+): Promise<WithdrawExUnits> {
+  const raw = await mesh.evaluateTx(unsignedTxCborHex);
+  if (!Array.isArray(raw)) {
+    throw new Error(
+      `withdraw evaluator: expected an array of actions, got ${typeof raw}`,
+    );
+  }
+  let spend: ExUnits | null = null;
+  let withdraw: ExUnits | null = null;
+  for (const a of raw as Array<{
+    tag?: string;
+    budget?: { mem?: number; steps?: number };
+  }>) {
+    const tag = a.tag;
+    const b = a.budget;
+    if (!b || typeof b.mem !== "number" || typeof b.steps !== "number") continue;
+    const u: ExUnits = { mem: b.mem, steps: b.steps };
+    if (tag === "SPEND" && !spend) spend = u;
+    else if (tag === "WITHDRAW" && !withdraw) withdraw = u;
+  }
+  if (!spend || !withdraw) {
+    throw new Error(
+      `withdraw evaluator: missing exec units for spend or withdraw — got ${JSON.stringify(
+        raw,
+      )}`,
+    );
+  }
+  return { spend, withdraw };
 }
 
 function bytesToHex(b: Uint8Array): string {
