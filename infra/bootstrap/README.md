@@ -18,7 +18,7 @@ After bootstrap finishes:
 
 ## Stages
 
-Four stages, one operator command each. Stage 1 internally chains four txs.
+Four stages, orchestrated by `run.sh`. Stage 1 internally chains four txs.
 
 | # | script | what it does | tx count |
 |---|--------|--------------|---------:|
@@ -27,10 +27,19 @@ Four stages, one operator command each. Stage 1 internally chains four txs.
 | 2 | `02-mint-and-lock.sh`             | **irreversible.** Spends `SEED_UTXO`, mints the one-of-one NFT, locks at `reference_holder` with the inline `ProtocolParams` datum. | 1 |
 | 3 | `03-fund-fee-contract.sh`         | seeds 10 shards at `fee_contract`. | 1 |
 
+`run.sh` calls these in sequence with confirmation polling between, and is
+the recommended path. The per-stage scripts remain callable on their own for
+recovery (see "Running a stage manually" below).
+
 The single-script-per-tx convention inside stage 1 isolates failures (a publish
 that fails costs only its own funding + fee, not the whole infrastructure
 setup) and matches the recursive ref-input pattern the production txs will
 use.
+
+> **Plutus collateral note.** Under the Babbage/Conway happy path, collateral
+> inputs are *preserved* (not consumed) — they're only seized if a script
+> fails. So the same `COLLATERAL` UTxO from `prep-utxos` works for stages 1
+> and 2 without rotation.
 
 ## Wallet
 
@@ -104,47 +113,58 @@ NETWORK=preview ./infra/bootstrap/balance.sh
 
 ## Running it
 
+The recommended path is **`run.sh`** — it drives everything end-to-end with
+confirmation polling between stages. Each per-stage script is still callable
+on its own for recovery / debugging.
+
 ```sh
-# One-time wallet setup (idempotent — re-runs are no-ops once the keypair exists).
+# One-time setup.
 ./infra/bootstrap/init-wallet.sh
 
 export NETWORK=preprod
 export TESTNET_MAGIC=1
 export CARDANO_NODE_SOCKET_PATH=/path/to/preprod-node.socket
-export BOOTSTRAP_ADDR=$(cat infra/bootstrap/wallets/payment.preprod.addr)
-export PAYMENT_SKEY=infra/bootstrap/wallets/payment.skey
 
-# Fund BOOTSTRAP_ADDR from the Preprod faucet. Wait for it to confirm.
-echo "$BOOTSTRAP_ADDR"   # paste this into the faucet form
-./infra/bootstrap/balance.sh   # confirm the faucet drop arrived
+# Fund infra/bootstrap/wallets/payment.preprod.addr from the Preprod faucet.
+cat infra/bootstrap/wallets/payment.preprod.addr
+./infra/bootstrap/balance.sh    # confirm the faucet drop arrived
 
-# Split the faucet drop into the 4 UTxO shapes the stages need.
-# Prints the UTxO refs (A, B, C, D) you'll use below — copy-paste them.
-./infra/bootstrap/prep-utxos.sh
+# Run the whole thing.
+./infra/bootstrap/run.sh
+```
 
-# Take the UTxO refs from prep-utxos's output and pin them as env vars:
-FUNDING_STAGE1=<prep_txid>#0   # 85 ADA — A
-COLLATERAL=<prep_txid>#1       # 10 ADA — B (reused across stages)
-SEED=<prep_txid>#2             #  7 ADA — C
-FUNDING_STAGE3=<prep_txid>#3   # 45 ADA — D
+`run.sh` does:
 
-# Stage 0 — offline. Builds artifacts and parameterizes validators against the seed.
-./contracts/build.sh config/network.preprod.json
+1. Sanity-checks the wallet (calls `balance.sh`).
+2. Splits the faucet drop via `prep-utxos.sh`.
+3. Polls until prep-utxos confirms.
+4. Runs `00-build-reference.sh` (offline parameterization).
+5. Runs `01-publish-and-register.sh`. Polls until the cert-registration tx confirms.
+6. Runs `02-mint-and-lock.sh`. Polls until the reference UTxO is on chain. **(Irreversible step.)**
+7. Runs `03-fund-fee-contract.sh`. Polls until the fee shards are on chain.
+8. Prints the protocol identifiers + the `git commit` line for `addresses.json`.
+
+Polling is via `cardano-cli query utxo --tx-in <ref>`: as soon as the previous
+stage's first output is in the on-chain UTxO set, the next stage starts.
+Default per-tx timeout is 5 minutes (override with `CONFIRMATION_TIMEOUT_S`).
+
+### Running a stage manually
+
+If `run.sh` fails partway, the per-stage scripts pick up from the artifact
+state. `addresses.json` is the source of truth — re-run only the stages
+whose fields aren't populated yet. Env-var contract:
+
+```sh
 SEED_UTXO=$SEED ./infra/bootstrap/00-build-reference.sh
-
-# Stage 1 — chains 4 txs (publish mix_box, mix_logic, fee_contract; register
-# mix_logic). Wait for the chain's last tx to confirm.
 FUNDING_UTXO=$FUNDING_STAGE1 COLLATERAL_UTXO=$COLLATERAL \
   ./infra/bootstrap/01-publish-and-register.sh
-
-# Stage 2 — IRREVERSIBLE. Spends $SEED, mints NFT, locks reference UTxO.
 SEED_UTXO=$SEED COLLATERAL_UTXO=$COLLATERAL \
   ./infra/bootstrap/02-mint-and-lock.sh
-# wait for confirmation
-
-# Stage 3 — seed 10 fee shards.
 FUNDING_UTXO=$FUNDING_STAGE3 ./infra/bootstrap/03-fund-fee-contract.sh
 ```
+
+`prep-utxos.sh` prints the four UTxO refs in copy-pasteable form so you can
+set the env vars without hand-editing.
 
 Then commit:
 

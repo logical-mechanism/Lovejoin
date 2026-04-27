@@ -103,14 +103,22 @@ Four stages under [`infra/bootstrap/`](infra/bootstrap/) — one operator comman
 3. **`02-mint-and-lock.sh`** — **irreversible.** Spends `SEED_UTXO`, mints the one-of-one NFT, locks at `reference_holder` with the inline `ProtocolParams` datum.
 4. **`03-fund-fee-contract.sh`** — seeds 10 shards at `fee_contract`.
 
-Wallet setup happens through three helper scripts before stage 0:
+Recommended path is one command:
+
+```sh
+./infra/bootstrap/init-wallet.sh                         # one-time keypair + per-network addrs
+# fund infra/bootstrap/wallets/payment.preprod.addr from the Preprod faucet
+./infra/bootstrap/run.sh                                 # split → 0 → 1 → 2 → 3, with waits
+```
+
+`run.sh` orchestrates the whole bootstrap with confirmation polling between stages, so you can walk away while it runs. It calls these helpers, all of which work standalone for debugging or recovery:
 
 - **`init-wallet.sh`** — generates one payment keypair under `infra/bootstrap/wallets/` (gitignored) and derives a per-network address file (preprod + preview by default; mainnet via `--include-mainnet`). Idempotent.
-- **`balance.sh`** — pretty-prints the wallet's UTxOs and total ADA. Run it any time to check funding state.
-- **`prep-utxos.sh`** — splits the faucet drop into the four UTxO shapes the stages need (FUNDING_STAGE1, COLLATERAL, SEED, FUNDING_STAGE3) and prints copy-pasteable `export` lines + per-stage commands.
+- **`balance.sh`** — pretty-prints the wallet's UTxOs and total ADA.
+- **`prep-utxos.sh`** — splits the faucet drop into the four UTxO shapes the stages need (FUNDING_STAGE1, COLLATERAL, SEED, FUNDING_STAGE3) and prints copy-pasteable `export` lines + per-stage commands. Idempotent.
 
 You'll need ~150 ADA on the [Preprod faucet](https://docs.cardano.org/cardano-testnets/tools/faucet/) and a synced cardano-node socket.
 
-Step-by-step instructions including env-var setup, the UTxO-layout table, the chained-submit details, and recovery from common failures: [`infra/bootstrap/README.md`](infra/bootstrap/README.md).
+Full operator playbook (env-var setup, UTxO-layout table, chained-submit details, recovery from common failures): [`infra/bootstrap/README.md`](infra/bootstrap/README.md).
 
 After a clean run, commit `artifacts/preprod/addresses.json` — that's the canonical address book for the network.
