@@ -40,11 +40,20 @@ import type {
 export interface LovejoinWallet {
   /** All addresses the wallet has ever received funds on (bech32). */
   getUsedAddresses(): Promise<string[]>;
-  /** Address used for change outputs (bech32). */
-  getChangeAddress(): Promise<string>;
-  /** Spendable UTxOs (mesh shape). Tx builders convert to chain/provider Utxo. */
-  getUtxos(): Promise<MeshUtxo[]>;
-  /** Wallet-side collateral candidates. Empty/undefined means none configured. */
+  /**
+   * Bech32 change address. Mesh's two wallets disagree on whether this is
+   * sync or async (`MeshWallet` returns a string; `BrowserWallet` returns a
+   * `Promise<string>`). The union admits both — call sites `await` it
+   * either way.
+   */
+  getChangeAddress(): string | Promise<string>;
+  /**
+   * Spendable UTxOs. Mesh's two wallets disagree on the resolved shape:
+   * `BrowserWallet` returns parsed `UTxO[]`; `MeshWallet` returns CBOR-hex
+   * strings. The tx builders normalize at the call site.
+   */
+  getUtxos(): Promise<MeshUtxo[] | string[] | undefined>;
+  /** Wallet-side collateral candidates. Same shape ambiguity as getUtxos. */
   getCollateral(): Promise<MeshUtxo[] | string[] | undefined>;
   /** Sign a CBOR-hex tx; returns the signed tx as CBOR hex. */
   signTx(unsignedTx: string, partialSign?: boolean): Promise<string>;
@@ -136,6 +145,29 @@ export async function connectBrowserWallet(name: string): Promise<BrowserWallet>
 // ---------------------------------------------------------------------------
 // UTxO converters — pure, no mesh runtime needed.
 // ---------------------------------------------------------------------------
+
+/**
+ * Normalize the polymorphic return of `LovejoinWallet.getUtxos()` (or
+ * `getCollateral()`) into a `MeshUtxo[]` the tx builders can hand to mesh.
+ *
+ * `MeshWallet` and `BrowserWallet` both return `UTxO[]` when called without
+ * an address-type argument; the raw CIP-30 byte-string form (`string[]` of
+ * CBOR-encoded TransactionUnspentOutput hex) is rare in mesh-mediated code
+ * but allowed by the IWallet contract. We surface a clear error on the
+ * string case rather than pulling in a CBOR decoder here.
+ */
+export function normalizeWalletUtxos(
+  raw: MeshUtxo[] | string[] | undefined,
+): MeshUtxo[] {
+  if (!raw || raw.length === 0) return [];
+  if (typeof raw[0] === "string") {
+    throw new Error(
+      "wallet.getUtxos returned CBOR-hex strings; expected parsed UTxO[]. " +
+      "Wrap the wallet so utxos are pre-parsed (mesh's MeshWallet/BrowserWallet do this).",
+    );
+  }
+  return raw as MeshUtxo[];
+}
 
 /**
  * Convert mesh's `UTxO` shape (used by wallets and the mesh tx builder) into

@@ -45,6 +45,7 @@ import {
   type LovejoinWallet,
   meshUtxoToLovejoin,
   networkIdFor,
+  normalizeWalletUtxos,
 } from "../wallet/cip30.js";
 
 /**
@@ -344,7 +345,7 @@ export async function buildDepositTx(args: BuildDepositArgs): Promise<DepositRes
   });
 
   // Wallet inputs (mesh handles selection).
-  const walletUtxos = await args.wallet.getUtxos();
+  const walletUtxos = normalizeWalletUtxos(await args.wallet.getUtxos());
   const changeAddress = await args.wallet.getChangeAddress();
 
   // Build the tx body.

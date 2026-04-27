@@ -71,6 +71,7 @@ import {
   type LovejoinWallet,
   meshUtxoToLovejoin,
   networkIdFor,
+  normalizeWalletUtxos,
 } from "../wallet/cip30.js";
 import {
   assertOwnerSecret,
@@ -331,7 +332,7 @@ export async function buildWithdrawTx(args: BuildWithdrawArgs): Promise<Withdraw
   const { MeshTxBuilder } = meshCore;
   const cst = await import("@meshsdk/core-cst");
 
-  const walletUtxos = await args.wallet.getUtxos();
+  const walletUtxos = normalizeWalletUtxos(await args.wallet.getUtxos());
   const changeAddress = await args.wallet.getChangeAddress();
 
   // Pass 1: placeholder proof.
