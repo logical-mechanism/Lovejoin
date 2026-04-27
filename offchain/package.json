@@ -22,6 +22,9 @@
     "test:watch": "vitest",
     "lint": "tsc -p tsconfig.json --noEmit",
     "gen:parity": "tsx scripts/gen-encoding-parity.ts",
+    "gen:schnorr-kat": "tsx scripts/gen-schnorr-kat.ts",
+    "gen:dhtuple-kat": "tsx scripts/gen-dhtuple-kat.ts",
+    "gen:sigmaor-kat": "tsx scripts/gen-sigmaor-kat.ts",
     "gen:kat": "tsx scripts/gen-kat.ts"
   },
   "dependencies": {
