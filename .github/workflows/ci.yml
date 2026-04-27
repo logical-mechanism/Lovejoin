@@ -22,7 +22,7 @@ jobs:
           echo "$HOME/.aiken/bin" >> "$GITHUB_PATH"
 
       - name: Pin Aiken 1.1.21
-        run: aikup install 1.1.21 && aikup use 1.1.21
+        run: aikup install v1.1.21
 
       - name: aiken --version
         run: aiken --version
