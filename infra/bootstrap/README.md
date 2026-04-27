@@ -93,6 +93,15 @@ you split the faucet drop into the four shapes below:
 for each stage. Idempotent: if the wallet already has 4+ ada-only UTxOs at
 the bootstrap address, it logs a "skipping" notice instead of double-splitting.
 
+`balance.sh` prints the wallet's current UTxOs and total ADA. Run it any
+time — it's the simplest way to confirm the faucet drop arrived, pick a
+SOURCE for `prep-utxos`, or sanity-check between bootstrap stages.
+
+```sh
+./infra/bootstrap/balance.sh                  # default: NETWORK=preprod
+NETWORK=preview ./infra/bootstrap/balance.sh
+```
+
 ## Running it
 
 ```sh
@@ -107,9 +116,10 @@ export PAYMENT_SKEY=infra/bootstrap/wallets/payment.skey
 
 # Fund BOOTSTRAP_ADDR from the Preprod faucet. Wait for it to confirm.
 echo "$BOOTSTRAP_ADDR"   # paste this into the faucet form
+./infra/bootstrap/balance.sh   # confirm the faucet drop arrived
 
 # Split the faucet drop into the 4 UTxO shapes the stages need.
-# Prints the UTxO refs (A, B, C, D) you'll use below.
+# Prints the UTxO refs (A, B, C, D) you'll use below — copy-paste them.
 ./infra/bootstrap/prep-utxos.sh
 
 # Take the UTxO refs from prep-utxos's output and pin them as env vars:

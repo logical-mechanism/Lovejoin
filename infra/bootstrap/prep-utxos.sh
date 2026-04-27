@@ -123,15 +123,30 @@ cardano-cli conway transaction submit \
 TX_ID=$(cardano-cli conway transaction txid --tx-file "$ARTIFACTS_DIR/prep-utxos.tx")
 echo
 echo "prep-utxos: submitted txid $TX_ID"
-echo "Once confirmed, use these env vars for the bootstrap stages:"
-echo
-echo "  # stage 1 — 01-publish-and-register.sh"
-echo "  FUNDING_UTXO=${TX_ID}#0      # $STAGE1_LOVELACE lovelace"
-echo "  COLLATERAL_UTXO=${TX_ID}#1   # $COLLATERAL_LOVELACE lovelace"
-echo
-echo "  # stage 2 — 02-mint-and-lock.sh"
-echo "  SEED_UTXO=${TX_ID}#2         # $SEED_LOVELACE lovelace"
-echo "  COLLATERAL_UTXO=${TX_ID}#1   # same as above (collateral isn't consumed under happy path)"
-echo
-echo "  # stage 3 — 03-fund-fee-contract.sh"
-echo "  FUNDING_UTXO=${TX_ID}#3      # $STAGE3_LOVELACE lovelace"
+
+cat <<EOF
+
+# ---------------------------------------------------------------------------
+# Once the prep tx confirms, paste the following into your shell:
+# ---------------------------------------------------------------------------
+
+export FUNDING_STAGE1=${TX_ID}#0   # ${STAGE1_LOVELACE} lovelace — stage 1 funding (A)
+export COLLATERAL=${TX_ID}#1       # ${COLLATERAL_LOVELACE} lovelace — collateral, reused across stages 1 & 2 (B)
+export SEED=${TX_ID}#2             # ${SEED_LOVELACE} lovelace — seed for one_shot_mint, consumed in stage 2 (C)
+export FUNDING_STAGE3=${TX_ID}#3   # ${STAGE3_LOVELACE} lovelace — stage 3 funding (D)
+
+# Stage 0 — offline
+SEED_UTXO=\$SEED ./infra/bootstrap/00-build-reference.sh
+
+# Stage 1 — publish refs + register cert (chain of 4 txs)
+FUNDING_UTXO=\$FUNDING_STAGE1 COLLATERAL_UTXO=\$COLLATERAL \\
+  ./infra/bootstrap/01-publish-and-register.sh
+
+# Stage 2 — IRREVERSIBLE mint + lock
+SEED_UTXO=\$SEED COLLATERAL_UTXO=\$COLLATERAL \\
+  ./infra/bootstrap/02-mint-and-lock.sh
+
+# Stage 3 — fund 10 fee shards
+FUNDING_UTXO=\$FUNDING_STAGE3 \\
+  ./infra/bootstrap/03-fund-fee-contract.sh
+EOF
