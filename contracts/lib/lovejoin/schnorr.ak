@@ -11,7 +11,6 @@
 //// generator. This module performs no signer / output checks — those live in the
 //// validator that calls it.
 
-use aiken/crypto/bls12_381/scalar
 use lovejoin/bls
 use lovejoin/hash
 
