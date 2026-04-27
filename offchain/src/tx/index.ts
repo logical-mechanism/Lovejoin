@@ -7,3 +7,4 @@
 
 export * from "./params.js";
 export * from "./fee.js";
+export * from "./collateral.js";
