@@ -81,7 +81,6 @@ jq -n \
   --arg network "$NETWORK" \
   --argjson denom "$(jq '.denom_lovelace' "$CONFIG_PATH")" \
   --argjson maxFee "$(jq '.max_fee_per_mix_lovelace' "$CONFIG_PATH")" \
-  --argjson maxN "$(jq '.max_n' "$CONFIG_PATH")" \
   --argjson feeShardTarget "$(jq '.fee_shard_target' "$CONFIG_PATH")" \
   --argjson existing "$EXISTING" '
 {
@@ -89,7 +88,6 @@ jq -n \
   protocol: {
     denom_lovelace: $denom,
     max_fee_per_mix_lovelace: $maxFee,
-    max_n: $maxN,
     fee_shard_target: $feeShardTarget
   },
   referenceNftPolicy: ($existing.referenceNftPolicy // null),

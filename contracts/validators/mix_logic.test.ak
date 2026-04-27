@@ -24,11 +24,10 @@ use cardano/transaction.{Input, Output, Transaction}
 use lovejoin/schnorr.{SchnorrProof}
 use lovejoin/sigma_or.{SigmaOrBranch, SigmaOrProof}
 use lovejoin/test_fixtures.{
-  default_reference_input, denom_lovelace, fee_shard_output, max_n,
-  mix_box_input, mix_box_input_bad_datum, mix_box_output,
-  mix_box_output_with_value, mix_logic_hash, mix_script_hash, random_user_vk,
-  ref_nft_name, ref_nft_policy, script_address, vk_output_lovelace, a48, b48,
-  c48,
+  default_reference_input, denom_lovelace, fee_shard_output, mix_box_input,
+  mix_box_input_bad_datum, mix_box_output, mix_box_output_with_value,
+  mix_logic_hash, mix_script_hash, random_user_vk, ref_nft_name, ref_nft_policy,
+  script_address, vk_output_lovelace, a48, b48, c48,
 }
 use lovejoin/types.{Mix, MixDatum, Owner}
 use mix_logic
@@ -213,40 +212,9 @@ test mix_rejects_n_eq_1() fail {
   )
 }
 
-test mix_rejects_n_above_max_n() fail {
-  // max_n in default fixtures is 6 — request 7 inputs.
-  let n_over = max_n + 1
-  let inputs = build_mix_inputs_at_a(n_over)
-  let outputs = build_mix_outputs_at_b(n_over)
-  let tx =
-    Transaction {
-      ..transaction.placeholder,
-      reference_inputs: [default_reference_input()],
-      inputs: inputs,
-      outputs: outputs,
-      fee: 200_000,
-    }
-  let proofs: List<SigmaOrProof> = build_proofs_at_n(n_over)
-  mix_logic.mix_logic.withdraw(
-    ref_nft_policy,
-    ref_nft_name,
-    Mix { proofs: proofs },
-    script_address(mix_script_hash).payment_credential,
-    tx,
-  )
-}
-
-fn build_proofs_at_n(n: Int) -> List<SigmaOrProof> {
-  do_build_proofs(n, [])
-}
-
-fn do_build_proofs(remaining: Int, acc: List<SigmaOrProof>) -> List<SigmaOrProof> {
-  if remaining == 0 {
-    acc
-  } else {
-    do_build_proofs(remaining - 1, [bogus_sigma_or(2), ..acc])
-  }
-}
+// (No `mix_rejects_n_above_max_n` test — the on-chain protocol no longer
+// enforces an upper bound on N. The natural ceiling is the chain's per-tx
+// CPU/mem budget, which can't be unit-tested without a real cost model.)
 
 test mix_rejects_proofs_count_mismatch() fail {
   // 3 mix inputs, but proofs.length == 2 → length mismatch.

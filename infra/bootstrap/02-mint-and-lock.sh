@@ -60,7 +60,6 @@ MIX_SCRIPT_HASH=$(jq -r '.mixBoxScriptHash' "$ARTIFACTS_DIR/addresses.json")
 FEE_SCRIPT_HASH=$(jq -r '.feeScriptHash' "$ARTIFACTS_DIR/addresses.json")
 DENOM=$(jq -r '.protocol.denom_lovelace' "$ARTIFACTS_DIR/addresses.json")
 MAX_FEE=$(jq -r '.protocol.max_fee_per_mix_lovelace' "$ARTIFACTS_DIR/addresses.json")
-MAX_N=$(jq -r '.protocol.max_n' "$ARTIFACTS_DIR/addresses.json")
 SHARD_TARGET=$(jq -r '.protocol.fee_shard_target' "$ARTIFACTS_DIR/addresses.json")
 
 if [[ "$REF_NFT_POLICY" == "null" || -z "$REF_NFT_POLICY" ]]; then
@@ -72,30 +71,25 @@ REF_HOLDER_ADDR=$(cardano-cli address build \
   --payment-script-file "$ARTIFACTS_DIR/reference_holder.plutus" \
   --testnet-magic "$TESTNET_MAGIC")
 
-# Inline ReferenceDatum { protocol: ProtocolParams { ... } }
-# Constr 0 [Constr 0 [denom, max_fee, max_n, mix_script_hash, mix_logic_hash, fee_script_hash, shard_target]].
+# Inline ReferenceDatum (flat) — Constr 0 with six fields:
+#   [denom, max_fee, mix_script_hash, mix_logic_hash, fee_script_hash, shard_target]
 INLINE_DATUM_FILE="$ARTIFACTS_DIR/reference_datum.json"
 jq -n \
   --argjson denom "$DENOM" \
   --argjson maxFee "$MAX_FEE" \
-  --argjson maxN "$MAX_N" \
   --arg mixHash "$MIX_SCRIPT_HASH" \
   --arg mixLogicHash "$MIX_LOGIC_HASH" \
   --arg feeHash "$FEE_SCRIPT_HASH" \
   --argjson shardTarget "$SHARD_TARGET" '{
     constructor: 0,
-    fields: [{
-      constructor: 0,
-      fields: [
-        {int: $denom},
-        {int: $maxFee},
-        {int: $maxN},
-        {bytes: $mixHash},
-        {bytes: $mixLogicHash},
-        {bytes: $feeHash},
-        {int: $shardTarget}
-      ]
-    }]
+    fields: [
+      {int: $denom},
+      {int: $maxFee},
+      {bytes: $mixHash},
+      {bytes: $mixLogicHash},
+      {bytes: $feeHash},
+      {int: $shardTarget}
+    ]
   }' > "$INLINE_DATUM_FILE"
 
 EMPTY_REDEEMER_FILE="$ARTIFACTS_DIR/empty-redeemer.json"

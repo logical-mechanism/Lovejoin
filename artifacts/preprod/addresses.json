@@ -3,16 +3,15 @@
   "protocol": {
     "denom_lovelace": 10000000,
     "max_fee_per_mix_lovelace": 800000,
-    "max_n": 6,
     "fee_shard_target": 10
   },
   "referenceNftPolicy": "17f0a9ea13a38b0037364bbbb01d04f518a637bedf7c679458775f9a",
   "referenceNftAssetName": "6c6f76656a6f696e",
   "referenceUtxoRef": null,
   "referenceHolderScriptHash": "b8e80c6fad43fcffb5e2e654d829c566be38ab1b5f0377fba40602ef",
-  "mixLogicScriptHash": "3e3e76b5490be9f6e45379a1b03d710383d6e8a9745ffc928ee521cf",
-  "mixBoxScriptHash": "edea81e4dea70f0ee0f7ced52289002e5af99b188e93fceb554014b4",
-  "feeScriptHash": "e85e9ccb83f02234b84847ed6d06dc49dbe3b8f91a2cd18cb9aad040",
+  "mixLogicScriptHash": "b13a928d029102d5e4ab678c7d055f5a110168f2569cecb8a1c0d236",
+  "mixBoxScriptHash": "a8faa7b5d7d515d198110491277804be69c847202f852043a5328297",
+  "feeScriptHash": "257de750022e1b05611d9faadbe5dcc93e6d401a90a7edf367fc5956",
   "feeShardUtxos": [],
   "referenceScriptUtxos": {}
 }

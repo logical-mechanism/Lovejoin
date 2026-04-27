@@ -19,10 +19,15 @@ use lovejoin/sigma_or.{SigmaOrProof}
 ///
 /// Flat layout (no intermediate wrapper) matches the canonical hyperstructure
 /// pattern: a single Constr-0 with all fields directly addressable.
+///
+/// No `max_n`: the validator only enforces `N >= 2`. The natural ceiling for
+/// N is whatever fits in the chain's per-tx CPU/mem budget. Hard-coding a
+/// max would make the protocol get stuck if Cardano's per-tx limits ever
+/// rise (or if validator costs drop). SDKs can still carry a recommended N
+/// as off-chain config (network.<net>.json), but it's not protocol-level.
 pub type ReferenceDatum {
   denom_lovelace: Int,
   max_fee_per_mix_lovelace: Int,
-  max_n: Int,
   mix_script_hash: ScriptHash,
   mix_logic_script_hash: ScriptHash,
   fee_script_hash: ScriptHash,
