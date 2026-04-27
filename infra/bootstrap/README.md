@@ -34,29 +34,31 @@ use.
 
 ## Wallet
 
-Bootstrap wallets go under `infra/bootstrap/wallets/<network>/`. That path is
-gitignored, so signing keys never end up in git. Convention:
+One keypair, multiple per-network address files. A Cardano signing key carries
+no network identity — the same keypair works across preprod / preview /
+mainnet; only the bech32 address encoding differs.
 
-```
-infra/bootstrap/wallets/preprod/
-├── payment.skey      # signing key (NEVER commit)
-├── payment.vkey      # verification key
-└── payment.addr      # bech32 address (BOOTSTRAP_ADDR)
-```
-
-Generate one with cardano-cli:
+`init-wallet.sh` sets it up. Idempotent — re-running with an existing keypair
+or address leaves it alone, so it's safe to run any time you add a new
+network or want to make sure the wallet exists.
 
 ```sh
-mkdir -p infra/bootstrap/wallets/preprod && cd infra/bootstrap/wallets/preprod
-cardano-cli address key-gen \
-  --verification-key-file payment.vkey \
-  --signing-key-file payment.skey
-cardano-cli address build \
-  --payment-verification-key-file payment.vkey \
-  --testnet-magic 1 \
-  --out-file payment.addr
-cat payment.addr   # paste into the Preprod faucet
+./infra/bootstrap/init-wallet.sh                  # preprod + preview
+./infra/bootstrap/init-wallet.sh --include-mainnet # also mainnet (opt-in)
 ```
+
+Layout (everything under `infra/bootstrap/wallets/`, all gitignored):
+
+```
+infra/bootstrap/wallets/
+├── payment.skey               # shared signing key (NEVER commit)
+├── payment.vkey               # shared verification key
+├── payment.preprod.addr       # bech32 address for preprod
+├── payment.preview.addr       # bech32 address for preview
+└── payment.mainnet.addr       # only if --include-mainnet
+```
+
+Fund `payment.preprod.addr` from the [Preprod faucet](https://docs.cardano.org/cardano-testnets/tools/faucet/).
 
 Fund it from the [Preprod faucet](https://docs.cardano.org/cardano-testnets/tools/faucet/).
 Budget for a clean Preprod bootstrap (defaults assumed):
@@ -74,11 +76,14 @@ Round up to ~150 ADA so you don't have to top up mid-bootstrap.
 ## Running it
 
 ```sh
+# One-time wallet setup (idempotent — re-runs are no-ops once the keypair exists).
+./infra/bootstrap/init-wallet.sh
+
 export NETWORK=preprod
 export TESTNET_MAGIC=1
 export CARDANO_NODE_SOCKET_PATH=/path/to/preprod-node.socket
-export BOOTSTRAP_ADDR=$(cat infra/bootstrap/wallets/preprod/payment.addr)
-export PAYMENT_SKEY=infra/bootstrap/wallets/preprod/payment.skey
+export BOOTSTRAP_ADDR=$(cat infra/bootstrap/wallets/payment.preprod.addr)
+export PAYMENT_SKEY=infra/bootstrap/wallets/payment.skey
 
 # Stage 0 — offline. Pick a SEED_UTXO from the wallet first; it'll be consumed
 # by 02-mint-and-lock.
