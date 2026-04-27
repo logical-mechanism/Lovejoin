@@ -12,18 +12,11 @@ import { useTranslation } from "react-i18next";
 import type { BrowserWallet } from "@meshsdk/core";
 import {
   buildDepositTx,
-  GENERATOR_COMPRESSED,
   type LovejoinAddresses,
   type BlockfrostProvider,
 } from "@lovejoin/sdk";
 
 import type { Network } from "../lib/sdk.js";
-
-function bytesToHex(bytes: Uint8Array): string {
-  let s = "";
-  for (const b of bytes) s += b.toString(16).padStart(2, "0");
-  return s;
-}
 
 export interface DepositedBox {
   txId: string;
@@ -74,11 +67,11 @@ export function DepositPanel({
         txId: result.txId,
         outputIndex: 0,
         ownerSecretHex: result.owner.secretHex,
-        // The SDK exposes the public point; `a` is always `g` so the UI
-        // recovers it from the canonical generator at withdraw time. We
-        // store the SDK's own (b) here because `b = [x]·g` is what the
-        // box's inline datum carries.
-        aHex: deriveGeneratorHex(),
+        // SDK now does deposit-time re-randomization: `a = [d]·g` for a
+        // fresh per-deposit `d`, so we MUST store whatever `a` the SDK
+        // chose (not the canonical generator). Withdraw uses this exact
+        // (a, b) pair to reconstruct the inline datum.
+        aHex: result.owner.aHex,
         bHex: result.owner.publicPointHex,
         label: result.owner.label,
         rounds,
@@ -132,8 +125,3 @@ export function DepositPanel({
   );
 }
 
-// The SDK's planning helper always sets `a = g`. Reuse the SDK's exported
-// canonical generator so we don't carry a parallel constant that could drift.
-function deriveGeneratorHex(): string {
-  return bytesToHex(GENERATOR_COMPRESSED);
-}

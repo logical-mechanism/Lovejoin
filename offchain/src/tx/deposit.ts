@@ -19,8 +19,10 @@ import {
   SCALAR_ORDER,
   type Scalar,
   generator,
+  pointFromBytes,
   pointToBytes,
   publicPointG,
+  scalarMul,
 } from "../crypto/index.js";
 import { Encoder, Tag } from "cbor-x";
 
@@ -92,7 +94,19 @@ export interface OwnerSecretMaterial {
   secret: Scalar;
   /** Lowercase 64-char hex of `secret`. */
   secretHex: string;
-  /** Public point `b = [x]·g` as 48-byte compressed hex (= the `b` field). */
+  /**
+   * 48-byte compressed hex of the box's `a` point. With deposit-time
+   * re-randomization this is `[d]·g` for a fresh per-deposit `d`, not
+   * the canonical generator. Withdraw needs this to reconstruct the
+   * box's inline datum and verify ownership.
+   */
+  aHex: string;
+  /**
+   * 48-byte compressed hex of the box's `b` point — `[x]·a`. With
+   * re-randomization that's `[x·d]·g`. Stored as `publicPointHex` for
+   * backwards-compat with code that pre-dates re-randomization (where
+   * `a = g` made `b == [x]·g` the natural label).
+   */
   publicPointHex: string;
   /**
    * Stable short label, suitable for filenames or storage keys: the first
@@ -159,6 +173,19 @@ export function assertOwnerSecret(secret: Scalar): void {
 
 /** Generate a fresh owner secret using the provided RNG (default: WebCrypto). */
 export function generateOwnerSecret(rng?: () => Uint8Array): Scalar {
+  return drawScalar(rng);
+}
+
+/**
+ * Draw a fresh scalar `d ∈ [1, r)` for deposit-time re-randomization.
+ * Same shape as `generateOwnerSecret` — kept under a distinct name so
+ * call sites self-document the role of the value.
+ */
+export function generateRerandomizationScalar(rng?: () => Uint8Array): Scalar {
+  return drawScalar(rng);
+}
+
+function drawScalar(rng?: () => Uint8Array): Scalar {
   const draw = rng ?? defaultScalarDraw;
   // Reject-sample 32 random bytes until we land in [1, r). With r ≈ 2^255
   // this almost always passes on the first try.
@@ -184,15 +211,46 @@ function defaultScalarDraw(): Uint8Array {
   return buf;
 }
 
-/** Build the public material that pairs with an owner secret. */
-export function deriveOwner(secret: Scalar): OwnerSecretMaterial {
+/**
+ * Build the public material that pairs with an owner secret given an
+ * already-computed box `a` point (compressed bytes). With deposit-time
+ * re-randomization the caller supplies `a = [d]·g`; without it (e.g.
+ * the legacy `deriveOwner(secret)` overload) `a` defaults to the
+ * canonical generator and `b = [x]·g`.
+ */
+export function deriveOwner(
+  secret: Scalar,
+  aBytes?: Uint8Array,
+): OwnerSecretMaterial {
   assertOwnerSecret(secret);
+  if (aBytes) {
+    if (aBytes.length !== G1_COMPRESSED_BYTES) {
+      throw new Error(
+        `deriveOwner: a must be ${G1_COMPRESSED_BYTES} bytes, got ${aBytes.length}`,
+      );
+    }
+    // b = [x]·a (whatever a is). Re-randomized deposits set a = [d]·g.
+    const aPoint = pointFromBytes(aBytes);
+    const b = pointToBytes(scalarMul(secret, aPoint));
+    const aHex = bytesToHex(aBytes);
+    const publicPointHex = bytesToHex(b);
+    return {
+      secret,
+      secretHex: scalarToHex(secret),
+      aHex,
+      publicPointHex,
+      label: publicPointHex.slice(0, 16),
+    };
+  }
+  // Legacy path: a = g, b = [x]·g. Used by tests / call sites that
+  // pre-date re-randomization.
+  const a = pointToBytes(generator());
   const b = pointToBytes(publicPointG(secret));
-  const secretHex = scalarToHex(secret);
   const publicPointHex = bytesToHex(b);
   return {
     secret,
-    secretHex,
+    secretHex: scalarToHex(secret),
+    aHex: bytesToHex(a),
     publicPointHex,
     label: publicPointHex.slice(0, 16),
   };
@@ -205,6 +263,13 @@ export function deriveOwner(secret: Scalar): OwnerSecretMaterial {
 export interface PlanDepositArgs {
   /** Owner secret to use; if omitted, a fresh one is generated via WebCrypto. */
   ownerSecret?: Scalar;
+  /**
+   * Optional re-randomization scalar `d ∈ [1, r)`. When provided the new
+   * mix-box's `a = [d]·g`; otherwise a fresh `d` is drawn via WebCrypto.
+   * Pass `null` to opt into the legacy `a = g` behavior — useful for
+   * deterministic tests that pre-date re-randomization.
+   */
+  rerandomization?: Scalar | null;
   /** Number of mix rounds the user wants to fund — drives the fee top-up. */
   rounds: number;
   /** Lovejoin protocol parameters from the reference UTxO. */
@@ -223,9 +288,32 @@ export function planDepositTx(args: PlanDepositArgs): DepositPlan {
   const ownerSecret = args.ownerSecret ?? generateOwnerSecret();
   assertOwnerSecret(ownerSecret);
 
-  // (a, b) for the new mix-box — `a = g`, `b = [x]·g`.
-  const a = pointToBytes(generator());
-  const b = pointToBytes(publicPointG(ownerSecret));
+  // Re-randomize the deposit: `a = [d]·g`, `b = [x]·a = [x·d]·g`. Without
+  // this every fresh deposit lands at `(g, [x]·g)`, which lets observers
+  // trivially distinguish "just deposited" boxes from boxes that have
+  // been through at least one Mix. With `d` drawn freshly per deposit
+  // each new box looks indistinguishable from a mid-mix-pool box.
+  // The user only ever stores `x` — `d` is consumed at deposit time and
+  // discarded. The validator's Schnorr check `b == [x]·a` still holds.
+  const d: Scalar | null = args.rerandomization === undefined
+    ? generateRerandomizationScalar()
+    : args.rerandomization;
+  let aPoint;
+  let bPoint;
+  if (d === null) {
+    // Legacy `a = g` path — kept for tests + KAT vectors that depend
+    // on byte-stable outputs.
+    aPoint = generator();
+    bPoint = publicPointG(ownerSecret);
+  } else {
+    if (d <= 0n || d >= SCALAR_ORDER) {
+      throw new Error("rerandomization scalar must be in [1, r)");
+    }
+    aPoint = scalarMul(d, generator());
+    bPoint = scalarMul(ownerSecret, aPoint);
+  }
+  const a = pointToBytes(aPoint);
+  const b = pointToBytes(bPoint);
 
   const mixBoxAddress = buildScriptAddress(
     args.addresses.mixBoxScriptHash,
@@ -412,7 +500,7 @@ export async function buildDepositTx(args: BuildDepositArgs): Promise<DepositRes
 
   const unsignedTx = await tx.complete();
   const signedTx = await args.wallet.signTx(unsignedTx);
-  const owner = deriveOwner(plan.ownerSecret);
+  const owner = deriveOwner(plan.ownerSecret, plan.a);
 
   if (args.signOnly) {
     return {
