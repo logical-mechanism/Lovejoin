@@ -59,13 +59,18 @@ export class BlockfrostProvider implements ChainProvider {
   constructor(config: BlockfrostConfig) {
     this.baseUrl = config.baseUrl.replace(/\/$/, "");
     this.projectId = config.projectId;
-    const f = config.fetchFn ?? (globalThis as { fetch?: FetchFn }).fetch;
-    if (!f) {
+    const injected = config.fetchFn;
+    const globalFetch = (globalThis as { fetch?: FetchFn }).fetch;
+    if (!injected && !globalFetch) {
       throw new Error(
         "BlockfrostProvider: no fetch implementation available. Pass `fetchFn` explicitly.",
       );
     }
-    this.fetchFn = f;
+    // Bind the global `fetch` to its owner before stashing — calling
+    // `window.fetch` with `this === BlockfrostProvider` throws
+    // "Illegal invocation" in the browser. Test injections are passed
+    // through unmodified so mocks see their normal `this`.
+    this.fetchFn = injected ?? (globalFetch!.bind(globalThis) as FetchFn);
     this.pollIntervalMs = config.pollIntervalMs ?? DEFAULT_POLL_INTERVAL_MS;
   }
 

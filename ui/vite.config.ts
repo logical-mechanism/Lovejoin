@@ -17,6 +17,19 @@ const require = createRequire(import.meta.url);
 // file in ESM mode) and use that absolute path as the alias target.
 const libsodiumSumoMjs = require.resolve("libsodium-sumo");
 
+// esbuild plugin that mirrors the Rollup `resolve.alias` below for the
+// broken `./libsodium-sumo.mjs` relative import. Vite's dev pre-bundle
+// uses esbuild directly and doesn't read Vite's resolve config, so we
+// install the same redirect at the esbuild layer too.
+const libsodiumEsbuildShim = {
+  name: "lovejoin-libsodium-shim",
+  setup(build: import("esbuild").PluginBuild) {
+    build.onResolve({ filter: /^\.\/libsodium-sumo\.mjs$/ }, () => ({
+      path: libsodiumSumoMjs,
+    }));
+  },
+};
+
 // mesh's @sidan-lab/sidan-csl-rs-browser ships a Wasm bundle the SDK loads at
 // runtime. Vite's default loader doesn't handle the "ESM integration proposal
 // for Wasm" form, so we add vite-plugin-wasm + vite-plugin-top-level-await
@@ -52,13 +65,18 @@ export default defineConfig({
     port: 5173,
   },
   optimizeDeps: {
-    // Pre-bundling chokes on the wasm + top-level-await combo unless we ask
-    // it to skip the mesh + csl packages — they're loaded lazily anyway.
-    exclude: [
-      "@meshsdk/core",
-      "@meshsdk/core-cst",
-      "@sidan-lab/sidan-csl-rs-browser",
-    ],
+    // Only the package that actually trips the wasm + top-level-await
+    // combo is excluded. Earlier we also excluded @meshsdk/core +
+    // @meshsdk/core-cst, but that left their transitive @cardano-sdk
+    // deps un-optimized too — and @cardano-sdk/util does
+    // `import { bech32 } from "bech32"` against a CJS-only `bech32`
+    // package, which Vite's native ESM resolver rejects ("does not
+    // provide an export named 'bech32'"). Letting esbuild pre-bundle
+    // the mesh stack handles the CJS↔ESM named-export interop.
+    exclude: ["@sidan-lab/sidan-csl-rs-browser"],
+    esbuildOptions: {
+      plugins: [libsodiumEsbuildShim as unknown as import("esbuild").Plugin],
+    },
   },
 });
 
