@@ -22,17 +22,24 @@ Four stages, run sequentially. Stage 1 internally chains four txs (publish
 mix_box → publish mix_logic → publish fee_contract → register mix_logic
 stake credential).
 
-| # | script | what it does | tx count |
-|---|--------|--------------|---------:|
-| 0 | `00-build-reference.sh`           | offline. Parameterizes the validators in dependency order (`one_shot_mint(seed) → mix_logic(NFT) → mix_box(mix_logic) → fee_contract(NFT)`), writes resolved hashes to `addresses.json`. | 0 |
-| 1 | `01-publish-and-register.sh`      | recursive tx chain: publishes `mix_box`, `mix_logic`, `fee_contract` as CIP-33 reference scripts (one tx per script — keeps every tx well under the 16 KiB limit as validators grow), then registers the `mix_logic` stake credential, attaching the script via `--certificate-tx-in-reference` against tx 2's output. Each tx after the first spends the previous tx's change output as funding. | 4 |
-| 2 | `02-mint-and-lock.sh`             | **irreversible.** Spends `SEED`, mints the one-of-one NFT, locks at `reference_holder` with the inline `ProtocolParams` datum. | 1 |
-| 3 | `03-fund-fee-contract.sh`         | seeds 10 shards at `fee_contract`. | 1 |
+One tx per operator command. Wait for each to confirm via `./balance.sh`
+before running the next.
 
-The single-script-per-tx convention inside stage 1 isolates failures (a publish
-that fails costs only its own funding + fee, not the whole infrastructure
-setup) and matches the recursive ref-input pattern the production txs will
-use.
+| # | script | what it does |
+|---|--------|--------------|
+| 0   | `00-build-reference.sh`           | offline. Parameterizes the validators, writes resolved hashes to `addresses.json`. |
+| 1a  | `01a-publish-mix-box.sh`          | publishes `mix_box.plutus` as a CIP-33 reference script. |
+| 1b  | `01b-publish-mix-logic.sh`        | publishes `mix_logic.plutus` as a CIP-33 reference script. The cert tx in 01d references this output. |
+| 1c  | `01c-publish-fee-contract.sh`     | publishes `fee_contract.plutus` as a CIP-33 reference script. |
+| 1d  | `01d-register-mix-logic.sh`       | registers the `mix_logic` stake credential. Reads 01b's signed-tx file offline to derive the mix_logic ref-UTxO id, then attaches the script via `--certificate-tx-in-reference`. |
+| 2   | `02-mint-and-lock.sh`             | **irreversible.** Spends `SEED`, mints the one-of-one NFT, locks at `reference_holder` with the inline `ReferenceDatum`. |
+| 3   | `03-fund-fee-contract.sh`         | seeds 10 shards at `fee_contract`. |
+
+Each script combines all wallet UTxOs at `BOOTSTRAP_ADDR` (excluding `SEED`
+and `COLLATERAL`) into the tx's `--tx-in` set, then uses
+`cardano-cli transaction build` with `--change-address` so it computes fee +
+change automatically. No manual fee math, no chained-change gymnastics —
+mirrors the canonical pattern from prior logical-mechanism deployments.
 
 > **Plutus collateral note.** Under the Babbage/Conway happy path, collateral
 > inputs are *preserved* (not consumed) — they're only seized if a script
@@ -90,7 +97,7 @@ you split the faucet drop into the four shapes below:
 
 | label | size       | used by                                                      |
 |-------|-----------:|--------------------------------------------------------------|
-| **A** FUNDING (stage 1) |  85 ADA | `01-publish-and-register.sh` (3 ref outputs + cert + chain fees) |
+| **A** FUNDING (stage 1) |  85 ADA | shared across `01a` / `01b` / `01c` / `01d` (3 ref outputs + cert + fees, picked from wallet) |
 | **B** COLLATERAL        |  10 ADA | stages 1 & 2 (cert reg + mint); ada-only, returned by ledger so it persists across both |
 | **C** SEED              |   7 ADA | `02-mint-and-lock.sh` (consumed by `one_shot_mint`) |
 | **D** FUNDING (stage 3) |  45 ADA | `03-fund-fee-contract.sh` (10 shards × 4 ADA + fee) |
@@ -133,8 +140,10 @@ cat infra/bootstrap/wallets/payment.preprod.addr   # paste into the faucet
 # Each stage reads the canonical names directly — no renaming on the call site.
 ./infra/bootstrap/00-build-reference.sh
 
-./infra/bootstrap/01-publish-and-register.sh
-# wait for confirmation (./balance.sh, or cardano-cli query utxo --tx-in <txid>#0)
+./infra/bootstrap/01a-publish-mix-box.sh        # wait for confirmation (./balance.sh)
+./infra/bootstrap/01b-publish-mix-logic.sh      # wait
+./infra/bootstrap/01c-publish-fee-contract.sh   # wait
+./infra/bootstrap/01d-register-mix-logic.sh     # wait — uses 01b's signed file as the ref-input source
 
 ./infra/bootstrap/02-mint-and-lock.sh
 # wait for confirmation — this is the IRREVERSIBLE step

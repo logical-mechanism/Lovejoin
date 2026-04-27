@@ -99,7 +99,7 @@ The protocol is a hyperstructure: parameters are minted into an inline datum on 
 Four stages under [`infra/bootstrap/`](infra/bootstrap/) — one operator command each:
 
 1. **`00-build-reference.sh`** — offline. Parameterizes the validators in dependency order (`one_shot_mint(seed) → mix_logic(NFT) → mix_box(mix_logic) → fee_contract(NFT)`) and writes resolved hashes into `artifacts/<network>/addresses.json`.
-2. **`01-publish-and-register.sh`** — recursive tx chain (4 txs internally): publishes `mix_box`, `mix_logic`, `fee_contract` as CIP-33 reference scripts (one tx per script, so every tx stays under the 16 KiB max-tx-size as the validators grow), then registers the `mix_logic` stake credential by referencing the script published in tx 2 via `--certificate-tx-in-reference`. Each tx spends the previous tx's change output as funding — operator only supplies one funding UTxO and one collateral UTxO.
+2. **`01a` / `01b` / `01c` / `01d`** — four per-tx scripts run in order: publish `mix_box`, `mix_logic`, `fee_contract` as CIP-33 reference scripts (one tx per script — keeps every tx well under the 16 KiB limit as validators grow), then register the `mix_logic` stake credential. The cert tx attaches the script via `--certificate-tx-in-reference`, deriving the publish-tx id offline from `01b`'s signed file. Each script spends wallet UTxOs (excluding `SEED` + `COLLATERAL`) and lets `cardano-cli transaction build` compute fee + change automatically.
 3. **`02-mint-and-lock.sh`** — **irreversible.** Spends `SEED`, mints the one-of-one NFT, locks at `reference_holder` with the inline `ProtocolParams` datum.
 4. **`03-fund-fee-contract.sh`** — seeds 10 shards at `fee_contract`.
 
@@ -115,7 +115,7 @@ cp infra/bootstrap/.env.example infra/bootstrap/.env     # set NETWORK + node so
 # After exporting FUNDING_STAGE1 / COLLATERAL / SEED / FUNDING_STAGE3, the
 # stages read those env vars directly — no renaming at the call site:
 ./infra/bootstrap/00-build-reference.sh
-./infra/bootstrap/01-publish-and-register.sh   # wait for confirmation
+./infra/bootstrap/01a-publish-mix-box.sh && ./infra/bootstrap/01b-publish-mix-logic.sh && ./infra/bootstrap/01c-publish-fee-contract.sh && ./infra/bootstrap/01d-register-mix-logic.sh   # wait between each
 ./infra/bootstrap/02-mint-and-lock.sh           # wait — IRREVERSIBLE
 ./infra/bootstrap/03-fund-fee-contract.sh
 ```
