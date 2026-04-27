@@ -337,12 +337,27 @@ export async function buildWithdrawTx(args: BuildWithdrawArgs): Promise<Withdraw
   const meshProvider = await getMeshProvider(args.provider);
 
   // Pass 1: placeholder proof.
+  //
+  // We deliberately do NOT pass an `evaluator` here. The two-pass build has
+  // a chicken-and-egg with mesh's evaluator: pass 1 has a zero-bytes
+  // Schnorr proof, the evaluator runs the validator against it, the
+  // validator rejects → mesh throws before we ever get to compute the
+  // real proof in pass 2. Without the evaluator mesh uses constant
+  // upper-bound exec units; both passes use the same units, so the fee
+  // (and therefore the change output, and therefore `ctx`) is stable
+  // across passes — the proof we compute against pass 1's outputs
+  // remains valid for pass 2's submission.
+  //
+  // Trade-off: the resulting fee is inflated (default exec units are a
+  // large constant). M4 / M5 can revisit by either (a) doing a third
+  // pass that re-evaluates after the real proof is in place and
+  // adjusting the exec-unit slot only, or (b) precomputing exec units
+  // off-chain. Not worth it for a single Schnorr verify.
   const placeholderRedeemer = PLACEHOLDER_OWNER_REDEEMER_CBOR_HEX;
   const buildOnce = (redeemerCborHex: string): Promise<string> => {
     const tx = new MeshTxBuilder({
       fetcher: meshProvider as never,
       submitter: meshProvider as never,
-      evaluator: meshProvider as never,
       verbose: false,
     });
     tx
