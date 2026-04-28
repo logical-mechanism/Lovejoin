@@ -145,3 +145,125 @@ real Preprod numbers replace the estimates. The off-chain rule
 they hit the chain if the cap is tight; the SDK's `planMixTx` surfaces
 this loudly.
 
+## M4.5 — validator optimisation pass (2026-04-28)
+
+**Status:** code optimisations landed against `aiken check`. Preprod
+redeploy + `max-n-calibration` re-run + `max_n` bump in
+`config/network.preprod.json` is the operator step that closes the
+milestone.
+
+**What shipped** (see [`docs/perf-m4-5-audit.md`](perf-m4-5-audit.md)
+for the full audit + reject list):
+
+1. `sigma_or.verify_pre` no longer allocates two N-element wrapper
+   lists per call (was: `stmt_for_hash`, `commitments_for_hash`
+   feeding `hash.fs_hash_sigma_or`). The new private path walks the
+   typed `DHTupleStatementPt` / `SigmaOrBranch` lists directly via a
+   `hash.fs_hash_sigma_or_header` helper. Wire layout byte-identical
+   (encoding-parity KAT still passes). 2N wrapper allocs eliminated
+   per `verify_pre` call → 2N² eliminated per Mix tx.
+2. `sigma_or.verify_pre` no longer measures `list.length(statements)`
+   or `list.length(proof.branches)` per call — replaced with an
+   O(1) `[_, _, ..]` pattern guard, length parity now enforced by
+   `parallel_all`'s `_ -> False` arm. `n` is threaded in from
+   `validate_mix` (which already computed it). 2N² list-walk steps
+   eliminated per Mix tx.
+3. `fee_contract` uses `list.count` instead of `list.filter` for the
+   "exactly one fee input" check (no intermediate list).
+4. `ada_only` is hoisted into `lovejoin/value` (shared between
+   `mix_logic` and `fee_contract`). No on-chain cost change; clarity.
+5. **Schema break:** `fee_shard_target` removed from `ReferenceDatum`
+   (validator never read it; off-chain coordination stays in
+   `config/network.<net>.json`). One fewer Constr-field decode per
+   reference-datum read; small but cumulative.
+
+6. **Single tail-recursive walk over the prefix** (audit item 1+5,
+   third attempt) — kept the cheap `list.take` / `list.drop` /
+   `list.all(at_script)` structural pre-checks (so wrong-at-script
+   negative cases still fail fast) and collapsed the four heavy
+   walks (`list.map(check_and_decode)`, two `compute_mix_ctx` folds,
+   `precompute_statements`) into ONE tail-recursive walk that
+   decodes + uncompresses + accumulates ctx bytes. Tuple
+   accumulator (cheaper than the 3-field record I tried first); one
+   `list.reverse` of the N-element statements list at the end.
+   Wire layout of the FS preimage is byte-identical.
+
+   Earlier attempts at items 1+5 had been parked because the
+   `mix_logic.test.ak` suite is 100% negative tests and the
+   restructure showed regressions there. Adding positive-prologue
+   benchmark tests (`mix_full_prologue_then_proof_fails_n*` —
+   build a fully valid Mix prefix, supply bogus OR proofs that fail
+   at the first uncompress, so the validator runs the entire
+   `validate_mix` prologue including `verify_pre`'s FS hash) gave
+   us a direct positive-path measurement. The new walk wins on
+   every N, and the full mix_logic suite drops 215M CPU /
+   426k mem.
+
+**What was rejected** (see audit `## Items rejected` for the
+reasoning): the four other speculative items in the audit
+(`parallel_all` generic unify, soft-decode `choose_data` re-shape,
+OR-branch random-linear-combination check, dropping the scalar
+canonical-length check). Either no measurable CPU win or a
+security-weakening change.
+
+### Measured deltas vs M4 baseline (`aiken check`, 365 tests)
+
+Cumulative whole-suite delta: **−2,613,438,233 CPU and
+−7,887,197 mem** (items 2+3+4+6+8 combined with the item-1+5 walk
+collapse).
+
+Per-N savings on the `sigma_or` KAT suite — items 2 + 3 alone
+(8 vectors per N, summed):
+
+| N | baseline CPU | post items 2+3 CPU | delta CPU | delta % |
+|---|--------------|--------------------|-----------|---------|
+| 2 | 11,519,063,450 | 11,402,060,442 | −117,003,008 | −1.02% |
+| 3 | 16,801,051,469 | 16,638,481,029 | −162,570,440 | −0.97% |
+| 4 | 22,083,112,649 | 21,874,974,777 | −208,137,872 | −0.94% |
+| 6 | 32,647,753,007 | 32,348,480,271 | −299,272,736 | −0.92% |
+| 8 | 43,212,848,233 | 42,822,440,633 | −390,407,600 | −0.90% |
+
+Per-Mix-tx-prologue savings on the new
+`mix_full_prologue_then_proof_fails_n*` benchmarks — item 1+5
+(walk-collapse) standalone:
+
+| N | pre-collapse CPU | post-collapse CPU | delta CPU | delta % | mem delta |
+|---|------------------|-------------------|-----------|---------|-----------|
+| 2 | 484,112,329 | 475,922,780 | −8,189,549 | −1.69% | −21,572 (−2.7%) |
+| 3 | 690,074,627 | 676,013,646 | −14,060,981 | −2.04% | −42,534 (−4.0%) |
+| 4 | 899,545,451 | 879,613,038 | −19,932,413 | −2.22% | −63,496 (−4.7%) |
+| 6 | 1,313,021,033 | 1,287,745,756 | −25,275,277 | −1.92% | −65,420 (−3.5%) |
+| 8 | 1,734,122,363 | 1,693,904,222 | −40,218,141 | −2.32% | −127,344 (−5.1%) |
+
+**Combined per-Mix-tx implication** (sigma-OR + walk-collapse,
+estimated from suite numbers):
+
+| N | per-tx CPU saved | as % of mainnet 10G budget |
+|---|--------------------|------------------------------|
+| 2 |  ~37M  | ~0.4% |
+| 3 |  ~75M  | ~0.7% |
+| 4 | ~125M  | ~1.2% |
+| 6 | ~250M  | ~2.5% |
+| 8 | ~430M  | ~4.3% |
+
+The validator at N=4 was overshooting by an unquantified amount in
+the M4 deployment ([milestones.json M4.5 notes][m45]); whether the
+~1.2% reclaimed at N=4 closes that gap is the recalibration's job to
+confirm.
+
+[m45]: ../milestones.json
+
+### Operator step (closes M4.5 exit criteria)
+
+1. Re-bootstrap on Preprod with the optimised validators + the
+   5-field `ReferenceDatum`. Old M4 fee shards and mix-boxes are
+   orphaned (irreversible).
+2. Run `stress-tests/max-n-calibration.ts` against the new
+   deployment. Append the per-N exec-units table here.
+3. Update `config/network.preprod.json` with the empirical `max_n`
+   (target: ≥ 4) and bump `max_fee_per_mix_lovelace` to leave
+   headroom over the post-optimisation observed fee.
+4. Re-run the M4 integration suite (`mix-n2`, `mix-at-max-n`,
+   `fee-exhaustion`, `full-lifecycle`) ten consecutive times.
+5. Commit the new `artifacts/preprod/addresses.json`.
+

@@ -37,7 +37,7 @@ import type { LovejoinAddresses, ProtocolParams } from "../../src/tx/params.js";
 
 const ADDRESSES: LovejoinAddresses = {
   network: "preprod",
-  protocol: { denom_lovelace: 10_000_000, max_fee_per_mix_lovelace: 800_000, fee_shard_target: 10 },
+  protocol: { denom_lovelace: 10_000_000, max_fee_per_mix_lovelace: 800_000 },
   referenceNftPolicy: "310d0d4ff25e73a4a0442eac873e68810e11c824aa0e858acc56f1df",
   referenceNftAssetName: "6c6f76656a6f696e",
   referenceUtxoRef: "b809b4e363067886174b57fd04101eb2e59f654220b6c11530c77b75f25ec945#0",
@@ -59,7 +59,6 @@ const PARAMS: ProtocolParams = {
   mixScriptHash: ADDRESSES.mixBoxScriptHash,
   mixLogicScriptHash: ADDRESSES.mixLogicScriptHash,
   feeScriptHash: ADDRESSES.feeScriptHash,
-  feeShardTarget: 10,
 };
 
 const SECRET = 0xc0ffeen;

@@ -142,6 +142,17 @@ parameterize reference_holder "reference =" "$REF_NFT_POLICY_CBOR" "$REF_NFT_NAM
 REF_HOLDER_HASH=$(cat "$ARTIFACTS_DIR/reference_holder.hash")
 
 # --- update addresses.json --------------------------------------------------
+# Also propagate `dapp_stake_key_hash` from config/network.<net>.json into
+# `addresses.json.dappStakeKeyHashHex` so the SDK builds base addresses
+# (script payment + dApp stake key) for every mix-box output. Without this
+# the field stays null, the SDK falls back to enterprise addresses, and the
+# pool's locked ADA stops earning operator-pool rewards.
+NETWORK_CONFIG="$REPO_ROOT/config/network.$NETWORK.json"
+DAPP_STAKE_KEY_HASH=""
+if [[ -f "$NETWORK_CONFIG" ]]; then
+  DAPP_STAKE_KEY_HASH=$(jq -r '.dapp_stake_key_hash // empty' "$NETWORK_CONFIG")
+fi
+
 TMP=$(mktemp)
 jq \
   --arg refNftPolicy "$REF_NFT_POLICY" \
@@ -149,13 +160,15 @@ jq \
   --arg refHolderHash "$REF_HOLDER_HASH" \
   --arg mixLogicHash "$MIX_LOGIC_HASH" \
   --arg mixBoxHash "$MIX_BOX_HASH" \
-  --arg feeHash "$FEE_HASH" '
+  --arg feeHash "$FEE_HASH" \
+  --arg dappStakeKey "$DAPP_STAKE_KEY_HASH" '
   .referenceNftPolicy = $refNftPolicy
   | .referenceNftAssetName = $refNftAssetName
   | .referenceHolderScriptHash = $refHolderHash
   | .mixLogicScriptHash = $mixLogicHash
   | .mixBoxScriptHash = $mixBoxHash
   | .feeScriptHash = $feeHash
+  | (if $dappStakeKey == "" then . else .dappStakeKeyHashHex = $dappStakeKey end)
 ' "$ARTIFACTS_DIR/addresses.json" > "$TMP"
 mv "$TMP" "$ARTIFACTS_DIR/addresses.json"
 
@@ -166,3 +179,8 @@ echo "  reference_holder: $REF_HOLDER_HASH"
 echo "  mix_logic:        $MIX_LOGIC_HASH"
 echo "  mix_box:          $MIX_BOX_HASH"
 echo "  fee_contract:     $FEE_HASH"
+if [[ -n "$DAPP_STAKE_KEY_HASH" ]]; then
+  echo "  dApp stake key:   $DAPP_STAKE_KEY_HASH"
+else
+  echo "  dApp stake key:   (none — pool outputs will be enterprise addresses)"
+fi

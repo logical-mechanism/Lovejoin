@@ -60,7 +60,6 @@ MIX_SCRIPT_HASH=$(jq -r '.mixBoxScriptHash' "$ARTIFACTS_DIR/addresses.json")
 FEE_SCRIPT_HASH=$(jq -r '.feeScriptHash' "$ARTIFACTS_DIR/addresses.json")
 DENOM=$(jq -r '.protocol.denom_lovelace' "$ARTIFACTS_DIR/addresses.json")
 MAX_FEE=$(jq -r '.protocol.max_fee_per_mix_lovelace' "$ARTIFACTS_DIR/addresses.json")
-SHARD_TARGET=$(jq -r '.protocol.fee_shard_target' "$ARTIFACTS_DIR/addresses.json")
 
 if [[ "$REF_NFT_POLICY" == "null" || -z "$REF_NFT_POLICY" ]]; then
   echo "02-mint-and-lock: addresses.json doesn't have referenceNftPolicy yet — run 00-build-reference.sh first" >&2
@@ -71,24 +70,24 @@ REF_HOLDER_ADDR=$(cardano-cli address build \
   --payment-script-file "$ARTIFACTS_DIR/reference_holder.plutus" \
   --testnet-magic "$TESTNET_MAGIC")
 
-# Inline ReferenceDatum (flat) — Constr 0 with six fields:
-#   [denom, max_fee, mix_script_hash, mix_logic_hash, fee_script_hash, shard_target]
+# Inline ReferenceDatum (flat) — Constr 0 with five fields:
+#   [denom, max_fee, mix_script_hash, mix_logic_hash, fee_script_hash]
+# `fee_shard_target` was dropped in M4.5 — no validator reads it; the canonical
+# 10-shard pool size is off-chain coordination (config/network.<net>.json).
 INLINE_DATUM_FILE="$ARTIFACTS_DIR/reference_datum.json"
 jq -n \
   --argjson denom "$DENOM" \
   --argjson maxFee "$MAX_FEE" \
   --arg mixHash "$MIX_SCRIPT_HASH" \
   --arg mixLogicHash "$MIX_LOGIC_HASH" \
-  --arg feeHash "$FEE_SCRIPT_HASH" \
-  --argjson shardTarget "$SHARD_TARGET" '{
+  --arg feeHash "$FEE_SCRIPT_HASH" '{
     constructor: 0,
     fields: [
       {int: $denom},
       {int: $maxFee},
       {bytes: $mixHash},
       {bytes: $mixLogicHash},
-      {bytes: $feeHash},
-      {int: $shardTarget}
+      {bytes: $feeHash}
     ]
   }' > "$INLINE_DATUM_FILE"
 

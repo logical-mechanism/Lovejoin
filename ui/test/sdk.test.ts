@@ -139,7 +139,7 @@ describe("loadAddresses", () => {
   it("fetches the per-network addresses file from the public dir", async () => {
     const fakeAddresses = {
       network: "preprod",
-      protocol: { denom_lovelace: 1, max_fee_per_mix_lovelace: 1, fee_shard_target: 1 },
+      protocol: { denom_lovelace: 1, max_fee_per_mix_lovelace: 1 },
       referenceNftPolicy: "a".repeat(56),
       referenceNftAssetName: "x",
       referenceUtxoRef: `${"f".repeat(64)}#0`,

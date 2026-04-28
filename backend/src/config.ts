@@ -28,7 +28,8 @@ export interface LovejoinAddresses {
   protocol: {
     denom_lovelace: number;
     max_fee_per_mix_lovelace: number;
-    fee_shard_target: number;
+    /** Optional informational only; the validator never reads this. */
+    fee_shard_target?: number;
   };
   referenceNftPolicy: Hex28;
   referenceNftAssetName: string;

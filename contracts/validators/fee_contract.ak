@@ -24,7 +24,7 @@
 use aiken/collection/list
 use aiken/crypto.{ScriptHash}
 use cardano/address.{Script}
-use cardano/assets.{AssetName, PolicyId, Value}
+use cardano/assets.{AssetName, PolicyId}
 use cardano/transaction.{Input, OutputReference, Transaction}
 use lovejoin/fee.{
   input_at_fee, is_unit_inline_datum, is_unit_optional, output_at_fee,
@@ -32,6 +32,7 @@ use lovejoin/fee.{
 use lovejoin/mixbox.{input_at_script}
 use lovejoin/reference.{read_reference_datum}
 use lovejoin/types.{FeeRedeemer, PayMixFee, ReferenceDatum, Replenish}
+use lovejoin/value.{ada_only}
 
 // Flat params — one CBOR atom per `aiken blueprint apply` call.
 validator fee_contract(
@@ -88,9 +89,9 @@ fn validate_pay_mix_fee(
         )
   expect mix_input_count >= 2
 
-  let fee_inputs =
-    self.inputs |> list.filter(fn(input) { input_at_fee(input, own_hash) })
-  expect [_only_fee_input] = fee_inputs
+  let fee_input_count =
+    self.inputs |> list.count(fn(input) { input_at_fee(input, own_hash) })
+  expect fee_input_count == 1
 
   let fee_outputs =
     self.outputs |> list.filter(fn(output) { output_at_fee(output, own_hash) })
@@ -117,9 +118,9 @@ fn validate_replenish(
   own_input: Input,
   own_hash: ScriptHash,
 ) -> Bool {
-  let fee_inputs =
-    self.inputs |> list.filter(fn(input) { input_at_fee(input, own_hash) })
-  expect [_only_fee_input] = fee_inputs
+  let fee_input_count =
+    self.inputs |> list.count(fn(input) { input_at_fee(input, own_hash) })
+  expect fee_input_count == 1
 
   let fee_outputs =
     self.outputs |> list.filter(fn(output) { output_at_fee(output, own_hash) })
@@ -132,16 +133,5 @@ fn validate_replenish(
     assets.lovelace_of(fee_output.value) > assets.lovelace_of(
       own_input.output.value,
     ),
-  }
-}
-
-/// `Value` carries only ADA iff `policies(v)` is `[ada_policy_id]` (when ADA
-/// is non-zero) or `[]` (when zero). Mix/fee txs always have non-zero ADA, so
-/// the stronger check is "the only policy is the ada policy".
-fn ada_only(value: Value) -> Bool {
-  when assets.policies(value) is {
-    [] -> True
-    [policy] -> policy == assets.ada_policy_id
-    _ -> False
   }
 }

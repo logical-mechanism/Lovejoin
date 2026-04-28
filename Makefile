@@ -16,7 +16,7 @@ NODE_ENV_FLAG := --env-file-if-exists=$(ENV_FILE)
 
 .PHONY: help install build test lint contracts ui-dev backend-dev clean \
         cli deposit withdraw integration-test sdk-test sdk-build \
-        probe-evaluator diff-validators
+        probe-evaluator diff-validators sync-ui-addresses
 
 help:
 	@echo "Lovejoin — top-level targets"
@@ -45,6 +45,12 @@ help:
 	@echo "Diagnostics:"
 	@echo "  make probe-evaluator TX=<hex>  # POST <hex> to Blockfrost's evaluator three ways"
 	@echo "  make diff-validators           # diff locally-built .plutus vs the bytes pinned on chain"
+	@echo ""
+	@echo "Bootstrap handoff:"
+	@echo "  make sync-ui-addresses [NETWORK=preprod]"
+	@echo "                                 # copy artifacts/<net>/addresses.json -> ui/public/"
+	@echo "                                 # injecting max_n from config/network.<net>.json so"
+	@echo "                                 # the UI's MixWidthSlider reflects deployed reality."
 
 install:
 	$(PNPM) install
@@ -128,6 +134,44 @@ probe-evaluator:
 # locally — explains "local sim passes, chain rejects" symptoms.
 diff-validators:
 	$(NODE) $(NODE_ENV_FLAG) scripts/diff-onchain-validators.mjs
+
+# Bootstrap-to-UI handoff. The bootstrap ceremony writes the live address
+# book to artifacts/<network>/addresses.json. The UI fetches a static
+# asset at ui/public/addresses.<network>.json — this target keeps the two
+# in sync, and stamps `protocol.max_n` from config/network.<network>.json
+# so the MixWidthSlider clamps to the deployed cap.
+#
+# Usage:
+#   make sync-ui-addresses                # NETWORK=preprod (default)
+#   make sync-ui-addresses NETWORK=preview
+#
+# Run this any time you re-bootstrap or after the calibration sweep
+# updates max_n. The backend reads artifacts/<network>/addresses.json
+# directly via ADDRESSES_PATH, so it doesn't need this step.
+NETWORK ?= preprod
+sync-ui-addresses:
+	@if [ ! -f "artifacts/$(NETWORK)/addresses.json" ]; then \
+		echo "sync-ui-addresses: artifacts/$(NETWORK)/addresses.json not found — run the bootstrap first"; \
+		exit 1; \
+	fi
+	@if [ ! -f "config/network.$(NETWORK).json" ]; then \
+		echo "sync-ui-addresses: config/network.$(NETWORK).json not found"; \
+		exit 1; \
+	fi
+	@MAX_N=$$(jq -r '.max_n // empty' "config/network.$(NETWORK).json"); \
+	if [ -z "$$MAX_N" ]; then \
+		echo "sync-ui-addresses: config/network.$(NETWORK).json has no max_n; copying artifact unchanged"; \
+		cp "artifacts/$(NETWORK)/addresses.json" "ui/public/addresses.$(NETWORK).json"; \
+	else \
+		jq --argjson maxN "$$MAX_N" '.protocol.max_n = $$maxN' \
+			"artifacts/$(NETWORK)/addresses.json" \
+			> "ui/public/addresses.$(NETWORK).json.tmp" && \
+		mv "ui/public/addresses.$(NETWORK).json.tmp" "ui/public/addresses.$(NETWORK).json"; \
+	fi
+	@echo "sync-ui-addresses: ui/public/addresses.$(NETWORK).json updated."
+	@jq -r '.protocol | "  denom=\(.denom_lovelace) max_fee=\(.max_fee_per_mix_lovelace) max_n=\(.max_n)"' \
+		"ui/public/addresses.$(NETWORK).json"
+	@jq -r '"  ref UTxO=\(.referenceUtxoRef)"' "ui/public/addresses.$(NETWORK).json"
 
 # Vitest doesn't surface --env-file directly, but it inherits process.env. We
 # wrap the runner with `node --env-file-if-exists=.env -- pnpm` so the env is

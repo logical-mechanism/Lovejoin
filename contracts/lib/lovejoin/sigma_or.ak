@@ -19,7 +19,6 @@ use aiken/builtin
 use aiken/collection/list
 use aiken/primitive/bytearray
 use lovejoin/bls
-use lovejoin/hash.{SigmaOrCommitment, SigmaOrStatementBranch}
 use lovejoin/hash as hash_mod
 
 pub type SigmaOrBranch {
@@ -97,7 +96,8 @@ pub fn verify(
   proof: SigmaOrProof,
   ctx: ByteArray,
 ) -> Bool {
-  verify_pre(a, b, precompute_statements(statements), proof, ctx)
+  let n = list.length(statements)
+  verify_pre(a, b, precompute_statements(statements), proof, ctx, n)
 }
 
 /// Variant of `verify` that takes statements with their G1 points
@@ -107,30 +107,47 @@ pub fn verify(
 /// in the validator (roughly 25-30M CPU steps), so amortising N²
 /// re-uncompresses down to N is the single biggest knob for raising
 /// the Mix tx's `max_n` ceiling.
+///
+/// `n = list.length(statements)` is supplied by the caller. The Mix-tx
+/// validator already computes it once at the top of `validate_mix`, so
+/// passing it through saves one O(N) traversal per `verify_pre` call
+/// (= N² list-walk steps eliminated per tx).
 pub fn verify_pre(
   a: ByteArray,
   b: ByteArray,
   statements: List<DHTupleStatementPt>,
   proof: SigmaOrProof,
   ctx: ByteArray,
+  n: Int,
 ) -> Bool {
-  let n = list.length(statements)
-  expect n >= 2
-  expect list.length(proof.branches) == n
+  // O(1) guards: at least two statements + the 1-byte N-prefix bound on
+  // the FS hash. Length parity between `statements` and `proof.branches`
+  // is enforced by `parallel_all`'s `_ -> False` arm below — no need to
+  // walk the lists for it.
+  expect [_, _, ..] = statements
+  expect n <= 255
 
-  // Decompose into the byte-only form for hash.fs_hash_sigma_or.
-  let stmt_for_hash =
-    list.map(
+  // FS hash, walking the typed lists directly. The previous version
+  // allocated two N-element wrapper-struct lists (SigmaOrStatementBranch,
+  // SigmaOrCommitment) just to feed `hash.fs_hash_sigma_or`. Reading the
+  // .ap/.bp/.t0/.t1 byte fields off the existing structs preserves the
+  // canonical wire layout — see hash.fs_hash_sigma_or for that layout
+  // and encoding_parity_kat.test.ak for the byte-equal proof. Saves
+  // 2N wrapper allocs per `verify_pre` call (= 2N² per Mix tx).
+  let header = hash_mod.fs_hash_sigma_or_header(a, b, n)
+  let with_branches =
+    list.foldl(
       statements,
-      fn(s) { SigmaOrStatementBranch { ap: s.ap, bp: s.bp } },
+      header,
+      fn(s, acc) { acc |> bytearray.concat(s.ap) |> bytearray.concat(s.bp) },
     )
-  let commitments_for_hash =
-    list.map(
+  let with_commitments =
+    list.foldl(
       proof.branches,
-      fn(br) { SigmaOrCommitment { t0: br.t0, t1: br.t1 } },
+      with_branches,
+      fn(br, acc) { acc |> bytearray.concat(br.t0) |> bytearray.concat(br.t1) },
     )
-  let c_global =
-    hash_mod.fs_hash_sigma_or(a, b, stmt_for_hash, commitments_for_hash, ctx)
+  let c_global = builtin.blake2b_256(with_commitments |> bytearray.concat(ctx))
 
   // c_global == XOR of all per-branch c_i.
   let zero32 =

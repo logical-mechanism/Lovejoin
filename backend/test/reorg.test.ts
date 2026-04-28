@@ -30,7 +30,7 @@ const NFT_UNIT = NFT_POLICY + NFT_NAME;
 
 const ADDRESSES: LovejoinAddresses = {
   network: "preprod",
-  protocol: { denom_lovelace: 10_000_000, max_fee_per_mix_lovelace: 800_000, fee_shard_target: 10 },
+  protocol: { denom_lovelace: 10_000_000, max_fee_per_mix_lovelace: 800_000 },
   referenceNftPolicy: NFT_POLICY,
   referenceNftAssetName: NFT_NAME,
   referenceUtxoRef: "00".repeat(32) + "#0",

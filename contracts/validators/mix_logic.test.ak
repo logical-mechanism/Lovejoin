@@ -454,3 +454,77 @@ test publish_rejects_unregister_credential() {
     transaction.placeholder,
   )
 }
+
+// ---------------------------------------------------------------------------
+// Mix branch — positive-prologue cost benchmarks.
+//
+// These tests build a *fully valid* Mix-tx prefix (N inputs, N outputs at
+// positions 0..N-1, ada-only at the canonical denom, well-formed `MixDatum`
+// on every output) and supply OR proofs of CORRECT LENGTH with all-zero
+// t0/t1/c/z bytes. The validator runs every check in `validate_mix`:
+//
+//   1. structural pre-checks (`output_at_script` on prefix + tail),
+//   2. per-output well-formedness (ada_only, denom, decode datum),
+//   3. context computation (`compute_mix_ctx` — datum + value serialise),
+//   4. statement pre-uncompression (`precompute_statements` — a48/b48/c48 ARE
+//      valid G1 points, so this succeeds at every position),
+//   5. into the per-input proof-verification loop, where the FIRST branch's
+//      `bls.point_from_bytes(br.t0)` aborts (zero48 isn't on the curve).
+//
+// The script-cost numbers from these tests therefore measure the full Mix
+// prologue plus the minimum amount of `verify_pre` work — which is the
+// dominant contributor to a Mix tx's per-tx CPU/mem on chain. They give us
+// a *positive-path proxy* for `validate_mix` that the rest of mix_logic.test
+// (all early-failure cases) does not. Use them when judging refactors of
+// the prologue: cumulative test CPU here moving DOWN means chain CPU on
+// real Mix txs moves down by at least as much.
+// ---------------------------------------------------------------------------
+
+fn run_mix_full_prologue(n: Int) -> Bool {
+  let inputs = build_mix_inputs_at_a(n)
+  let outputs = build_mix_outputs_at_b(n)
+  mix_logic.mix_logic.withdraw(
+    ref_nft_policy,
+    ref_nft_name,
+    Mix { proofs: replicate_bogus_sigma_or(n, []) },
+    script_address(mix_script_hash).payment_credential,
+    Transaction {
+      ..transaction.placeholder,
+      reference_inputs: [default_reference_input()],
+      inputs,
+      outputs,
+      fee: 200_000,
+    },
+  )
+}
+
+fn replicate_bogus_sigma_or(
+  n: Int,
+  acc: List<SigmaOrProof>,
+) -> List<SigmaOrProof> {
+  if n == 0 {
+    acc
+  } else {
+    replicate_bogus_sigma_or(n - 1, [bogus_sigma_or(n), ..acc])
+  }
+}
+
+test mix_full_prologue_then_proof_fails_n2() fail {
+  run_mix_full_prologue(2)
+}
+
+test mix_full_prologue_then_proof_fails_n3() fail {
+  run_mix_full_prologue(3)
+}
+
+test mix_full_prologue_then_proof_fails_n4() fail {
+  run_mix_full_prologue(4)
+}
+
+test mix_full_prologue_then_proof_fails_n6() fail {
+  run_mix_full_prologue(6)
+}
+
+test mix_full_prologue_then_proof_fails_n8() fail {
+  run_mix_full_prologue(8)
+}

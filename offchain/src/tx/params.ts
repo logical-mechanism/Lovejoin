@@ -26,17 +26,18 @@ import type {
 /// Lovejoin protocol parameters, mirroring the on-chain `ReferenceDatum`
 /// struct in [contracts/lib/lovejoin/types.ak].
 ///
-/// The on-chain datum has six fields (in this order): denom, max-fee, mix
-/// script hash, mix-logic script hash, fee script hash, fee-shard target.
-/// `max_n` lives in off-chain config (network.<net>.json), not on-chain — the
-/// validator only requires `N >= 2` (see types.ak).
+/// The on-chain datum has five fields (in this order): denom, max-fee, mix
+/// script hash, mix-logic script hash, fee script hash. `max_n` and the
+/// canonical 10-shard fee-pool size live in off-chain config
+/// (network.<net>.json), not on-chain — no validator reads them, so keeping
+/// them on-chain just costs us a Constr-decode field per validator run.
+/// Removed in M4.5 redeploy.
 export interface ProtocolParams {
   denomLovelace: Lovelace;
   maxFeePerMixLovelace: Lovelace;
   mixScriptHash: Hex28;
   mixLogicScriptHash: Hex28;
   feeScriptHash: Hex28;
-  feeShardTarget: number;
 }
 
 /// Where the bootstrap ceremony recorded the on-chain script identifiers and
@@ -46,7 +47,6 @@ export interface LovejoinAddresses {
   protocol: {
     denom_lovelace: number;
     max_fee_per_mix_lovelace: number;
-    fee_shard_target: number;
     /**
      * Optional. Off-chain calibrated max-N for this deployment, copied
      * from `config/network.<net>.json` at bootstrap time. Surfaces to
@@ -55,6 +55,12 @@ export interface LovejoinAddresses {
      * fall back to a deployment-wide minimum (N=2).
      */
     max_n?: number;
+    /**
+     * Optional, informational. The canonical fee-pool shard count
+     * (= 10) is off-chain coordination; the validator does not read
+     * it. Older bootstrap outputs carry this; M4.5 and later omit it.
+     */
+    fee_shard_target?: number;
   };
   referenceNftPolicy: Hex28;
   referenceNftAssetName: string;
@@ -138,19 +144,13 @@ export function decodeReferenceDatum(cborHex: string): ProtocolParams {
       `reference datum: expected Plutus Constr 0 (CBOR tag 121), got tag ${tag}`,
     );
   }
-  if (!Array.isArray(fields) || fields.length !== 6) {
+  if (!Array.isArray(fields) || fields.length !== 5) {
     throw new Error(
-      `reference datum: expected 6 fields, got ${Array.isArray(fields) ? fields.length : typeof fields}`,
+      `reference datum: expected 5 fields, got ${Array.isArray(fields) ? fields.length : typeof fields}`,
     );
   }
-  const [
-    denom,
-    maxFee,
-    mixScriptHash,
-    mixLogicScriptHash,
-    feeScriptHash,
-    feeShardTarget,
-  ] = fields as [unknown, unknown, unknown, unknown, unknown, unknown];
+  const [denom, maxFee, mixScriptHash, mixLogicScriptHash, feeScriptHash] =
+    fields as [unknown, unknown, unknown, unknown, unknown];
 
   return {
     denomLovelace: toBigInt(denom, "denom_lovelace"),
@@ -158,7 +158,6 @@ export function decodeReferenceDatum(cborHex: string): ProtocolParams {
     mixScriptHash: toHex28(mixScriptHash, "mix_script_hash"),
     mixLogicScriptHash: toHex28(mixLogicScriptHash, "mix_logic_script_hash"),
     feeScriptHash: toHex28(feeScriptHash, "fee_script_hash"),
-    feeShardTarget: toFiniteInt(feeShardTarget, "fee_shard_target"),
   };
 }
 
@@ -213,18 +212,6 @@ export async function fetchProtocolParams(
 function toBigInt(x: unknown, field: string): bigint {
   if (typeof x === "bigint") return x;
   if (typeof x === "number" && Number.isInteger(x)) return BigInt(x);
-  throw new Error(`reference datum: ${field} must be an integer, got ${typeof x}`);
-}
-
-function toFiniteInt(x: unknown, field: string): number {
-  if (typeof x === "bigint") {
-    const n = Number(x);
-    if (!Number.isSafeInteger(n)) {
-      throw new Error(`reference datum: ${field} too large for a JS number (${x.toString()})`);
-    }
-    return n;
-  }
-  if (typeof x === "number" && Number.isInteger(x)) return x;
   throw new Error(`reference datum: ${field} must be an integer, got ${typeof x}`);
 }
 
