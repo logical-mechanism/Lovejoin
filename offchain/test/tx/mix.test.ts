@@ -24,6 +24,7 @@ import {
   computeMixCtx,
   encodeAdaOnlyValueCbor,
   encodeMixRedeemer,
+  serialiseMixDatumCanonical,
   type MixInput,
   type MixPlan,
   type MixProofPlan,
@@ -568,7 +569,14 @@ describe("tx/mix — sigma-OR cross-verification", () => {
       networkId: 0,
     });
 
-    const datums = plan.outputs.map((o) => hexToBytes(o.inlineDatumHex));
+    // Use canonical (indef-length array) Plutus Data form — matches
+    // what on-chain `serialise_data(inline_data)` produces. The
+    // cbor-x-derived `inlineDatumHex` is the *stored* form, which
+    // differs by 1 byte (definite-length array header) — fine for
+    // storage, wrong for ctx reconstruction.
+    const datums = plan.outputs.map((o) =>
+      serialiseMixDatumCanonical({ a: o.a, b: o.b }),
+    );
     const values = plan.outputs.map(() => encodeAdaOnlyValueCbor(PARAMS.denomLovelace));
     const ctx = computeMixCtx({
       outputDatums: datums,

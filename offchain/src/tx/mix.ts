@@ -263,17 +263,67 @@ export function encodeMixRedeemer(proofs: ReadonlyArray<MixProofPlan>): string {
 }
 
 /**
+ * Canonical Plutus-Data CBOR of `MixDatum { a, b }` as Aiken's
+ * `builtin.serialise_data` re-emits it on chain.
+ *
+ * Plutus canonical form for a Constr is `tag 121 + List<Data>`, and
+ * `serialise_data` encodes the field list with INDEFINITE-length CBOR
+ * (`9F … FF`), even for small constant-size lists. cbor-x emits
+ * definite-length (`82 …`), which is also valid Plutus-Data and decodes
+ * to the same tree — so it's fine for the *stored* inline datum — but
+ * the bytes differ, and the on-chain `compute_mix_ctx` re-serialises
+ * the parsed datum canonically. Using the cbor-x definite form for our
+ * off-chain ctx therefore mismatches the chain by 1 byte (the array
+ * header) plus the trailing break, the sigma-OR proof's challenge
+ * doesn't agree, and the validator aborts in the OR-equation check
+ * with no traces. Confirmed against ogmios v6 + parity test
+ * `serialise_data_mix_datum_*`.
+ *
+ * Layout: `D8 79 9F 58 30 <a, 48 bytes> 58 30 <b, 48 bytes> FF` = 104 bytes.
+ */
+export function serialiseMixDatumCanonical(args: {
+  a: Uint8Array;
+  b: Uint8Array;
+}): Uint8Array {
+  if (args.a.length !== G1_COMPRESSED_BYTES) {
+    throw new Error(
+      `serialiseMixDatumCanonical: a must be ${G1_COMPRESSED_BYTES} bytes, got ${args.a.length}`,
+    );
+  }
+  if (args.b.length !== G1_COMPRESSED_BYTES) {
+    throw new Error(
+      `serialiseMixDatumCanonical: b must be ${G1_COMPRESSED_BYTES} bytes, got ${args.b.length}`,
+    );
+  }
+  const out = new Uint8Array(2 + 1 + 2 + 48 + 2 + 48 + 1);
+  out[0] = 0xd8;
+  out[1] = 0x79; // tag 121 = Constr 0
+  out[2] = 0x9f; // indefinite-length array start
+  out[3] = 0x58;
+  out[4] = 0x30; // bytes(48)
+  out.set(args.a, 5);
+  out[53] = 0x58;
+  out[54] = 0x30; // bytes(48)
+  out.set(args.b, 55);
+  out[103] = 0xff; // break
+  return out;
+}
+
+/**
  * Encode an ada-only Plutus `Value` to canonical Plutus-Data CBOR. Used
  * when computing the Mix Fiat-Shamir context, which hashes the value of
  * each of the N mix outputs. Mix outputs are by spec ada-only at the
  * protocol denomination — no native assets, no extra Maps.
  *
  * Plutus shape: `Map<PolicyId, Map<AssetName, Integer>>` with `(empty,
- * (empty, lovelace))`. Canonical CBOR: `A1 40 A1 40 <int>`.
+ * (empty, lovelace))`. Canonical CBOR: `A1 40 A1 40 <int>` — Aiken's
+ * `serialise_data` uses DEFINITE-length 1-entry maps for Plutus
+ * canonical (verified by parity test). Maps and arrays use different
+ * rules: maps are definite when ≤ 23 entries, arrays are always
+ * indefinite. See `serialiseMixDatumCanonical` for the array case.
  *
  * The integer encoding follows CBOR's deterministic-form rules
- * (RFC 8949 §4.2.1 / smallest-form). Aiken's `serialise_data` uses the
- * same rules — that's the byte-equality guarantee the proof depends on.
+ * (RFC 8949 §4.2.1 / smallest-form).
  */
 export function encodeAdaOnlyValueCbor(lovelace: bigint): Uint8Array {
   if (lovelace < 0n) {
@@ -471,8 +521,19 @@ export function planMixTx(args: PlanMixArgs): MixPlan {
   }
 
   // Compute the FS ctx.
-  const datumBytes = outputs.map((o) => hexToBytes(o.inlineDatumHex));
-  const valueBytes = outputs.map(() => encodeAdaOnlyValueCbor(args.params.denomLovelace));
+  //
+  // The datum bytes here are the CANONICAL Plutus-Data form (indef-length
+  // array), NOT the cbor-x bytes we store on chain. The validator's
+  // `serialise_data(inline_data)` re-emits the parsed datum in canonical
+  // form before hashing, so we must do the same off-chain to get a
+  // matching ctx. See `serialiseMixDatumCanonical` for the byte layout
+  // and the rabbit hole that led us here.
+  const datumBytes = outputs.map((o) =>
+    serialiseMixDatumCanonical({ a: o.a, b: o.b }),
+  );
+  const valueBytes = outputs.map(() =>
+    encodeAdaOnlyValueCbor(args.params.denomLovelace),
+  );
   const ctx = computeMixCtx({
     outputDatums: datumBytes,
     outputValues: valueBytes,
@@ -588,7 +649,12 @@ export function verifyMixPlanWithHash(plan: MixPlan, mixScriptHashHex: string): 
     ap: pointFromBytes(o.a),
     bp: pointFromBytes(o.b),
   }));
-  const datumBytes = plan.outputs.map((o) => hexToBytes(o.inlineDatumHex));
+  // Use canonical (indef-length-array) Plutus Data form — same as the
+  // on-chain `serialise_data(inline_data)` produces. See
+  // `serialiseMixDatumCanonical` for context.
+  const datumBytes = plan.outputs.map((o) =>
+    serialiseMixDatumCanonical({ a: o.a, b: o.b }),
+  );
   const denom = plan.inputs[0]!.utxo.lovelace;
   const valueBytes = plan.outputs.map(() => encodeAdaOnlyValueCbor(denom));
   const ctx = computeMixCtx({
