@@ -749,31 +749,32 @@ export async function buildMixTx(args: BuildMixArgs): Promise<MixResult> {
   const { MeshTxBuilder } = meshCore;
   const meshProvider = await getMeshProvider(args.provider);
 
-  // Evaluator selection. In shard mode the on-chain `tx.fee ==
-  // fee_in - fee_out` rule pins us to whatever fee we declare, so
-  // we *need* tight exec units — we wire Blockfrost's hosted ogmios
-  // evaluator. In wallet mode the wallet absorbs whatever fee mesh
-  // computes from the redeemer budgets, so we deliberately skip the
-  // evaluator and let mesh use its default upper-bound budgets
-  // (mem 7M / cpu 3G per redeemer, visible in the resulting CBOR's
-  // redeemers field).
+  // Use Blockfrost's hosted ogmios (latest cardano-node, full Conway
+  // builtin support) as the evaluator for both fee modes. The Mix tx
+  // fundamentally needs tight exec units in shard mode (the on-chain
+  // `tx.fee == fee_in - fee_out` rule pins the fee exactly); wallet
+  // mode could tolerate upper-bound budgets but there's no reason to
+  // overpay when real numbers are one HTTP call away.
   //
-  // Why not OfflineEvaluator from `@meshsdk/core-csl`: that package's
-  // local UPLC machine is on Plutus V3 < Conway and aborts with
-  // "Default Function not found - 77" the moment a script touches
-  // `xor_bytearray` (Conway-era builtin 77). Lovejoin's sigma-OR
-  // verifier (`contracts/lib/lovejoin/sigma_or.ak`) uses it for the
-  // per-branch challenge XOR, so OfflineEvaluator can't run any
-  // Mix tx. The Schnorr-only Withdraw path in `withdraw.ts` doesn't
-  // hit it, which is why that builder's evaluator works.
+  // Failure mode to watch: if a wallet input was minted by a tx that
+  // confirmed within the last few seconds, Blockfrost's UTxO index may
+  // lag the chain — ogmios then returns
+  // `CannotCreateEvaluationContext` (which surfaces in mesh's
+  // response wrapper as `EvaluationFailure: ScriptFailures: {}`).
+  // Wait ~10s after a deposit before triggering a Mix and the lag
+  // resolves itself.
   //
-  // Wallet mode at N≥3 may exceed the default per-redeemer cpu
-  // budget (3G); the empirical numbers from the calibration sweep
-  // will tell us when to bump or to wire an Aiken-aware evaluator.
+  // Note: do NOT use mesh's OfflineEvaluator (`@meshsdk/core-csl`).
+  // Its bundled UPLC machine predates Conway's bitwise builtins and
+  // aborts with "Default Function not found - 77" the moment a script
+  // touches `xor_bytearray` (Conway builtin 77). Lovejoin's sigma-OR
+  // verifier uses it for the per-branch challenge XOR, so the local
+  // machine can't run any Mix tx. The hosted ogmios behind Blockfrost
+  // does not have this limitation.
   const tx = new MeshTxBuilder({
     fetcher: meshProvider as never,
     submitter: meshProvider as never,
-    ...(feePayer === "shard" ? { evaluator: meshProvider as never } : {}),
+    evaluator: meshProvider as never,
     verbose: false,
   });
 
