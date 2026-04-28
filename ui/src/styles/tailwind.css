@@ -42,10 +42,16 @@
   --color-coral: #f87171;
 
   /* Display = mono. Body = sans (one humanist choice, kept for prose
-   * legibility). Mono everywhere math + figures show up. */
-  --font-display: "JetBrains Mono", ui-monospace, monospace;
-  --font-body: "DM Sans", ui-sans-serif, system-ui, sans-serif;
-  --font-mono: "JetBrains Mono", ui-monospace, monospace;
+   * legibility). Mono everywhere math + figures show up.
+   *
+   * Fonts are self-hosted via @fontsource-variable/* (SIL OFL),
+   * imported from main.tsx. The "Variable" suffix is the family name
+   * fontsource exposes; the older non-variable names remain in the
+   * fallback list so a stale cache that has the static woff2 files
+   * still renders. */
+  --font-display: "JetBrains Mono Variable", "JetBrains Mono", ui-monospace, monospace;
+  --font-body: "DM Sans Variable", "DM Sans", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "JetBrains Mono Variable", "JetBrains Mono", ui-monospace, monospace;
 
   /* Hard edges. The previous radii (4–10px) read as "soft consumer
    * product"; max 2px reads as "instrument". 0 for actively-clinical
@@ -911,3 +917,33 @@
     color: var(--color-amber);
   }
 }
+
+/* ---------------------------------------------------------------------------
+ * Reduced-motion fallback (WCAG 2.3.3)
+ * ---------------------------------------------------------------------------
+ * Users who set prefers-reduced-motion: reduce in their OS see no
+ * animation: toasts appear instantly, the spinner is replaced by a
+ * pulse-free amber dot, the live-pool indicator stops pulsing, and
+ * the modal rise/fade is suppressed. We don't animate transform on
+ * hover anyway, so :hover micro-interactions are unaffected.
+ * --------------------------------------------------------------------------- */
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+  .lj-spinner {
+    /* Spinner needs *some* indication that work is in flight even
+     * when motion is suppressed — fall back to a static amber ring. */
+    animation: none;
+    border-top-color: var(--color-amber);
+    border-color: var(--color-amber);
+    opacity: 0.6;
+  }
+}
+
