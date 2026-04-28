@@ -4,6 +4,38 @@ Senior-engineering review of the Aiken validators with a focus on Mix-tx
 CPU/mem/script-size for the M4.5 redeploy. Goal: identify the smallest set
 of changes that lifts `max_n` past 3 on Preprod.
 
+## Outcomes (2026-04-28)
+
+Implemented and merged on the M4.5 branch:
+
+| Item | Status | Notes |
+|------|--------|-------|
+| 1 + 5 — single-pass `validate_mix` | **Deferred** | Tried both tail-recursive and `list.foldr` rewrites; both regressed the all-negative `mix_logic.test.ak` suite by 160–330M CPU. Positive-path improvement is plausible but unverifiable without Preprod measurement. Revisit after the M4.5 redeploy + recalibration. |
+| 2 — drop wrapper-list allocs in `verify_pre` | **Shipped** | -2.37B CPU, -7.36M mem cumulatively across the sigma_or KAT suite (combined with item 3). Per-tx ~390M CPU saved at N=8. |
+| 3 — drop `list.length` redundancy in `verify_pre` | **Shipped** | Combined into the item-2 commit's measurement. |
+| 4 — `list.count` over `list.filter` in fee_contract | **Shipped** | Net negative CPU; tiny mem +1.6k on N=6 fee_contract path is rounding error. |
+| 6 — drop `fee_shard_target` from `ReferenceDatum` | **Shipped** | Coordinated SDK + backend + bootstrap script + stress-tests change. Schema break vs. M4 deployment. |
+| 7 — move `dhtuple` / `fs_hash_dh_tuple` to test-only | **Skipped** | Pure code-org cleanup; Aiken tree-shakes unused pub functions, so no on-chain bytes change. Out of scope for an "if we can prove CPU/mem savings" pass. |
+| 8 — hoist `ada_only` to shared `lovejoin/value` | **Shipped** | Pure refactor; no on-chain cost change. |
+| 9 — unify `parallel_all` / `pairs_match_and_all` via generics | **Skipped** | Speculative; no measurable CPU win. |
+| 10 — soft-decode without redundant `choose_data` round-trip | **Skipped** | Aiken's `choose_data` is strict in all branches in compiled UPLC; the laziness this would have required is not safe. |
+| 11 — combine OR-branch equality checks into one | **Skipped** | Speculative; large soundness re-derivation; out of scope. |
+| 12 — drop scalar canonical-length check | **Rejected** | Would weaken validation. |
+| 13 — skip per-input datum re-decode | **Rejected** | Different UPLC scopes; structurally required for Rule 2. |
+
+See [`docs/perf.md`](perf.md) §"M4.5 — validator optimisation pass" for
+the per-N delta tables.
+
+### What's left to close M4.5
+
+The code work is done; the milestone closes on the operator step:
+re-bootstrap on Preprod with the optimised validators, run
+`stress-tests/max-n-calibration.ts`, bump `max_n` in
+`config/network.preprod.json` (target ≥ 4), re-run the integration
+suite. Whether item 1's positive-path single-pass restructure pulls
+its weight on chain is the next question for after that — the
+Preprod numbers will quantify the gap.
+
 Cost model (rough, from `docs/perf.md` + observation):
 
 | Op | CPU |

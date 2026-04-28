@@ -145,3 +145,100 @@ real Preprod numbers replace the estimates. The off-chain rule
 they hit the chain if the cap is tight; the SDK's `planMixTx` surfaces
 this loudly.
 
+## M4.5 — validator optimisation pass (2026-04-28)
+
+**Status:** code optimisations landed against `aiken check`. Preprod
+redeploy + `max-n-calibration` re-run + `max_n` bump in
+`config/network.preprod.json` is the operator step that closes the
+milestone.
+
+**What shipped** (see [`docs/perf-m4-5-audit.md`](perf-m4-5-audit.md)
+for the full audit + reject list):
+
+1. `sigma_or.verify_pre` no longer allocates two N-element wrapper
+   lists per call (was: `stmt_for_hash`, `commitments_for_hash`
+   feeding `hash.fs_hash_sigma_or`). The new private path walks the
+   typed `DHTupleStatementPt` / `SigmaOrBranch` lists directly via a
+   `hash.fs_hash_sigma_or_header` helper. Wire layout byte-identical
+   (encoding-parity KAT still passes). 2N wrapper allocs eliminated
+   per `verify_pre` call → 2N² eliminated per Mix tx.
+2. `sigma_or.verify_pre` no longer measures `list.length(statements)`
+   or `list.length(proof.branches)` per call — replaced with an
+   O(1) `[_, _, ..]` pattern guard, length parity now enforced by
+   `parallel_all`'s `_ -> False` arm. `n` is threaded in from
+   `validate_mix` (which already computed it). 2N² list-walk steps
+   eliminated per Mix tx.
+3. `fee_contract` uses `list.count` instead of `list.filter` for the
+   "exactly one fee input" check (no intermediate list).
+4. `ada_only` is hoisted into `lovejoin/value` (shared between
+   `mix_logic` and `fee_contract`). No on-chain cost change; clarity.
+5. **Schema break:** `fee_shard_target` removed from `ReferenceDatum`
+   (validator never read it; off-chain coordination stays in
+   `config/network.<net>.json`). One fewer Constr-field decode per
+   reference-datum read; small but cumulative.
+
+**What was rejected** (see audit `## Items rejected` for the
+reasoning):
+
+* The single-pass restructure of `validate_mix` (audit item 1+5):
+  attempted both a tail-recursive walk and a `list.foldr`-based one;
+  both regressed the all-negative `mix_logic.test.ak` suite (the
+  only positive-path coverage of `validate_mix` is on Preprod, not in
+  unit tests). Saving the positive-path wins for after Preprod
+  measurement so the trade-off is empirical, not speculative.
+
+* The four other speculative items in the audit (`parallel_all`
+  generic unify, soft-decode `choose_data` re-shape, OR-branch
+  random-linear-combination check, dropping the scalar canonical-
+  length check). Either no measurable CPU win or a security-weakening
+  change.
+
+### Measured deltas vs M4 baseline (`aiken check`, 360 tests)
+
+Cumulative across the test suite: **-2,398,518,236 CPU and
+-7,461,248 mem**, all on the sigma-OR / fee-contract paths.
+
+Per-N savings on the `sigma_or` KAT suite (8 vectors per N, summed):
+
+| N | baseline CPU | post-M4.5 CPU | delta CPU | delta % |
+|---|--------------|----------------|-----------|---------|
+| 2 | 11,519,063,450 | 11,402,060,442 | −117,003,008 | −1.02% |
+| 3 | 16,801,051,469 | 16,638,481,029 | −162,570,440 | −0.97% |
+| 4 | 22,083,112,649 | 21,874,974,777 | −208,137,872 | −0.94% |
+| 6 | 32,647,753,007 | 32,348,480,271 | −299,272,736 | −0.92% |
+| 8 | 43,212,848,233 | 42,822,440,633 | −390,407,600 | −0.90% |
+
+Per-Mix-tx implication (each Mix tx runs N parallel `verify_pre`
+calls, so divide the delta by 8 vectors and multiply by N proofs):
+
+| N | per-tx CPU saved | as % of mainnet 10G budget |
+|---|--------------------|------------------------------|
+| 2 |  ~29M  | ~0.3% |
+| 3 |  ~61M  | ~0.6% |
+| 4 | ~104M  | ~1.0% |
+| 6 | ~225M  | ~2.2% |
+| 8 | ~390M  | ~3.9% |
+
+These are estimates from the test-suite numbers; the real positive-
+path savings inside a Mix tx (which also hits `mix_logic`'s constant-
+cost setup) come from the Preprod recalibration. The validator at N=4
+was overshooting by an unquantified amount in the M4 deployment
+([milestones.json M4.5 notes][m45]); whether the ~1.0% reclaimed at
+N=4 closes that gap is the recalibration's job to confirm.
+
+[m45]: ../milestones.json
+
+### Operator step (closes M4.5 exit criteria)
+
+1. Re-bootstrap on Preprod with the optimised validators + the
+   5-field `ReferenceDatum`. Old M4 fee shards and mix-boxes are
+   orphaned (irreversible).
+2. Run `stress-tests/max-n-calibration.ts` against the new
+   deployment. Append the per-N exec-units table here.
+3. Update `config/network.preprod.json` with the empirical `max_n`
+   (target: ≥ 4) and bump `max_fee_per_mix_lovelace` to leave
+   headroom over the post-optimisation observed fee.
+4. Re-run the M4 integration suite (`mix-n2`, `mix-at-max-n`,
+   `fee-exhaustion`, `full-lifecycle`) ten consecutive times.
+5. Commit the new `artifacts/preprod/addresses.json`.
+
