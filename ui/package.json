@@ -11,24 +11,30 @@
     "preview": "vite preview",
     "test": "vitest run --passWithNoTests",
     "test:watch": "vitest",
-    "lint": "tsc -p tsconfig.app.json --noEmit"
+    "test:e2e": "playwright test",
+    "lint": "tsc -p tsconfig.app.json --noEmit && node scripts/check-i18n.mjs"
   },
   "dependencies": {
     "@lovejoin/sdk": "workspace:*",
     "@meshsdk/core": "1.8.14",
     "buffer": "^6.0.3",
+    "hash-wasm": "^4.12.0",
     "i18next": "^24.2.1",
+    "idb": "^8.0.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
-    "react-i18next": "^15.4.0"
+    "react-i18next": "^15.4.0",
+    "react-router-dom": "^7.1.0"
   },
   "devDependencies": {
+    "@playwright/test": "^1.49.0",
     "@tailwindcss/vite": "^4.0.0",
     "@testing-library/jest-dom": "^6.6.3",
     "@testing-library/react": "^16.1.0",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
     "@vitejs/plugin-react": "^4.3.4",
+    "fake-indexeddb": "^6.0.0",
     "jsdom": "^25.0.1",
     "tailwindcss": "^4.0.0",
     "typescript": "^5.7.2",

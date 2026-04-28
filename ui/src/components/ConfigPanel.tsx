@@ -63,10 +63,42 @@ export function ConfigPanel({ config, onChange }: ConfigPanelProps) {
             onChange={(e) =>
               setDraft({ ...draft, blockfrostProjectId: e.target.value })
             }
-            placeholder="preprodXXXXXXXXXXXXXXXXXXXXXXXXXX"
+            placeholder={t("config.blockfrost_placeholder")}
           />
           <span className="mt-1 text-xs text-gray-500">
             {t("config.blockfrost_help")}
+          </span>
+        </label>
+        <label className="flex flex-col text-sm">
+          <span className="font-medium">{t("config.backend_url_label")}</span>
+          <input
+            type="text"
+            autoComplete="off"
+            className="mt-1 rounded border border-gray-300 px-2 py-1 font-mono"
+            value={draft.backendUrl}
+            onChange={(e) => setDraft({ ...draft, backendUrl: e.target.value })}
+            placeholder={t("config.backend_url_placeholder")}
+          />
+          <span className="mt-1 text-xs text-gray-500">
+            {t("config.backend_url_help")}
+          </span>
+        </label>
+        <label className="flex flex-col text-sm">
+          <span className="font-medium">
+            {t("config.collateral_endpoint_label")}
+          </span>
+          <input
+            type="text"
+            autoComplete="off"
+            className="mt-1 rounded border border-gray-300 px-2 py-1 font-mono"
+            value={draft.collateralProviderEndpoint}
+            onChange={(e) =>
+              setDraft({ ...draft, collateralProviderEndpoint: e.target.value })
+            }
+            placeholder={t("config.collateral_endpoint_placeholder")}
+          />
+          <span className="mt-1 text-xs text-gray-500">
+            {t("config.collateral_endpoint_help")}
           </span>
         </label>
       </div>
@@ -76,7 +108,9 @@ export function ConfigPanel({ config, onChange }: ConfigPanelProps) {
           onClick={apply}
           disabled={
             draft.network === config.network &&
-            draft.blockfrostProjectId === config.blockfrostProjectId
+            draft.blockfrostProjectId === config.blockfrostProjectId &&
+            draft.backendUrl === config.backendUrl &&
+            draft.collateralProviderEndpoint === config.collateralProviderEndpoint
           }
           className="rounded bg-black px-3 py-1.5 text-sm font-medium text-white disabled:opacity-40"
         >

@@ -18,6 +18,7 @@ import {
 } from "@lovejoin/sdk";
 
 import type { Network } from "../lib/sdk.js";
+import { SeedelfHint } from "./SeedelfHint.js";
 import type { DepositedBox } from "./DepositPanel.js";
 
 export interface WithdrawPanelProps {
@@ -112,35 +113,36 @@ export function WithdrawPanel({
           value={secretHex}
           onChange={setSecretHex}
           mono
-          placeholder="64-char hex"
+          placeholder={t("withdraw.secret_placeholder")}
         />
         <Field
           label={t("withdraw.box_ref_label")}
           value={boxRef}
           onChange={setBoxRef}
           mono
-          placeholder="<64-hex-txid>#<index>"
+          placeholder={t("withdraw.box_ref_placeholder")}
         />
         <Field
           label={t("withdraw.box_a_label")}
           value={aHex}
           onChange={setAHex}
           mono
-          placeholder="96-char hex"
+          placeholder={t("withdraw.box_a_placeholder")}
         />
         <Field
           label={t("withdraw.box_b_label")}
           value={bHex}
           onChange={setBHex}
           mono
-          placeholder="96-char hex"
+          placeholder={t("withdraw.box_b_placeholder")}
         />
         <Field
           label={t("withdraw.destination_label")}
           value={destination}
           onChange={setDestination}
-          placeholder="addr_test1..."
+          placeholder={t("withdraw.destination_placeholder")}
         />
+        {destination.trim() && <SeedelfHint address={destination} />}
         <button
           type="submit"
           disabled={
