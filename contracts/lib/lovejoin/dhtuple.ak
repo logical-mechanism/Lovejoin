@@ -35,8 +35,7 @@ pub fn verify(
   let t1_pt = bls.point_from_bytes(proof.t1)
   let z = bls.scalar_from_bytes(proof.z)
 
-  let c_bytes =
-    hash.fs_hash_dh_tuple(g, h, u, v, proof.t0, proof.t1, ctx)
+  let c_bytes = hash.fs_hash_dh_tuple(g, h, u, v, proof.t0, proof.t1, ctx)
   let c = bls.scalar_from_bytes_mod(c_bytes)
 
   let lhs0 = bls.scalar_mul(z, g_pt)

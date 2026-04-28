@@ -35,4 +35,8 @@ validator mix_box(mix_logic_script_hash: ScriptHash) {
       None -> True
     }
   }
+
+  else(_) {
+    fail
+  }
 }

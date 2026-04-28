@@ -73,7 +73,8 @@ pub fn verify(
       proof.branches,
       fn(br) { SigmaOrCommitment { t0: br.t0, t1: br.t1 } },
     )
-  let c_global = hash_mod.fs_hash_sigma_or(a, b, stmt_for_hash, commitments_for_hash, ctx)
+  let c_global =
+    hash_mod.fs_hash_sigma_or(a, b, stmt_for_hash, commitments_for_hash, ctx)
 
   // c_global == XOR of all per-branch c_i.
   let zero32 =
@@ -86,12 +87,7 @@ pub fn verify(
   let a_pt = bls.point_from_bytes(a)
   let b_pt = bls.point_from_bytes(b)
 
-  let pairs =
-    list.map2(
-      statements,
-      proof.branches,
-      fn(stmt, br) { (stmt, br) },
-    )
+  let pairs = list.map2(statements, proof.branches, fn(stmt, br) { (stmt, br) })
   list.all(
     pairs,
     fn(pair) {
@@ -111,4 +107,3 @@ pub fn verify(
     },
   )
 }
-

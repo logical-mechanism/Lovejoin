@@ -8,7 +8,6 @@
 //// per-protocol uniqueness, but the spend body never reads them — they
 //// appear only in a tautologically-False check kept around for hash binding.
 
-use cardano/transaction
 use cardano/transaction.{OutputReference}
 use lovejoin/test_fixtures.{ref_nft_name, ref_nft_policy}
 use reference_holder

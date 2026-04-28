@@ -60,12 +60,12 @@ pub const c48: ByteArray =
 
 pub fn default_reference_datum() -> ReferenceDatum {
   ReferenceDatum {
-    denom_lovelace: denom_lovelace,
-    max_fee_per_mix_lovelace: max_fee_per_mix_lovelace,
-    mix_script_hash: mix_script_hash,
+    denom_lovelace,
+    max_fee_per_mix_lovelace,
+    mix_script_hash,
     mix_logic_script_hash: mix_logic_hash,
-    fee_script_hash: fee_script_hash,
-    fee_shard_target: fee_shard_target,
+    fee_script_hash,
+    fee_shard_target,
   }
 }
 
@@ -179,13 +179,17 @@ pub fn mix_box_output_with_value(
   let datum: Data = MixDatum { a, b }
   Output {
     address: script_address(mix_script_hash),
-    value: value,
+    value,
     datum: InlineDatum(datum),
     reference_script: None,
   }
 }
 
-pub fn mix_box_input_bad_datum(ref_byte: Int, ref_idx: Int, datum: Data) -> Input {
+pub fn mix_box_input_bad_datum(
+  ref_byte: Int,
+  ref_idx: Int,
+  datum: Data,
+) -> Input {
   Input {
     output_reference: out_ref(ref_byte, ref_idx),
     output: Output {

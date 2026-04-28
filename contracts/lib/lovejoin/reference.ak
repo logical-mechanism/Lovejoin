@@ -15,7 +15,7 @@
 
 use aiken/collection/list
 use cardano/assets.{AssetName, PolicyId}
-use cardano/transaction.{Input, InlineDatum, Transaction}
+use cardano/transaction.{InlineDatum, Input, Transaction}
 use lovejoin/types.{ReferenceDatum}
 
 pub fn read_reference_datum(

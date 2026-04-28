@@ -39,4 +39,8 @@ validator one_shot_mint(seed_tx_id: TransactionId, seed_idx: Int) {
       total_minted == 1,
     }
   }
+
+  else(_) {
+    fail
+  }
 }

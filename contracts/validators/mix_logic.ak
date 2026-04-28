@@ -35,7 +35,10 @@ use lovejoin/sigma_or.{DHTupleStatement, SigmaOrProof}
 use lovejoin/types.{Mix, MixDatum, MixLogicRedeemer, Owner, ReferenceDatum}
 
 // Flat params — one CBOR atom per `aiken blueprint apply` call.
-validator mix_logic(reference_nft_policy: PolicyId, reference_nft_name: AssetName) {
+validator mix_logic(
+  reference_nft_policy: PolicyId,
+  reference_nft_name: AssetName,
+) {
   withdraw(redeemer: MixLogicRedeemer, _account: Credential, self: Transaction) {
     let reference_datum =
       read_reference_datum(self, reference_nft_policy, reference_nft_name)
@@ -43,7 +46,8 @@ validator mix_logic(reference_nft_policy: PolicyId, reference_nft_name: AssetNam
       collect_well_formed_mix_inputs(self, reference_datum.mix_script_hash)
 
     when redeemer is {
-      Owner { proof } -> validate_owner(self, reference_datum, mix_inputs, proof)
+      Owner { proof } ->
+        validate_owner(self, reference_datum, mix_inputs, proof)
       Mix { proofs } -> validate_mix(self, reference_datum, mix_inputs, proofs)
     }
   }
@@ -59,6 +63,10 @@ validator mix_logic(reference_nft_policy: PolicyId, reference_nft_name: AssetNam
       RegisterCredential { .. } -> True
       _ -> False
     }
+  }
+
+  else(_) {
+    fail
   }
 }
 
@@ -133,9 +141,7 @@ fn validate_mix(
   let statements: List<DHTupleStatement> =
     list.map(
       mix_output_data,
-      fn(mix_output) {
-        DHTupleStatement { ap: mix_output.a, bp: mix_output.b }
-      },
+      fn(mix_output) { DHTupleStatement { ap: mix_output.a, bp: mix_output.b } },
     )
 
   // Per-input OR-proof verification. `proofs[i]` proves "input i's witness
@@ -160,7 +166,10 @@ fn check_and_decode_mix_output(
   mix_datum
 }
 
-fn compute_mix_ctx(outputs: List<Output>, mix_script_hash: ByteArray) -> ByteArray {
+fn compute_mix_ctx(
+  outputs: List<Output>,
+  mix_script_hash: ByteArray,
+) -> ByteArray {
   let datums_bytes =
     list.foldl(
       outputs,
