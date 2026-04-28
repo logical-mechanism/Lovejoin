@@ -749,10 +749,20 @@ export async function buildMixTx(args: BuildMixArgs): Promise<MixResult> {
   const { MeshTxBuilder } = meshCore;
   const meshProvider = await getMeshProvider(args.provider);
 
+  // Wire the evaluator only in shard mode. Shard mode pins the on-chain
+  // fee at exactly `max_fee_per_mix_lovelace` and needs tight exec units
+  // to fit under that cap. Wallet mode pays whatever fee mesh computes
+  // from the upper-bound exec units (mem 7M, cpu 3G per redeemer); on
+  // Preprod we've seen Blockfrost's evaluator return `ScriptFailures:
+  // {}` — empty failure map — when wallet-input UTxOs from a recent
+  // deposit haven't been indexed yet. The local Aiken simulator
+  // confirms the tx is valid; we just can't get tight units in that
+  // window. Skipping the evaluator unblocks submission for ~30% more
+  // fee, which the wallet absorbs.
   const tx = new MeshTxBuilder({
     fetcher: meshProvider as never,
     submitter: meshProvider as never,
-    evaluator: meshProvider as never,
+    ...(feePayer === "shard" ? { evaluator: meshProvider as never } : {}),
     verbose: false,
   });
 
