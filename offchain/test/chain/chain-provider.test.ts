@@ -21,7 +21,7 @@ interface RecordedCall {
   url: string;
   method: string;
   headers: Record<string, string>;
-  body: string | undefined;
+  body: string | Uint8Array | undefined;
 }
 
 function buildFetch(
@@ -82,7 +82,7 @@ describe("BlockfrostProvider", () => {
       [`${BASE}/tx/submit`, { json: "deadbeefcafedeadbeefcafedeadbeefcafedeadbeefcafedeadbeefcafe1234" }],
     ]);
     const { provider: p, calls } = provider(responses);
-    const id = await p.submitTx("84a3...");
+    const id = await p.submitTx("84a3");
     expect(id).toBe("deadbeefcafedeadbeefcafedeadbeefcafedeadbeefcafedeadbeefcafe1234");
     expect(calls).toHaveLength(1);
     expect(calls[0]!.method).toBe("POST");
@@ -90,6 +90,12 @@ describe("BlockfrostProvider", () => {
       "Content-Type": "application/cbor",
       project_id: "preprod_TEST",
     });
+    // Regression guard: the body must be raw bytes (Uint8Array), not the
+    // hex string. Browser fetch UTF-8-encodes string bodies, which mangled
+    // the CBOR and made Blockfrost reject with "expected list len or
+    // indef" on the very first byte.
+    expect(calls[0]!.body).toBeInstanceOf(Uint8Array);
+    expect(Array.from(calls[0]!.body as Uint8Array)).toEqual([0x84, 0xa3]);
   });
 
   it("throws on non-ok submit responses", async () => {
@@ -100,8 +106,8 @@ describe("BlockfrostProvider", () => {
       ],
     ]);
     const { provider: p } = provider(responses);
-    await expect(p.submitTx("84a3...")).rejects.toThrow(/400 Bad Request/);
-    await expect(p.submitTx("84a3...")).rejects.toThrow(/tx failed validation/);
+    await expect(p.submitTx("84a3")).rejects.toThrow(/400 Bad Request/);
+    await expect(p.submitTx("84a3")).rejects.toThrow(/tx failed validation/);
   });
 
   it("paginates getUtxos until an empty page", async () => {

@@ -12,8 +12,11 @@ import { decode as cborDecode } from "cbor-x";
 import {
   G1_COMPRESSED_BYTES,
   generator,
+  pointFromBytes,
+  pointEqual,
   pointToBytes,
   publicPointG,
+  scalarMul,
   SCALAR_ORDER,
 } from "../../src/crypto/index.js";
 import {
@@ -56,6 +59,12 @@ const PARAMS: ProtocolParams = {
   feeScriptHash: ADDRESSES.feeScriptHash,
   feeShardTarget: 10,
 };
+
+function bytesToHex(b: Uint8Array): string {
+  let s = "";
+  for (const x of b) s += x.toString(16).padStart(2, "0");
+  return s;
+}
 
 function feeShard(lovelace: bigint = 5_000_000n): Utxo {
   return {
@@ -101,11 +110,22 @@ describe("tx/deposit — owner secret material", () => {
     expect(() => assertOwnerSecret(SCALAR_ORDER + 1n)).toThrow();
   });
 
-  it("derives a deterministic public point from the secret", () => {
+  it("derives a deterministic public point from the secret (legacy a == g)", () => {
     const owner = deriveOwner(0x1337n);
     expect(owner.publicPointHex).toHaveLength(96);
+    expect(owner.aHex).toBe(bytesToHex(pointToBytes(generator())));
     expect(owner.secretHex).toHaveLength(64);
     expect(owner.label).toBe(owner.publicPointHex.slice(0, 16));
+  });
+
+  it("derives b = [x]·a when the box's a is supplied (re-randomized)", () => {
+    // Simulate a deposit-time a = [7]·g. The owner secret is 0x1337.
+    const a = pointToBytes(scalarMul(7n, generator()));
+    const owner = deriveOwner(0x1337n, a);
+    expect(owner.aHex).toBe(bytesToHex(a));
+    // b = [x]·a = [0x1337 · 7]·g
+    const expectedB = pointToBytes(scalarMul(0x1337n, scalarMul(7n, generator())));
+    expect(owner.publicPointHex).toBe(bytesToHex(expectedB));
   });
 
   it("generates fresh secrets in [1, r)", () => {
@@ -128,7 +148,7 @@ describe("tx/deposit — owner secret material", () => {
 });
 
 describe("tx/deposit — planDepositTx", () => {
-  it("places mix-box at output 0 with denom + MixDatum", () => {
+  it("places mix-box at output 0 with denom + a re-randomized MixDatum", () => {
     const plan = planDepositTx({
       ownerSecret: 0x1337n,
       rounds: 30,
@@ -141,9 +161,40 @@ describe("tx/deposit — planDepositTx", () => {
       buildEnterpriseScriptAddress(ADDRESSES.mixBoxScriptHash, 0),
     );
     expect(plan.mixBoxOutput.lovelace).toBe(10_000_000n);
-    // a == g
+    // Default re-randomization: a ≠ g (would let observers fingerprint
+    // fresh deposits as `a == g` otherwise).
+    expect(plan.a).not.toEqual(pointToBytes(generator()));
+    // Validator's invariant: b == [x]·a still holds for any a, x.
+    const aPt = pointFromBytes(plan.a);
+    const bPt = pointFromBytes(plan.b);
+    expect(pointEqual(scalarMul(0x1337n, aPt), bPt)).toBe(true);
+  });
+
+  it("supports an explicit re-randomization scalar (a == [d]·g, b == [x·d]·g)", () => {
+    const plan = planDepositTx({
+      ownerSecret: 0x1337n,
+      rerandomization: 7n,
+      rounds: 30,
+      params: PARAMS,
+      addresses: ADDRESSES,
+      feeShard: feeShard(),
+      networkId: 0,
+    });
+    expect(plan.a).toEqual(pointToBytes(scalarMul(7n, generator())));
+    expect(plan.b).toEqual(pointToBytes(scalarMul(0x1337n, scalarMul(7n, generator()))));
+  });
+
+  it("falls back to the legacy a == g shape when rerandomization is null", () => {
+    const plan = planDepositTx({
+      ownerSecret: 0x1337n,
+      rerandomization: null,
+      rounds: 30,
+      params: PARAMS,
+      addresses: ADDRESSES,
+      feeShard: feeShard(),
+      networkId: 0,
+    });
     expect(plan.a).toEqual(pointToBytes(generator()));
-    // b == [x]g
     expect(plan.b).toEqual(pointToBytes(publicPointG(0x1337n)));
   });
 

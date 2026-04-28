@@ -1,0 +1,20 @@
+{
+  "version": 1,
+  "skills": {
+    "mesh-core-cst": {
+      "source": "MeshJS/skills",
+      "sourceType": "github",
+      "computedHash": "15f279796d32d92c11eb680b6c70aa251b7afa5cf66ac120498c3586b156d248"
+    },
+    "mesh-transaction": {
+      "source": "MeshJS/skills",
+      "sourceType": "github",
+      "computedHash": "1f709444abd922f39725e08cc9a5e645ad2a5049a0a7577bbfdf9d59a1a505a5"
+    },
+    "mesh-wallet": {
+      "source": "MeshJS/skills",
+      "sourceType": "github",
+      "computedHash": "f8a7f3d9a06d24eb1716a84d6d67cd2a670c7ebf16f08f7834a23ddd40f2992b"
+    }
+  }
+}

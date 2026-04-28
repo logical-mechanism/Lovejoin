@@ -38,7 +38,7 @@ fn well_formed_datum() -> Data {
 }
 
 fn tx_with_withdrawals(withdrawals: Pairs<Credential, Int>) -> Transaction {
-  Transaction { ..transaction.placeholder, withdrawals: withdrawals }
+  Transaction { ..transaction.placeholder, withdrawals }
 }
 
 // ---------------------------------------------------------------------------
@@ -47,14 +47,26 @@ fn tx_with_withdrawals(withdrawals: Pairs<Credential, Int>) -> Transaction {
 
 test mix_box_accepts_when_mix_logic_withdraws_zero() {
   let tx = tx_with_withdrawals([Pair(Script(mix_logic_hash), 0)])
-  mix_box.mix_box.spend(mix_logic_hash,Some(well_formed_datum()), Void, dummy_utxo, tx)
+  mix_box.mix_box.spend(
+    mix_logic_hash,
+    Some(well_formed_datum()),
+    Void,
+    dummy_utxo,
+    tx,
+  )
 }
 
 test mix_box_accepts_when_mix_logic_withdraws_nonzero() {
   // Amount doesn't matter; presence does. Mixers / users could plausibly route
   // real rewards through the same withdrawal — the validator is amount-agnostic.
   let tx = tx_with_withdrawals([Pair(Script(mix_logic_hash), 1_000_000)])
-  mix_box.mix_box.spend(mix_logic_hash,Some(well_formed_datum()), Void, dummy_utxo, tx)
+  mix_box.mix_box.spend(
+    mix_logic_hash,
+    Some(well_formed_datum()),
+    Void,
+    dummy_utxo,
+    tx,
+  )
 }
 
 test mix_box_accepts_with_other_withdrawals_present() {
@@ -64,17 +76,35 @@ test mix_box_accepts_with_other_withdrawals_present() {
     tx_with_withdrawals(
       [Pair(Script(other_hash), 0), Pair(Script(mix_logic_hash), 0)],
     )
-  mix_box.mix_box.spend(mix_logic_hash,Some(well_formed_datum()), Void, dummy_utxo, tx)
+  mix_box.mix_box.spend(
+    mix_logic_hash,
+    Some(well_formed_datum()),
+    Void,
+    dummy_utxo,
+    tx,
+  )
 }
 
 test mix_box_rejects_missing_withdrawal() {
   let tx = tx_with_withdrawals([])
-  !mix_box.mix_box.spend(mix_logic_hash,Some(well_formed_datum()), Void, dummy_utxo, tx)
+  !mix_box.mix_box.spend(
+    mix_logic_hash,
+    Some(well_formed_datum()),
+    Void,
+    dummy_utxo,
+    tx,
+  )
 }
 
 test mix_box_rejects_wrong_withdrawal_credential() {
   let tx = tx_with_withdrawals([Pair(Script(other_hash), 0)])
-  !mix_box.mix_box.spend(mix_logic_hash,Some(well_formed_datum()), Void, dummy_utxo, tx)
+  !mix_box.mix_box.spend(
+    mix_logic_hash,
+    Some(well_formed_datum()),
+    Void,
+    dummy_utxo,
+    tx,
+  )
 }
 
 // ---------------------------------------------------------------------------
@@ -85,27 +115,27 @@ test mix_box_accepts_no_datum_no_withdraw() {
   // NoDatum on the spend (datum: None at the handler) — recovery is allowed
   // without the withdraw-zero check.
   let tx = tx_with_withdrawals([])
-  mix_box.mix_box.spend(mix_logic_hash,None, Void, dummy_utxo, tx)
+  mix_box.mix_box.spend(mix_logic_hash, None, Void, dummy_utxo, tx)
 }
 
 test mix_box_accepts_a_eq_b_datum_no_withdraw() {
   // a == b is malformed per spec §2; recovery path applies.
   let bad: Data = MixDatum { a: a48, b: a48 }
   let tx = tx_with_withdrawals([])
-  mix_box.mix_box.spend(mix_logic_hash,Some(bad), Void, dummy_utxo, tx)
+  mix_box.mix_box.spend(mix_logic_hash, Some(bad), Void, dummy_utxo, tx)
 }
 
 test mix_box_accepts_short_bytes_datum_no_withdraw() {
   let short: Data = MixDatum { a: #"01", b: b48 }
   let tx = tx_with_withdrawals([])
-  mix_box.mix_box.spend(mix_logic_hash,Some(short), Void, dummy_utxo, tx)
+  mix_box.mix_box.spend(mix_logic_hash, Some(short), Void, dummy_utxo, tx)
 }
 
 test mix_box_accepts_int_datum_no_withdraw() {
   // Datum that doesn't even look like a Constr — definitely not a MixDatum.
   let i: Data = 42
   let tx = tx_with_withdrawals([])
-  mix_box.mix_box.spend(mix_logic_hash,Some(i), Void, dummy_utxo, tx)
+  mix_box.mix_box.spend(mix_logic_hash, Some(i), Void, dummy_utxo, tx)
 }
 
 test mix_box_accepts_wrong_constr_idx_datum_no_withdraw() {
@@ -115,5 +145,5 @@ test mix_box_accepts_wrong_constr_idx_datum_no_withdraw() {
   // adding a fake type, so we use FeeRedeemer.Replenish whose Constr is 1.
   let r: Data = Replenish
   let tx = tx_with_withdrawals([])
-  mix_box.mix_box.spend(mix_logic_hash,Some(r), Void, dummy_utxo, tx)
+  mix_box.mix_box.spend(mix_logic_hash, Some(r), Void, dummy_utxo, tx)
 }

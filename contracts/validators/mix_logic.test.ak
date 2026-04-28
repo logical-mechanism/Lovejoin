@@ -17,17 +17,17 @@
 ////   validator does.  Tracked in docs/perf.md "M2 follow-ups".
 
 use aiken/collection/list
-use cardano/assets
 use cardano/address.{Script}
+use cardano/assets
 use cardano/certificate.{RegisterCredential, UnregisterCredential}
 use cardano/transaction.{Input, Output, Transaction}
 use lovejoin/schnorr.{SchnorrProof}
 use lovejoin/sigma_or.{SigmaOrBranch, SigmaOrProof}
 use lovejoin/test_fixtures.{
-  default_reference_input, denom_lovelace, fee_shard_output, mix_box_input,
-  mix_box_input_bad_datum, mix_box_output, mix_box_output_with_value,
-  mix_logic_hash, mix_script_hash, random_user_vk, ref_nft_name, ref_nft_policy,
-  script_address, vk_output_lovelace, a48, b48, c48,
+  a48, b48, c48, default_reference_input, denom_lovelace, fee_shard_output,
+  mix_box_input, mix_box_input_bad_datum, mix_box_output,
+  mix_box_output_with_value, mix_logic_hash, mix_script_hash, random_user_vk,
+  ref_nft_name, ref_nft_policy, script_address, vk_output_lovelace,
 }
 use lovejoin/types.{Mix, MixDatum, Owner}
 use mix_logic
@@ -139,7 +139,8 @@ test owner_ignores_bad_datum_inputs() fail {
   // we exercise the "skip malformed" path and the validator reaches proof verify,
   // where it crashes on `bls12_381_g1_uncompress` of the zero48 t commitment.
   // We mark this `fail` because the bogus zero48 isn't a valid G1 point.
-  let bad_datum: Data = MixDatum { a: a48, b: a48 }  // a == b → malformed
+  let bad_datum: Data = MixDatum { a: a48, b: a48 }
+  // a == b → malformed
   let bad_input = mix_box_input_bad_datum(0xa0, 0, bad_datum)
   let good = mix_box_input(0xa1, 0, a48, b48, denom_lovelace)
   let tx =
@@ -167,7 +168,11 @@ fn build_mix_inputs_at_a(n: Int) -> List<Input> {
   do_build_mix_inputs_at_a(n, 0, [])
 }
 
-fn do_build_mix_inputs_at_a(remaining: Int, idx: Int, acc: List<Input>) -> List<Input> {
+fn do_build_mix_inputs_at_a(
+  remaining: Int,
+  idx: Int,
+  acc: List<Input>,
+) -> List<Input> {
   if remaining == 0 {
     list.reverse(acc)
   } else {
@@ -180,7 +185,11 @@ fn build_mix_outputs_at_b(n: Int) -> List<Output> {
   do_build_mix_outputs_at_b(n, 0, [])
 }
 
-fn do_build_mix_outputs_at_b(remaining: Int, idx: Int, acc: List<Output>) -> List<Output> {
+fn do_build_mix_outputs_at_b(
+  remaining: Int,
+  idx: Int,
+  acc: List<Output>,
+) -> List<Output> {
   if remaining == 0 {
     list.reverse(acc)
   } else {
@@ -199,8 +208,8 @@ test mix_rejects_n_eq_1() fail {
     Transaction {
       ..transaction.placeholder,
       reference_inputs: [default_reference_input()],
-      inputs: inputs,
-      outputs: outputs,
+      inputs,
+      outputs,
       fee: 200_000,
     }
   mix_logic.mix_logic.withdraw(
@@ -224,8 +233,8 @@ test mix_rejects_proofs_count_mismatch() fail {
     Transaction {
       ..transaction.placeholder,
       reference_inputs: [default_reference_input()],
-      inputs: inputs,
-      outputs: outputs,
+      inputs,
+      outputs,
       fee: 200_000,
     }
   mix_logic.mix_logic.withdraw(
@@ -254,7 +263,7 @@ test mix_rejects_mix_output_in_tail() fail {
     Transaction {
       ..transaction.placeholder,
       reference_inputs: [default_reference_input()],
-      inputs: inputs,
+      inputs,
       outputs: [mix_out0, fee_out, mix_out1],
       fee: 200_000,
     }
@@ -276,8 +285,9 @@ test mix_rejects_non_mix_output_in_prefix() fail {
     Transaction {
       ..transaction.placeholder,
       reference_inputs: [default_reference_input()],
-      inputs: inputs,
-      outputs: [mix_out, fee_out],  // prefix-N = [mix, fee]; fee fails check
+      inputs,
+      outputs: [mix_out, fee_out],
+      // prefix-N = [mix, fee]; fee fails check
       fee: 200_000,
     }
   mix_logic.mix_logic.withdraw(
@@ -302,7 +312,7 @@ test mix_rejects_wrong_denom_output() fail {
     Transaction {
       ..transaction.placeholder,
       reference_inputs: [default_reference_input()],
-      inputs: inputs,
+      inputs,
       outputs: [bad_out, good_out],
       fee: 200_000,
     }
@@ -332,7 +342,7 @@ test mix_rejects_native_asset_in_output() fail {
     Transaction {
       ..transaction.placeholder,
       reference_inputs: [default_reference_input()],
-      inputs: inputs,
+      inputs,
       outputs: [bad_out, good_out],
       fee: 200_000,
     }
@@ -354,7 +364,7 @@ test mix_rejects_a_eq_b_output_datum() fail {
     Transaction {
       ..transaction.placeholder,
       reference_inputs: [default_reference_input()],
-      inputs: inputs,
+      inputs,
       outputs: [bad_out, good_out],
       fee: 200_000,
     }
@@ -379,8 +389,8 @@ test mix_rejects_no_reference_input() fail {
     Transaction {
       ..transaction.placeholder,
       reference_inputs: [],
-      inputs: inputs,
-      outputs: outputs,
+      inputs,
+      outputs,
       fee: 200_000,
     }
   mix_logic.mix_logic.withdraw(
@@ -422,10 +432,7 @@ test owner_rejects_no_reference_input() fail {
 
 test publish_allows_register_credential() {
   let cert =
-    RegisterCredential {
-      credential: Script(mix_logic_hash),
-      deposit: Never,
-    }
+    RegisterCredential { credential: Script(mix_logic_hash), deposit: Never }
   mix_logic.mix_logic.publish(
     ref_nft_policy,
     ref_nft_name,
@@ -438,10 +445,7 @@ test publish_allows_register_credential() {
 test publish_rejects_unregister_credential() {
   // Hyperstructure: unregistering would brick the protocol. Must reject.
   let cert =
-    UnregisterCredential {
-      credential: Script(mix_logic_hash),
-      refund: Never,
-    }
+    UnregisterCredential { credential: Script(mix_logic_hash), refund: Never }
   !mix_logic.mix_logic.publish(
     ref_nft_policy,
     ref_nft_name,

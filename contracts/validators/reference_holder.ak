@@ -25,12 +25,11 @@ validator reference_holder(
   _reference_nft_policy: PolicyId,
   _reference_nft_name: AssetName,
 ) {
-  spend(
-    _d: Option<Data>,
-    _r: Data,
-    _utxo: OutputReference,
-    _self: Transaction,
-  ) {
+  spend(_d: Option<Data>, _r: Data, _utxo: OutputReference, _self: Transaction) {
     False
+  }
+
+  else(_) {
+    fail
   }
 }

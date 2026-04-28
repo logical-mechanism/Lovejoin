@@ -7,7 +7,10 @@ test schnorr_kat_0() {
   schnorr.verify(
     #"97f1d3a73197d7942695638c4fa9ac0fc3688c4f9774b905a14e3a3f171bac586c55e83ff97a1aeffb3af00adb22c6bb",
     #"97f1d3a73197d7942695638c4fa9ac0fc3688c4f9774b905a14e3a3f171bac586c55e83ff97a1aeffb3af00adb22c6bb",
-    schnorr.SchnorrProof { t: #"917da63224a510b8adb32b4e843c645f6b47f4fa65353db36cf99089f467217046026a04f6c6583cb3aaed69c467edbf", z: #"0d0e1ba5de6e62ebd6328f5d9290484498103ea13620ba33c0f592d0cd787dbd" },
+    schnorr.SchnorrProof {
+      t: #"917da63224a510b8adb32b4e843c645f6b47f4fa65353db36cf99089f467217046026a04f6c6583cb3aaed69c467edbf",
+      z: #"0d0e1ba5de6e62ebd6328f5d9290484498103ea13620ba33c0f592d0cd787dbd",
+    },
     #"",
   )
 }
@@ -16,7 +19,10 @@ test schnorr_kat_1() {
   schnorr.verify(
     #"97f1d3a73197d7942695638c4fa9ac0fc3688c4f9774b905a14e3a3f171bac586c55e83ff97a1aeffb3af00adb22c6bb",
     #"97f1d3a73197d7942695638c4fa9ac0fc3688c4f9774b905a14e3a3f171bac586c55e83ff97a1aeffb3af00adb22c6bb",
-    schnorr.SchnorrProof { t: #"803cfb9aeabf2a10d311dec24227662e6248067c650bf2bc690faf6667853f27aa20972a413ea88b1cac6abfb4bfcefe", z: #"21b31a614223fa84e0264d12186468770285eea19e23e4d6b60ee3051a6a6af5" },
+    schnorr.SchnorrProof {
+      t: #"803cfb9aeabf2a10d311dec24227662e6248067c650bf2bc690faf6667853f27aa20972a413ea88b1cac6abfb4bfcefe",
+      z: #"21b31a614223fa84e0264d12186468770285eea19e23e4d6b60ee3051a6a6af5",
+    },
     #"637478",
   )
 }
@@ -25,7 +31,10 @@ test schnorr_kat_2() {
   schnorr.verify(
     #"97f1d3a73197d7942695638c4fa9ac0fc3688c4f9774b905a14e3a3f171bac586c55e83ff97a1aeffb3af00adb22c6bb",
     #"97f1d3a73197d7942695638c4fa9ac0fc3688c4f9774b905a14e3a3f171bac586c55e83ff97a1aeffb3af00adb22c6bb",
-    schnorr.SchnorrProof { t: #"a0f227f383633259c410f75ebb8af460c2021de84a9e3b84785ac79949526c5e8d7f76242facc43558e0f2366ff1e26a", z: #"171f36c54dd13ff4ebf7194e32f4b8cd322274791cb082022880583aa4f51280" },
+    schnorr.SchnorrProof {
+      t: #"a0f227f383633259c410f75ebb8af460c2021de84a9e3b84785ac79949526c5e8d7f76242facc43558e0f2366ff1e26a",
+      z: #"171f36c54dd13ff4ebf7194e32f4b8cd322274791cb082022880583aa4f51280",
+    },
     #"a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5",
   )
 }
@@ -34,7 +43,10 @@ test schnorr_kat_3() {
   schnorr.verify(
     #"b928f3beb93519eecf0145da903b40a4c97dca00b21f12ac0df3be9116ef2ef27b2ae6bcd4c5bc2d54ef5a70627efcb7",
     #"b928f3beb93519eecf0145da903b40a4c97dca00b21f12ac0df3be9116ef2ef27b2ae6bcd4c5bc2d54ef5a70627efcb7",
-    schnorr.SchnorrProof { t: #"b9ae185e36c04c927da89569b275cb92b61be7d703e760f495360ec858250b7a02b2418aad0261f601cba4e3fa60abe0", z: #"179207285dc7a664470cbfc7f196b8a7998e5db1364b270bd5b4d01c0c329251" },
+    schnorr.SchnorrProof {
+      t: #"b9ae185e36c04c927da89569b275cb92b61be7d703e760f495360ec858250b7a02b2418aad0261f601cba4e3fa60abe0",
+      z: #"179207285dc7a664470cbfc7f196b8a7998e5db1364b270bd5b4d01c0c329251",
+    },
     #"",
   )
 }
@@ -43,7 +55,10 @@ test schnorr_kat_4() {
   schnorr.verify(
     #"b928f3beb93519eecf0145da903b40a4c97dca00b21f12ac0df3be9116ef2ef27b2ae6bcd4c5bc2d54ef5a70627efcb7",
     #"b928f3beb93519eecf0145da903b40a4c97dca00b21f12ac0df3be9116ef2ef27b2ae6bcd4c5bc2d54ef5a70627efcb7",
-    schnorr.SchnorrProof { t: #"b350e3b8c2da57695eac55954a6f8670a1bf28c9c12f856733d15f50140062884831b62f03b828cd55d12a8495e0a5f4", z: #"2f89c5a89192af810460817410e2ce8937c2008a429813a33cfdc7e6bb192dc5" },
+    schnorr.SchnorrProof {
+      t: #"b350e3b8c2da57695eac55954a6f8670a1bf28c9c12f856733d15f50140062884831b62f03b828cd55d12a8495e0a5f4",
+      z: #"2f89c5a89192af810460817410e2ce8937c2008a429813a33cfdc7e6bb192dc5",
+    },
     #"637478",
   )
 }
@@ -52,7 +67,10 @@ test schnorr_kat_5() {
   schnorr.verify(
     #"b928f3beb93519eecf0145da903b40a4c97dca00b21f12ac0df3be9116ef2ef27b2ae6bcd4c5bc2d54ef5a70627efcb7",
     #"b928f3beb93519eecf0145da903b40a4c97dca00b21f12ac0df3be9116ef2ef27b2ae6bcd4c5bc2d54ef5a70627efcb7",
-    schnorr.SchnorrProof { t: #"8685837e2b128596c00696dfbf228d1da70edaf59e66152f5eb90e50d12df9c4d2f724ddeff008a3d9764e5685bd8f94", z: #"33bed8685595a7c310a48fca75d1d000d3162ef16f8beae6c4bb0908bfce1f99" },
+    schnorr.SchnorrProof {
+      t: #"8685837e2b128596c00696dfbf228d1da70edaf59e66152f5eb90e50d12df9c4d2f724ddeff008a3d9764e5685bd8f94",
+      z: #"33bed8685595a7c310a48fca75d1d000d3162ef16f8beae6c4bb0908bfce1f99",
+    },
     #"a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5",
   )
 }
@@ -61,7 +79,10 @@ test schnorr_kat_6() {
   schnorr.verify(
     #"97f1d3a73197d7942695638c4fa9ac0fc3688c4f9774b905a14e3a3f171bac586c55e83ff97a1aeffb3af00adb22c6bb",
     #"a572cbea904d67468808c8eb50a9450c9721db309128012543902d0ac358a62ae28f75bb8f1c7c42c39a8c5529bf0f4e",
-    schnorr.SchnorrProof { t: #"93ea71721f5c1d3650ae5166b762424a987f34575a35eee4e9fcb1bf0f74529df5e1d2f72ee0e003f2d22cfb42dc968e", z: #"2131a789bf642c64275ab959e019cb6739521ee5d0e109df17da33155e820400" },
+    schnorr.SchnorrProof {
+      t: #"93ea71721f5c1d3650ae5166b762424a987f34575a35eee4e9fcb1bf0f74529df5e1d2f72ee0e003f2d22cfb42dc968e",
+      z: #"2131a789bf642c64275ab959e019cb6739521ee5d0e109df17da33155e820400",
+    },
     #"",
   )
 }
@@ -70,7 +91,10 @@ test schnorr_kat_7() {
   schnorr.verify(
     #"97f1d3a73197d7942695638c4fa9ac0fc3688c4f9774b905a14e3a3f171bac586c55e83ff97a1aeffb3af00adb22c6bb",
     #"a572cbea904d67468808c8eb50a9450c9721db309128012543902d0ac358a62ae28f75bb8f1c7c42c39a8c5529bf0f4e",
-    schnorr.SchnorrProof { t: #"a45265a9cdaaf15c32d01b289042843ee9cb371952e879fea2d7728bef8e02bf79844582649c1dcd14457a388016b301", z: #"2b2a497a4642c78b02b998ad66eed01b04a7de7cb366a804cc815deadb8c3b48" },
+    schnorr.SchnorrProof {
+      t: #"a45265a9cdaaf15c32d01b289042843ee9cb371952e879fea2d7728bef8e02bf79844582649c1dcd14457a388016b301",
+      z: #"2b2a497a4642c78b02b998ad66eed01b04a7de7cb366a804cc815deadb8c3b48",
+    },
     #"637478",
   )
 }
@@ -79,7 +103,10 @@ test schnorr_kat_8() {
   schnorr.verify(
     #"97f1d3a73197d7942695638c4fa9ac0fc3688c4f9774b905a14e3a3f171bac586c55e83ff97a1aeffb3af00adb22c6bb",
     #"a572cbea904d67468808c8eb50a9450c9721db309128012543902d0ac358a62ae28f75bb8f1c7c42c39a8c5529bf0f4e",
-    schnorr.SchnorrProof { t: #"b9cdfe3a0aae1358405d734cf0602d1c3cf551b01d38ed0a1cd5b4faff01ad6b660674bb8227d2740b224b1d38ae2078", z: #"58d1d78e8ff29b2c1ebc2c583d7b194cf7cc8fd9323e29e235fc01dbfe2cfee5" },
+    schnorr.SchnorrProof {
+      t: #"b9cdfe3a0aae1358405d734cf0602d1c3cf551b01d38ed0a1cd5b4faff01ad6b660674bb8227d2740b224b1d38ae2078",
+      z: #"58d1d78e8ff29b2c1ebc2c583d7b194cf7cc8fd9323e29e235fc01dbfe2cfee5",
+    },
     #"a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5",
   )
 }
@@ -88,7 +115,10 @@ test schnorr_kat_9() {
   schnorr.verify(
     #"b928f3beb93519eecf0145da903b40a4c97dca00b21f12ac0df3be9116ef2ef27b2ae6bcd4c5bc2d54ef5a70627efcb7",
     #"99bef05aaba1ea467fcbc9c420f5e3153c9d2b5f9bf2c7e2e7f6946f854043627b45b008607b9a9108bb96f3c1c089d3",
-    schnorr.SchnorrProof { t: #"95cbc960b29381c331843eff2c0010426e6ed411c8a94ff322fe3127680bf9dc95c5ab42a81cc9ea8f17a0c9454cb7a1", z: #"1ac0a03ef64366cfdd515abdfdc8065e1e591d163cb3b920bc70653b8a659a1f" },
+    schnorr.SchnorrProof {
+      t: #"95cbc960b29381c331843eff2c0010426e6ed411c8a94ff322fe3127680bf9dc95c5ab42a81cc9ea8f17a0c9454cb7a1",
+      z: #"1ac0a03ef64366cfdd515abdfdc8065e1e591d163cb3b920bc70653b8a659a1f",
+    },
     #"",
   )
 }
@@ -97,7 +127,10 @@ test schnorr_kat_10() {
   schnorr.verify(
     #"b928f3beb93519eecf0145da903b40a4c97dca00b21f12ac0df3be9116ef2ef27b2ae6bcd4c5bc2d54ef5a70627efcb7",
     #"99bef05aaba1ea467fcbc9c420f5e3153c9d2b5f9bf2c7e2e7f6946f854043627b45b008607b9a9108bb96f3c1c089d3",
-    schnorr.SchnorrProof { t: #"94f6f87b74eacf091d2e28e6154c7a9db210162ef4cf00e89ce59b7d89c3de3e418c85eec2feebd916399f94a15a728a", z: #"365358ab5370f229f572b020f3dcd8a63e46c6871b4c6be9c37eab33eb4f31f8" },
+    schnorr.SchnorrProof {
+      t: #"94f6f87b74eacf091d2e28e6154c7a9db210162ef4cf00e89ce59b7d89c3de3e418c85eec2feebd916399f94a15a728a",
+      z: #"365358ab5370f229f572b020f3dcd8a63e46c6871b4c6be9c37eab33eb4f31f8",
+    },
     #"637478",
   )
 }
@@ -106,7 +139,10 @@ test schnorr_kat_11() {
   schnorr.verify(
     #"b928f3beb93519eecf0145da903b40a4c97dca00b21f12ac0df3be9116ef2ef27b2ae6bcd4c5bc2d54ef5a70627efcb7",
     #"99bef05aaba1ea467fcbc9c420f5e3153c9d2b5f9bf2c7e2e7f6946f854043627b45b008607b9a9108bb96f3c1c089d3",
-    schnorr.SchnorrProof { t: #"9369260bd48473d08f935954ea3261718299ffe61ecf4d6d1a2aff277efb7f16ba43500255d336ccd8424dc3e4074681", z: #"6f5b3a43893d2f71ad4b8c8b4883f3a569f1042d75385661d47ed8329915fe67" },
+    schnorr.SchnorrProof {
+      t: #"9369260bd48473d08f935954ea3261718299ffe61ecf4d6d1a2aff277efb7f16ba43500255d336ccd8424dc3e4074681",
+      z: #"6f5b3a43893d2f71ad4b8c8b4883f3a569f1042d75385661d47ed8329915fe67",
+    },
     #"a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5",
   )
 }
@@ -115,7 +151,10 @@ test schnorr_kat_12() {
   schnorr.verify(
     #"97f1d3a73197d7942695638c4fa9ac0fc3688c4f9774b905a14e3a3f171bac586c55e83ff97a1aeffb3af00adb22c6bb",
     #"b928f3beb93519eecf0145da903b40a4c97dca00b21f12ac0df3be9116ef2ef27b2ae6bcd4c5bc2d54ef5a70627efcb7",
-    schnorr.SchnorrProof { t: #"86f25a9a460309db555bfd4ddebdee72e9efeff19019c8852fb7a8ef8b10adeed33ee5749ad95c350d5dec957bb1f932", z: #"32bdb68377363e3a850d32a39a56806801b10b5fcaec537d5ab124a709d06c1f" },
+    schnorr.SchnorrProof {
+      t: #"86f25a9a460309db555bfd4ddebdee72e9efeff19019c8852fb7a8ef8b10adeed33ee5749ad95c350d5dec957bb1f932",
+      z: #"32bdb68377363e3a850d32a39a56806801b10b5fcaec537d5ab124a709d06c1f",
+    },
     #"",
   )
 }
@@ -124,7 +163,10 @@ test schnorr_kat_13() {
   schnorr.verify(
     #"97f1d3a73197d7942695638c4fa9ac0fc3688c4f9774b905a14e3a3f171bac586c55e83ff97a1aeffb3af00adb22c6bb",
     #"b928f3beb93519eecf0145da903b40a4c97dca00b21f12ac0df3be9116ef2ef27b2ae6bcd4c5bc2d54ef5a70627efcb7",
-    schnorr.SchnorrProof { t: #"90721c447d60f6a5eeb409540e762a80a186768cb4b0195aa35ba76144c6d4b5f6ac83e4367b966ab384b1fb886df0c9", z: #"49a1e357beb36c73a5cf00b23ef76e30b314fdd8e6993ffc1208fa394b02c84a" },
+    schnorr.SchnorrProof {
+      t: #"90721c447d60f6a5eeb409540e762a80a186768cb4b0195aa35ba76144c6d4b5f6ac83e4367b966ab384b1fb886df0c9",
+      z: #"49a1e357beb36c73a5cf00b23ef76e30b314fdd8e6993ffc1208fa394b02c84a",
+    },
     #"637478",
   )
 }
@@ -133,7 +175,10 @@ test schnorr_kat_14() {
   schnorr.verify(
     #"97f1d3a73197d7942695638c4fa9ac0fc3688c4f9774b905a14e3a3f171bac586c55e83ff97a1aeffb3af00adb22c6bb",
     #"b928f3beb93519eecf0145da903b40a4c97dca00b21f12ac0df3be9116ef2ef27b2ae6bcd4c5bc2d54ef5a70627efcb7",
-    schnorr.SchnorrProof { t: #"a7ae2db2595f2385cd04f7afeef6bd174352c3996aa1a4d4d11e431e09948f47e6c59ff2fdde7eaf73f0374c8483a63a", z: #"38542dd6369856c1f9b89f94b0f8e53c8cec7d0d5598ec659ef3a83e377222da" },
+    schnorr.SchnorrProof {
+      t: #"a7ae2db2595f2385cd04f7afeef6bd174352c3996aa1a4d4d11e431e09948f47e6c59ff2fdde7eaf73f0374c8483a63a",
+      z: #"38542dd6369856c1f9b89f94b0f8e53c8cec7d0d5598ec659ef3a83e377222da",
+    },
     #"a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5",
   )
 }
@@ -142,7 +187,10 @@ test schnorr_kat_15() {
   schnorr.verify(
     #"b928f3beb93519eecf0145da903b40a4c97dca00b21f12ac0df3be9116ef2ef27b2ae6bcd4c5bc2d54ef5a70627efcb7",
     #"a3caedb9c2a5d8e922359ef69f9c35b8c819bcb081610343148dc3a2c50255c9caa6090f49f890ca31d853384fc80d00",
-    schnorr.SchnorrProof { t: #"8a6e4da02b57c2827ea7bba560b5db5231309389e81a8c29ed1934cb83d1593afdb60a07bc15043f8eebf578cb2f3515", z: #"307433705178e7204e9bdeba0574c2188c2e3370162627ca11a0f2e6b2d37874" },
+    schnorr.SchnorrProof {
+      t: #"8a6e4da02b57c2827ea7bba560b5db5231309389e81a8c29ed1934cb83d1593afdb60a07bc15043f8eebf578cb2f3515",
+      z: #"307433705178e7204e9bdeba0574c2188c2e3370162627ca11a0f2e6b2d37874",
+    },
     #"",
   )
 }
@@ -151,7 +199,10 @@ test schnorr_kat_16() {
   schnorr.verify(
     #"b928f3beb93519eecf0145da903b40a4c97dca00b21f12ac0df3be9116ef2ef27b2ae6bcd4c5bc2d54ef5a70627efcb7",
     #"a3caedb9c2a5d8e922359ef69f9c35b8c819bcb081610343148dc3a2c50255c9caa6090f49f890ca31d853384fc80d00",
-    schnorr.SchnorrProof { t: #"a88483ce665ee1ba9be7f0c57217e89a68ed7d02a80d4ca07eb005f7af1fd9d805572ba13b85f7d58fedc4bcca4306b8", z: #"41da81839fbb97bbb0623ab2df6ce0c46227c4d287494ae6c98f017602725c9e" },
+    schnorr.SchnorrProof {
+      t: #"a88483ce665ee1ba9be7f0c57217e89a68ed7d02a80d4ca07eb005f7af1fd9d805572ba13b85f7d58fedc4bcca4306b8",
+      z: #"41da81839fbb97bbb0623ab2df6ce0c46227c4d287494ae6c98f017602725c9e",
+    },
     #"637478",
   )
 }
@@ -160,7 +211,10 @@ test schnorr_kat_17() {
   schnorr.verify(
     #"b928f3beb93519eecf0145da903b40a4c97dca00b21f12ac0df3be9116ef2ef27b2ae6bcd4c5bc2d54ef5a70627efcb7",
     #"a3caedb9c2a5d8e922359ef69f9c35b8c819bcb081610343148dc3a2c50255c9caa6090f49f890ca31d853384fc80d00",
-    schnorr.SchnorrProof { t: #"994e5313ea001b194b9781eb8338c04a876234bbb1bae0b5632857c29fab3a77a2671c1a13a207dee2520ef130666b0c", z: #"65857086001320a6aa6bf775a845b48c6a6266ad8ddafec225c6dd0216a2f307" },
+    schnorr.SchnorrProof {
+      t: #"994e5313ea001b194b9781eb8338c04a876234bbb1bae0b5632857c29fab3a77a2671c1a13a207dee2520ef130666b0c",
+      z: #"65857086001320a6aa6bf775a845b48c6a6266ad8ddafec225c6dd0216a2f307",
+    },
     #"a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5",
   )
 }
@@ -169,7 +223,10 @@ test schnorr_kat_18() {
   schnorr.verify(
     #"97f1d3a73197d7942695638c4fa9ac0fc3688c4f9774b905a14e3a3f171bac586c55e83ff97a1aeffb3af00adb22c6bb",
     #"acccb5bab2944a1bdc721c97f3affa035d507c78fe442a9284982bd4c27617b33f1d46e8191a1eda03d73c357752d219",
-    schnorr.SchnorrProof { t: #"889a51f3a2e752a3036b9567c5fd210fd4a235171d865f61899bc4f50f3613c1854b09387c6e0ba33c6f4f7c0493ec46", z: #"1f12b19504bf3a1b025f5ed6b434e0f86c027f8729df8d1445a25d1fddb126cf" },
+    schnorr.SchnorrProof {
+      t: #"889a51f3a2e752a3036b9567c5fd210fd4a235171d865f61899bc4f50f3613c1854b09387c6e0ba33c6f4f7c0493ec46",
+      z: #"1f12b19504bf3a1b025f5ed6b434e0f86c027f8729df8d1445a25d1fddb126cf",
+    },
     #"",
   )
 }
@@ -178,7 +235,10 @@ test schnorr_kat_19() {
   schnorr.verify(
     #"97f1d3a73197d7942695638c4fa9ac0fc3688c4f9774b905a14e3a3f171bac586c55e83ff97a1aeffb3af00adb22c6bb",
     #"acccb5bab2944a1bdc721c97f3affa035d507c78fe442a9284982bd4c27617b33f1d46e8191a1eda03d73c357752d219",
-    schnorr.SchnorrProof { t: #"a5fd95910d2f44c1e7eace2f5eb8a19bec048bf2b45530d7f5f09bbbbbb7196c0e32677092f1bf9380cdba49babfc315", z: #"5c943460687f611409b4aea4273043aeb75c67921d705d92bb783d788f844862" },
+    schnorr.SchnorrProof {
+      t: #"a5fd95910d2f44c1e7eace2f5eb8a19bec048bf2b45530d7f5f09bbbbbb7196c0e32677092f1bf9380cdba49babfc315",
+      z: #"5c943460687f611409b4aea4273043aeb75c67921d705d92bb783d788f844862",
+    },
     #"637478",
   )
 }
@@ -187,7 +247,10 @@ test schnorr_kat_20() {
   schnorr.verify(
     #"97f1d3a73197d7942695638c4fa9ac0fc3688c4f9774b905a14e3a3f171bac586c55e83ff97a1aeffb3af00adb22c6bb",
     #"acccb5bab2944a1bdc721c97f3affa035d507c78fe442a9284982bd4c27617b33f1d46e8191a1eda03d73c357752d219",
-    schnorr.SchnorrProof { t: #"8241ec3f99601e506dc16fa98dc7653865b8807438f66cc8ac3c98e37f9956c7243a2f1b692f5bfc6d02caea8a76613e", z: #"3e3eda2e3b5b958b624d4f7a28b0954d0d41f37c5723740c51bde5dc1e9f9c51" },
+    schnorr.SchnorrProof {
+      t: #"8241ec3f99601e506dc16fa98dc7653865b8807438f66cc8ac3c98e37f9956c7243a2f1b692f5bfc6d02caea8a76613e",
+      z: #"3e3eda2e3b5b958b624d4f7a28b0954d0d41f37c5723740c51bde5dc1e9f9c51",
+    },
     #"a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5",
   )
 }
@@ -196,7 +259,10 @@ test schnorr_kat_21() {
   schnorr.verify(
     #"b928f3beb93519eecf0145da903b40a4c97dca00b21f12ac0df3be9116ef2ef27b2ae6bcd4c5bc2d54ef5a70627efcb7",
     #"8af7b425b7ea9df670fcecbea137acfe16255e8e4d992eb0ae22f5c6cf50e120c6306d8c50f33231c7674b5dfbc353e4",
-    schnorr.SchnorrProof { t: #"a0d704a705a66c1315be2ffca5846040e7d5715a116ad8c93aac515f9f68172ebc5cf0375bd610daf4cdb5f0d9e2c3e8", z: #"5cf0ccf3ab3d345a503435d5f61499754290a774bca613af0ad784cd1bd9574b" },
+    schnorr.SchnorrProof {
+      t: #"a0d704a705a66c1315be2ffca5846040e7d5715a116ad8c93aac515f9f68172ebc5cf0375bd610daf4cdb5f0d9e2c3e8",
+      z: #"5cf0ccf3ab3d345a503435d5f61499754290a774bca613af0ad784cd1bd9574b",
+    },
     #"",
   )
 }
@@ -205,7 +271,10 @@ test schnorr_kat_22() {
   schnorr.verify(
     #"b928f3beb93519eecf0145da903b40a4c97dca00b21f12ac0df3be9116ef2ef27b2ae6bcd4c5bc2d54ef5a70627efcb7",
     #"8af7b425b7ea9df670fcecbea137acfe16255e8e4d992eb0ae22f5c6cf50e120c6306d8c50f33231c7674b5dfbc353e4",
-    schnorr.SchnorrProof { t: #"8b4a25873a386df2ad3b872c08b91c167e92c4e3064148d2fb8afb68d4732ebfa0ba43b966206ff6940628ab57dbaa1b", z: #"14244d5417007325c748781719c28085db316ecb94e11609803a5f369cc71f22" },
+    schnorr.SchnorrProof {
+      t: #"8b4a25873a386df2ad3b872c08b91c167e92c4e3064148d2fb8afb68d4732ebfa0ba43b966206ff6940628ab57dbaa1b",
+      z: #"14244d5417007325c748781719c28085db316ecb94e11609803a5f369cc71f22",
+    },
     #"637478",
   )
 }
@@ -214,7 +283,10 @@ test schnorr_kat_23() {
   schnorr.verify(
     #"b928f3beb93519eecf0145da903b40a4c97dca00b21f12ac0df3be9116ef2ef27b2ae6bcd4c5bc2d54ef5a70627efcb7",
     #"8af7b425b7ea9df670fcecbea137acfe16255e8e4d992eb0ae22f5c6cf50e120c6306d8c50f33231c7674b5dfbc353e4",
-    schnorr.SchnorrProof { t: #"8ada9d0fc5ddcf52112f86ec86051e4dd7889818fa6d5c6624a3dcee3dd76153683dcacb08d32b300a4836c1b61f62ca", z: #"619194ac91aa73047b73d535e3dffcb052943022e4ff1b96b873bd0e704bd844" },
+    schnorr.SchnorrProof {
+      t: #"8ada9d0fc5ddcf52112f86ec86051e4dd7889818fa6d5c6624a3dcee3dd76153683dcacb08d32b300a4836c1b61f62ca",
+      z: #"619194ac91aa73047b73d535e3dffcb052943022e4ff1b96b873bd0e704bd844",
+    },
     #"a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5",
   )
 }
@@ -223,7 +295,10 @@ test schnorr_kat_24() {
   schnorr.verify(
     #"97f1d3a73197d7942695638c4fa9ac0fc3688c4f9774b905a14e3a3f171bac586c55e83ff97a1aeffb3af00adb22c6bb",
     #"b7f1d3a73197d7942695638c4fa9ac0fc3688c4f9774b905a14e3a3f171bac586c55e83ff97a1aeffb3af00adb22c6bb",
-    schnorr.SchnorrProof { t: #"a936208d39b93a2cf4b2a11dc383db9b2cd28b98dab9b69020a118c27ca44ebeec0b74cbd4d6f9bc3291cbc47ce6eec9", z: #"2eb7934bd1f36661a780fdcd0ee562f8766277e22421322c399c73a39ddb9854" },
+    schnorr.SchnorrProof {
+      t: #"a936208d39b93a2cf4b2a11dc383db9b2cd28b98dab9b69020a118c27ca44ebeec0b74cbd4d6f9bc3291cbc47ce6eec9",
+      z: #"2eb7934bd1f36661a780fdcd0ee562f8766277e22421322c399c73a39ddb9854",
+    },
     #"",
   )
 }
@@ -232,7 +307,10 @@ test schnorr_kat_25() {
   schnorr.verify(
     #"97f1d3a73197d7942695638c4fa9ac0fc3688c4f9774b905a14e3a3f171bac586c55e83ff97a1aeffb3af00adb22c6bb",
     #"b7f1d3a73197d7942695638c4fa9ac0fc3688c4f9774b905a14e3a3f171bac586c55e83ff97a1aeffb3af00adb22c6bb",
-    schnorr.SchnorrProof { t: #"8a5dfe66f904896e680bfbad25804e86cfb972ad3d7b3309b2d07e424534c2f985cb094d5bab223ebe1b5c814a7b655c", z: #"7385549140b04157447d4783ab7651223e3e9ee02393abd350e350724444718c" },
+    schnorr.SchnorrProof {
+      t: #"8a5dfe66f904896e680bfbad25804e86cfb972ad3d7b3309b2d07e424534c2f985cb094d5bab223ebe1b5c814a7b655c",
+      z: #"7385549140b04157447d4783ab7651223e3e9ee02393abd350e350724444718c",
+    },
     #"637478",
   )
 }
@@ -241,7 +319,10 @@ test schnorr_kat_26() {
   schnorr.verify(
     #"97f1d3a73197d7942695638c4fa9ac0fc3688c4f9774b905a14e3a3f171bac586c55e83ff97a1aeffb3af00adb22c6bb",
     #"b7f1d3a73197d7942695638c4fa9ac0fc3688c4f9774b905a14e3a3f171bac586c55e83ff97a1aeffb3af00adb22c6bb",
-    schnorr.SchnorrProof { t: #"87af8f17945036624a801a1e7523ffa9be37c075edfe46c74ab50eba874221f2f9ff746d46ace31cb09ebd8e54a8a873", z: #"0318ad77c600cc675aac54cd85ad34f031dc6eb3fe802ccb77db3d69388121e5" },
+    schnorr.SchnorrProof {
+      t: #"87af8f17945036624a801a1e7523ffa9be37c075edfe46c74ab50eba874221f2f9ff746d46ace31cb09ebd8e54a8a873",
+      z: #"0318ad77c600cc675aac54cd85ad34f031dc6eb3fe802ccb77db3d69388121e5",
+    },
     #"a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5",
   )
 }
@@ -250,7 +331,10 @@ test schnorr_kat_27() {
   schnorr.verify(
     #"b928f3beb93519eecf0145da903b40a4c97dca00b21f12ac0df3be9116ef2ef27b2ae6bcd4c5bc2d54ef5a70627efcb7",
     #"9928f3beb93519eecf0145da903b40a4c97dca00b21f12ac0df3be9116ef2ef27b2ae6bcd4c5bc2d54ef5a70627efcb7",
-    schnorr.SchnorrProof { t: #"b7b2df3e57ac72efed5943403af96f663781542b0d33dad81acd4bb94cbe5bbbf8242bde7c1f80865008248229fe961f", z: #"2ea6e72fafa0b9701ab4d8d05227f2e7c5da32756446cccc36ec63bedc0c8835" },
+    schnorr.SchnorrProof {
+      t: #"b7b2df3e57ac72efed5943403af96f663781542b0d33dad81acd4bb94cbe5bbbf8242bde7c1f80865008248229fe961f",
+      z: #"2ea6e72fafa0b9701ab4d8d05227f2e7c5da32756446cccc36ec63bedc0c8835",
+    },
     #"",
   )
 }
@@ -259,7 +343,10 @@ test schnorr_kat_28() {
   schnorr.verify(
     #"b928f3beb93519eecf0145da903b40a4c97dca00b21f12ac0df3be9116ef2ef27b2ae6bcd4c5bc2d54ef5a70627efcb7",
     #"9928f3beb93519eecf0145da903b40a4c97dca00b21f12ac0df3be9116ef2ef27b2ae6bcd4c5bc2d54ef5a70627efcb7",
-    schnorr.SchnorrProof { t: #"b138f8ec742fb77a01aaa0b40db674b54951c46868998e859475ac2efc8f4324147866d31bbe179921cb1c463be1455f", z: #"6f29ed7e29dc20783ed52490997e072fcc4cff70b5235ac9ad953e886f95501f" },
+    schnorr.SchnorrProof {
+      t: #"b138f8ec742fb77a01aaa0b40db674b54951c46868998e859475ac2efc8f4324147866d31bbe179921cb1c463be1455f",
+      z: #"6f29ed7e29dc20783ed52490997e072fcc4cff70b5235ac9ad953e886f95501f",
+    },
     #"637478",
   )
 }
@@ -268,337 +355,460 @@ test schnorr_kat_29() {
   schnorr.verify(
     #"b928f3beb93519eecf0145da903b40a4c97dca00b21f12ac0df3be9116ef2ef27b2ae6bcd4c5bc2d54ef5a70627efcb7",
     #"9928f3beb93519eecf0145da903b40a4c97dca00b21f12ac0df3be9116ef2ef27b2ae6bcd4c5bc2d54ef5a70627efcb7",
-    schnorr.SchnorrProof { t: #"9502b59e01bdaef50b99863e2cc04f2d3593c89712a0acc37ad0b4cbebc516917f192ad2a0b86d0f73c1f2643fa187e2", z: #"0ac9baba0cfe8482795a63178aa26b7b0c0e91528e32aba746acb5001c476b39" },
+    schnorr.SchnorrProof {
+      t: #"9502b59e01bdaef50b99863e2cc04f2d3593c89712a0acc37ad0b4cbebc516917f192ad2a0b86d0f73c1f2643fa187e2",
+      z: #"0ac9baba0cfe8482795a63178aa26b7b0c0e91528e32aba746acb5001c476b39",
+    },
     #"a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5",
   )
 }
 
 test schnorr_kat_neg_z_flip_0() fail {
   // Flip the LSB of z — proof must be rejected.
-  let z_bad: ByteArray = #"0d0e1ba5de6e62ebd6328f5d9290484498103ea13620ba33c0f592d0cd787cbd"
+  let z_bad: ByteArray =
+    #"0d0e1ba5de6e62ebd6328f5d9290484498103ea13620ba33c0f592d0cd787cbd"
   schnorr.verify(
     #"97f1d3a73197d7942695638c4fa9ac0fc3688c4f9774b905a14e3a3f171bac586c55e83ff97a1aeffb3af00adb22c6bb",
     #"97f1d3a73197d7942695638c4fa9ac0fc3688c4f9774b905a14e3a3f171bac586c55e83ff97a1aeffb3af00adb22c6bb",
-    schnorr.SchnorrProof { t: #"917da63224a510b8adb32b4e843c645f6b47f4fa65353db36cf99089f467217046026a04f6c6583cb3aaed69c467edbf", z: z_bad },
+    schnorr.SchnorrProof {
+      t: #"917da63224a510b8adb32b4e843c645f6b47f4fa65353db36cf99089f467217046026a04f6c6583cb3aaed69c467edbf",
+      z: z_bad,
+    },
     #"",
   )
 }
 
 test schnorr_kat_neg_z_flip_1() fail {
   // Flip the LSB of z — proof must be rejected.
-  let z_bad: ByteArray = #"21b31a614223fa84e0264d12186468770285eea19e23e4d6b60ee3051a6a6bf5"
+  let z_bad: ByteArray =
+    #"21b31a614223fa84e0264d12186468770285eea19e23e4d6b60ee3051a6a6bf5"
   schnorr.verify(
     #"97f1d3a73197d7942695638c4fa9ac0fc3688c4f9774b905a14e3a3f171bac586c55e83ff97a1aeffb3af00adb22c6bb",
     #"97f1d3a73197d7942695638c4fa9ac0fc3688c4f9774b905a14e3a3f171bac586c55e83ff97a1aeffb3af00adb22c6bb",
-    schnorr.SchnorrProof { t: #"803cfb9aeabf2a10d311dec24227662e6248067c650bf2bc690faf6667853f27aa20972a413ea88b1cac6abfb4bfcefe", z: z_bad },
+    schnorr.SchnorrProof {
+      t: #"803cfb9aeabf2a10d311dec24227662e6248067c650bf2bc690faf6667853f27aa20972a413ea88b1cac6abfb4bfcefe",
+      z: z_bad,
+    },
     #"637478",
   )
 }
 
 test schnorr_kat_neg_z_flip_2() fail {
   // Flip the LSB of z — proof must be rejected.
-  let z_bad: ByteArray = #"171f36c54dd13ff4ebf7194e32f4b8cd322274791cb082022880583aa4f51380"
+  let z_bad: ByteArray =
+    #"171f36c54dd13ff4ebf7194e32f4b8cd322274791cb082022880583aa4f51380"
   schnorr.verify(
     #"97f1d3a73197d7942695638c4fa9ac0fc3688c4f9774b905a14e3a3f171bac586c55e83ff97a1aeffb3af00adb22c6bb",
     #"97f1d3a73197d7942695638c4fa9ac0fc3688c4f9774b905a14e3a3f171bac586c55e83ff97a1aeffb3af00adb22c6bb",
-    schnorr.SchnorrProof { t: #"a0f227f383633259c410f75ebb8af460c2021de84a9e3b84785ac79949526c5e8d7f76242facc43558e0f2366ff1e26a", z: z_bad },
+    schnorr.SchnorrProof {
+      t: #"a0f227f383633259c410f75ebb8af460c2021de84a9e3b84785ac79949526c5e8d7f76242facc43558e0f2366ff1e26a",
+      z: z_bad,
+    },
     #"a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5",
   )
 }
 
 test schnorr_kat_neg_z_flip_3() fail {
   // Flip the LSB of z — proof must be rejected.
-  let z_bad: ByteArray = #"179207285dc7a664470cbfc7f196b8a7998e5db1364b270bd5b4d01c0c329351"
+  let z_bad: ByteArray =
+    #"179207285dc7a664470cbfc7f196b8a7998e5db1364b270bd5b4d01c0c329351"
   schnorr.verify(
     #"b928f3beb93519eecf0145da903b40a4c97dca00b21f12ac0df3be9116ef2ef27b2ae6bcd4c5bc2d54ef5a70627efcb7",
     #"b928f3beb93519eecf0145da903b40a4c97dca00b21f12ac0df3be9116ef2ef27b2ae6bcd4c5bc2d54ef5a70627efcb7",
-    schnorr.SchnorrProof { t: #"b9ae185e36c04c927da89569b275cb92b61be7d703e760f495360ec858250b7a02b2418aad0261f601cba4e3fa60abe0", z: z_bad },
+    schnorr.SchnorrProof {
+      t: #"b9ae185e36c04c927da89569b275cb92b61be7d703e760f495360ec858250b7a02b2418aad0261f601cba4e3fa60abe0",
+      z: z_bad,
+    },
     #"",
   )
 }
 
 test schnorr_kat_neg_z_flip_4() fail {
   // Flip the LSB of z — proof must be rejected.
-  let z_bad: ByteArray = #"2f89c5a89192af810460817410e2ce8937c2008a429813a33cfdc7e6bb192cc5"
+  let z_bad: ByteArray =
+    #"2f89c5a89192af810460817410e2ce8937c2008a429813a33cfdc7e6bb192cc5"
   schnorr.verify(
     #"b928f3beb93519eecf0145da903b40a4c97dca00b21f12ac0df3be9116ef2ef27b2ae6bcd4c5bc2d54ef5a70627efcb7",
     #"b928f3beb93519eecf0145da903b40a4c97dca00b21f12ac0df3be9116ef2ef27b2ae6bcd4c5bc2d54ef5a70627efcb7",
-    schnorr.SchnorrProof { t: #"b350e3b8c2da57695eac55954a6f8670a1bf28c9c12f856733d15f50140062884831b62f03b828cd55d12a8495e0a5f4", z: z_bad },
+    schnorr.SchnorrProof {
+      t: #"b350e3b8c2da57695eac55954a6f8670a1bf28c9c12f856733d15f50140062884831b62f03b828cd55d12a8495e0a5f4",
+      z: z_bad,
+    },
     #"637478",
   )
 }
 
 test schnorr_kat_neg_z_flip_5() fail {
   // Flip the LSB of z — proof must be rejected.
-  let z_bad: ByteArray = #"33bed8685595a7c310a48fca75d1d000d3162ef16f8beae6c4bb0908bfce1e99"
+  let z_bad: ByteArray =
+    #"33bed8685595a7c310a48fca75d1d000d3162ef16f8beae6c4bb0908bfce1e99"
   schnorr.verify(
     #"b928f3beb93519eecf0145da903b40a4c97dca00b21f12ac0df3be9116ef2ef27b2ae6bcd4c5bc2d54ef5a70627efcb7",
     #"b928f3beb93519eecf0145da903b40a4c97dca00b21f12ac0df3be9116ef2ef27b2ae6bcd4c5bc2d54ef5a70627efcb7",
-    schnorr.SchnorrProof { t: #"8685837e2b128596c00696dfbf228d1da70edaf59e66152f5eb90e50d12df9c4d2f724ddeff008a3d9764e5685bd8f94", z: z_bad },
+    schnorr.SchnorrProof {
+      t: #"8685837e2b128596c00696dfbf228d1da70edaf59e66152f5eb90e50d12df9c4d2f724ddeff008a3d9764e5685bd8f94",
+      z: z_bad,
+    },
     #"a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5",
   )
 }
 
 test schnorr_kat_neg_z_flip_6() fail {
   // Flip the LSB of z — proof must be rejected.
-  let z_bad: ByteArray = #"2131a789bf642c64275ab959e019cb6739521ee5d0e109df17da33155e820500"
+  let z_bad: ByteArray =
+    #"2131a789bf642c64275ab959e019cb6739521ee5d0e109df17da33155e820500"
   schnorr.verify(
     #"97f1d3a73197d7942695638c4fa9ac0fc3688c4f9774b905a14e3a3f171bac586c55e83ff97a1aeffb3af00adb22c6bb",
     #"a572cbea904d67468808c8eb50a9450c9721db309128012543902d0ac358a62ae28f75bb8f1c7c42c39a8c5529bf0f4e",
-    schnorr.SchnorrProof { t: #"93ea71721f5c1d3650ae5166b762424a987f34575a35eee4e9fcb1bf0f74529df5e1d2f72ee0e003f2d22cfb42dc968e", z: z_bad },
+    schnorr.SchnorrProof {
+      t: #"93ea71721f5c1d3650ae5166b762424a987f34575a35eee4e9fcb1bf0f74529df5e1d2f72ee0e003f2d22cfb42dc968e",
+      z: z_bad,
+    },
     #"",
   )
 }
 
 test schnorr_kat_neg_z_flip_7() fail {
   // Flip the LSB of z — proof must be rejected.
-  let z_bad: ByteArray = #"2b2a497a4642c78b02b998ad66eed01b04a7de7cb366a804cc815deadb8c3a48"
+  let z_bad: ByteArray =
+    #"2b2a497a4642c78b02b998ad66eed01b04a7de7cb366a804cc815deadb8c3a48"
   schnorr.verify(
     #"97f1d3a73197d7942695638c4fa9ac0fc3688c4f9774b905a14e3a3f171bac586c55e83ff97a1aeffb3af00adb22c6bb",
     #"a572cbea904d67468808c8eb50a9450c9721db309128012543902d0ac358a62ae28f75bb8f1c7c42c39a8c5529bf0f4e",
-    schnorr.SchnorrProof { t: #"a45265a9cdaaf15c32d01b289042843ee9cb371952e879fea2d7728bef8e02bf79844582649c1dcd14457a388016b301", z: z_bad },
+    schnorr.SchnorrProof {
+      t: #"a45265a9cdaaf15c32d01b289042843ee9cb371952e879fea2d7728bef8e02bf79844582649c1dcd14457a388016b301",
+      z: z_bad,
+    },
     #"637478",
   )
 }
 
 test schnorr_kat_neg_z_flip_8() fail {
   // Flip the LSB of z — proof must be rejected.
-  let z_bad: ByteArray = #"58d1d78e8ff29b2c1ebc2c583d7b194cf7cc8fd9323e29e235fc01dbfe2cffe5"
+  let z_bad: ByteArray =
+    #"58d1d78e8ff29b2c1ebc2c583d7b194cf7cc8fd9323e29e235fc01dbfe2cffe5"
   schnorr.verify(
     #"97f1d3a73197d7942695638c4fa9ac0fc3688c4f9774b905a14e3a3f171bac586c55e83ff97a1aeffb3af00adb22c6bb",
     #"a572cbea904d67468808c8eb50a9450c9721db309128012543902d0ac358a62ae28f75bb8f1c7c42c39a8c5529bf0f4e",
-    schnorr.SchnorrProof { t: #"b9cdfe3a0aae1358405d734cf0602d1c3cf551b01d38ed0a1cd5b4faff01ad6b660674bb8227d2740b224b1d38ae2078", z: z_bad },
+    schnorr.SchnorrProof {
+      t: #"b9cdfe3a0aae1358405d734cf0602d1c3cf551b01d38ed0a1cd5b4faff01ad6b660674bb8227d2740b224b1d38ae2078",
+      z: z_bad,
+    },
     #"a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5",
   )
 }
 
 test schnorr_kat_neg_z_flip_9() fail {
   // Flip the LSB of z — proof must be rejected.
-  let z_bad: ByteArray = #"1ac0a03ef64366cfdd515abdfdc8065e1e591d163cb3b920bc70653b8a659b1f"
+  let z_bad: ByteArray =
+    #"1ac0a03ef64366cfdd515abdfdc8065e1e591d163cb3b920bc70653b8a659b1f"
   schnorr.verify(
     #"b928f3beb93519eecf0145da903b40a4c97dca00b21f12ac0df3be9116ef2ef27b2ae6bcd4c5bc2d54ef5a70627efcb7",
     #"99bef05aaba1ea467fcbc9c420f5e3153c9d2b5f9bf2c7e2e7f6946f854043627b45b008607b9a9108bb96f3c1c089d3",
-    schnorr.SchnorrProof { t: #"95cbc960b29381c331843eff2c0010426e6ed411c8a94ff322fe3127680bf9dc95c5ab42a81cc9ea8f17a0c9454cb7a1", z: z_bad },
+    schnorr.SchnorrProof {
+      t: #"95cbc960b29381c331843eff2c0010426e6ed411c8a94ff322fe3127680bf9dc95c5ab42a81cc9ea8f17a0c9454cb7a1",
+      z: z_bad,
+    },
     #"",
   )
 }
 
 test schnorr_kat_neg_z_flip_10() fail {
   // Flip the LSB of z — proof must be rejected.
-  let z_bad: ByteArray = #"365358ab5370f229f572b020f3dcd8a63e46c6871b4c6be9c37eab33eb4f30f8"
+  let z_bad: ByteArray =
+    #"365358ab5370f229f572b020f3dcd8a63e46c6871b4c6be9c37eab33eb4f30f8"
   schnorr.verify(
     #"b928f3beb93519eecf0145da903b40a4c97dca00b21f12ac0df3be9116ef2ef27b2ae6bcd4c5bc2d54ef5a70627efcb7",
     #"99bef05aaba1ea467fcbc9c420f5e3153c9d2b5f9bf2c7e2e7f6946f854043627b45b008607b9a9108bb96f3c1c089d3",
-    schnorr.SchnorrProof { t: #"94f6f87b74eacf091d2e28e6154c7a9db210162ef4cf00e89ce59b7d89c3de3e418c85eec2feebd916399f94a15a728a", z: z_bad },
+    schnorr.SchnorrProof {
+      t: #"94f6f87b74eacf091d2e28e6154c7a9db210162ef4cf00e89ce59b7d89c3de3e418c85eec2feebd916399f94a15a728a",
+      z: z_bad,
+    },
     #"637478",
   )
 }
 
 test schnorr_kat_neg_z_flip_11() fail {
   // Flip the LSB of z — proof must be rejected.
-  let z_bad: ByteArray = #"6f5b3a43893d2f71ad4b8c8b4883f3a569f1042d75385661d47ed8329915ff67"
+  let z_bad: ByteArray =
+    #"6f5b3a43893d2f71ad4b8c8b4883f3a569f1042d75385661d47ed8329915ff67"
   schnorr.verify(
     #"b928f3beb93519eecf0145da903b40a4c97dca00b21f12ac0df3be9116ef2ef27b2ae6bcd4c5bc2d54ef5a70627efcb7",
     #"99bef05aaba1ea467fcbc9c420f5e3153c9d2b5f9bf2c7e2e7f6946f854043627b45b008607b9a9108bb96f3c1c089d3",
-    schnorr.SchnorrProof { t: #"9369260bd48473d08f935954ea3261718299ffe61ecf4d6d1a2aff277efb7f16ba43500255d336ccd8424dc3e4074681", z: z_bad },
+    schnorr.SchnorrProof {
+      t: #"9369260bd48473d08f935954ea3261718299ffe61ecf4d6d1a2aff277efb7f16ba43500255d336ccd8424dc3e4074681",
+      z: z_bad,
+    },
     #"a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5",
   )
 }
 
 test schnorr_kat_neg_z_flip_12() fail {
   // Flip the LSB of z — proof must be rejected.
-  let z_bad: ByteArray = #"32bdb68377363e3a850d32a39a56806801b10b5fcaec537d5ab124a709d06d1f"
+  let z_bad: ByteArray =
+    #"32bdb68377363e3a850d32a39a56806801b10b5fcaec537d5ab124a709d06d1f"
   schnorr.verify(
     #"97f1d3a73197d7942695638c4fa9ac0fc3688c4f9774b905a14e3a3f171bac586c55e83ff97a1aeffb3af00adb22c6bb",
     #"b928f3beb93519eecf0145da903b40a4c97dca00b21f12ac0df3be9116ef2ef27b2ae6bcd4c5bc2d54ef5a70627efcb7",
-    schnorr.SchnorrProof { t: #"86f25a9a460309db555bfd4ddebdee72e9efeff19019c8852fb7a8ef8b10adeed33ee5749ad95c350d5dec957bb1f932", z: z_bad },
+    schnorr.SchnorrProof {
+      t: #"86f25a9a460309db555bfd4ddebdee72e9efeff19019c8852fb7a8ef8b10adeed33ee5749ad95c350d5dec957bb1f932",
+      z: z_bad,
+    },
     #"",
   )
 }
 
 test schnorr_kat_neg_z_flip_13() fail {
   // Flip the LSB of z — proof must be rejected.
-  let z_bad: ByteArray = #"49a1e357beb36c73a5cf00b23ef76e30b314fdd8e6993ffc1208fa394b02c94a"
+  let z_bad: ByteArray =
+    #"49a1e357beb36c73a5cf00b23ef76e30b314fdd8e6993ffc1208fa394b02c94a"
   schnorr.verify(
     #"97f1d3a73197d7942695638c4fa9ac0fc3688c4f9774b905a14e3a3f171bac586c55e83ff97a1aeffb3af00adb22c6bb",
     #"b928f3beb93519eecf0145da903b40a4c97dca00b21f12ac0df3be9116ef2ef27b2ae6bcd4c5bc2d54ef5a70627efcb7",
-    schnorr.SchnorrProof { t: #"90721c447d60f6a5eeb409540e762a80a186768cb4b0195aa35ba76144c6d4b5f6ac83e4367b966ab384b1fb886df0c9", z: z_bad },
+    schnorr.SchnorrProof {
+      t: #"90721c447d60f6a5eeb409540e762a80a186768cb4b0195aa35ba76144c6d4b5f6ac83e4367b966ab384b1fb886df0c9",
+      z: z_bad,
+    },
     #"637478",
   )
 }
 
 test schnorr_kat_neg_z_flip_14() fail {
   // Flip the LSB of z — proof must be rejected.
-  let z_bad: ByteArray = #"38542dd6369856c1f9b89f94b0f8e53c8cec7d0d5598ec659ef3a83e377223da"
+  let z_bad: ByteArray =
+    #"38542dd6369856c1f9b89f94b0f8e53c8cec7d0d5598ec659ef3a83e377223da"
   schnorr.verify(
     #"97f1d3a73197d7942695638c4fa9ac0fc3688c4f9774b905a14e3a3f171bac586c55e83ff97a1aeffb3af00adb22c6bb",
     #"b928f3beb93519eecf0145da903b40a4c97dca00b21f12ac0df3be9116ef2ef27b2ae6bcd4c5bc2d54ef5a70627efcb7",
-    schnorr.SchnorrProof { t: #"a7ae2db2595f2385cd04f7afeef6bd174352c3996aa1a4d4d11e431e09948f47e6c59ff2fdde7eaf73f0374c8483a63a", z: z_bad },
+    schnorr.SchnorrProof {
+      t: #"a7ae2db2595f2385cd04f7afeef6bd174352c3996aa1a4d4d11e431e09948f47e6c59ff2fdde7eaf73f0374c8483a63a",
+      z: z_bad,
+    },
     #"a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5",
   )
 }
 
 test schnorr_kat_neg_z_flip_15() fail {
   // Flip the LSB of z — proof must be rejected.
-  let z_bad: ByteArray = #"307433705178e7204e9bdeba0574c2188c2e3370162627ca11a0f2e6b2d37974"
+  let z_bad: ByteArray =
+    #"307433705178e7204e9bdeba0574c2188c2e3370162627ca11a0f2e6b2d37974"
   schnorr.verify(
     #"b928f3beb93519eecf0145da903b40a4c97dca00b21f12ac0df3be9116ef2ef27b2ae6bcd4c5bc2d54ef5a70627efcb7",
     #"a3caedb9c2a5d8e922359ef69f9c35b8c819bcb081610343148dc3a2c50255c9caa6090f49f890ca31d853384fc80d00",
-    schnorr.SchnorrProof { t: #"8a6e4da02b57c2827ea7bba560b5db5231309389e81a8c29ed1934cb83d1593afdb60a07bc15043f8eebf578cb2f3515", z: z_bad },
+    schnorr.SchnorrProof {
+      t: #"8a6e4da02b57c2827ea7bba560b5db5231309389e81a8c29ed1934cb83d1593afdb60a07bc15043f8eebf578cb2f3515",
+      z: z_bad,
+    },
     #"",
   )
 }
 
 test schnorr_kat_neg_z_flip_16() fail {
   // Flip the LSB of z — proof must be rejected.
-  let z_bad: ByteArray = #"41da81839fbb97bbb0623ab2df6ce0c46227c4d287494ae6c98f017602725d9e"
+  let z_bad: ByteArray =
+    #"41da81839fbb97bbb0623ab2df6ce0c46227c4d287494ae6c98f017602725d9e"
   schnorr.verify(
     #"b928f3beb93519eecf0145da903b40a4c97dca00b21f12ac0df3be9116ef2ef27b2ae6bcd4c5bc2d54ef5a70627efcb7",
     #"a3caedb9c2a5d8e922359ef69f9c35b8c819bcb081610343148dc3a2c50255c9caa6090f49f890ca31d853384fc80d00",
-    schnorr.SchnorrProof { t: #"a88483ce665ee1ba9be7f0c57217e89a68ed7d02a80d4ca07eb005f7af1fd9d805572ba13b85f7d58fedc4bcca4306b8", z: z_bad },
+    schnorr.SchnorrProof {
+      t: #"a88483ce665ee1ba9be7f0c57217e89a68ed7d02a80d4ca07eb005f7af1fd9d805572ba13b85f7d58fedc4bcca4306b8",
+      z: z_bad,
+    },
     #"637478",
   )
 }
 
 test schnorr_kat_neg_z_flip_17() fail {
   // Flip the LSB of z — proof must be rejected.
-  let z_bad: ByteArray = #"65857086001320a6aa6bf775a845b48c6a6266ad8ddafec225c6dd0216a2f207"
+  let z_bad: ByteArray =
+    #"65857086001320a6aa6bf775a845b48c6a6266ad8ddafec225c6dd0216a2f207"
   schnorr.verify(
     #"b928f3beb93519eecf0145da903b40a4c97dca00b21f12ac0df3be9116ef2ef27b2ae6bcd4c5bc2d54ef5a70627efcb7",
     #"a3caedb9c2a5d8e922359ef69f9c35b8c819bcb081610343148dc3a2c50255c9caa6090f49f890ca31d853384fc80d00",
-    schnorr.SchnorrProof { t: #"994e5313ea001b194b9781eb8338c04a876234bbb1bae0b5632857c29fab3a77a2671c1a13a207dee2520ef130666b0c", z: z_bad },
+    schnorr.SchnorrProof {
+      t: #"994e5313ea001b194b9781eb8338c04a876234bbb1bae0b5632857c29fab3a77a2671c1a13a207dee2520ef130666b0c",
+      z: z_bad,
+    },
     #"a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5",
   )
 }
 
 test schnorr_kat_neg_z_flip_18() fail {
   // Flip the LSB of z — proof must be rejected.
-  let z_bad: ByteArray = #"1f12b19504bf3a1b025f5ed6b434e0f86c027f8729df8d1445a25d1fddb127cf"
+  let z_bad: ByteArray =
+    #"1f12b19504bf3a1b025f5ed6b434e0f86c027f8729df8d1445a25d1fddb127cf"
   schnorr.verify(
     #"97f1d3a73197d7942695638c4fa9ac0fc3688c4f9774b905a14e3a3f171bac586c55e83ff97a1aeffb3af00adb22c6bb",
     #"acccb5bab2944a1bdc721c97f3affa035d507c78fe442a9284982bd4c27617b33f1d46e8191a1eda03d73c357752d219",
-    schnorr.SchnorrProof { t: #"889a51f3a2e752a3036b9567c5fd210fd4a235171d865f61899bc4f50f3613c1854b09387c6e0ba33c6f4f7c0493ec46", z: z_bad },
+    schnorr.SchnorrProof {
+      t: #"889a51f3a2e752a3036b9567c5fd210fd4a235171d865f61899bc4f50f3613c1854b09387c6e0ba33c6f4f7c0493ec46",
+      z: z_bad,
+    },
     #"",
   )
 }
 
 test schnorr_kat_neg_z_flip_19() fail {
   // Flip the LSB of z — proof must be rejected.
-  let z_bad: ByteArray = #"5c943460687f611409b4aea4273043aeb75c67921d705d92bb783d788f844962"
+  let z_bad: ByteArray =
+    #"5c943460687f611409b4aea4273043aeb75c67921d705d92bb783d788f844962"
   schnorr.verify(
     #"97f1d3a73197d7942695638c4fa9ac0fc3688c4f9774b905a14e3a3f171bac586c55e83ff97a1aeffb3af00adb22c6bb",
     #"acccb5bab2944a1bdc721c97f3affa035d507c78fe442a9284982bd4c27617b33f1d46e8191a1eda03d73c357752d219",
-    schnorr.SchnorrProof { t: #"a5fd95910d2f44c1e7eace2f5eb8a19bec048bf2b45530d7f5f09bbbbbb7196c0e32677092f1bf9380cdba49babfc315", z: z_bad },
+    schnorr.SchnorrProof {
+      t: #"a5fd95910d2f44c1e7eace2f5eb8a19bec048bf2b45530d7f5f09bbbbbb7196c0e32677092f1bf9380cdba49babfc315",
+      z: z_bad,
+    },
     #"637478",
   )
 }
 
 test schnorr_kat_neg_z_flip_20() fail {
   // Flip the LSB of z — proof must be rejected.
-  let z_bad: ByteArray = #"3e3eda2e3b5b958b624d4f7a28b0954d0d41f37c5723740c51bde5dc1e9f9d51"
+  let z_bad: ByteArray =
+    #"3e3eda2e3b5b958b624d4f7a28b0954d0d41f37c5723740c51bde5dc1e9f9d51"
   schnorr.verify(
     #"97f1d3a73197d7942695638c4fa9ac0fc3688c4f9774b905a14e3a3f171bac586c55e83ff97a1aeffb3af00adb22c6bb",
     #"acccb5bab2944a1bdc721c97f3affa035d507c78fe442a9284982bd4c27617b33f1d46e8191a1eda03d73c357752d219",
-    schnorr.SchnorrProof { t: #"8241ec3f99601e506dc16fa98dc7653865b8807438f66cc8ac3c98e37f9956c7243a2f1b692f5bfc6d02caea8a76613e", z: z_bad },
+    schnorr.SchnorrProof {
+      t: #"8241ec3f99601e506dc16fa98dc7653865b8807438f66cc8ac3c98e37f9956c7243a2f1b692f5bfc6d02caea8a76613e",
+      z: z_bad,
+    },
     #"a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5",
   )
 }
 
 test schnorr_kat_neg_z_flip_21() fail {
   // Flip the LSB of z — proof must be rejected.
-  let z_bad: ByteArray = #"5cf0ccf3ab3d345a503435d5f61499754290a774bca613af0ad784cd1bd9564b"
+  let z_bad: ByteArray =
+    #"5cf0ccf3ab3d345a503435d5f61499754290a774bca613af0ad784cd1bd9564b"
   schnorr.verify(
     #"b928f3beb93519eecf0145da903b40a4c97dca00b21f12ac0df3be9116ef2ef27b2ae6bcd4c5bc2d54ef5a70627efcb7",
     #"8af7b425b7ea9df670fcecbea137acfe16255e8e4d992eb0ae22f5c6cf50e120c6306d8c50f33231c7674b5dfbc353e4",
-    schnorr.SchnorrProof { t: #"a0d704a705a66c1315be2ffca5846040e7d5715a116ad8c93aac515f9f68172ebc5cf0375bd610daf4cdb5f0d9e2c3e8", z: z_bad },
+    schnorr.SchnorrProof {
+      t: #"a0d704a705a66c1315be2ffca5846040e7d5715a116ad8c93aac515f9f68172ebc5cf0375bd610daf4cdb5f0d9e2c3e8",
+      z: z_bad,
+    },
     #"",
   )
 }
 
 test schnorr_kat_neg_z_flip_22() fail {
   // Flip the LSB of z — proof must be rejected.
-  let z_bad: ByteArray = #"14244d5417007325c748781719c28085db316ecb94e11609803a5f369cc71e22"
+  let z_bad: ByteArray =
+    #"14244d5417007325c748781719c28085db316ecb94e11609803a5f369cc71e22"
   schnorr.verify(
     #"b928f3beb93519eecf0145da903b40a4c97dca00b21f12ac0df3be9116ef2ef27b2ae6bcd4c5bc2d54ef5a70627efcb7",
     #"8af7b425b7ea9df670fcecbea137acfe16255e8e4d992eb0ae22f5c6cf50e120c6306d8c50f33231c7674b5dfbc353e4",
-    schnorr.SchnorrProof { t: #"8b4a25873a386df2ad3b872c08b91c167e92c4e3064148d2fb8afb68d4732ebfa0ba43b966206ff6940628ab57dbaa1b", z: z_bad },
+    schnorr.SchnorrProof {
+      t: #"8b4a25873a386df2ad3b872c08b91c167e92c4e3064148d2fb8afb68d4732ebfa0ba43b966206ff6940628ab57dbaa1b",
+      z: z_bad,
+    },
     #"637478",
   )
 }
 
 test schnorr_kat_neg_z_flip_23() fail {
   // Flip the LSB of z — proof must be rejected.
-  let z_bad: ByteArray = #"619194ac91aa73047b73d535e3dffcb052943022e4ff1b96b873bd0e704bd944"
+  let z_bad: ByteArray =
+    #"619194ac91aa73047b73d535e3dffcb052943022e4ff1b96b873bd0e704bd944"
   schnorr.verify(
     #"b928f3beb93519eecf0145da903b40a4c97dca00b21f12ac0df3be9116ef2ef27b2ae6bcd4c5bc2d54ef5a70627efcb7",
     #"8af7b425b7ea9df670fcecbea137acfe16255e8e4d992eb0ae22f5c6cf50e120c6306d8c50f33231c7674b5dfbc353e4",
-    schnorr.SchnorrProof { t: #"8ada9d0fc5ddcf52112f86ec86051e4dd7889818fa6d5c6624a3dcee3dd76153683dcacb08d32b300a4836c1b61f62ca", z: z_bad },
+    schnorr.SchnorrProof {
+      t: #"8ada9d0fc5ddcf52112f86ec86051e4dd7889818fa6d5c6624a3dcee3dd76153683dcacb08d32b300a4836c1b61f62ca",
+      z: z_bad,
+    },
     #"a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5",
   )
 }
 
 test schnorr_kat_neg_z_flip_24() fail {
   // Flip the LSB of z — proof must be rejected.
-  let z_bad: ByteArray = #"2eb7934bd1f36661a780fdcd0ee562f8766277e22421322c399c73a39ddb9954"
+  let z_bad: ByteArray =
+    #"2eb7934bd1f36661a780fdcd0ee562f8766277e22421322c399c73a39ddb9954"
   schnorr.verify(
     #"97f1d3a73197d7942695638c4fa9ac0fc3688c4f9774b905a14e3a3f171bac586c55e83ff97a1aeffb3af00adb22c6bb",
     #"b7f1d3a73197d7942695638c4fa9ac0fc3688c4f9774b905a14e3a3f171bac586c55e83ff97a1aeffb3af00adb22c6bb",
-    schnorr.SchnorrProof { t: #"a936208d39b93a2cf4b2a11dc383db9b2cd28b98dab9b69020a118c27ca44ebeec0b74cbd4d6f9bc3291cbc47ce6eec9", z: z_bad },
+    schnorr.SchnorrProof {
+      t: #"a936208d39b93a2cf4b2a11dc383db9b2cd28b98dab9b69020a118c27ca44ebeec0b74cbd4d6f9bc3291cbc47ce6eec9",
+      z: z_bad,
+    },
     #"",
   )
 }
 
 test schnorr_kat_neg_z_flip_25() fail {
   // Flip the LSB of z — proof must be rejected.
-  let z_bad: ByteArray = #"7385549140b04157447d4783ab7651223e3e9ee02393abd350e350724444708c"
+  let z_bad: ByteArray =
+    #"7385549140b04157447d4783ab7651223e3e9ee02393abd350e350724444708c"
   schnorr.verify(
     #"97f1d3a73197d7942695638c4fa9ac0fc3688c4f9774b905a14e3a3f171bac586c55e83ff97a1aeffb3af00adb22c6bb",
     #"b7f1d3a73197d7942695638c4fa9ac0fc3688c4f9774b905a14e3a3f171bac586c55e83ff97a1aeffb3af00adb22c6bb",
-    schnorr.SchnorrProof { t: #"8a5dfe66f904896e680bfbad25804e86cfb972ad3d7b3309b2d07e424534c2f985cb094d5bab223ebe1b5c814a7b655c", z: z_bad },
+    schnorr.SchnorrProof {
+      t: #"8a5dfe66f904896e680bfbad25804e86cfb972ad3d7b3309b2d07e424534c2f985cb094d5bab223ebe1b5c814a7b655c",
+      z: z_bad,
+    },
     #"637478",
   )
 }
 
 test schnorr_kat_neg_z_flip_26() fail {
   // Flip the LSB of z — proof must be rejected.
-  let z_bad: ByteArray = #"0318ad77c600cc675aac54cd85ad34f031dc6eb3fe802ccb77db3d69388120e5"
+  let z_bad: ByteArray =
+    #"0318ad77c600cc675aac54cd85ad34f031dc6eb3fe802ccb77db3d69388120e5"
   schnorr.verify(
     #"97f1d3a73197d7942695638c4fa9ac0fc3688c4f9774b905a14e3a3f171bac586c55e83ff97a1aeffb3af00adb22c6bb",
     #"b7f1d3a73197d7942695638c4fa9ac0fc3688c4f9774b905a14e3a3f171bac586c55e83ff97a1aeffb3af00adb22c6bb",
-    schnorr.SchnorrProof { t: #"87af8f17945036624a801a1e7523ffa9be37c075edfe46c74ab50eba874221f2f9ff746d46ace31cb09ebd8e54a8a873", z: z_bad },
+    schnorr.SchnorrProof {
+      t: #"87af8f17945036624a801a1e7523ffa9be37c075edfe46c74ab50eba874221f2f9ff746d46ace31cb09ebd8e54a8a873",
+      z: z_bad,
+    },
     #"a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5",
   )
 }
 
 test schnorr_kat_neg_z_flip_27() fail {
   // Flip the LSB of z — proof must be rejected.
-  let z_bad: ByteArray = #"2ea6e72fafa0b9701ab4d8d05227f2e7c5da32756446cccc36ec63bedc0c8935"
+  let z_bad: ByteArray =
+    #"2ea6e72fafa0b9701ab4d8d05227f2e7c5da32756446cccc36ec63bedc0c8935"
   schnorr.verify(
     #"b928f3beb93519eecf0145da903b40a4c97dca00b21f12ac0df3be9116ef2ef27b2ae6bcd4c5bc2d54ef5a70627efcb7",
     #"9928f3beb93519eecf0145da903b40a4c97dca00b21f12ac0df3be9116ef2ef27b2ae6bcd4c5bc2d54ef5a70627efcb7",
-    schnorr.SchnorrProof { t: #"b7b2df3e57ac72efed5943403af96f663781542b0d33dad81acd4bb94cbe5bbbf8242bde7c1f80865008248229fe961f", z: z_bad },
+    schnorr.SchnorrProof {
+      t: #"b7b2df3e57ac72efed5943403af96f663781542b0d33dad81acd4bb94cbe5bbbf8242bde7c1f80865008248229fe961f",
+      z: z_bad,
+    },
     #"",
   )
 }
 
 test schnorr_kat_neg_z_flip_28() fail {
   // Flip the LSB of z — proof must be rejected.
-  let z_bad: ByteArray = #"6f29ed7e29dc20783ed52490997e072fcc4cff70b5235ac9ad953e886f95511f"
+  let z_bad: ByteArray =
+    #"6f29ed7e29dc20783ed52490997e072fcc4cff70b5235ac9ad953e886f95511f"
   schnorr.verify(
     #"b928f3beb93519eecf0145da903b40a4c97dca00b21f12ac0df3be9116ef2ef27b2ae6bcd4c5bc2d54ef5a70627efcb7",
     #"9928f3beb93519eecf0145da903b40a4c97dca00b21f12ac0df3be9116ef2ef27b2ae6bcd4c5bc2d54ef5a70627efcb7",
-    schnorr.SchnorrProof { t: #"b138f8ec742fb77a01aaa0b40db674b54951c46868998e859475ac2efc8f4324147866d31bbe179921cb1c463be1455f", z: z_bad },
+    schnorr.SchnorrProof {
+      t: #"b138f8ec742fb77a01aaa0b40db674b54951c46868998e859475ac2efc8f4324147866d31bbe179921cb1c463be1455f",
+      z: z_bad,
+    },
     #"637478",
   )
 }
 
 test schnorr_kat_neg_z_flip_29() fail {
   // Flip the LSB of z — proof must be rejected.
-  let z_bad: ByteArray = #"0ac9baba0cfe8482795a63178aa26b7b0c0e91528e32aba746acb5001c476a39"
+  let z_bad: ByteArray =
+    #"0ac9baba0cfe8482795a63178aa26b7b0c0e91528e32aba746acb5001c476a39"
   schnorr.verify(
     #"b928f3beb93519eecf0145da903b40a4c97dca00b21f12ac0df3be9116ef2ef27b2ae6bcd4c5bc2d54ef5a70627efcb7",
     #"9928f3beb93519eecf0145da903b40a4c97dca00b21f12ac0df3be9116ef2ef27b2ae6bcd4c5bc2d54ef5a70627efcb7",
-    schnorr.SchnorrProof { t: #"9502b59e01bdaef50b99863e2cc04f2d3593c89712a0acc37ad0b4cbebc516917f192ad2a0b86d0f73c1f2643fa187e2", z: z_bad },
+    schnorr.SchnorrProof {
+      t: #"9502b59e01bdaef50b99863e2cc04f2d3593c89712a0acc37ad0b4cbebc516917f192ad2a0b86d0f73c1f2643fa187e2",
+      z: z_bad,
+    },
     #"a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5",
   )
 }

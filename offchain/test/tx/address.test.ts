@@ -8,7 +8,10 @@
 
 import { describe, expect, it } from "vitest";
 
-import { buildEnterpriseScriptAddress } from "../../src/tx/address.js";
+import {
+  buildEnterpriseScriptAddress,
+  buildScriptAddress,
+} from "../../src/tx/address.js";
 
 describe("tx/address — buildEnterpriseScriptAddress", () => {
   it("encodes a preprod fee_contract enterprise address", () => {
@@ -51,6 +54,51 @@ describe("tx/address — buildEnterpriseScriptAddress", () => {
     const scriptHash = "0x5efd8fdd7e4d35b04de427337220dcb30352136d739055b305dd2d66";
     expect(buildEnterpriseScriptAddress(scriptHash, 0)).toBe(
       "addr_test1wp00mr7a0exntvzdusnnxu3qmjesx5snd4eeq4dnqhwj6esn2pdrd",
+    );
+  });
+});
+
+describe("tx/address — buildScriptAddress (with optional stake key)", () => {
+  // Reference vector: cardano-cli conway address build
+  //   --payment-script-file artifacts/preprod/fee_contract.plutus
+  //   --stake-verification-key-hash 1e3105f23f2ac91b3fb4c35fa4fe301421028e356e114944e902005b
+  //   --testnet-magic 1
+  // Re-run that command on a Preprod-tooled box to regenerate.
+  const FEE_SCRIPT = "5efd8fdd7e4d35b04de427337220dcb30352136d739055b305dd2d66";
+  const PREPROD_STAKE = "1e3105f23f2ac91b3fb4c35fa4fe301421028e356e114944e902005b";
+
+  it("falls back to enterprise when no stake hash is given", () => {
+    expect(buildScriptAddress(FEE_SCRIPT, 0)).toBe(
+      buildEnterpriseScriptAddress(FEE_SCRIPT, 0),
+    );
+  });
+
+  it("treats null + undefined as 'no stake' for ergonomics", () => {
+    const enterprise = buildEnterpriseScriptAddress(FEE_SCRIPT, 0);
+    expect(buildScriptAddress(FEE_SCRIPT, 0, null)).toBe(enterprise);
+    expect(buildScriptAddress(FEE_SCRIPT, 0, undefined)).toBe(enterprise);
+  });
+
+  it("emits an addr_test1z… base address on testnet when stake hash is set", () => {
+    const out = buildScriptAddress(FEE_SCRIPT, 0, PREPROD_STAKE);
+    // Type 0001 + network 0 = header 0x10 → bech32 first data char is 'z'.
+    expect(out.startsWith("addr_test1z")).toBe(true);
+    // Differs from the enterprise variant.
+    expect(out).not.toBe(buildEnterpriseScriptAddress(FEE_SCRIPT, 0));
+  });
+
+  it("emits an addr1z… base address on mainnet when stake hash is set", () => {
+    const mainnetStake = "07ac7dee6c82177096b70ccf21cfb8965c1fb08e079f9ca4af4b2b3e";
+    const out = buildScriptAddress(FEE_SCRIPT, 1, mainnetStake);
+    expect(out.startsWith("addr1z")).toBe(true);
+  });
+
+  it("rejects stake hashes with the wrong byte length", () => {
+    expect(() => buildScriptAddress(FEE_SCRIPT, 0, "ab".repeat(20))).toThrow(
+      /stake-key hash must be 28 bytes/,
+    );
+    expect(() => buildScriptAddress(FEE_SCRIPT, 0, "ab".repeat(32))).toThrow(
+      /stake-key hash must be 28 bytes/,
     );
   });
 });

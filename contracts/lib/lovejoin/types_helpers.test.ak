@@ -65,8 +65,9 @@ test mix_datum_decode_datum_hash() {
 
 test mix_datum_decode_inline_well_formed() {
   let d: Data = MixDatum { a: a48, b: c48 }
-  mixbox.try_decode_well_formed_inline(InlineDatum(d))
-    == Some(MixDatum { a: a48, b: c48 })
+  mixbox.try_decode_well_formed_inline(InlineDatum(d)) == Some(
+    MixDatum { a: a48, b: c48 },
+  )
 }
 
 test mix_datum_decode_optional_none() {

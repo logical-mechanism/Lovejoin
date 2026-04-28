@@ -6,9 +6,9 @@
 ////
 //// We exercise both rules with positive + negative cases.
 
-use cardano/assets
-use cardano/transaction.{Input, Output, OutputReference, Transaction, NoDatum}
 use cardano/address
+use cardano/assets
+use cardano/transaction.{Input, NoDatum, Output, OutputReference, Transaction}
 use one_shot_mint
 
 const seed: OutputReference =
@@ -42,8 +42,11 @@ fn placeholder_input(out_ref: OutputReference) -> Input {
   }
 }
 
-fn tx_with_inputs_and_mint(inputs: List<Input>, mint: assets.Value) -> Transaction {
-  Transaction { ..transaction.placeholder, inputs: inputs, mint: mint }
+fn tx_with_inputs_and_mint(
+  inputs: List<Input>,
+  mint: assets.Value,
+) -> Transaction {
+  Transaction { ..transaction.placeholder, inputs, mint }
 }
 
 // ---------------------------------------------------------------------------

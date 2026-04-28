@@ -46,6 +46,12 @@ jobs:
       - name: Install
         run: pnpm install --frozen-lockfile
 
+      # The UI imports @lovejoin/sdk which resolves to offchain/dist/.
+      # On a clean checkout that doesn't exist yet, so build the SDK
+      # before linting consumers — otherwise UI's tsc fails with TS2307.
+      - name: Build SDK (for downstream lint resolution)
+        run: pnpm --filter @lovejoin/sdk run build
+
       - name: Lint
         run: pnpm -r --filter ./offchain --filter ./backend --filter ./ui run lint
 

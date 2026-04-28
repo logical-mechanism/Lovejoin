@@ -80,7 +80,10 @@ pub fn try_decode_well_formed_data(inline_data: Data) -> Option<MixDatum> {
 }
 
 fn decode_two_byte_fields(a_field: Data, b_field: Data) -> Option<MixDatum> {
-  if and { is_bytes(a_field), is_bytes(b_field) } {
+  if and {
+    is_bytes(a_field),
+    is_bytes(b_field),
+  } {
     let a = builtin.un_b_data(a_field)
     let b = builtin.un_b_data(b_field)
     if and {

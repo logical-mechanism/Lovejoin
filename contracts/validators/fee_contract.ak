@@ -34,7 +34,10 @@ use lovejoin/reference.{read_reference_datum}
 use lovejoin/types.{FeeRedeemer, PayMixFee, ReferenceDatum, Replenish}
 
 // Flat params — one CBOR atom per `aiken blueprint apply` call.
-validator fee_contract(reference_nft_policy: PolicyId, reference_nft_name: AssetName) {
+validator fee_contract(
+  reference_nft_policy: PolicyId,
+  reference_nft_name: AssetName,
+) {
   spend(
     datum: Option<Data>,
     redeemer: FeeRedeemer,
@@ -59,6 +62,10 @@ validator fee_contract(reference_nft_policy: PolicyId, reference_nft_name: Asset
         Replenish -> validate_replenish(self, own_input, own_hash)
       }
     }
+  }
+
+  else(_) {
+    fail
   }
 }
 
@@ -122,8 +129,9 @@ fn validate_replenish(
     is_unit_inline_datum(fee_output.datum),
     ada_only(own_input.output.value),
     ada_only(fee_output.value),
-    assets.lovelace_of(fee_output.value)
-      > assets.lovelace_of(own_input.output.value),
+    assets.lovelace_of(fee_output.value) > assets.lovelace_of(
+      own_input.output.value,
+    ),
   }
 }
 

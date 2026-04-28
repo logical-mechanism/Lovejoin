@@ -4,13 +4,15 @@
 
 use aiken/collection/list
 use cardano/assets
-use cardano/transaction.{InlineDatum, Input, Output, OutputReference, Transaction}
+use cardano/transaction.{
+  InlineDatum, Input, Output, OutputReference, Transaction,
+}
 use fee_contract
 use lovejoin/test_fixtures.{
-  default_reference_input, denom_lovelace, fee_shard_input, fee_shard_output,
-  fee_shard_output_no_datum, fee_script_hash, max_fee_per_mix_lovelace,
-  mix_box_input, out_ref, random_user_vk, ref_nft_name, ref_nft_policy,
-  script_address, vk_output_lovelace, a48, b48,
+  a48, b48, default_reference_input, denom_lovelace, fee_script_hash,
+  fee_shard_input, fee_shard_output, fee_shard_output_no_datum,
+  max_fee_per_mix_lovelace, mix_box_input, out_ref, random_user_vk, ref_nft_name,
+  ref_nft_policy, script_address, vk_output_lovelace,
 }
 use lovejoin/types.{PayMixFee, Replenish}
 
@@ -68,7 +70,7 @@ fn pay_mix_fee_tx(
     Transaction {
       ..transaction.placeholder,
       reference_inputs: [default_reference_input()],
-      inputs: inputs,
+      inputs,
       outputs: [fee_out, user_change],
       fee: tx_fee,
     }
@@ -79,7 +81,11 @@ fn build_mix_inputs(n: Int) -> List<Input> {
   do_build_mix_inputs(n, 0, [])
 }
 
-fn do_build_mix_inputs(remaining: Int, idx: Int, acc: List<Input>) -> List<Input> {
+fn do_build_mix_inputs(
+  remaining: Int,
+  idx: Int,
+  acc: List<Input>,
+) -> List<Input> {
   if remaining == 0 {
     list.reverse(acc)
   } else {
@@ -89,7 +95,8 @@ fn do_build_mix_inputs(remaining: Int, idx: Int, acc: List<Input>) -> List<Input
 }
 
 test pay_mix_fee_positive_n2() {
-  let (tx, utxo) = pay_mix_fee_tx(default_fee_in, default_fee_in - 200_000, 200_000, 2)
+  let (tx, utxo) =
+    pay_mix_fee_tx(default_fee_in, default_fee_in - 200_000, 200_000, 2)
   let unit: Data = Void
   fee_contract.fee_contract.spend(
     ref_nft_policy,
@@ -102,7 +109,8 @@ test pay_mix_fee_positive_n2() {
 }
 
 test pay_mix_fee_positive_n6() {
-  let (tx, utxo) = pay_mix_fee_tx(default_fee_in, default_fee_in - 700_000, 700_000, 6)
+  let (tx, utxo) =
+    pay_mix_fee_tx(default_fee_in, default_fee_in - 700_000, 700_000, 6)
   let unit: Data = Void
   fee_contract.fee_contract.spend(
     ref_nft_policy,
@@ -141,7 +149,8 @@ test pay_mix_fee_positive_at_max_fee() {
 
 test pay_mix_fee_rejects_one_mix_input() fail {
   // Spec rule: ≥ 2 mix-script inputs (a real Mix tx, not a Deposit-shaped one).
-  let (tx, utxo) = pay_mix_fee_tx(default_fee_in, default_fee_in - 200_000, 200_000, 1)
+  let (tx, utxo) =
+    pay_mix_fee_tx(default_fee_in, default_fee_in - 200_000, 200_000, 1)
   let unit: Data = Void
   fee_contract.fee_contract.spend(
     ref_nft_policy,
@@ -154,7 +163,8 @@ test pay_mix_fee_rejects_one_mix_input() fail {
 }
 
 test pay_mix_fee_rejects_zero_mix_inputs() fail {
-  let (tx, utxo) = pay_mix_fee_tx(default_fee_in, default_fee_in - 200_000, 200_000, 0)
+  let (tx, utxo) =
+    pay_mix_fee_tx(default_fee_in, default_fee_in - 200_000, 200_000, 0)
   let unit: Data = Void
   fee_contract.fee_contract.spend(
     ref_nft_policy,
@@ -168,7 +178,8 @@ test pay_mix_fee_rejects_zero_mix_inputs() fail {
 
 test pay_mix_fee_rejects_fee_diff_too_small() fail {
   // fee_in - fee_out (100_000) < tx.fee (200_000): rule fails.
-  let (tx, utxo) = pay_mix_fee_tx(default_fee_in, default_fee_in - 100_000, 200_000, 2)
+  let (tx, utxo) =
+    pay_mix_fee_tx(default_fee_in, default_fee_in - 100_000, 200_000, 2)
   let unit: Data = Void
   fee_contract.fee_contract.spend(
     ref_nft_policy,
@@ -183,7 +194,8 @@ test pay_mix_fee_rejects_fee_diff_too_small() fail {
 test pay_mix_fee_rejects_fee_diff_too_large() fail {
   // fee_in - fee_out (300_000) > tx.fee (200_000): the shard would lose more
   // value than was actually paid; rule fails.
-  let (tx, utxo) = pay_mix_fee_tx(default_fee_in, default_fee_in - 300_000, 200_000, 2)
+  let (tx, utxo) =
+    pay_mix_fee_tx(default_fee_in, default_fee_in - 300_000, 200_000, 2)
   let unit: Data = Void
   fee_contract.fee_contract.spend(
     ref_nft_policy,
@@ -198,7 +210,8 @@ test pay_mix_fee_rejects_fee_diff_too_large() fail {
 test pay_mix_fee_rejects_fee_above_max() {
   // tx.fee just above max_fee_per_mix_lovelace.
   let over = max_fee_per_mix_lovelace + 1
-  let (tx, utxo) = pay_mix_fee_tx(default_fee_in, default_fee_in - over, over, 2)
+  let (tx, utxo) =
+    pay_mix_fee_tx(default_fee_in, default_fee_in - over, over, 2)
   let unit: Data = Void
   !fee_contract.fee_contract.spend(
     ref_nft_policy,
