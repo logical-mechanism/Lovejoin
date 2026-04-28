@@ -3,6 +3,13 @@
 // Spec: docs/spec/06-ui.md §"i18n from day one" — the lint must reject raw
 // English in JSX. We invoke the script as a subprocess against the live
 // src/ tree (positive case) plus a fake file with a raw string (negative).
+//
+// We use `process.execPath` (the absolute path to the Node binary running
+// vitest) instead of the bare `"node"` because some sandboxed Node installs
+// — notably the Ubuntu snap shim that VSCode's terminal often picks up —
+// swallow stdout/stderr when invoked via child_process. Using execPath
+// pins the same Node that's already running the test runner, which is
+// guaranteed to behave normally.
 
 import { execFile } from "node:child_process";
 import { mkdtemp, rm, writeFile } from "node:fs/promises";
@@ -18,10 +25,11 @@ const exec = promisify(execFile);
 const __filename = fileURLToPath(import.meta.url);
 const ROOT = resolve(dirname(__filename), "..");
 const SCRIPT = join(ROOT, "scripts", "check-i18n.mjs");
+const NODE = process.execPath;
 
 describe("check-i18n.mjs", () => {
   it("passes against the current src/ tree (no raw English)", async () => {
-    const { stdout } = await exec("node", [SCRIPT], { cwd: ROOT });
+    const { stdout } = await exec(NODE, [SCRIPT], { cwd: ROOT });
     expect(stdout).toMatch(/i18n lint: ok/);
   });
 
@@ -39,7 +47,7 @@ describe("check-i18n.mjs", () => {
       let failed = false;
       let stderr = "";
       try {
-        await exec("node", [SCRIPT], { cwd: ROOT });
+        await exec(NODE, [SCRIPT], { cwd: ROOT });
       } catch (e) {
         failed = true;
         stderr = String((e as { stderr?: string }).stderr ?? "");
