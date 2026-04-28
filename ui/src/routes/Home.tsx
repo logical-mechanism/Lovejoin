@@ -46,14 +46,9 @@ export function Home() {
               {t("home.cta_primary")}
             </button>
           )}
-          <a
-            className="lj-btn lj-btn--lg"
-            href="https://github.com/logical-mechanism/Lovejoin/blob/main/docs/spec/00-overview.md"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
+          <Link to="/protocol" className="lj-btn lj-btn--lg">
             {t("home.cta_secondary")}
-          </a>
+          </Link>
         </div>
       </section>
 

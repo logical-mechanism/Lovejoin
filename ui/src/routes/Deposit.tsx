@@ -112,10 +112,10 @@ export function Deposit() {
       </p>
 
       <form
-        className="mt-8 grid gap-6 md:grid-cols-2"
+        className="mt-6 flex flex-col gap-6"
         onSubmit={(e) => void onSubmit(e)}
       >
-        <label className="lj-field">
+        <label className="lj-field max-w-xs">
           <span className="lj-field__label">{t("deposit.rounds_label")}</span>
           <input
             type="number"
@@ -128,24 +128,14 @@ export function Deposit() {
           <span className="lj-field__hint">{t("deposit.rounds_help")}</span>
         </label>
 
-        <div className="flex flex-col gap-2">
-          <span className="lj-field__label">i</span>
-          <span className="font-display text-3xl font-light text-paper" data-num>
-            {nextDepositIndex}
+        <div className="lj-banner lj-banner--signal">
+          <span className="lj-eyebrow">{t("deposit.tx_preview_title")}</span>
+          <span className="lj-banner__detail">
+            {t("deposit.tx_preview_copy", { denom: denomAda })}
           </span>
-          <span className="lj-field__hint">{t("deposit.index_help")}</span>
         </div>
 
-        <div className="md:col-span-2">
-          <div className="lj-banner lj-banner--signal">
-            <span className="lj-eyebrow">{t("deposit.tx_preview_title")}</span>
-            <span className="lj-banner__detail">
-              {t("deposit.tx_preview_copy", { denom: denomAda })}
-            </span>
-          </div>
-        </div>
-
-        <div className="md:col-span-2">
+        <div>
           <button
             type="submit"
             disabled={submitting || rounds <= 0}

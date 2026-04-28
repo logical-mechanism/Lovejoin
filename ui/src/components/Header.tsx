@@ -23,14 +23,16 @@ export function Header() {
     <header className="lj-header">
       <div className="lj-header__inner">
         <Link to="/" className="lj-brand">
-          <span className="lj-brand__heart">❦</span>
+          <span className="lj-brand__caret">⟨</span>
           <span>{t("brand.mark")}</span>
+          <span className="lj-brand__caret">⟩</span>
         </Link>
 
         <nav className="lj-nav" aria-label={t("nav.aria_label")}>
           <NavLink to="/deposit">{t("nav.deposit")}</NavLink>
           <NavLink to="/pool">{t("nav.pool")}</NavLink>
           <NavLink to="/vault">{t("nav.vault")}</NavLink>
+          <NavLink to="/protocol">{t("nav.protocol")}</NavLink>
         </nav>
 
         {wallet ? (

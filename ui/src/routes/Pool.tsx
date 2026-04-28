@@ -101,12 +101,10 @@ export function Pool() {
           {t("pool.lede")}
         </p>
 
-        <div className="mt-8 grid gap-8 md:grid-cols-2">
-          <div>
-            <MixWidthSlider value={n} maxN={maxN} onChange={setN} />
-          </div>
+        <div className="mt-6 flex flex-col gap-6">
+          <MixWidthSlider value={n} maxN={maxN} onChange={setN} />
 
-          <div className="flex flex-col gap-3">
+          <div className="flex flex-wrap items-center gap-x-6 gap-y-2">
             <Eyebrow>{t("pool.fee_payer_label")}</Eyebrow>
             <div className="lj-toggle" role="group">
               <button
@@ -124,7 +122,7 @@ export function Pool() {
                 {t("pool.fee_payer_wallet")}
               </button>
             </div>
-            <p className="text-xs text-whisper leading-relaxed">
+            <p className="text-xs text-whisper basis-full leading-relaxed">
               {feePayer === "shard"
                 ? t("pool.fee_payer_shard_hint")
                 : t("pool.fee_payer_wallet_hint")}

@@ -29,14 +29,15 @@
     "deposit": "Deposit",
     "pool": "Mix",
     "vault": "Vault",
-    "withdraw": "Withdraw"
+    "withdraw": "Withdraw",
+    "protocol": "Protocol"
   },
   "home": {
-    "eyebrow": "Sigmajoin · BLS12-381 · Plutus V3",
+    "eyebrow": "Sigmajoin · BLS12-381 G1 · Plutus V3",
     "headline_a": "Anonymise on chain.",
     "headline_b": "Sign nothing on the way out.",
-    "lede": "Deposits enter a fixed-denomination pool. Each round of mixing re-randomises every owned box; nobody — not even the operator — can link your withdrawal to the deposit. After k rounds at width N, the linkage probability is (1/N)^k.",
-    "cta_primary": "Connect wallet to begin",
+    "lede": "A Cardano-native privacy mixer. Fixed-denomination boxes; N-way sigma-OR re-randomisation per Mix tx; Schnorr withdraw to a stealth destination. Linkage falls as (1/N)^k after k rounds.",
+    "cta_primary": "Connect wallet",
     "cta_secondary": "Read the protocol",
     "pillar_one_title": "Deposit",
     "pillar_one_copy": "Lock the fixed denomination into a fresh mix-box. Save your owner key in your wallet vault.",
@@ -91,6 +92,7 @@
     "mix_width_min": "min 2",
     "mix_width_max": "max {{n}}",
     "width_help": "Linkage probability per round: 1/{{n}}. Larger N means a bigger tx + more verifier work, with empirical max set by the deployment ({{cap}}).",
+    "width_help_fixed": "Deployment is calibrated for N = {{n}}. Linkage probability is 1/{{n}} per round; submit again for compounding privacy.",
     "submit": "Submit Mix tx",
     "mix_submitting": "Submitting…",
     "mix_submitted": "Mix submitted. Tx {{txId}}",
@@ -179,6 +181,18 @@
     "down": "Collateral provider unreachable",
     "unknown": "Collateral provider unknown",
     "banner_down": "The collateral provider is unreachable. Mix submission is disabled until it recovers."
+  },
+  "protocol": {
+    "eyebrow": "Sigmajoin · BLS12-381 · Plutus V3",
+    "title": "Protocol",
+    "lede": "A five-minute walkthrough of the math behind Lovejoin. Read the Sigmajoin paper for the full security argument; this page is the implementer's tour.",
+    "primitives_h": "Primitives",
+    "primitives_p": "Lovejoin uses three:",
+    "deposit_h": "Deposit",
+    "mix_h": "Mix",
+    "privacy_h": "Linkage",
+    "withdraw_h": "Withdraw",
+    "further_h": "Further reading"
   },
   "vault": {
     "title": "Vault",
