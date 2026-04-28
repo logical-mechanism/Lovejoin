@@ -1,0 +1,12 @@
+node_modules
+dist
+.env
+.env.*
+.git
+.github
+*.log
+test
+artifacts
+docs
+papers
+crypto/ref/target

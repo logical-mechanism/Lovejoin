@@ -75,6 +75,28 @@ make clean          # remove dist/, build/, target/
 
 `make help` lists everything.
 
+### Backend env vars
+
+The backend (`backend/`) is the second [`ChainProvider`](offchain/src/chain/provider.ts) implementation: an ogmios chainsync indexer + db-sync history queries, exposing the same shapes the SDK consumes. Required when running the indexer / API:
+
+```sh
+NETWORK=preprod                              # preprod | mainnet | preview
+PORT=3001
+HOST=0.0.0.0
+OGMIOS_URL=ws://localhost:1337               # WebSocket — ogmios v6
+DBSYNC_URL=postgres://USER:PASS@HOST/dbname  # optional; required for /history
+ADDRESSES_PATH=./artifacts/preprod/addresses.json
+CORS_ORIGINS=*                               # comma-separated origins, or *
+RATE_LIMIT_PER_MIN=600
+```
+
+`ADDRESSES_PATH` points at the bootstrap-produced `artifacts/<network>/addresses.json`. Without it the indexer won't know which on-chain script addresses to filter to. ogmios + db-sync run outside this repo (see [docs/spec/05-backend.md](docs/spec/05-backend.md) §"Operations notes"). For Docker:
+
+```sh
+docker build -f backend/Dockerfile -t lovejoin-backend .
+docker run --env-file backend/.env -p 3001:3001 -v $(pwd)/artifacts:/app/artifacts lovejoin-backend
+```
+
 **Node-binary note (Linux + VSCode).** pnpm 10 errors out with `ERR_PNPM_INVALID_NODE_VERSION` when `node` resolves to the snap shim — VSCode sets `ELECTRON_RUN_AS_NODE=1`, which silently swallows `node --version`. Fix: put a real node binary first on PATH, e.g. via nvm:
 
 ```sh
