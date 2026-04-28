@@ -172,7 +172,7 @@
     {
       "id": "M4.5",
       "name": "Mix tx CPU/mem optimization",
-      "status": "pending",
+      "status": "in-progress",
       "depends_on": ["M4"],
       "spec": "docs/spec/09-milestones.md#m45--mix-tx-cpu-optimization",
       "notes": [
