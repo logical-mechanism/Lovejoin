@@ -1,7 +1,7 @@
 {
   "name": "lovejoin",
   "private": true,
-  "version": "0.0.0",
+  "version": "0.1.0",
   "description": "Sigmajoin privacy mixer on Cardano. Hyperstructure.",
   "license": "MIT",
   "type": "module",

@@ -74,14 +74,16 @@ jobs:
         run: pnpm --filter @lovejoin/sdk run build
 
       # Mint a unique pre-release version for each merge so `dev` always
-      # points to the latest main without polluting the stable tag.
-      # Format: 0.0.0-dev.<unix-ts>.<short-sha>
+      # points to the latest main without polluting the stable tag. The base
+      # version is read from offchain/package.json so version bumps don't
+      # require touching this workflow. Format: <base>-dev.<unix-ts>.<sha>.
       - name: Stamp dev version
         working-directory: offchain
         run: |
+          base=$(node -p "require('./package.json').version")
           ts=$(date -u +%s)
           sha=$(git rev-parse --short HEAD)
-          version="0.0.0-dev.${ts}.${sha}"
+          version="${base}-dev.${ts}.${sha}"
           npm version --no-git-tag-version "$version"
           echo "Stamped @lovejoin/sdk@$version"
 
