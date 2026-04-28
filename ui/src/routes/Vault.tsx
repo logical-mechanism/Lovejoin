@@ -28,7 +28,6 @@ export function Vault() {
     vaultError,
     ownedBoxes,
     poolSize,
-    nextDepositIndex,
     scanError,
     unlockWithWallet,
     lockVault,
@@ -54,26 +53,28 @@ export function Vault() {
         <p className="text-sm text-muted leading-relaxed max-w-prose">
           {t("vault.locked_lede")}
         </p>
-        <div className="mt-6 flex flex-wrap items-center gap-3">
+        <div className="mt-6">
           <button
             type="button"
-            className="lj-btn lj-btn--primary"
+            className="lj-btn lj-btn--primary lj-btn--lg"
             disabled={!wallet || vaultBusy}
             onClick={() => void unlockWithWallet()}
           >
             {vaultBusy ? t("vault.unlocking") : t("vault.unlock_with_wallet")}
           </button>
-          <button
-            type="button"
-            className="lj-btn lj-btn--quiet"
-            onClick={() => setShowFallback(true)}
-          >
-            {t("vault.fallback_link")}
-          </button>
         </div>
         {!wallet && (
           <p className="mt-4 text-sm text-whisper">{t("vault.no_wallet")}</p>
         )}
+        <div className="mt-6 border-t border-rule pt-4">
+          <button
+            type="button"
+            className="text-xs text-whisper hover:text-paper underline-offset-4 hover:underline"
+            onClick={() => setShowFallback(true)}
+          >
+            {t("vault.fallback_link")} →
+          </button>
+        </div>
         {vaultError && (
           <div className="lj-banner lj-banner--coral mt-6">
             <span className="lj-banner__title">
@@ -152,12 +153,20 @@ export function Vault() {
                       </td>
                       <td className="lj-table__num">{ada} ₳</td>
                       <td className="text-right">
-                        <Link
-                          to={`/vault/${box.entry.ref.txId}/${box.entry.ref.outputIndex}`}
-                          className="lj-btn lj-btn--quiet"
-                        >
-                          {t("vault.open_box")}
-                        </Link>
+                        <div className="inline-flex items-center gap-2">
+                          <Link
+                            to={`/vault/${box.entry.ref.txId}/${box.entry.ref.outputIndex}`}
+                            className="lj-btn lj-btn--primary"
+                          >
+                            {t("vault.withdraw_box")}
+                          </Link>
+                          <Link
+                            to={`/vault/${box.entry.ref.txId}/${box.entry.ref.outputIndex}?detail=1`}
+                            className="lj-btn lj-btn--quiet"
+                          >
+                            {t("vault.open_box")}
+                          </Link>
+                        </div>
                       </td>
                     </tr>
                   );
@@ -166,11 +175,6 @@ export function Vault() {
             </table>
           </div>
         )}
-        <p className="mt-6 text-xs text-whisper">
-          {nextDepositIndex > 0
-            ? `next-deposit index: ${nextDepositIndex}`
-            : null}
-        </p>
       </section>
     </>
   );

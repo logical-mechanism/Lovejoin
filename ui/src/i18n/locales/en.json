@@ -15,6 +15,16 @@
     "amount": "Amount",
     "fee": "Fee"
   },
+  "toast": {
+    "deposit_success": "Deposit submitted",
+    "deposit_failed": "Deposit failed",
+    "mix_success": "Mix submitted at N = {{n}}",
+    "mix_failed": "Mix failed",
+    "withdraw_success": "Withdraw submitted",
+    "withdraw_failed": "Withdraw failed",
+    "view_on_scan": "view on cardanoscan ↗",
+    "dismiss": "Dismiss"
+  },
   "app": {
     "title": "Lovejoin",
     "tagline": "A Cardano-native privacy mixer.",

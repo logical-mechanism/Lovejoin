@@ -20,20 +20,25 @@
 @theme {
   --color-ink: #0a0a0c;
   --color-surface: #131318;
-  --color-rise: #1a1a20;
-  --color-rule: #26262c;
-  --color-rule-strong: #3a3a42;
+  --color-rise: #1c1c22;
+  --color-rule: #2a2a30;
+  --color-rule-strong: #44444c;
   --color-paper: #f1efe9;
   --color-muted: #a8a4a0;
   --color-whisper: #5e5c58;
 
-  /* Electric teal — sharper than the previous mint-sage. Reads as
-   * "cryptographic primitive" rather than "wellness app". */
-  --color-signal: #5eead4;
-  --color-signal-ink: #0a0a0c;
-  --color-signal-deep: #2dd4bf;
+  /* No chromatic accent. The signal IS paper — high-contrast monochrome
+   * is the differentiator now that every "modern dapp" reaches for the
+   * teal/cyan/mint palette by default. CTAs, focus rings, active states
+   * fill with paper and invert text to ink. */
+  --color-signal: var(--color-paper);
+  --color-signal-ink: var(--color-ink);
+  --color-signal-deep: #d6d4ce;
 
-  --color-amber: #fbbf24;
+  /* Amber is the ONLY chromatic colour. It marks state, not brand:
+   * connected wallet dot, live-pool indicator, success toast, warning
+   * banner. A vintage instrument-panel tell, not a CTA fill. */
+  --color-amber: #f5b200;
   --color-coral: #f87171;
 
   /* Display = mono. Body = sans (one humanist choice, kept for prose
@@ -332,7 +337,8 @@
     background: var(--color-whisper);
     flex-shrink: 0;
   }
-  .lj-dot--ok { background: var(--color-signal); box-shadow: 0 0 10px color-mix(in oklab, var(--color-signal) 70%, transparent); }
+  /* Amber is the live/connected tell — vintage power-LED, not a CTA. */
+  .lj-dot--ok { background: var(--color-amber); box-shadow: 0 0 10px color-mix(in oklab, var(--color-amber) 70%, transparent); }
   .lj-dot--warn { background: var(--color-amber); }
   .lj-dot--bad { background: var(--color-coral); }
 
@@ -459,7 +465,7 @@
     font-size: 0.78rem;
     letter-spacing: 0.16em;
     text-transform: uppercase;
-    color: var(--color-signal);
+    color: var(--color-amber);
     font-weight: 500;
   }
   .lj-pillar__title {
@@ -563,9 +569,10 @@
   }
   .lj-toggle button:last-child { border-right: none; }
   .lj-toggle button[aria-pressed="true"] {
-    background: var(--color-signal);
-    color: var(--color-signal-ink);
+    background: var(--color-rise);
+    color: var(--color-paper);
     font-weight: 500;
+    box-shadow: inset 0 -1px 0 var(--color-paper);
   }
   .lj-toggle button:hover:not([aria-pressed="true"]) { color: var(--color-paper); }
 
@@ -616,6 +623,125 @@
     border-bottom-color: var(--color-rule-strong);
   }
 
+  /* ---------------------------------------------------------------- Toaster */
+  .lj-toaster {
+    position: fixed;
+    top: 1.25rem;
+    right: 1.25rem;
+    z-index: 200;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    width: min(22rem, calc(100vw - 2.5rem));
+    pointer-events: none;
+  }
+  .lj-toast {
+    pointer-events: auto;
+    display: flex;
+    align-items: flex-start;
+    gap: 0.75rem;
+    padding: 0.85rem 1rem;
+    border: 1px solid var(--color-rule);
+    border-left: 2px solid var(--color-rule-strong);
+    background: color-mix(in oklab, var(--color-surface) 96%, var(--color-paper));
+    border-radius: var(--radius-sm);
+    box-shadow: 0 12px 32px rgba(0, 0, 0, 0.35);
+    animation: lj-toast-in 220ms cubic-bezier(0.2, 0.8, 0.2, 1);
+  }
+  .lj-toast--closing { animation: lj-toast-out 220ms cubic-bezier(0.5, 0, 0.6, 0) forwards; }
+  .lj-toast--success { border-left-color: var(--color-amber); }
+  .lj-toast--success .lj-toast__title { color: var(--color-amber); }
+  .lj-toast--error { border-left-color: var(--color-coral); }
+  .lj-toast--error .lj-toast__title { color: var(--color-coral); }
+  .lj-toast--info { border-left-color: var(--color-paper); }
+  .lj-toast__body {
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+    flex: 1;
+    min-width: 0;
+  }
+  .lj-toast__title {
+    font-family: var(--font-mono);
+    font-size: 0.78rem;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--color-paper);
+  }
+  .lj-toast__detail {
+    font-family: var(--font-mono);
+    font-size: 0.75rem;
+    color: var(--color-muted);
+    word-break: break-all;
+  }
+  .lj-toast__link {
+    margin-top: 0.25rem;
+    font-family: var(--font-mono);
+    font-size: 0.74rem;
+    color: var(--color-amber);
+    text-decoration: none;
+    border-bottom: 1px dashed transparent;
+    width: fit-content;
+  }
+  .lj-toast__link:hover { border-bottom-color: var(--color-amber); }
+  .lj-toast__close {
+    appearance: none;
+    background: transparent;
+    border: none;
+    color: var(--color-whisper);
+    cursor: pointer;
+    font-size: 1.1rem;
+    line-height: 1;
+    padding: 0.2rem 0.3rem;
+    transition: color 120ms ease;
+  }
+  .lj-toast__close:hover { color: var(--color-paper); }
+  @keyframes lj-toast-in {
+    from { opacity: 0; transform: translateX(12px); }
+    to { opacity: 1; transform: none; }
+  }
+  @keyframes lj-toast-out {
+    from { opacity: 1; transform: none; }
+    to { opacity: 0; transform: translateX(20px); }
+  }
+
+  /* In-flight overlay — shown over forms during async submit so the
+   * user has unambiguous feedback that the click registered. */
+  .lj-overlay {
+    position: relative;
+  }
+  .lj-overlay--busy::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: color-mix(in oklab, var(--color-ink) 70%, transparent);
+    border-radius: inherit;
+    pointer-events: none;
+  }
+  .lj-overlay__indicator {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1;
+    pointer-events: none;
+  }
+  .lj-spinner {
+    width: 28px;
+    height: 28px;
+    border: 1.5px solid var(--color-rule-strong);
+    border-top-color: var(--color-amber);
+    border-radius: 999px;
+    animation: lj-spin 700ms linear infinite;
+  }
+  @keyframes lj-spin {
+    to { transform: rotate(360deg); }
+  }
+
   /* Math display block — used on the protocol page. */
   .lj-math {
     font-family: var(--font-mono);
@@ -645,7 +771,7 @@
     font-size: 0.78rem;
     letter-spacing: 0.18em;
     text-transform: uppercase;
-    color: var(--color-signal);
+    color: var(--color-amber);
     margin-top: 2.5rem;
     margin-bottom: 0.75rem;
   }
@@ -681,6 +807,6 @@
     content: "—";
     position: absolute;
     left: -1.25rem;
-    color: var(--color-signal);
+    color: var(--color-amber);
   }
 }

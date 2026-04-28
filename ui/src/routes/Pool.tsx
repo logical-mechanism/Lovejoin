@@ -21,13 +21,14 @@ import {
   useCollateralStatus,
 } from "../components/CollateralProviderStatus.js";
 import { Eyebrow } from "../components/ui/Eyebrow.js";
-import { Hash } from "../components/ui/Hash.js";
+import { useToast } from "../components/Toaster.js";
 import { BackendClient } from "../lib/backend.js";
 import { fetchPoolDirect, type DirectPoolEntry } from "../lib/pool.js";
 import { useAppState } from "../lib/store.js";
 
 export function Pool() {
   const { t } = useTranslation();
+  const toast = useToast();
   const { config, provider, addresses, wallet } = useAppState();
   const collateral = useCollateralStatus();
   const [poolEntries, setPoolEntries] = useState<DirectPoolEntry[]>([]);
@@ -40,8 +41,6 @@ export function Pool() {
   const maxN = addresses?.protocol?.max_n ?? 2;
   const [n, setN] = useState<number>(maxN);
   const [feePayer, setFeePayer] = useState<MixFeePayer>("shard");
-  const [submitTxId, setSubmitTxId] = useState<string | null>(null);
-  const [submitError, setSubmitError] = useState<string | null>(null);
 
   // If max_n changes (network swap), re-clamp current width.
   useMemo(() => {
@@ -151,14 +150,21 @@ export function Pool() {
               poolEntries={poolEntries}
               n={n}
               feePayer={feePayer}
-              onSubmitted={(txId) => {
-                setSubmitTxId(txId);
-                setSubmitError(null);
-              }}
-              onError={(msg) => {
-                setSubmitError(t("pool.mix_failed", { message: msg }));
-                setSubmitTxId(null);
-              }}
+              onSubmitted={(txId) =>
+                toast.push({
+                  tone: "success",
+                  title: t("toast.mix_success", { n }),
+                  txHash: txId,
+                  network: config.network,
+                })
+              }
+              onError={(msg) =>
+                toast.push({
+                  tone: "error",
+                  title: t("toast.mix_failed"),
+                  detail: msg,
+                })
+              }
             />
           ) : null}
           <span className="text-xs text-whisper">
@@ -166,21 +172,6 @@ export function Pool() {
           </span>
         </div>
 
-        {submitTxId && (
-          <div className="lj-banner lj-banner--signal mt-6">
-            <span className="lj-banner__title">
-              {t("pool.mix_submitted", { txId: "" })}
-            </span>
-            <span className="lj-banner__detail">
-              <Hash value={submitTxId} edge={8} />
-            </span>
-          </div>
-        )}
-        {submitError && (
-          <div role="alert" className="lj-banner lj-banner--coral mt-6">
-            <span className="lj-banner__title">{submitError}</span>
-          </div>
-        )}
         {poolError && (
           <div className="lj-banner lj-banner--amber mt-6">
             <span className="lj-banner__title">

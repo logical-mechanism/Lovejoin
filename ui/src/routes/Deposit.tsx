@@ -1,28 +1,28 @@
 // Deposit — single form, vault-derived owner secret.
 //
 // Spec: docs/spec/06-ui.md §"Deposit" + M6.5 vault rework. The owner
-// secret is derived from the unlocked seed at the next available index
-// (`nextDepositIndex`); on success we trigger a vault rescan so the new
-// box surfaces in the Vault screen within a few seconds.
+// secret is derived from the unlocked seed at the next available index;
+// on success we toast (with a cardanoscan link) and trigger a rescan
+// so the new box surfaces in the Vault screen within a few seconds.
 //
 // The deposit-time `(a, b)` are owned by the SDK (`buildDepositTx` picks
 // a fresh `d` and computes `a = [d]·G`, `b = [x·d]·G`). The UI doesn't
 // persist them — `findOwnedBoxes` re-derives ownership on every unlock.
 
 import { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 
 import { buildDepositTx } from "@lovejoin/sdk";
 
 import { useAppState } from "../lib/store.js";
 import { Eyebrow } from "../components/ui/Eyebrow.js";
-import { Hash } from "../components/ui/Hash.js";
+import { useToast } from "../components/Toaster.js";
 import { deriveDepositSecret } from "../lib/vault.js";
 
 export function Deposit() {
   const { t } = useTranslation();
-  const navigate = useNavigate();
+  const toast = useToast();
   const {
     config,
     provider,
@@ -34,8 +34,6 @@ export function Deposit() {
   } = useAppState();
   const [rounds, setRounds] = useState<number>(30);
   const [submitting, setSubmitting] = useState(false);
-  const [submitTxId, setSubmitTxId] = useState<string | null>(null);
-  const [submitError, setSubmitError] = useState<string | null>(null);
 
   if (!provider || !addresses || !wallet) {
     return (
@@ -69,9 +67,8 @@ export function Deposit() {
 
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (submitting) return;
     setSubmitting(true);
-    setSubmitTxId(null);
-    setSubmitError(null);
     try {
       const { secret } = deriveDepositSecret(vault.seed, nextDepositIndex);
       const result = await buildDepositTx({
@@ -82,19 +79,26 @@ export function Deposit() {
         provider,
         addresses,
       });
-      setSubmitTxId(result.txId);
-      // Schedule a rescan so the Vault screen picks up the new box once
-      // the chain confirms it. Rescan is cheap; safe to call repeatedly.
+      toast.push({
+        tone: "success",
+        title: t("toast.deposit_success"),
+        txHash: result.txId,
+        network: config.network,
+      });
       window.setTimeout(() => void rescan(), 12_000);
     } catch (err) {
-      setSubmitError(t("deposit.error", { message: (err as Error).message }));
+      toast.push({
+        tone: "error",
+        title: t("toast.deposit_failed"),
+        detail: (err as Error).message,
+      });
     } finally {
       setSubmitting(false);
     }
   };
 
   return (
-    <section className="lj-card">
+    <section className={`lj-card lj-overlay ${submitting ? "lj-overlay--busy" : ""}`}>
       <header className="lj-card__head">
         <div>
           <Eyebrow>{t("deposit.eyebrow")}</Eyebrow>
@@ -114,62 +118,44 @@ export function Deposit() {
       <form
         className="mt-6 flex flex-col gap-6"
         onSubmit={(e) => void onSubmit(e)}
+        aria-busy={submitting}
       >
-        <label className="lj-field max-w-xs">
-          <span className="lj-field__label">{t("deposit.rounds_label")}</span>
-          <input
-            type="number"
-            min={1}
-            max={500}
-            value={rounds}
-            onChange={(e) => setRounds(Number.parseInt(e.target.value, 10) || 1)}
-            className="lj-input max-w-[10rem]"
-          />
-          <span className="lj-field__hint">{t("deposit.rounds_help")}</span>
-        </label>
+        <fieldset disabled={submitting} className="contents">
+          <label className="lj-field max-w-xs">
+            <span className="lj-field__label">{t("deposit.rounds_label")}</span>
+            <input
+              type="number"
+              min={1}
+              max={500}
+              value={rounds}
+              onChange={(e) => setRounds(Number.parseInt(e.target.value, 10) || 1)}
+              className="lj-input max-w-[10rem]"
+            />
+            <span className="lj-field__hint">{t("deposit.rounds_help")}</span>
+          </label>
 
-        <div className="lj-banner lj-banner--signal">
-          <span className="lj-eyebrow">{t("deposit.tx_preview_title")}</span>
-          <span className="lj-banner__detail">
-            {t("deposit.tx_preview_copy", { denom: denomAda })}
-          </span>
-        </div>
+          <div className="lj-banner lj-banner--signal">
+            <span className="lj-eyebrow">{t("deposit.tx_preview_title")}</span>
+            <span className="lj-banner__detail">
+              {t("deposit.tx_preview_copy", { denom: denomAda })}
+            </span>
+          </div>
 
-        <div>
-          <button
-            type="submit"
-            disabled={submitting || rounds <= 0}
-            className="lj-btn lj-btn--primary lj-btn--lg"
-          >
-            {submitting ? t("deposit.submitting") : t("deposit.submit")}
-          </button>
-        </div>
+          <div>
+            <button
+              type="submit"
+              disabled={submitting || rounds <= 0}
+              className="lj-btn lj-btn--primary lj-btn--lg"
+            >
+              {submitting ? t("deposit.submitting") : t("deposit.submit")}
+            </button>
+          </div>
+        </fieldset>
       </form>
 
-      {submitTxId && (
-        <div className="lj-banner lj-banner--signal mt-6">
-          <span className="lj-banner__title">
-            {t("deposit.success", { txId: "" })}
-          </span>
-          <span className="lj-banner__detail">
-            <Hash value={submitTxId} edge={8} />
-          </span>
-          <span className="mt-2 text-xs text-muted">
-            {t("deposit.see_vault")}{" "}
-            <button
-              type="button"
-              onClick={() => navigate("/vault")}
-              className="underline"
-            >
-              {t("nav.vault")}
-            </button>
-          </span>
-        </div>
-      )}
-
-      {submitError && (
-        <div role="alert" className="lj-banner lj-banner--coral mt-6">
-          <span className="lj-banner__title">{submitError}</span>
+      {submitting && (
+        <div className="lj-overlay__indicator">
+          <div className="lj-spinner" aria-label={t("deposit.submitting")} />
         </div>
       )}
     </section>
