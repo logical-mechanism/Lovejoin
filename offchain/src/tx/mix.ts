@@ -747,30 +747,33 @@ export async function buildMixTx(args: BuildMixArgs): Promise<MixResult> {
 
   const meshCore = await import("@meshsdk/core");
   const { MeshTxBuilder } = meshCore;
-  const meshCsl = await import("@meshsdk/core-csl");
-  const { OfflineEvaluator } = meshCsl;
   const meshProvider = await getMeshProvider(args.provider);
 
-  // Use mesh's OfflineEvaluator — it runs the UPLC machine in-process
-  // against the validators + cost models, fetching only the input UTxOs
-  // through our IFetcher. We were on Blockfrost's hosted evaluator
-  // before and hit `EvaluationFailure: ScriptFailures: {}` (empty
-  // failure map) on Mix txs whose wallet inputs were freshly minted by
-  // a prior deposit — Blockfrost's UTxO index lags the chain by a few
-  // seconds, so its server-side evaluator couldn't resolve the inputs
-  // and bailed before reaching the validators. Local UPLC has no such
-  // lag and gives us the real exec units for both shard and wallet
-  // modes. Same machine the Aiken simulator uses; same numbers it
-  // would produce.
-  const evaluatorNetwork = args.network === "test" ? "preprod" : args.network;
-  const evaluator = new OfflineEvaluator(
-    meshProvider as never,
-    evaluatorNetwork,
-  );
+  // Evaluator selection. In shard mode the on-chain `tx.fee ==
+  // fee_in - fee_out` rule pins us to whatever fee we declare, so
+  // we *need* tight exec units — we wire Blockfrost's hosted ogmios
+  // evaluator. In wallet mode the wallet absorbs whatever fee mesh
+  // computes from the redeemer budgets, so we deliberately skip the
+  // evaluator and let mesh use its default upper-bound budgets
+  // (mem 7M / cpu 3G per redeemer, visible in the resulting CBOR's
+  // redeemers field).
+  //
+  // Why not OfflineEvaluator from `@meshsdk/core-csl`: that package's
+  // local UPLC machine is on Plutus V3 < Conway and aborts with
+  // "Default Function not found - 77" the moment a script touches
+  // `xor_bytearray` (Conway-era builtin 77). Lovejoin's sigma-OR
+  // verifier (`contracts/lib/lovejoin/sigma_or.ak`) uses it for the
+  // per-branch challenge XOR, so OfflineEvaluator can't run any
+  // Mix tx. The Schnorr-only Withdraw path in `withdraw.ts` doesn't
+  // hit it, which is why that builder's evaluator works.
+  //
+  // Wallet mode at N≥3 may exceed the default per-redeemer cpu
+  // budget (3G); the empirical numbers from the calibration sweep
+  // will tell us when to bump or to wire an Aiken-aware evaluator.
   const tx = new MeshTxBuilder({
     fetcher: meshProvider as never,
     submitter: meshProvider as never,
-    evaluator: evaluator as never,
+    ...(feePayer === "shard" ? { evaluator: meshProvider as never } : {}),
     verbose: false,
   });
 
