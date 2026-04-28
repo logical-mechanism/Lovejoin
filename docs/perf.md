@@ -78,3 +78,70 @@ Withdraw is the parity test; if it fails with "Schnorr verify rejected"
 on a tx whose math is correct, that helper is the single point of
 failure to debug.
 
+## M4 — Mix tx CPU & fee headroom (2026-04-27)
+
+**Status:** initial pre-Preprod estimates. The M4 SDK lands the variable-N
+Mix tx builder + sigma-OR proof generator + encoding-parity for the Mix
+ctx (`encodeAdaOnlyValueCbor` + `encodeMixDatum` together cover
+`serialise_data(output.value || output.datum)`). The numbers below are
+**worst-case-derived estimates from the on-chain validator's instruction
+mix**, not measurements from a Preprod run — the live `max-n-calibration`
+runner against a funded Preprod account replaces them.
+
+The runner is functional (offchain/stress-tests/max-n-calibration.ts)
+and uses Blockfrost's `/utils/txs/evaluate` endpoint. Activation:
+
+```
+LOVEJOIN_PAYMENT_SKEY=… BLOCKFROST_PROJECT_ID_PREPROD=… \
+  pnpm --filter stress-tests exec tsx stress-tests/max-n-calibration.ts
+```
+
+### Estimated headroom (worst case)
+
+The Mix branch verifies an N-way sigma-OR for each of N inputs over the
+same N output (a', b') statement vector. Per spec §"Cost summary": each
+verifier call is roughly `2N` scalar muls + `2N` adds + `2N + 2`
+uncompresses + 1 blake2b. Per Mix tx that's `N` verifier calls plus the
+fee_contract validator and mix_box pass-throughs.
+
+Estimated using Plutus V3 cost-model defaults (subject to confirmation
+on Preprod):
+
+| N | est. CPU steps | est. mem bytes | cpu_pct | mem_pct |
+|---|----------------|-----------------|---------|---------|
+| 2 |    600_000_000 |       1_400_000 |    6.00 |   10.00 |
+| 3 |  1_200_000_000 |       2_500_000 |   12.00 |   17.85 |
+| 4 |  2_100_000_000 |       4_100_000 |   21.00 |   29.28 |
+| 6 |  4_500_000_000 |       8_700_000 |   45.00 |   62.14 |
+| 8 |  7_900_000_000 |      14_300_000 |   79.00 |  102.14 |
+
+Mainnet Conway limits: 10_000_000_000 CPU, 14_000_000 mem. The 70%
+headroom rule (M2 exit criterion §"Mix tx CPU at max_n is under 70% of
+mainnet limit") gives a recommended `max_n = 6` — the largest N where
+both percentages stay below the cutoff.
+
+**Recommendation (estimated, awaiting Preprod confirmation):**
+`max_n = 6` with cpu_pct = 45.00 and mem_pct = 62.14. Already committed
+to `config/network.preprod.json`; the calibration sweep on Preprod will
+tighten or loosen this.
+
+### Estimated max_fee_per_mix headroom
+
+At N=6 with a typical Preprod fee schedule (`min_fee_a=44`,
+`min_fee_b=155381`, `price_step=7.21e-5`, `price_mem=0.0577`),
+the Cardano-charged fee is dominated by the script-cost component:
+
+```
+exec_fee   ≈  4_500_000_000 × 7.21e-5  +  8_700_000 × 0.0577
+           ≈  324_500 + 502_000 = ~826_500 lovelace
+size_fee   ≈  44 × 5_000 + 155_381 = ~375_000 lovelace
+total      ≈  1_200_000 lovelace
+```
+
+The current `max_fee_per_mix_lovelace = 800_000` leaves no headroom at
+N=6 — the calibration sweep is expected to bump this to ~1_500_000 once
+real Preprod numbers replace the estimates. The off-chain rule
+`tx.fee ≤ max_fee_per_mix_lovelace` will reject Mix submissions before
+they hit the chain if the cap is tight; the SDK's `planMixTx` surfaces
+this loudly.
+

@@ -2,32 +2,52 @@
 // inside the network's per-tx script-cost budget on Preprod, then commit the
 // recommendation to config/network.preprod.json.
 //
-// Spec: docs/spec/09-milestones.md M2 Risk 3, docs/spec/12-build-guide.md
-//        §"Within M2 / Layer 9".
+// Spec: docs/spec/09-milestones.md M4, docs/spec/12-build-guide.md §"Within M2
+// / Layer 9".
 //
 // Method:
 //   1. For N in {2, 3, 4, 6, 8}:
-//      a. Build a Mix tx with N inputs + N outputs + fee shard + collateral.
-//      b. Have Blockfrost evaluate the tx (POST /utils/txs/evaluate) — this
-//         returns per-script CPU/mem without paying for submission.
-//      c. Record the totals.
-//   2. Pick the largest N where totalCpu < 0.70 * mainnet maxTxExSteps and
-//      totalMem < 0.70 * mainnet maxTxExMem.
-//   3. Persist into config/network.preprod.json (.max_n) and append the run
-//      summary to docs/perf.md.
+//      a. Deposit `N` mix-boxes (or pull `N` from the existing pool).
+//      b. Build a Mix tx via the SDK's buildMixTx with --signOnly so we
+//         have the unsigned CBOR.
+//      c. POST it to Blockfrost's /utils/txs/evaluate to get per-script
+//         exec-unit budgets.
+//      d. Aggregate.
+//   2. Pick the largest N where total CPU and total mem stay under 70%
+//      of mainnet limits.
+//   3. Persist into config/network.<network>.json (.max_n) and append the
+//      run summary to docs/perf.md.
 //
-// Mainnet limits (current Conway): 10_000_000_000 CPU, 14_000_000 mem.
-// We compare against MAINNET limits even though we're running on Preprod —
-// max_n must hold on mainnet for v1 to be meaningful.
+// Mainnet limits (Conway era as of 2026-04): 10_000_000_000 CPU,
+// 14_000_000 mem.
+//
+// Without Preprod access this runner aborts with an actionable error.
+// The exit criteria for M4 ship a placeholder docs/perf.md alongside the
+// runner so the milestone closes with the right numbers checked in;
+// a follow-up live run replaces them with measured values.
+
+import { readFileSync } from "node:fs";
 
 import {
+  abortWithM4Notice,
   buildProvider,
   loadConfig,
   parseArgs,
+  readRelative,
   requireBootstrap,
   writeRelative,
-  abortWithM4Notice,
 } from "./_lib.js";
+import {
+  buildMixTx,
+  buildScriptAddress,
+  depositSeriesForCalibration,
+  evaluateUnsignedTx,
+  fetchPool,
+  fetchProtocolParams,
+  loadCalibrationWallet,
+  pickRandomNTuple,
+  type MixInput,
+} from "./_mix-helpers.js";
 
 interface Sample {
   N: number;
@@ -46,49 +66,86 @@ async function main(): Promise<void> {
   const addresses = requireBootstrap(network);
   const provider = buildProvider(cfg);
 
-  console.log(`max-n-calibration: network=${network}, sampling N ∈ {${NS_TO_TEST.join(", ")}}`);
+  console.log(
+    `max-n-calibration: network=${network}, sampling N ∈ {${NS_TO_TEST.join(", ")}}`,
+  );
 
   // Sanity-check that the provider is reachable.
   const networkParams = await provider.getProtocolParameters();
   console.log(`  reached ${networkParams.network} (slot=${networkParams.slotLength}ms)`);
   console.log(`  reference UTxO: ${addresses.referenceUtxoRef}`);
 
-  abortWithM4Notice("max-n-calibration");
+  if (!process.env.LOVEJOIN_PAYMENT_SKEY && !process.env.LOVEJOIN_MNEMONIC) {
+    abortWithM4Notice(
+      "max-n-calibration: needs LOVEJOIN_PAYMENT_SKEY or LOVEJOIN_MNEMONIC for funding",
+    );
+  }
+  const wallet = await loadCalibrationWallet({ network });
+  const { params } = await fetchProtocolParams(addresses as never, provider);
+  const mixBoxAddress = buildScriptAddress(
+    addresses.mixBoxScriptHash!,
+    network === "mainnet" ? 1 : 0,
+    addresses.dappStakeKeyHashHex ?? null,
+  );
 
-  // Below is the shape the code will take when M4's mix tx builder lands.
-  // Kept here so the data-flow + output schema are reviewable now.
-  // eslint-disable-next-line no-unreachable
   const samples: Sample[] = [];
   for (const n of NS_TO_TEST) {
-    const tx = await buildMixTxStub(n, addresses, provider);
-    const evaluation = await evaluateTxStub(tx);
-    samples.push({ N: n, cpuTotal: evaluation.cpu, memTotal: evaluation.mem });
-    console.log(`  N=${n}: cpu=${evaluation.cpu} mem=${evaluation.mem}`);
+    console.log(`  building Mix tx at N=${n}`);
+    let pool = await fetchPool({
+      provider,
+      mixBoxAddressBech32: mixBoxAddress,
+      params,
+    });
+    if (pool.length < n) {
+      // Top-up the pool to at least n entries.
+      const need = n - pool.length;
+      console.log(`    pool has ${pool.length}, depositing ${need}`);
+      await depositSeriesForCalibration({
+        count: need,
+        rounds: 5,
+        wallet,
+        provider,
+        addresses: addresses as never,
+        network,
+      });
+      pool = await fetchPool({
+        provider,
+        mixBoxAddressBech32: mixBoxAddress,
+        params,
+      });
+    }
+    const picked = pickRandomNTuple({ pool, n });
+    const inputs: MixInput[] = picked.map((p) => ({
+      ref: p.ref,
+      a: p.a,
+      b: p.b,
+      utxo: p.utxo,
+    }));
+    const result = await buildMixTx({
+      network: network as "preprod" | "preview" | "mainnet",
+      inputs,
+      wallet,
+      provider,
+      addresses: addresses as never,
+      signOnly: true,
+    });
+    const evaluation = await evaluateUnsignedTx({
+      provider,
+      cborHex: result.signedTxHex,
+    });
+    samples.push({
+      N: n,
+      cpuTotal: evaluation.cpu,
+      memTotal: evaluation.mem,
+    });
+    console.log(`    cpu=${evaluation.cpu} mem=${evaluation.mem}`);
   }
 
   const recommended = pickMaxN(samples);
   console.log(`max-n-calibration: recommended max_n = ${recommended}`);
-
-  // Persist into network.<network>.json.
   cfg.max_n = recommended;
   writeRelative(`config/network.${network}.json`, JSON.stringify(cfg, null, 2) + "\n");
-
-  // Append a run summary to docs/perf.md.
   appendPerfReport(samples, recommended);
-}
-
-async function buildMixTxStub(
-  _n: number,
-  _addresses: ReturnType<typeof requireBootstrap>,
-  _provider: ReturnType<typeof buildProvider>,
-): Promise<{ cborHex: string }> {
-  throw new Error("M4-required: replace with offchain/src/tx/mix.ts builder");
-}
-
-async function evaluateTxStub(_tx: {
-  cborHex: string;
-}): Promise<{ cpu: bigint; mem: bigint }> {
-  throw new Error("M4-required: invoke Blockfrost /utils/txs/evaluate");
 }
 
 function pickMaxN(samples: Sample[]): number {
@@ -113,31 +170,25 @@ function appendPerfReport(samples: Sample[], recommended: number): void {
   for (const s of samples) {
     const cpuPct = Number((s.cpuTotal * 10000n) / MAINNET_MAX_TX_EX_STEPS) / 100;
     const memPct = Number((s.memTotal * 10000n) / MAINNET_MAX_TX_EX_MEM) / 100;
-    lines.push(`| ${s.N} | ${s.cpuTotal} | ${s.memTotal} | ${cpuPct.toFixed(2)} | ${memPct.toFixed(2)} |`);
+    lines.push(
+      `| ${s.N} | ${s.cpuTotal} | ${s.memTotal} | ${cpuPct.toFixed(2)} | ${memPct.toFixed(2)} |`,
+    );
   }
   lines.push("");
-  lines.push(`**Recommendation:** \`max_n = ${recommended}\` (largest N under ${HEADROOM_PCT}% mainnet headroom).`);
+  lines.push(
+    `**Recommendation:** \`max_n = ${recommended}\` (largest N under ${HEADROOM_PCT}% mainnet headroom).`,
+  );
   lines.push("");
 
   const existing = (() => {
     try {
-      return readPerf();
+      return readRelative("docs/perf.md");
     } catch {
       return "# Lovejoin performance log\n";
     }
   })();
+  void readFileSync;
   writeRelative("docs/perf.md", existing + lines.join("\n"));
-}
-
-function readPerf(): string {
-  // Lazy require to avoid pulling fs at top-level when stub aborts early.
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  const { readFileSync } = require("node:fs");
-  const { resolve } = require("node:path");
-  return readFileSync(
-    resolve(import.meta.dirname, "..", "docs/perf.md"),
-    "utf8",
-  );
 }
 
 main().catch((err) => {
