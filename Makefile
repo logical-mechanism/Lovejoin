@@ -16,7 +16,7 @@ NODE_ENV_FLAG := --env-file-if-exists=$(ENV_FILE)
 
 .PHONY: help install build test lint contracts ui-dev backend-dev clean \
         cli deposit withdraw integration-test sdk-test sdk-build \
-        probe-evaluator
+        probe-evaluator diff-validators
 
 help:
 	@echo "Lovejoin — top-level targets"
@@ -44,6 +44,7 @@ help:
 	@echo ""
 	@echo "Diagnostics:"
 	@echo "  make probe-evaluator TX=<hex>  # POST <hex> to Blockfrost's evaluator three ways"
+	@echo "  make diff-validators           # diff locally-built .plutus vs the bytes pinned on chain"
 
 install:
 	$(PNPM) install
@@ -120,6 +121,13 @@ probe-evaluator:
 		exit 1; \
 	fi
 	$(NODE) $(NODE_ENV_FLAG) scripts/probe-blockfrost-evaluator.mjs $(TX)
+
+# Compare locally-compiled validator artifacts (.plutus envelopes) against
+# the bytes pinned at the reference-script UTxOs on chain. A mismatch
+# means the deployed validator is older than what `aiken simulate` runs
+# locally — explains "local sim passes, chain rejects" symptoms.
+diff-validators:
+	$(NODE) $(NODE_ENV_FLAG) scripts/diff-onchain-validators.mjs
 
 # Vitest doesn't surface --env-file directly, but it inherits process.env. We
 # wrap the runner with `node --env-file-if-exists=.env -- pnpm` so the env is
