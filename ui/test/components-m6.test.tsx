@@ -37,12 +37,14 @@ describe("CollateralProviderBanner", () => {
 });
 
 describe("MixWidthSlider", () => {
-  it("clamps value into [2, maxN] and reports the right labels", () => {
+  it("clamps value into [2, maxN] and exposes it via the slider", () => {
     const onChange = vi.fn();
     render(<MixWidthSlider value={99} maxN={6} onChange={onChange} />);
-    // The visible value is the clamped one.
-    expect(screen.getByText(/N = 6/)).toBeInTheDocument();
+    const slider = screen.getByRole("slider") as HTMLInputElement;
+    expect(slider.value).toBe("6");
     expect(screen.getByText(/max 6/)).toBeInTheDocument();
+    // The value digit is rendered prominently with display typography.
+    expect(screen.getAllByText("6").length).toBeGreaterThan(0);
   });
 
   it("emits a numeric onChange when the slider moves", () => {

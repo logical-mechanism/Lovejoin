@@ -73,33 +73,46 @@ export function PoolStatus({ backendUrl, pollMs = 30_000 }: PoolStatusProps) {
 
   if (!backendUrl) {
     return (
-      <section className="rounded-md border border-gray-200 bg-white p-4 text-sm">
-        <h2 className="text-lg font-semibold">{t("pool_status.title")}</h2>
-        <p className="mt-2 text-xs text-gray-600">{t("pool_status.no_backend")}</p>
+      <section className="lj-card lj-card--quiet">
+        <header className="lj-card__head">
+          <div>
+            <p className="lj-eyebrow">{t("pool_status.eyebrow")}</p>
+            <h2 className="lj-card__title">{t("pool_status.title")}</h2>
+          </div>
+          {collateral && <CollateralProviderPill status={collateral.status} />}
+        </header>
+        <p className="text-sm text-whisper">{t("pool_status.no_backend")}</p>
       </section>
     );
   }
 
   if (error) {
     return (
-      <section className="rounded-md border border-red-300 bg-red-50 p-4 text-sm text-red-800">
-        <h2 className="text-lg font-semibold">{t("pool_status.title")}</h2>
-        <p className="mt-2 text-xs">{error}</p>
+      <section className="lj-card">
+        <header className="lj-card__head">
+          <div>
+            <p className="lj-eyebrow">{t("pool_status.eyebrow")}</p>
+            <h2 className="lj-card__title">{t("pool_status.title")}</h2>
+          </div>
+        </header>
+        <div role="alert" className="lj-banner lj-banner--coral">
+          <span className="lj-banner__title">{error}</span>
+        </div>
       </section>
     );
   }
 
   return (
-    <section className="rounded-md border border-gray-200 bg-white p-4">
-      <header className="flex items-center justify-between">
-        <h2 className="text-lg font-semibold">{t("pool_status.title")}</h2>
+    <section className="lj-card lj-card--quiet">
+      <header className="lj-card__head">
+        <div>
+          <p className="lj-eyebrow">{t("pool_status.eyebrow")}</p>
+          <h2 className="lj-card__title">{t("pool_status.title")}</h2>
+        </div>
         {collateral && <CollateralProviderPill status={collateral.status} />}
       </header>
-      <dl className="mt-3 grid grid-cols-2 gap-3 text-sm sm:grid-cols-4">
-        <Stat
-          label={t("pool.size")}
-          value={pool ? String(pool.size) : "—"}
-        />
+      <dl className="grid grid-cols-2 gap-x-6 gap-y-6 sm:grid-cols-4">
+        <Stat label={t("pool.size")} value={pool ? String(pool.size) : "—"} />
         <Stat
           label={t("pool_status.fee_balance")}
           value={fee ? formatLovelace(fee.totalLovelace) : "—"}
@@ -123,9 +136,11 @@ export function PoolStatus({ backendUrl, pollMs = 30_000 }: PoolStatusProps) {
 
 function Stat({ label, value }: { label: string; value: string }) {
   return (
-    <div>
-      <dt className="text-xs uppercase tracking-wide text-gray-500">{label}</dt>
-      <dd className="mt-0.5 font-mono text-sm">{value}</dd>
+    <div className="lj-stat">
+      <dt className="lj-stat__label">{label}</dt>
+      <dd className="lj-stat__value lj-stat__value--mono" data-num>
+        {value}
+      </dd>
     </div>
   );
 }

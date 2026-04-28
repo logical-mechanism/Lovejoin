@@ -1,16 +1,17 @@
-// Pool screen — the user-as-mixer surface.
+// Pool — the user-as-mixer surface.
 //
-// Spec: docs/spec/06-ui.md §"Pool" — pool size + fee balance + collateral
-// status, MixWidthSlider, "Mix N random boxes" button, recent mix activity
-// (anonymized).
+// Spec: docs/spec/06-ui.md §"Pool" + M6.5 design pass.
 //
-// The pool of mix-able boxes is read from the M5 backend if configured;
-// otherwise we fall back to direct chain queries via the BlockfrostProvider.
-// `selectedNetwork` doesn't matter for the slider semantics — max_n is
-// network-wide.
+// Layout (top → bottom):
+//   • Network status strip (pool size, fee balance, indexer lag, collateral).
+//   • Mix width slider (clamps to runtime max_n surfaced via addresses.json).
+//   • Fee-payer toggle (shard | wallet) with one-line tradeoff per option.
+//   • Tx-preview line (Privacy UX rule 7) explicitly stating fee + collateral source.
+//   • The primary CTA — "Mix N random boxes".
 
 import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
+import type { MixFeePayer } from "@lovejoin/sdk";
 
 import { MixButton } from "../components/MixButton.js";
 import { MixWidthSlider } from "../components/MixWidthSlider.js";
@@ -19,11 +20,11 @@ import {
   CollateralProviderBanner,
   useCollateralStatus,
 } from "../components/CollateralProviderStatus.js";
+import { Eyebrow } from "../components/ui/Eyebrow.js";
+import { Hash } from "../components/ui/Hash.js";
 import { BackendClient } from "../lib/backend.js";
 import { fetchPoolDirect, type DirectPoolEntry } from "../lib/pool.js";
 import { useAppState } from "../lib/store.js";
-
-const DEFAULT_MAX_N = 6;
 
 export function Pool() {
   const { t } = useTranslation();
@@ -31,16 +32,21 @@ export function Pool() {
   const collateral = useCollateralStatus();
   const [poolEntries, setPoolEntries] = useState<DirectPoolEntry[]>([]);
   const [poolError, setPoolError] = useState<string | null>(null);
-  const [n, setN] = useState<number>(DEFAULT_MAX_N);
-  const [submitMessage, setSubmitMessage] = useState<string | null>(null);
+
+  // The slider's cap is whatever the deployed addresses bundle declares.
+  // Falls back to N=2 if the field is absent (older bootstraps); the
+  // slider clamps `value` into [2, max], so a cap of 2 just means "no
+  // slider" — the user can still mix at N=2.
+  const maxN = addresses?.protocol?.max_n ?? 2;
+  const [n, setN] = useState<number>(maxN);
+  const [feePayer, setFeePayer] = useState<MixFeePayer>("shard");
+  const [submitTxId, setSubmitTxId] = useState<string | null>(null);
   const [submitError, setSubmitError] = useState<string | null>(null);
 
-  const maxN = useMemo<number>(() => {
-    // We don't have on-chain max_n in the addresses bundle — it lives in
-    // network.<net>.json. The M2 calibration result on Preprod is 6; the
-    // slider clamps to that until we surface a richer config asset.
-    return DEFAULT_MAX_N;
-  }, []);
+  // If max_n changes (network swap), re-clamp current width.
+  useMemo(() => {
+    if (n > maxN) setN(maxN);
+  }, [maxN, n]);
 
   useEffect(() => {
     if (!provider || !addresses) return;
@@ -85,16 +91,61 @@ export function Pool() {
         <CollateralProviderBanner status={collateral.status} />
       )}
 
-      <section className="rounded-md border border-gray-200 bg-white p-4">
-        <h2 className="text-lg font-semibold">{t("pool.section_title")}</h2>
-        <div className="mt-3">
-          <MixWidthSlider value={n} maxN={maxN} onChange={setN} />
+      <section className="lj-card">
+        <header className="lj-card__head">
+          <div>
+            <Eyebrow>{t("pool.eyebrow")}</Eyebrow>
+            <h2 className="lj-card__title">{t("pool.section_title")}</h2>
+          </div>
+        </header>
+        <p className="text-sm text-muted leading-relaxed max-w-prose">
+          {t("pool.lede")}
+        </p>
+
+        <div className="mt-8 grid gap-8 md:grid-cols-2">
+          <div>
+            <MixWidthSlider value={n} maxN={maxN} onChange={setN} />
+          </div>
+
+          <div className="flex flex-col gap-3">
+            <Eyebrow>{t("pool.fee_payer_label")}</Eyebrow>
+            <div className="lj-toggle" role="group">
+              <button
+                type="button"
+                aria-pressed={feePayer === "shard"}
+                onClick={() => setFeePayer("shard")}
+              >
+                {t("pool.fee_payer_shard")}
+              </button>
+              <button
+                type="button"
+                aria-pressed={feePayer === "wallet"}
+                onClick={() => setFeePayer("wallet")}
+              >
+                {t("pool.fee_payer_wallet")}
+              </button>
+            </div>
+            <p className="text-xs text-whisper leading-relaxed">
+              {feePayer === "shard"
+                ? t("pool.fee_payer_shard_hint")
+                : t("pool.fee_payer_wallet_hint")}
+            </p>
+          </div>
         </div>
-        {!wallet && (
-          <p className="mt-3 text-xs text-gray-600">{t("pool.connect_to_mix")}</p>
-        )}
-        {wallet && provider && addresses && (
-          <div className="mt-3">
+
+        <div className="lj-banner lj-banner--signal mt-8">
+          <span className="lj-eyebrow">{t("pool.tx_preview_title")}</span>
+          <span className="lj-banner__detail">
+            {feePayer === "shard"
+              ? t("pool.tx_preview_fee_shard")
+              : t("pool.tx_preview_fee_wallet")}
+          </span>
+        </div>
+
+        <div className="mt-8 flex flex-wrap items-end gap-6">
+          {!wallet ? (
+            <p className="text-sm text-whisper">{t("pool.connect_to_mix")}</p>
+          ) : provider && addresses ? (
             <MixButton
               network={config.network}
               provider={provider}
@@ -102,38 +153,44 @@ export function Pool() {
               wallet={wallet}
               poolEntries={poolEntries}
               n={n}
+              feePayer={feePayer}
               onSubmitted={(txId) => {
-                setSubmitMessage(t("pool.mix_submitted", { txId }));
+                setSubmitTxId(txId);
                 setSubmitError(null);
               }}
               onError={(msg) => {
                 setSubmitError(t("pool.mix_failed", { message: msg }));
-                setSubmitMessage(null);
+                setSubmitTxId(null);
               }}
             />
+          ) : null}
+          <span className="text-xs text-whisper">
+            {t("pool.pool_loaded", { count: poolEntries.length })}
+          </span>
+        </div>
+
+        {submitTxId && (
+          <div className="lj-banner lj-banner--signal mt-6">
+            <span className="lj-banner__title">
+              {t("pool.mix_submitted", { txId: "" })}
+            </span>
+            <span className="lj-banner__detail">
+              <Hash value={submitTxId} edge={8} />
+            </span>
           </div>
         )}
-        {submitMessage && (
-          <p className="mt-3 break-all rounded border border-green-300 bg-green-50 p-2 text-xs text-green-800">
-            {submitMessage}
-          </p>
-        )}
         {submitError && (
-          <p
-            role="alert"
-            className="mt-3 break-all rounded border border-red-300 bg-red-50 p-2 text-xs text-red-800"
-          >
-            {submitError}
-          </p>
+          <div role="alert" className="lj-banner lj-banner--coral mt-6">
+            <span className="lj-banner__title">{submitError}</span>
+          </div>
         )}
         {poolError && (
-          <p className="mt-3 rounded border border-amber-300 bg-amber-50 p-2 text-xs text-amber-900">
-            {t("pool.scan_failed", { message: poolError })}
-          </p>
+          <div className="lj-banner lj-banner--amber mt-6">
+            <span className="lj-banner__title">
+              {t("pool.scan_failed", { message: poolError })}
+            </span>
+          </div>
         )}
-        <p className="mt-3 text-xs text-gray-500">
-          {t("pool.pool_loaded", { count: poolEntries.length })}
-        </p>
       </section>
     </>
   );

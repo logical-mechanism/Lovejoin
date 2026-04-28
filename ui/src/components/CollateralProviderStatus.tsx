@@ -95,31 +95,27 @@ export function useRefreshCollateralStatus(): () => void {
 }
 
 /**
- * Compact pill — one of three colors. Safe to render anywhere; uses CSS
- * tailwind classes only.
+ * Compact pill — one dot + label. Uses the global lj-* design tokens so
+ * it sits cleanly inside the new header / pool stats row.
  */
 export function CollateralProviderPill({ status }: { status: CollateralStatus }) {
   const { t } = useTranslation();
-  if (status === "online") {
-    return (
-      <span className="inline-flex items-center gap-1 rounded bg-green-100 px-2 py-0.5 text-xs font-medium text-green-800">
-        <span aria-hidden="true" className="h-2 w-2 rounded-full bg-green-500" />
-        {t("collateral_provider.ok")}
-      </span>
-    );
-  }
-  if (status === "down") {
-    return (
-      <span className="inline-flex items-center gap-1 rounded bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-900">
-        <span aria-hidden="true" className="h-2 w-2 rounded-full bg-amber-500" />
-        {t("collateral_provider.down")}
-      </span>
-    );
-  }
+  const tone =
+    status === "online"
+      ? "lj-dot--ok"
+      : status === "down"
+        ? "lj-dot--bad"
+        : "";
+  const label =
+    status === "online"
+      ? t("collateral_provider.ok")
+      : status === "down"
+        ? t("collateral_provider.down")
+        : t("collateral_provider.unknown");
   return (
-    <span className="inline-flex items-center gap-1 rounded bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-700">
-      <span aria-hidden="true" className="h-2 w-2 rounded-full bg-gray-400" />
-      {t("collateral_provider.unknown")}
+    <span className="inline-flex items-center gap-2 text-xs text-muted">
+      <span aria-hidden="true" className={`lj-dot ${tone}`.trim()} />
+      {label}
     </span>
   );
 }
@@ -133,11 +129,8 @@ export function CollateralProviderBanner({ status }: { status: CollateralStatus 
   const { t } = useTranslation();
   if (status === "online" || status === "unknown") return null;
   return (
-    <p
-      role="alert"
-      className="rounded border border-amber-300 bg-amber-50 p-3 text-xs text-amber-900"
-    >
-      {t("collateral_provider.banner_down")}
-    </p>
+    <div role="alert" className="lj-banner lj-banner--amber">
+      <span className="lj-banner__title">{t("collateral_provider.banner_down")}</span>
+    </div>
   );
 }

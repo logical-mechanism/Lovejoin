@@ -17,6 +17,7 @@
   "dependencies": {
     "@lovejoin/sdk": "workspace:*",
     "@meshsdk/core": "1.8.14",
+    "@scure/bip39": "^2.2.0",
     "buffer": "^6.0.3",
     "hash-wasm": "^4.12.0",
     "i18next": "^24.2.1",

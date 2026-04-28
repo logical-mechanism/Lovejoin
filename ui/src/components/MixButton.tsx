@@ -1,8 +1,9 @@
 // "Mix N random boxes" button — the Pool screen's primary CTA.
 //
-// Spec: docs/spec/06-ui.md §"Pool" — picks N boxes uniformly at random
-// from the pool, picks a fee shard at random, requests collateral, builds
-// + submits the Mix tx.
+// Spec: docs/spec/06-ui.md §"Pool" + M6.5 — picks N boxes uniformly at
+// random from the pool, picks a fee shard, requests collateral, builds +
+// submits the Mix tx. M6.5 restored the fee-payer toggle (shard | wallet)
+// the M6 implementation hard-coded.
 //
 // Hard-disabled when the collateral provider is unreachable (Privacy UX
 // rule 8). Cooldown of 5 s after each click prevents accidental
@@ -15,6 +16,7 @@ import {
   buildMixTx,
   type LovejoinAddresses,
   type BlockfrostProvider,
+  type MixFeePayer,
   type MixInput,
   type Utxo,
 } from "@lovejoin/sdk";
@@ -35,6 +37,8 @@ export interface MixButtonProps {
   /** Pool of boxes to pick from (already filtered to mix-script address). */
   poolEntries: ReadonlyArray<{ ref: { txId: string; outputIndex: number }; a: Uint8Array; b: Uint8Array }>;
   n: number;
+  /** Who pays the tx fee. "shard" pulls from the on-chain pool; "wallet" charges the submitter. */
+  feePayer: MixFeePayer;
   onSubmitted: (txId: string) => void;
   onError: (message: string) => void;
 }
@@ -46,6 +50,7 @@ export function MixButton({
   wallet,
   poolEntries,
   n,
+  feePayer,
   onSubmitted,
   onError,
 }: MixButtonProps) {
@@ -89,14 +94,12 @@ export function MixButton({
         wallet,
         provider,
         addresses,
-        feePayer: "shard",
+        feePayer,
       });
       onSubmitted(result.txId);
       startCooldown();
     } catch (e) {
       onError((e as Error).message);
-      // A submit failure often correlates with a freshly-down collateral
-      // provider; refresh the status so the next render picks it up.
       refreshCollateral();
     } finally {
       setSubmitting(false);
@@ -118,12 +121,12 @@ export function MixButton({
   };
 
   return (
-    <div className="flex flex-col gap-1">
+    <div className="flex flex-col gap-2">
       <button
         type="button"
         onClick={() => void onClick()}
         disabled={disabled}
-        className="rounded bg-black px-4 py-2 text-sm font-semibold text-white disabled:opacity-40"
+        className="lj-btn lj-btn--primary lj-btn--lg"
       >
         {submitting
           ? t("pool.mix_submitting")
@@ -132,10 +135,10 @@ export function MixButton({
             : t("pool.mix_n_random_boxes", { n })}
       </button>
       {!collateralOk && (
-        <p className="text-xs text-amber-700">{t("pool.mix_disabled_collateral")}</p>
+        <p className="text-xs text-amber">{t("pool.mix_disabled_collateral")}</p>
       )}
       {collateralOk && !enoughBoxes && (
-        <p className="text-xs text-gray-500">
+        <p className="text-xs text-whisper">
           {t("pool.mix_disabled_pool", { have: poolEntries.length, need: n })}
         </p>
       )}
@@ -143,11 +146,6 @@ export function MixButton({
   );
 }
 
-/** Fisher-Yates shuffle, then take the first `n`. Deterministic given the
- *  same `Math.random` seed — fine because the spec calls for uniform
- *  randomness and `crypto.getRandomValues` would be over-engineering for
- *  selection (the privacy property comes from the *re-randomization*, not
- *  from picking which boxes to mix). */
 function pickRandomBoxes<T>(items: ReadonlyArray<T>, n: number): T[] {
   const arr = items.slice();
   for (let i = arr.length - 1; i > 0; i--) {

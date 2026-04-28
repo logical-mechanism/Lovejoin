@@ -2,22 +2,21 @@
 //
 // Holds:
 //   * `config` — runtime config (network, Blockfrost key, backend URL,
-//     collateral provider endpoint). Persisted to localStorage via lib/sdk.
+//     collateral provider endpoint). Baked at build time from Vite env vars
+//     (see lib/sdk.ts); developers can override via `?advanced=1`.
 //   * `provider` — BlockfrostProvider built from `config`. Memoized so
 //     screens don't see a new instance on every render.
 //   * `addresses` — bootstrap output (addresses.<network>.json) loaded
 //     async at mount.
 //   * `wallet` — connected CIP-30 BrowserWallet handle + change address.
-//   * `vault` — UnlockedVault handle once the user enters their passphrase.
-//     null until then; routes that need persisted boxes show a "unlock vault"
-//     prompt instead of crashing.
-//   * `boxes` — the cached list of stored boxes; mutated through the helpers
-//     so the vault stays the source of truth.
+//   * `vault` — null when locked; otherwise an `UnlockedSeed` (wallet- or
+//     BIP-39-derived) plus the most recent live pool scan.
+//   * `ownedBoxes` — derived view computed by walking the pool with the
+//     vault's seed. Re-runs on (un)lock and on user-triggered rescan.
 //
-// We deliberately use plain React Context + useState here — adding redux /
-// zustand for a five-route app is overkill, and the spec calls out no
-// state-management lib. The trade-off: every state change re-renders every
-// consumer. That's fine for the M6 surface; if perf bites we can split.
+// Plain React Context + useState because the surface is small. The vault
+// flow keeps the master seed in memory only; locking the vault drops the
+// reference and the AES key the BIP-39 path holds.
 
 import {
   createContext,
@@ -38,7 +37,15 @@ import {
   saveConfig,
   type RuntimeConfig,
 } from "./sdk.js";
-import { Vault, type StoredBox, type UnlockedVault } from "../storage/secrets.js";
+import {
+  scanPool,
+  unlockFromBip39,
+  unlockFromWallet,
+  type OwnedBox,
+  type UnlockedSeed,
+  type VaultScanResult,
+} from "./vault.js";
+import { EntropyVault } from "../storage/secrets.js";
 
 export interface AppState {
   config: RuntimeConfig;
@@ -57,34 +64,33 @@ export interface AppState {
     args: { wallet: BrowserWallet; walletId: string; changeAddress: string } | null,
   ) => void;
 
-  vault: UnlockedVault | null;
+  vault: UnlockedSeed | null;
   vaultError: string | null;
-  /**
-   * Unlock or auto-create the on-disk vault. First call ever creates it
-   * with a fresh salt; subsequent calls verify the passphrase. Throws on
-   * a wrong passphrase so the UI can keep prompting.
-   */
-  unlockVault: (passphrase: string) => Promise<void>;
-  lockVault: () => void;
-  destroyVault: () => Promise<void>;
+  vaultBusy: boolean;
 
-  boxes: StoredBox[];
-  /**
-   * Add or replace a stored box. Persists to the encrypted vault when
-   * unlocked; keeps an in-memory mirror in `boxes` for the routes to render.
-   */
-  addBox: (box: StoredBox) => Promise<void>;
-  removeBox: (txId: string, outputIndex: number) => Promise<void>;
+  ownedBoxes: OwnedBox[];
+  poolSize: number;
+  nextDepositIndex: number;
+  scanError: string | null;
+
+  /** Drive the wallet-signData round-trip + initial pool scan. */
+  unlockWithWallet: () => Promise<void>;
+  /** Unlock the BIP-39 fallback vault; null seed means "no entropy yet". */
+  unlockWithPassphrase: (passphrase: string) => Promise<{ hasEntropy: boolean }>;
+  /** Persist a fresh BIP-39 entropy hex into the unlocked vault. */
+  storeEntropyHex: (entropyHex: string) => Promise<void>;
+  /** Drop the seed + any open BIP-39 handle. */
+  lockVault: () => void;
+  /** Wipe the BIP-39 vault from disk. Wallet-derived path leaves nothing. */
+  destroyVault: () => Promise<void>;
+  /** Re-walk the live pool with the current seed. Cheap; safe to call often. */
+  rescan: () => Promise<void>;
 }
 
 const Ctx = createContext<AppState | null>(null);
 
 export interface AppStateProviderProps {
   children: ReactNode;
-  /**
-   * Overrides for tests. Inject a fixed initial config / pre-loaded
-   * addresses so the component tree doesn't have to wait on fetch().
-   */
   testOverrides?: {
     initialConfig?: RuntimeConfig;
     addresses?: LovejoinAddresses;
@@ -105,9 +111,16 @@ export function AppStateProvider({ children, testOverrides }: AppStateProviderPr
   const [walletId, setWalletId] = useState<string | null>(null);
   const [changeAddress, setChangeAddress] = useState<string | null>(null);
 
-  const [vault, setVault] = useState<UnlockedVault | null>(null);
+  const [vault, setVault] = useState<UnlockedSeed | null>(null);
   const [vaultError, setVaultError] = useState<string | null>(null);
-  const [boxes, setBoxes] = useState<StoredBox[]>([]);
+  const [vaultBusy, setVaultBusy] = useState(false);
+
+  const [scan, setScan] = useState<VaultScanResult>({
+    ownedBoxes: [],
+    poolSize: 0,
+    nextDepositIndex: 0,
+  });
+  const [scanError, setScanError] = useState<string | null>(null);
 
   const setConfig = useCallback((next: RuntimeConfig) => {
     saveConfig(next);
@@ -126,9 +139,6 @@ export function AppStateProvider({ children, testOverrides }: AppStateProviderPr
     [provider],
   );
 
-  // Load addresses.<network>.json on first mount + whenever the user
-  // switches network. Skipped under tests so unit tests don't depend on
-  // a fetch shim.
   useEffect(() => {
     if (testOverrides?.skipAddressLoad) return;
     if (testOverrides?.addresses) return;
@@ -157,60 +167,111 @@ export function AppStateProvider({ children, testOverrides }: AppStateProviderPr
         setWalletState(null);
         setWalletId(null);
         setChangeAddress(null);
+        // Disconnecting the wallet implicitly locks the wallet-derived
+        // vault since its seed is bound to that wallet's signature.
+        setVault((cur) => (cur?.kind === "wallet" ? null : cur));
       }
     },
     [],
   );
 
-  const unlockVault = useCallback(async (passphrase: string) => {
+  const runScan = useCallback(
+    async (seed: Uint8Array) => {
+      if (!provider || !addresses) return;
+      setScanError(null);
+      try {
+        const result = await scanPool({ seed, provider, addresses });
+        setScan(result);
+      } catch (e) {
+        setScanError((e as Error).message);
+      }
+    },
+    [provider, addresses],
+  );
+
+  const unlockWithWallet = useCallback(async () => {
+    if (!wallet) {
+      setVaultError("Connect a wallet first.");
+      throw new Error("no wallet");
+    }
+    setVaultBusy(true);
     setVaultError(null);
     try {
-      const v = await Vault.unlock(passphrase);
-      setVault(v);
-      const stored = await v.listBoxes();
-      setBoxes(stored);
+      const seed = await unlockFromWallet({ wallet });
+      setVault(seed);
+      await runScan(seed.seed);
     } catch (e) {
       setVault(null);
-      setBoxes([]);
       setVaultError((e as Error).message);
       throw e;
+    } finally {
+      setVaultBusy(false);
     }
-  }, []);
+  }, [wallet, runScan]);
+
+  const unlockWithPassphrase = useCallback(
+    async (passphrase: string) => {
+      setVaultBusy(true);
+      setVaultError(null);
+      try {
+        const { seed, vault: bip39Vault } = await unlockFromBip39({ passphrase });
+        if (!seed) {
+          // Vault exists but no entropy yet — caller is mid-create.
+          setVault({ kind: "bip39", seed: new Uint8Array(0), bip39Vault });
+          return { hasEntropy: false };
+        }
+        const unlocked: UnlockedSeed = { kind: "bip39", seed, bip39Vault };
+        setVault(unlocked);
+        await runScan(seed);
+        return { hasEntropy: true };
+      } catch (e) {
+        setVault(null);
+        setVaultError((e as Error).message);
+        throw e;
+      } finally {
+        setVaultBusy(false);
+      }
+    },
+    [runScan],
+  );
+
+  const storeEntropyHex = useCallback(
+    async (entropyHex: string) => {
+      if (!vault || vault.kind !== "bip39" || !vault.bip39Vault) {
+        throw new Error("vault: open the BIP-39 vault first");
+      }
+      await vault.bip39Vault.putEntropyHex(entropyHex);
+      const seed = hexToBytes(entropyHex);
+      const unlocked: UnlockedSeed = { kind: "bip39", seed, bip39Vault: vault.bip39Vault };
+      setVault(unlocked);
+      await runScan(seed);
+    },
+    [vault, runScan],
+  );
 
   const lockVault = useCallback(() => {
     setVault(null);
-    setBoxes([]);
     setVaultError(null);
+    setScan({ ownedBoxes: [], poolSize: 0, nextDepositIndex: 0 });
+    setScanError(null);
   }, []);
 
   const destroyVault = useCallback(async () => {
-    await Vault.destroy();
-    setVault(null);
-    setBoxes([]);
-  }, []);
+    await EntropyVault.destroy();
+    lockVault();
+  }, [lockVault]);
 
-  const addBox = useCallback(
-    async (box: StoredBox) => {
-      if (vault) await vault.putBox(box);
-      setBoxes((prev) => {
-        const filtered = prev.filter(
-          (b) => !(b.txId === box.txId && b.outputIndex === box.outputIndex),
-        );
-        return [box, ...filtered];
-      });
-    },
-    [vault],
-  );
+  const rescan = useCallback(async () => {
+    if (!vault) return;
+    await runScan(vault.seed);
+  }, [vault, runScan]);
 
-  const removeBox = useCallback(
-    async (txId: string, outputIndex: number) => {
-      if (vault) await vault.deleteBox(txId, outputIndex);
-      setBoxes((prev) =>
-        prev.filter((b) => !(b.txId === txId && b.outputIndex === outputIndex)),
-      );
-    },
-    [vault],
-  );
+  // Auto-rescan whenever the addresses or provider change after unlock.
+  useEffect(() => {
+    if (!vault) return;
+    if (vault.kind === "bip39" && vault.seed.length === 0) return;
+    runScan(vault.seed).catch(() => {});
+  }, [vault, runScan]);
 
   const value: AppState = {
     config,
@@ -225,12 +286,17 @@ export function AppStateProvider({ children, testOverrides }: AppStateProviderPr
     setWallet,
     vault,
     vaultError,
-    unlockVault,
+    vaultBusy,
+    ownedBoxes: scan.ownedBoxes,
+    poolSize: scan.poolSize,
+    nextDepositIndex: scan.nextDepositIndex,
+    scanError,
+    unlockWithWallet,
+    unlockWithPassphrase,
+    storeEntropyHex,
     lockVault,
     destroyVault,
-    boxes,
-    addBox,
-    removeBox,
+    rescan,
   };
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }
@@ -239,4 +305,13 @@ export function useAppState(): AppState {
   const v = useContext(Ctx);
   if (!v) throw new Error("useAppState: AppStateProvider missing");
   return v;
+}
+
+function hexToBytes(hex: string): Uint8Array {
+  const cleaned = hex.replace(/^0x/i, "");
+  const out = new Uint8Array(cleaned.length / 2);
+  for (let i = 0; i < out.length; i++) {
+    out[i] = Number.parseInt(cleaned.slice(i * 2, i * 2 + 2), 16);
+  }
+  return out;
 }

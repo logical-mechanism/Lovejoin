@@ -111,7 +111,8 @@
     "tx_preview_fee_wallet": "Fee paid by your wallet. Collateral provided by the configured collateral service. Your wallet is on the tx."
   },
   "pool_status": {
-    "title": "Network status",
+    "eyebrow": "Network",
+    "title": "Live status",
     "no_backend": "No backend configured. Pool size + indexer lag unavailable; Mix submission still works via direct chain queries.",
     "fee_balance": "Fee balance",
     "indexer_lag": "Indexer lag",
@@ -130,7 +131,8 @@
     "preconditions_missing": "Connect a wallet and unlock your vault to deposit.",
     "see_vault": "Box stored — see it in the Vault.",
     "tx_preview_title": "Transaction preview",
-    "tx_preview_copy": "Your wallet pays the {{denom}} ADA denomination plus a small replenish-fee top-up to the fee shard. Wallet signature is required."
+    "tx_preview_copy": "Your wallet pays the {{denom}} ADA denomination plus a small replenish-fee top-up to the fee shard. Wallet signature is required.",
+    "index_help": "Vault counter for this deposit's owner secret."
   },
   "boxes": {
     "section_title": "My boxes",
@@ -215,6 +217,7 @@
     "fallback_back": "Back to wallet-derived",
     "fallback_save_now_title": "Write this down now",
     "fallback_save_now_copy": "These 24 words are the ONLY thing that can restore your boxes. Lovejoin does not store them and cannot recover them. Write them down on paper or steel — never in cloud storage.",
+    "fallback_save_done": "I've saved the phrase",
     "fallback_confirm_title": "Confirm phrase",
     "fallback_confirm_lede": "Re-enter words {{a}}, {{b}}, and {{c}} from the phrase you just saved.",
     "fallback_confirm_word": "Word #{{n}}",

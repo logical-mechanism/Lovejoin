@@ -3,7 +3,8 @@
   "protocol": {
     "denom_lovelace": 10000000,
     "max_fee_per_mix_lovelace": 800000,
-    "fee_shard_target": 10
+    "fee_shard_target": 10,
+    "max_n": 3
   },
   "referenceNftPolicy": "310d0d4ff25e73a4a0442eac873e68810e11c824aa0e858acc56f1df",
   "referenceNftAssetName": "6c6f76656a6f696e",

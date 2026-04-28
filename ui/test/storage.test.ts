@@ -1,36 +1,23 @@
-// Encrypted-vault round-trip tests.
+// EntropyVault round-trip tests.
 //
-// These exercise the real Argon2id KDF (via hash-wasm) + Web Crypto AES-GCM
-// against a fake IndexedDB. We pin a low passphrase + small payload so the
-// suite stays under a few seconds per test even at the OWASP-recommended
-// 64 MiB / 3-iteration parameters.
+// Spec: docs/spec/06-ui.md M6.5 — the IndexedDB vault stores ONE encrypted
+// blob (the BIP-39 entropy hex), gated by an Argon2id-derived AES-GCM-256
+// key. We pin the round-trip + wrong-passphrase + destroy + rotate flows
+// against a fake IndexedDB so the suite stays under a few seconds per test
+// even at the OWASP-recommended 64 MiB / 3-iteration parameters.
 
 import "fake-indexeddb/auto";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import {
-  Vault,
+  EntropyVault,
   __resetForTests,
-  type StoredBox,
 } from "../src/storage/secrets.js";
 
-function freshBox(idx = 0): StoredBox {
-  return {
-    txId: "a".repeat(64),
-    outputIndex: idx,
-    ownerSecretHex: "01".repeat(32),
-    aHex: "02".repeat(48),
-    bHex: "03".repeat(48),
-    label: "deadbeefcafe",
-    rounds: 30,
-    createdAt: 1_700_000_000_000,
-  };
-}
+const ENTROPY_A = "0102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f20";
+const ENTROPY_B = "f0e0d0c0b0a090807060504030201000fffffffffffffffffffffffffffffffe";
 
 beforeEach(async () => {
-  // fake-indexeddb's @auto loader replaces global indexedDB on import. We
-  // wipe it between tests so each test starts from a clean DB; otherwise
-  // the vault meta from one test would leak into the next.
   globalThis.indexedDB = new (await import("fake-indexeddb")).IDBFactory();
   __resetForTests();
 });
@@ -39,73 +26,71 @@ afterEach(async () => {
   __resetForTests();
 });
 
-describe("Vault", () => {
+describe("EntropyVault", () => {
   it("auto-creates the vault on first unlock with a fresh salt", async () => {
-    expect(await Vault.exists()).toBe(false);
-    await Vault.unlock("hunter2");
-    expect(await Vault.exists()).toBe(true);
+    expect(await EntropyVault.exists()).toBe(false);
+    await EntropyVault.unlock("hunter2");
+    expect(await EntropyVault.exists()).toBe(true);
   });
 
-  it("round-trips a stored box across lock/unlock", async () => {
-    const v1 = await Vault.unlock("hunter2");
-    await v1.putBox(freshBox(0));
-    const v2 = await Vault.unlock("hunter2");
-    const all = await v2.listBoxes();
-    expect(all).toHaveLength(1);
-    expect(all[0]!.ownerSecretHex).toBe("01".repeat(32));
+  it("round-trips the entropy across lock/unlock", async () => {
+    const v1 = await EntropyVault.unlock("hunter2");
+    await v1.putEntropyHex(ENTROPY_A);
+    const v2 = await EntropyVault.unlock("hunter2");
+    expect(await v2.getEntropyHex()).toBe(ENTROPY_A);
+  });
+
+  it("returns null for a freshly-created vault with no entropy yet", async () => {
+    const v = await EntropyVault.unlock("hunter2");
+    expect(await v.getEntropyHex()).toBeNull();
   });
 
   it("rejects a wrong passphrase with a clean error", async () => {
-    await Vault.unlock("hunter2");
-    await expect(Vault.unlock("wrong")).rejects.toThrow(
+    await EntropyVault.unlock("hunter2");
+    await expect(EntropyVault.unlock("wrong")).rejects.toThrow(
       /passphrase incorrect/i,
     );
   });
 
-  it("getBox returns null for a missing ref", async () => {
-    const v = await Vault.unlock("hunter2");
-    expect(await v.getBox("0".repeat(64), 0)).toBeNull();
+  it("rejects a non-32-byte entropy hex", async () => {
+    const v = await EntropyVault.unlock("hunter2");
+    await expect(v.putEntropyHex("aa".repeat(31))).rejects.toThrow(
+      /BIP-39 entropy/,
+    );
+    await expect(v.putEntropyHex("not-hex" + "a".repeat(57))).rejects.toThrow(
+      /BIP-39 entropy/,
+    );
   });
 
-  it("deletes a stored box", async () => {
-    const v = await Vault.unlock("hunter2");
-    await v.putBox(freshBox(0));
-    await v.deleteBox(freshBox(0).txId, 0);
-    expect(await v.listBoxes()).toHaveLength(0);
+  it("destroy() wipes meta + entropy so a fresh passphrase works", async () => {
+    const v = await EntropyVault.unlock("hunter2");
+    await v.putEntropyHex(ENTROPY_A);
+    await EntropyVault.destroy();
+    expect(await EntropyVault.exists()).toBe(false);
+    const v2 = await EntropyVault.unlock("brand-new");
+    expect(await v2.getEntropyHex()).toBeNull();
   });
 
-  it("listBoxes orders newest-first by createdAt", async () => {
-    const v = await Vault.unlock("hunter2");
-    await v.putBox({ ...freshBox(0), createdAt: 1 });
-    await v.putBox({ ...freshBox(1), createdAt: 100 });
-    await v.putBox({ ...freshBox(2), createdAt: 50 });
-    const list = await v.listBoxes();
-    expect(list.map((b) => b.outputIndex)).toEqual([1, 2, 0]);
-  });
-
-  it("destroy() wipes meta + boxes so a fresh passphrase works", async () => {
-    const v = await Vault.unlock("hunter2");
-    await v.putBox(freshBox(0));
-    await Vault.destroy();
-    expect(await Vault.exists()).toBe(false);
-    const v2 = await Vault.unlock("brand-new");
-    expect(await v2.listBoxes()).toHaveLength(0);
-  });
-
-  it("rotatePassphrase moves every box onto a new key", async () => {
-    const v1 = await Vault.unlock("hunter2");
-    await v1.putBox(freshBox(0));
-    await v1.putBox(freshBox(1));
+  it("rotatePassphrase moves the entropy onto a new key", async () => {
+    const v1 = await EntropyVault.unlock("hunter2");
+    await v1.putEntropyHex(ENTROPY_A);
     const v2 = await v1.rotatePassphrase("new-secret");
-    const list = await v2.listBoxes();
-    expect(list).toHaveLength(2);
-    // The old passphrase no longer unlocks.
-    await expect(Vault.unlock("hunter2")).rejects.toThrow(/passphrase incorrect/i);
-    const v3 = await Vault.unlock("new-secret");
-    expect(await v3.listBoxes()).toHaveLength(2);
+    expect(await v2.getEntropyHex()).toBe(ENTROPY_A);
+    await expect(EntropyVault.unlock("hunter2")).rejects.toThrow(
+      /passphrase incorrect/i,
+    );
+    const v3 = await EntropyVault.unlock("new-secret");
+    expect(await v3.getEntropyHex()).toBe(ENTROPY_A);
+  });
+
+  it("overwrites a previously stored entropy when putEntropyHex is called twice", async () => {
+    const v = await EntropyVault.unlock("hunter2");
+    await v.putEntropyHex(ENTROPY_A);
+    await v.putEntropyHex(ENTROPY_B);
+    expect(await v.getEntropyHex()).toBe(ENTROPY_B);
   });
 
   it("rejects an empty passphrase", async () => {
-    await expect(Vault.unlock("")).rejects.toThrow(/non-empty/);
+    await expect(EntropyVault.unlock("")).rejects.toThrow(/non-empty/);
   });
 }, 60_000);

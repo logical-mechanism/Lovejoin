@@ -1,55 +1,111 @@
-// Home — 60-second explainer + network status.
+// Home — splash hero, three-pillar pitch, calm CTAs.
 //
-// Spec: docs/spec/06-ui.md §"Home" — three blocks: a short explainer, the
-// PoolStatus widget, a connect-wallet pointer.
+// Spec: docs/spec/06-ui.md M6.5 — "splash-style Home (hero + 3-bullet
+// pitch + connect CTA, not a status-dump dashboard)". Network status
+// stays in the Pool screen, not here; Home is the front door.
 
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
+import { useState } from "react";
 import { useTranslation } from "react-i18next";
 
-import { PoolStatus } from "../components/PoolStatus.js";
 import { useAppState } from "../lib/store.js";
+import { Eyebrow } from "../components/ui/Eyebrow.js";
+import { WalletModal } from "../components/WalletModal.js";
 
 export function Home() {
   const { t } = useTranslation();
-  const { config, wallet } = useAppState();
+  const { wallet, setWallet } = useAppState();
+  const navigate = useNavigate();
+  const [walletOpen, setWalletOpen] = useState(false);
 
   return (
     <>
-      <section className="rounded-md border border-gray-200 bg-white p-4">
-        <h2 className="text-lg font-semibold">{t("home.title")}</h2>
-        <p className="mt-2 text-sm text-gray-700">{t("home.explainer")}</p>
-        <ul className="mt-3 list-disc pl-5 text-sm text-gray-700">
-          <li>{t("home.bullet_deposit")}</li>
-          <li>{t("home.bullet_mix")}</li>
-          <li>{t("home.bullet_withdraw")}</li>
-        </ul>
-        <p className="mt-3 text-xs text-gray-600">{t("home.privacy_note")}</p>
+      <section className="lj-hero">
+        <Eyebrow>{t("home.eyebrow")}</Eyebrow>
+        <h1 className="lj-hero__title mt-4">
+          {t("home.headline_a")}
+          <br />
+          <em>{t("home.headline_b")}</em>
+        </h1>
+        <p className="lj-hero__lede">{t("home.lede")}</p>
+        <div className="lj-hero__cta">
+          {wallet ? (
+            <button
+              type="button"
+              className="lj-btn lj-btn--primary lj-btn--lg"
+              onClick={() => navigate("/deposit")}
+            >
+              {t("nav.deposit")}
+            </button>
+          ) : (
+            <button
+              type="button"
+              className="lj-btn lj-btn--primary lj-btn--lg"
+              onClick={() => setWalletOpen(true)}
+            >
+              {t("home.cta_primary")}
+            </button>
+          )}
+          <a
+            className="lj-btn lj-btn--lg"
+            href="https://github.com/logical-mechanism/Lovejoin/blob/main/docs/spec/00-overview.md"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            {t("home.cta_secondary")}
+          </a>
+        </div>
       </section>
 
-      <PoolStatus backendUrl={config.backendUrl} />
+      <section className="lj-pillars">
+        <Pillar
+          numeral="I"
+          title={t("home.pillar_one_title")}
+          copy={t("home.pillar_one_copy")}
+          to="/deposit"
+        />
+        <Pillar
+          numeral="II"
+          title={t("home.pillar_two_title")}
+          copy={t("home.pillar_two_copy")}
+          to="/pool"
+        />
+        <Pillar
+          numeral="III"
+          title={t("home.pillar_three_title")}
+          copy={t("home.pillar_three_copy")}
+          to="/withdraw"
+        />
+      </section>
 
-      {!wallet && (
-        <section className="rounded-md border border-gray-200 bg-white p-4 text-sm">
-          <p>{t("home.connect_prompt")}</p>
-        </section>
-      )}
-
-      {wallet && (
-        <section className="rounded-md border border-gray-200 bg-white p-4 text-sm">
-          <p>{t("home.connected_prompt")}</p>
-          <div className="mt-2 flex gap-3">
-            <Link to="/deposit" className="font-medium underline">
-              {t("nav.deposit")}
-            </Link>
-            <Link to="/pool" className="font-medium underline">
-              {t("nav.pool")}
-            </Link>
-            <Link to="/vault" className="font-medium underline">
-              {t("nav.vault")}
-            </Link>
-          </div>
-        </section>
-      )}
+      <WalletModal
+        open={walletOpen}
+        onClose={() => setWalletOpen(false)}
+        onConnected={(args) => {
+          setWallet(args);
+          setWalletOpen(false);
+        }}
+      />
     </>
+  );
+}
+
+function Pillar({
+  numeral,
+  title,
+  copy,
+  to,
+}: {
+  numeral: string;
+  title: string;
+  copy: string;
+  to: string;
+}) {
+  return (
+    <Link to={to} className="lj-pillar group block focus:outline-none">
+      <span className="lj-pillar__numeral">{numeral}</span>
+      <h3 className="lj-pillar__title">{title}</h3>
+      <p className="lj-pillar__copy">{copy}</p>
+    </Link>
   );
 }

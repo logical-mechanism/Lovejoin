@@ -47,6 +47,14 @@ export interface LovejoinAddresses {
     denom_lovelace: number;
     max_fee_per_mix_lovelace: number;
     fee_shard_target: number;
+    /**
+     * Optional. Off-chain calibrated max-N for this deployment, copied
+     * from `config/network.<net>.json` at bootstrap time. Surfaces to
+     * the UI's MixWidthSlider so the cap reflects deployed reality.
+     * Absent in legacy bootstraps; clients tolerating it as undefined
+     * fall back to a deployment-wide minimum (N=2).
+     */
+    max_n?: number;
   };
   referenceNftPolicy: Hex28;
   referenceNftAssetName: string;

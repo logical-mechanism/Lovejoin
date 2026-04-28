@@ -1,20 +1,25 @@
 // Box detail — single owned box, with the inline withdraw form.
 //
-// Spec: docs/spec/06-ui.md §"Box" — generation count + parent transactions
-// (deferred — needs M5 history endpoint), withdraw form, estimated linkage
-// probability + explainer text, SeedelfHint when destination is a regular
-// Cardano address.
+// Spec: docs/spec/06-ui.md §"Box" — vault-detail view of one box. The
+// owner secret is derived from the unlocked seed at the box's index;
+// the user never types or pastes anything.
 
-import { useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Link, useParams } from "react-router-dom";
+import { Link, useNavigate, useParams } from "react-router-dom";
+import {
+  buildWithdrawTx,
+  type MixBoxRef,
+} from "@lovejoin/sdk";
 
-import { PassphraseModal } from "../components/PassphraseModal.js";
-import { WithdrawPanel } from "../components/WithdrawPanel.js";
 import { useAppState } from "../lib/store.js";
+import { Eyebrow } from "../components/ui/Eyebrow.js";
+import { Hash } from "../components/ui/Hash.js";
+import { SeedelfHint } from "../components/SeedelfHint.js";
 
 export function Box() {
   const { t } = useTranslation();
+  const navigate = useNavigate();
   const { txid, idx } = useParams<{ txid: string; idx: string }>();
   const {
     config,
@@ -22,88 +27,211 @@ export function Box() {
     addresses,
     wallet,
     vault,
-    boxes,
-    removeBox,
+    ownedBoxes,
+    rescan,
   } = useAppState();
+  const [destination, setDestination] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const [submitTxId, setSubmitTxId] = useState<string | null>(null);
+  const [submitError, setSubmitError] = useState<string | null>(null);
 
   const outputIndex = idx !== undefined ? Number.parseInt(idx, 10) : NaN;
   const box = useMemo(
     () =>
-      boxes.find(
+      ownedBoxes.find(
         (b) =>
-          b.txId === (txid ?? "").toLowerCase() && b.outputIndex === outputIndex,
+          b.entry.ref.txId === (txid ?? "").toLowerCase() &&
+          b.entry.ref.outputIndex === outputIndex,
       ) ?? null,
-    [boxes, txid, outputIndex],
+    [ownedBoxes, txid, outputIndex],
   );
 
+  useEffect(() => {
+    if (!vault && txid) navigate("/vault");
+  }, [vault, txid, navigate]);
+
   if (!vault) {
-    return <PassphraseModal />;
+    return null;
   }
 
   if (!box) {
     return (
-      <section className="rounded-md border border-gray-200 bg-white p-4 text-sm text-gray-700">
-        <p>{t("box.not_found")}</p>
-        <p className="mt-2">
-          <Link className="underline" to="/vault">
+      <section className="lj-card">
+        <header className="lj-card__head">
+          <div>
+            <Eyebrow>{t("box.eyebrow")}</Eyebrow>
+            <h2 className="lj-card__title">{t("box.title")}</h2>
+          </div>
+        </header>
+        <p className="text-sm text-muted">{t("box.not_found")}</p>
+        <div className="mt-6">
+          <Link to="/vault" className="lj-btn">
             {t("box.back_to_vault")}
           </Link>
-        </p>
+        </div>
       </section>
     );
   }
 
+  const ada = (Number(box.entry.utxo.lovelace) / 1_000_000).toFixed(2);
+
+  const onWithdraw = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!provider || !addresses || !wallet) return;
+    setSubmitting(true);
+    setSubmitTxId(null);
+    setSubmitError(null);
+    try {
+      const mixBox: MixBoxRef = {
+        ref: box.entry.ref,
+        a: box.entry.a,
+        b: box.entry.b,
+      };
+      const result = await buildWithdrawTx({
+        network: config.network as "preprod" | "preview" | "mainnet",
+        ownerSecret: box.secret,
+        mixBox,
+        destinationAddressBech32: destination.trim(),
+        wallet,
+        provider,
+        addresses,
+      });
+      setSubmitTxId(result.txId);
+      window.setTimeout(() => void rescan(), 12_000);
+    } catch (err) {
+      setSubmitError(t("withdraw.error", { message: (err as Error).message }));
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
   return (
     <>
-      <section className="rounded-md border border-gray-200 bg-white p-4">
-        <h2 className="text-lg font-semibold">{t("box.title")}</h2>
-        <dl className="mt-3 grid grid-cols-1 gap-1 text-xs sm:grid-cols-2">
-          <Row label={t("box.label_field")} value={box.label} />
-          <Row label={t("box.deposit_tx")} value={`${box.txId}#${box.outputIndex}`} />
+      <section className="lj-card">
+        <header className="lj-card__head">
+          <div>
+            <Eyebrow>{t("box.eyebrow")}</Eyebrow>
+            <h2 className="lj-card__title">{t("box.title")}</h2>
+          </div>
+          <div className="lj-stat">
+            <span className="lj-stat__label">{t("common.amount")}</span>
+            <span className="lj-stat__value" data-num>
+              {ada} ₳
+            </span>
+          </div>
+        </header>
+        <dl className="grid grid-cols-1 gap-y-3 text-sm sm:grid-cols-2 sm:gap-x-12">
+          <Row label="i" value={String(box.index)} />
           <Row
-            label={t("box.deposited_at")}
-            value={new Date(box.createdAt).toISOString()}
+            label={t("box.deposit_tx")}
+            valueNode={<Hash value={box.entry.ref.txId} edge={8} />}
           />
-          <Row label={t("box.intended_rounds")} value={String(box.rounds)} />
+          <Row
+            label="b"
+            valueNode={<Hash value={hex(box.entry.b)} edge={6} copyable={false} />}
+          />
+          <Row
+            label="a"
+            valueNode={<Hash value={hex(box.entry.a)} edge={6} copyable={false} />}
+          />
         </dl>
-        <p className="mt-3 text-xs text-gray-600">{t("box.linkage_explainer")}</p>
+        <p className="mt-6 text-xs text-whisper leading-relaxed max-w-prose">
+          {t("box.linkage_explainer")}
+        </p>
       </section>
 
-      {provider && addresses && wallet && (
-        <WithdrawPanel
-          network={config.network}
-          provider={provider}
-          addresses={addresses}
-          wallet={wallet}
-          prefill={{
-            txId: box.txId,
-            outputIndex: box.outputIndex as 0,
-            ownerSecretHex: box.ownerSecretHex,
-            aHex: box.aHex,
-            bHex: box.bHex,
-            label: box.label,
-            rounds: box.rounds,
-            createdAt: box.createdAt,
-          }}
-          onWithdrawn={(spent) => {
-            void removeBox(spent.txId, spent.outputIndex);
-          }}
-        />
-      )}
-      {(!provider || !addresses || !wallet) && (
-        <p className="text-sm text-gray-600">
-          {t("box.preconditions_missing")}
-        </p>
+      {!provider || !addresses || !wallet ? (
+        <section className="lj-card">
+          <p className="text-sm text-muted">{t("box.preconditions_missing")}</p>
+        </section>
+      ) : (
+        <section className="lj-card">
+          <header className="lj-card__head">
+            <div>
+              <Eyebrow>{t("withdraw.eyebrow")}</Eyebrow>
+              <h2 className="lj-card__title">{t("withdraw.section_title")}</h2>
+            </div>
+          </header>
+          <form className="space-y-6" onSubmit={(e) => void onWithdraw(e)}>
+            <label className="lj-field">
+              <span className="lj-field__label">{t("withdraw.destination_label")}</span>
+              <input
+                type="text"
+                value={destination}
+                onChange={(e) => setDestination(e.target.value)}
+                spellCheck={false}
+                autoComplete="off"
+                placeholder={t("withdraw.destination_placeholder")}
+                className="lj-input"
+              />
+              {destination.trim() && <SeedelfHint address={destination} />}
+            </label>
+
+            <div className="lj-banner lj-banner--signal">
+              <span className="lj-eyebrow">{t("withdraw.tx_preview_title")}</span>
+              <span className="lj-banner__detail">
+                {t("withdraw.tx_preview_copy")}
+              </span>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-3">
+              <button
+                type="submit"
+                disabled={submitting || !destination.trim()}
+                className="lj-btn lj-btn--primary lj-btn--lg"
+              >
+                {submitting ? t("withdraw.submitting") : t("withdraw.submit")}
+              </button>
+              <a
+                href="https://seedelfs.com/"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="lj-btn"
+              >
+                {t("withdraw.create_seedelf")}
+              </a>
+            </div>
+          </form>
+          {submitTxId && (
+            <div className="lj-banner lj-banner--signal mt-6">
+              <span className="lj-banner__title">
+                {t("withdraw.success", { txId: "" })}
+              </span>
+              <span className="lj-banner__detail">
+                <Hash value={submitTxId} edge={8} />
+              </span>
+            </div>
+          )}
+          {submitError && (
+            <div role="alert" className="lj-banner lj-banner--coral mt-6">
+              <span className="lj-banner__title">{submitError}</span>
+            </div>
+          )}
+        </section>
       )}
     </>
   );
 }
 
-function Row({ label, value }: { label: string; value: string }) {
+function Row({
+  label,
+  value,
+  valueNode,
+}: {
+  label: string;
+  value?: string;
+  valueNode?: React.ReactNode;
+}) {
   return (
-    <div className="flex flex-col gap-0.5 sm:flex-row sm:items-center sm:gap-2">
-      <dt className="font-medium text-gray-700">{label}:</dt>
-      <dd className="break-all font-mono text-gray-700">{value}</dd>
+    <div className="flex flex-col gap-1 border-b border-rule pb-3">
+      <dt className="lj-eyebrow">{label}</dt>
+      <dd className="font-mono text-paper">{valueNode ?? value}</dd>
     </div>
   );
+}
+
+function hex(b: Uint8Array): string {
+  let s = "";
+  for (const x of b) s += x.toString(16).padStart(2, "0");
+  return s;
 }
