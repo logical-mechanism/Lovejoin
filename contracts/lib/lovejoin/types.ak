@@ -25,13 +25,17 @@ use lovejoin/sigma_or.{SigmaOrProof}
 /// max would make the protocol get stuck if Cardano's per-tx limits ever
 /// rise (or if validator costs drop). SDKs can still carry a recommended N
 /// as off-chain config (network.<net>.json), but it's not protocol-level.
+///
+/// No `fee_shard_target` either, as of M4.5: the canonical 10-shard pool is
+/// off-chain coordination — no validator reads the count, and committing it
+/// on-chain forced every reference-datum decode to walk one more field.
+/// Dropped as part of the M4.5 redeploy schema cleanup.
 pub type ReferenceDatum {
   denom_lovelace: Int,
   max_fee_per_mix_lovelace: Int,
   mix_script_hash: ScriptHash,
   mix_logic_script_hash: ScriptHash,
   fee_script_hash: ScriptHash,
-  fee_shard_target: Int,
 }
 
 /// `mix_box` inline datum. `a` and `b` are 48-byte compressed BLS12-381 G1 points.

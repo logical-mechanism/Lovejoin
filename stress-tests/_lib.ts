@@ -23,7 +23,8 @@ export interface Addresses {
     denom_lovelace: number;
     max_fee_per_mix_lovelace: number;
     max_n: number;
-    fee_shard_target: number;
+    /** Optional informational only; the validator never reads this. */
+    fee_shard_target?: number;
   };
   referenceNftPolicy: string | null;
   referenceNftAssetName: string | null;

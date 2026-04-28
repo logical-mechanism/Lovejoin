@@ -107,7 +107,6 @@ function registerParams(fastify: FastifyInstance, deps: ApiServerDeps): void {
       maxFeePerMix: BigInt(a.protocol.max_fee_per_mix_lovelace),
       defaultMixRounds: 30,
       minMixRounds: 5,
-      feeShardTarget: a.protocol.fee_shard_target,
       mixScriptAddress: deps.config.derived.mixBoxAddress,
       feeScriptAddress: deps.config.derived.feeContractAddress,
       referenceUtxo: ref

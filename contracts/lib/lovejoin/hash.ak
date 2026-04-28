@@ -77,11 +77,7 @@ pub type SigmaOrCommitment {
 /// share the prefix without going through the wrapper-struct codepath.
 /// `n` is required as a 1-byte big-endian prefix; callers must enforce
 /// `2 <= n <= 255` themselves before calling.
-pub fn fs_hash_sigma_or_header(
-  a: ByteArray,
-  b: ByteArray,
-  n: Int,
-) -> ByteArray {
+pub fn fs_hash_sigma_or_header(a: ByteArray, b: ByteArray, n: Int) -> ByteArray {
   let n_byte = bytearray.from_int_big_endian(n, 1)
   domain_tag_v1
     |> bytearray.concat(statement_id_sigma_or_n)

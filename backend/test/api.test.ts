@@ -20,7 +20,7 @@ const NFT_UNIT = NFT_POLICY + NFT_NAME;
 
 const ADDRESSES: LovejoinAddresses = {
   network: "preprod",
-  protocol: { denom_lovelace: 10_000_000, max_fee_per_mix_lovelace: 800_000, fee_shard_target: 10 },
+  protocol: { denom_lovelace: 10_000_000, max_fee_per_mix_lovelace: 800_000 },
   referenceNftPolicy: NFT_POLICY,
   referenceNftAssetName: NFT_NAME,
   referenceUtxoRef: "00".repeat(32) + "#0",
@@ -175,7 +175,6 @@ describe("API: /params", () => {
     expect(body.network).toBe("preprod");
     expect(body.denomLovelace).toBe("10000000");
     expect(body.maxFeePerMix).toBe("800000");
-    expect(body.feeShardTarget).toBe(10);
     expect(body.mixScriptAddress).toBe(MIX_ADDR);
     expect(body.feeScriptAddress).toBe(FEE_ADDR);
     expect(body.referenceNft.policyId).toBe(NFT_POLICY);

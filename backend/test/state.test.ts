@@ -16,7 +16,7 @@ const FEE_ADDR = "addr_test1fee";
 const NFT_UNIT = "deadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef" + "6c6f76656a6f696e";
 const ADDRESSES: LovejoinAddresses = {
   network: "preprod",
-  protocol: { denom_lovelace: 10_000_000, max_fee_per_mix_lovelace: 800_000, fee_shard_target: 10 },
+  protocol: { denom_lovelace: 10_000_000, max_fee_per_mix_lovelace: 800_000 },
   referenceNftPolicy: "deadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef",
   referenceNftAssetName: "6c6f76656a6f696e",
   referenceUtxoRef: "00".repeat(32) + "#0",

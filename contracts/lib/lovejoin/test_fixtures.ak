@@ -41,8 +41,6 @@ pub const denom_lovelace: Int = 10_000_000
 
 pub const max_fee_per_mix_lovelace: Int = 800_000
 
-pub const fee_shard_target: Int = 10
-
 // 48-byte BLS12-381 G1 generator and another point we trust to be on the curve.
 // (Both are real points from the M1 KAT vectors.)
 pub const a48: ByteArray =
@@ -65,7 +63,6 @@ pub fn default_reference_datum() -> ReferenceDatum {
     mix_script_hash,
     mix_logic_script_hash: mix_logic_hash,
     fee_script_hash,
-    fee_shard_target,
   }
 }
 

@@ -47,7 +47,6 @@ const SAMPLE_FIELDS = [
   bytes("ba176a7604f3e062a7ed315780801495ed0ffb0191c6f8e7d88362e2"), // mix_box
   bytes("ca2d95fe9fe368e8ad1c89e2009a5ad292ff016e353144ea0ef829ff"), // mix_logic
   bytes("5efd8fdd7e4d35b04de427337220dcb30352136d739055b305dd2d66"), // fee_contract
-  10n,
 ];
 
 describe("tx/params — parseUtxoRef / formatUtxoRef", () => {
@@ -88,7 +87,6 @@ describe("tx/params — decodeReferenceDatum", () => {
     expect(params.mixScriptHash).toBe("ba176a7604f3e062a7ed315780801495ed0ffb0191c6f8e7d88362e2");
     expect(params.mixLogicScriptHash).toBe("ca2d95fe9fe368e8ad1c89e2009a5ad292ff016e353144ea0ef829ff");
     expect(params.feeScriptHash).toBe("5efd8fdd7e4d35b04de427337220dcb30352136d739055b305dd2d66");
-    expect(params.feeShardTarget).toBe(10);
   });
 
   it("rejects non-Constr-0 datums", () => {
@@ -98,9 +96,9 @@ describe("tx/params — decodeReferenceDatum", () => {
   });
 
   it("rejects field-count mismatches", () => {
-    const fields = SAMPLE_FIELDS.slice(0, 5); // missing fee_shard_target
+    const fields = SAMPLE_FIELDS.slice(0, 4); // missing fee_script_hash
     const hex = buildReferenceDatumCborHex(fields);
-    expect(() => decodeReferenceDatum(hex)).toThrow(/6 fields/);
+    expect(() => decodeReferenceDatum(hex)).toThrow(/5 fields/);
   });
 
   it("rejects malformed script-hash bytes", () => {
@@ -114,7 +112,7 @@ describe("tx/params — decodeReferenceDatum", () => {
 describe("tx/params — fetchProtocolParams", () => {
   const addresses: LovejoinAddresses = {
     network: "preprod",
-    protocol: { denom_lovelace: 10_000_000, max_fee_per_mix_lovelace: 800_000, fee_shard_target: 10 },
+    protocol: { denom_lovelace: 10_000_000, max_fee_per_mix_lovelace: 800_000 },
     referenceNftPolicy: "310d0d4ff25e73a4a0442eac873e68810e11c824aa0e858acc56f1df",
     referenceNftAssetName: "6c6f76656a6f696e",
     referenceUtxoRef: "b809b4e363067886174b57fd04101eb2e59f654220b6c11530c77b75f25ec945#0",
