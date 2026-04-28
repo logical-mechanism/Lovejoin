@@ -33,6 +33,8 @@ export interface Addresses {
   feeScriptHash: string | null;
   feeShardUtxos: string[];
   referenceScriptUtxos: Record<string, string>;
+  /** Optional 28-byte hex stake-key hash baked into every dApp UTxO. */
+  dappStakeKeyHashHex?: string;
 }
 
 export function repoRoot(): string {
@@ -94,14 +96,8 @@ export function requireBootstrap(network: string): Addresses {
   return a;
 }
 
-export function abortWithM4Notice(scriptName: string): never {
-  console.error(
-    [
-      `${scriptName}: this runner depends on the M4 Mix tx builder.`,
-      `Until offchain/src/tx/mix.ts ships (M4), the runner is a no-op.`,
-      `When M4 lands, replace this stub with the actual submission loop.`,
-    ].join("\n"),
-  );
+export function abortWithM4Notice(message: string): never {
+  console.error(message);
   process.exit(2);
 }
 

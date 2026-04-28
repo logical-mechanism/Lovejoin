@@ -12,3 +12,7 @@ export * from "./chain/index.js";
 // docs/spec/04-offchain.md and docs/spec/09-milestones.md M3.
 export * from "./tx/index.js";
 export * from "./wallet/index.js";
+
+// M4: pool scanner + N-tuple selector + Mix tx builder.
+// See docs/spec/04-offchain.md §"Pool helpers" / §"Mix tx".
+export * from "./pool/index.js";

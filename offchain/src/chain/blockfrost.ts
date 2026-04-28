@@ -128,7 +128,74 @@ export class BlockfrostProvider implements ChainProvider {
     // Mesh's BlockfrostProvider(projectId) infers the network from the
     // project id prefix ("preprod...", "preview...", "mainnet..."), which
     // matches what we already require callers to set.
-    this._mesh = new MeshBlockfrost(this.projectId) as MeshFetcherSubmitter;
+    const meshBf = new MeshBlockfrost(
+      this.projectId,
+    ) as MeshFetcherSubmitter & {
+      evaluateTx: (tx: string) => Promise<unknown>;
+    };
+    // Mesh's BlockfrostProvider posts to /utils/txs/evaluate without a
+    // `version` query param, which makes Blockfrost route the request
+    // through ogmios v5. v5 predates Conway and doesn't know
+    // `xor_bytearray` (builtin 77) — the moment the sigma-OR verifier
+    // tries to XOR a per-branch challenge, the script aborts. v5
+    // surfaces that as `EvaluationFailure: ScriptFailures: {}` (empty
+    // failure map) which masks the real cause.
+    //
+    // Override `evaluateTx` to hit `?version=6` instead. The request
+    // body shape is the same; the response is JSON-RPC 2.0 instead of
+    // jsonwsp. We translate it to the mesh `Action[]` shape MeshTxBuilder
+    // expects.
+    const baseUrl = this.baseUrl;
+    const projectId = this.projectId;
+    const fetchFn = this.fetchFn;
+    meshBf.evaluateTx = async (tx: string) => {
+      const res = await fetchFn(
+        `${baseUrl}/utils/txs/evaluate?version=6`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/cbor",
+            project_id: projectId,
+          },
+          body: tx,
+        },
+      );
+      const body = (await res.json()) as {
+        result?: Array<{
+          validator: { index: number; purpose: string };
+          budget: { memory: number; cpu: number };
+        }>;
+        error?: { code: number; message: string; data?: unknown };
+      };
+      if (body.error) {
+        throw new Error(
+          `Blockfrost ogmios v6 evaluator rejected the tx: ` +
+            `${body.error.message} ` +
+            `(code ${body.error.code})\n${JSON.stringify(body.error.data, null, 2)}`,
+        );
+      }
+      if (!body.result) {
+        throw new Error(
+          `Blockfrost ogmios v6 evaluator returned no result: ${JSON.stringify(body).slice(0, 300)}`,
+        );
+      }
+      // v6 purposes:    spend | mint | publish | withdraw | vote | propose
+      // mesh's Action.tag: SPEND | MINT | CERT  | REWARD   | VOTE | PROPOSE
+      const purposeMap: Record<string, string> = {
+        spend: "SPEND",
+        mint: "MINT",
+        publish: "CERT",
+        withdraw: "REWARD",
+        vote: "VOTE",
+        propose: "PROPOSE",
+      };
+      return body.result.map((entry) => ({
+        tag: purposeMap[entry.validator.purpose] ?? entry.validator.purpose,
+        index: entry.validator.index,
+        budget: { mem: entry.budget.memory, steps: entry.budget.cpu },
+      }));
+    };
+    this._mesh = meshBf;
     return this._mesh;
   }
 

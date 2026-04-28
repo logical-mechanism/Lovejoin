@@ -31,7 +31,7 @@ use lovejoin/mixbox.{
 }
 use lovejoin/reference.{read_reference_datum}
 use lovejoin/schnorr
-use lovejoin/sigma_or.{DHTupleStatement, SigmaOrProof}
+use lovejoin/sigma_or.{DHTupleStatement, DHTupleStatementPt, SigmaOrProof}
 use lovejoin/types.{Mix, MixDatum, MixLogicRedeemer, Owner, ReferenceDatum}
 
 // Flat params — one CBOR atom per `aiken blueprint apply` call.
@@ -137,11 +137,19 @@ fn validate_mix(
   let ctx = compute_mix_ctx(prefix_outputs, reference_datum.mix_script_hash)
 
   // Build the OR-statement vector once: every input's OR-proof is over the
-  // SAME N output (a', b') pairs.
-  let statements: List<DHTupleStatement> =
-    list.map(
-      mix_output_data,
-      fn(mix_output) { DHTupleStatement { ap: mix_output.a, bp: mix_output.b } },
+  // SAME N output (a', b') pairs. Pre-uncompress each output (a', b')
+  // here — without this, each of the N `sigma_or.verify_pre` calls would
+  // re-uncompress every statement point (= N² uncompresses per tx). This
+  // is the dominant CPU-budget optimisation; bringing N² down to N
+  // uncompresses for statements is what lets `max_n` climb past 3.
+  let statements: List<DHTupleStatementPt> =
+    sigma_or.precompute_statements(
+      list.map(
+        mix_output_data,
+        fn(mix_output) {
+          DHTupleStatement { ap: mix_output.a, bp: mix_output.b }
+        },
+      ),
     )
 
   // Per-input OR-proof verification. `proofs[i]` proves "input i's witness
@@ -151,7 +159,7 @@ fn validate_mix(
     mix_inputs,
     proofs,
     fn(mix_input, proof) {
-      sigma_or.verify(mix_input.a, mix_input.b, statements, proof, ctx)
+      sigma_or.verify_pre(mix_input.a, mix_input.b, statements, proof, ctx)
     },
   )
 }

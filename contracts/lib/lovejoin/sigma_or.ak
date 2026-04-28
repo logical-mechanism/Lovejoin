@@ -38,6 +38,41 @@ pub type DHTupleStatement {
   bp: ByteArray,
 }
 
+/// Statement with both raw bytes (for the FS hash preimage) AND the
+/// uncompressed G1 points (for the per-branch DH-tuple equations).
+/// Construct once via `precompute_statements` and reuse across the N
+/// per-input `verify_pre` calls in a Mix tx — that reuse is the main
+/// CPU-budget optimisation at high N (saves N²−N uncompressions of
+/// the output statement points; each `bls12_381_g1_uncompress` is the
+/// dominant per-op cost in the validator).
+pub type DHTupleStatementPt {
+  ap: ByteArray,
+  bp: ByteArray,
+  ap_pt: G1Element,
+  bp_pt: G1Element,
+}
+
+/// Pre-uncompress a list of statements once. The Mix-tx validator
+/// runs N input proofs, each over the same N output (a', b') pairs;
+/// without pre-computation each verifier call would re-uncompress
+/// every statement point (= N² uncompresses). With this, the per-tx
+/// uncompress count for statements drops to N.
+pub fn precompute_statements(
+  statements: List<DHTupleStatement>,
+) -> List<DHTupleStatementPt> {
+  list.map(
+    statements,
+    fn(s) {
+      DHTupleStatementPt {
+        ap: s.ap,
+        bp: s.bp,
+        ap_pt: bls.point_from_bytes(s.ap),
+        bp_pt: bls.point_from_bytes(s.bp),
+      }
+    },
+  )
+}
+
 /// XOR two equal-length 32-byte arrays, produced via per-byte bitwise XOR using
 /// the integer-wide `xor_bytearray` builtin.
 fn xor32(left: ByteArray, right: ByteArray) -> ByteArray {
@@ -50,6 +85,11 @@ fn xor32(left: ByteArray, right: ByteArray) -> ByteArray {
 ///
 /// `max_n` is enforced by the caller (the validator looks it up from the reference
 /// UTxO's ProtocolParams); this verifier only enforces N >= 2.
+///
+/// This is the convenience wrapper for callers that don't pre-uncompress
+/// the statement points — it does the uncompression on every call.
+/// The Mix-tx validator should use `verify_pre` instead, which accepts
+/// pre-uncompressed statements and saves N²−N uncompressions per tx.
 pub fn verify(
   a: ByteArray,
   b: ByteArray,
@@ -57,12 +97,28 @@ pub fn verify(
   proof: SigmaOrProof,
   ctx: ByteArray,
 ) -> Bool {
+  verify_pre(a, b, precompute_statements(statements), proof, ctx)
+}
+
+/// Variant of `verify` that takes statements with their G1 points
+/// already uncompressed. Use this when the same statement set is
+/// verified against multiple (input, proof) pairs in the same tx —
+/// each `bls12_381_g1_uncompress` is one of the most expensive ops
+/// in the validator (roughly 25-30M CPU steps), so amortising N²
+/// re-uncompresses down to N is the single biggest knob for raising
+/// the Mix tx's `max_n` ceiling.
+pub fn verify_pre(
+  a: ByteArray,
+  b: ByteArray,
+  statements: List<DHTupleStatementPt>,
+  proof: SigmaOrProof,
+  ctx: ByteArray,
+) -> Bool {
   let n = list.length(statements)
   expect n >= 2
   expect list.length(proof.branches) == n
 
-  // Decompose the lists into the byte-only form expected by hash.fs_hash_sigma_or
-  // and the geometric data needed for per-branch checks.
+  // Decompose into the byte-only form for hash.fs_hash_sigma_or.
   let stmt_for_hash =
     list.map(
       statements,
@@ -83,27 +139,49 @@ pub fn verify(
     list.foldl(proof.branches, zero32, fn(br, acc) { xor32(acc, br.c) })
   expect c_global == xor_of_branch_c
 
-  // Per-branch DH-tuple equations.
+  // Per-branch DH-tuple equations. Input points uncompressed once
+  // per call (unique per input; can't share across N calls).
   let a_pt = bls.point_from_bytes(a)
   let b_pt = bls.point_from_bytes(b)
 
-  let pairs = list.map2(statements, proof.branches, fn(stmt, br) { (stmt, br) })
-  list.all(
-    pairs,
-    fn(pair) {
-      let (stmt, br) = pair
-      let ap_pt = bls.point_from_bytes(stmt.ap)
-      let bp_pt = bls.point_from_bytes(stmt.bp)
+  // Walk statements + branches in lockstep without allocating an
+  // intermediate `(stmt, branch)` pair list — this loop runs N×N
+  // times across a Mix tx, so the alloc savings add up.
+  parallel_all(
+    statements,
+    proof.branches,
+    fn(stmt, br) {
       let t0_pt = bls.point_from_bytes(br.t0)
       let t1_pt = bls.point_from_bytes(br.t1)
       let z = bls.scalar_from_bytes(br.z)
       let c = bls.scalar_from_bytes_mod(br.c)
 
       let lhs0 = bls.scalar_mul(z, a_pt)
-      let rhs0 = bls.point_add(t0_pt, bls.scalar_mul(c, ap_pt))
+      let rhs0 = bls.point_add(t0_pt, bls.scalar_mul(c, stmt.ap_pt))
       let lhs1 = bls.scalar_mul(z, b_pt)
-      let rhs1 = bls.point_add(t1_pt, bls.scalar_mul(c, bp_pt))
+      let rhs1 = bls.point_add(t1_pt, bls.scalar_mul(c, stmt.bp_pt))
       bls.point_equal(lhs0, rhs0) && bls.point_equal(lhs1, rhs1)
     },
   )
+}
+
+/// Like `list.all` over `list.zip(xs, ys)` but without allocating the
+/// intermediate pair list. The caller asserts xs.length == ys.length;
+/// returns False for length mismatch. Inlined here so the per-branch
+/// hot loop in `verify_pre` doesn't pay for `list.zip` + `list.all`.
+fn parallel_all(
+  xs: List<DHTupleStatementPt>,
+  ys: List<SigmaOrBranch>,
+  pred: fn(DHTupleStatementPt, SigmaOrBranch) -> Bool,
+) -> Bool {
+  when (xs, ys) is {
+    ([], []) -> True
+    ([x, ..xt], [y, ..yt]) ->
+      if pred(x, y) {
+        parallel_all(xt, yt, pred)
+      } else {
+        False
+      }
+    _ -> False
+  }
 }

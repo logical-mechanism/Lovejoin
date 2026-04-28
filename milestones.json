@@ -139,7 +139,7 @@
     {
       "id": "M4",
       "name": "Mix tx builder + Mix UI",
-      "status": "pending",
+      "status": "done",
       "depends_on": ["M3.5"],
       "spec": "docs/spec/09-milestones.md#m4--mix-tx-builder",
       "notes": [
@@ -167,6 +167,31 @@
         { "description": "max_n recorded in network.preprod.json", "check": "node -e \"const c = JSON.parse(require('fs').readFileSync('config/network.preprod.json','utf8')); if (!c.max_n || c.max_n < 2) { console.error('max_n not set or invalid'); process.exit(1); }\"" },
         { "description": "Mix tx CPU at max_n is under 70% of mainnet limit", "check": "test -f docs/perf.md && grep -E 'cpu_pct.*[0-6][0-9]\\.|cpu_pct.*70\\.0' docs/perf.md" },
         { "description": "Fuzz test passes a 30-minute run", "check": "test -f tests/fuzz/last-run-status.txt && grep -q PASS tests/fuzz/last-run-status.txt" }
+      ]
+    },
+    {
+      "id": "M4.5",
+      "name": "Mix tx CPU/mem optimization",
+      "status": "pending",
+      "depends_on": ["M4"],
+      "spec": "docs/spec/09-milestones.md#m45--mix-tx-cpu-optimization",
+      "notes": [
+        "Inserted between M4 and M5 (per 2026-04-27 decision after live Preprod testing): N=4 overshoots the per-tx CPU budget (10G mainnet steps) on the validator we shipped with M4. The Mix tx's per-tx cost is dominated by ~2N² bls12_381_g1_uncompress calls plus ~4N² scalar muls; bringing the constant down (rather than capping max_n at 3) is the highest-leverage path to making the protocol useful for real users. Privacy at width N=3 reaches 1/2^30 linkage in 19 rounds vs 12 at N=4 — a ~60% rise in user fees.",
+        "First optimisation already shipped on the M4 branch: 'perf(m4): pre-uncompress sigma-OR statements in mix_logic' — drops N² statement-point uncompresses to N. M4.5's job is the rest of the cost-cutting + a redeploy + re-calibration."
+      ],
+      "deliverables": [
+        "Audit + optimise validators/{mix_logic,sigma_or,fee_contract}.ak for redundant uncompresses, redundant hashes, redundant traversals, and unnecessary intermediate list allocations. The cost model is roughly: bls12_381_g1_uncompress ≈ 25-30M CPU > scalar_mul ≈ 10M > blake2b_256 ≈ 4M for typical Mix preimages > add/equal ≈ 1M.",
+        "Ship the new validators via a fresh bootstrap on Preprod (irreversible; old fee shards + boxes are orphaned). Bump max_fee_per_mix_lovelace in the new ReferenceDatum to leave headroom over the empirical post-optimisation fee.",
+        "Re-run stress-tests/max-n-calibration.ts on the new deployment; record the new max_n + the per-N CPU/mem table in docs/perf.md.",
+        "Re-run the M4 integration test suite (mix-n2, mix-at-max-n, fee-exhaustion, full-lifecycle) on the new deployment; update artifacts/preprod/addresses.json.",
+        "Document the optimisation choices made + the ones rejected (and why) in docs/perf.md so future contributors can pick up where we left off."
+      ],
+      "exit_criteria": [
+        { "description": "Aiken validator tests still pass", "check": "cd contracts && aiken check" },
+        { "description": "All SDK unit tests still pass", "check": "pnpm --filter @lovejoin/sdk test" },
+        { "description": "max_n recorded in network.preprod.json is >= 4", "check": "node -e \"const c = JSON.parse(require('fs').readFileSync('config/network.preprod.json','utf8')); if (!c.max_n || c.max_n < 4) { console.error('max_n not >= 4 (is ' + c.max_n + ')'); process.exit(1); }\"" },
+        { "description": "Per-N exec-units table recorded in docs/perf.md", "check": "grep -E 'M4\\.5|max_n calibration' docs/perf.md" },
+        { "description": "Preprod integration test mix-at-max-n passes against the new deployment", "check": "pnpm --filter integration-tests test -- mix-at-max-n" }
       ]
     },
     {
