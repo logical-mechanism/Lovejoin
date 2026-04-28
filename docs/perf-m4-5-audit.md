@@ -10,7 +10,7 @@ Implemented and merged on the M4.5 branch:
 
 | Item | Status | Notes |
 |------|--------|-------|
-| 1 + 5 — single-pass `validate_mix` | **Deferred** | Tried both tail-recursive and `list.foldr` rewrites; both regressed the all-negative `mix_logic.test.ak` suite by 160–330M CPU. Positive-path improvement is plausible but unverifiable without Preprod measurement. Revisit after the M4.5 redeploy + recalibration. |
+| 1 + 5 — single-pass `validate_mix` | **Shipped (3rd attempt)** | First two attempts (full single-pass tail-rec; `list.foldr` over the prefix) regressed the all-negative `mix_logic.test.ak` suite — the negative-test setup paid for partial positive-path work that the old code's `list.all` short-circuited past. Adding positive-prologue benchmark tests at N ∈ {2,3,4,6,8} gave us a real positive-path measurement. The shipped version keeps the cheap `list.all(at_script)` structural pre-checks AND collapses the four heavy walks (`list.map(decode)` + 2 `compute_mix_ctx` folds + `precompute_statements`) into one tail-recursive walk with a tuple accumulator. Saves 8M-40M CPU per positive Mix tx (1.7%-2.3% of `validate_mix` prologue), 22k-127k mem. |
 | 2 — drop wrapper-list allocs in `verify_pre` | **Shipped** | -2.37B CPU, -7.36M mem cumulatively across the sigma_or KAT suite (combined with item 3). Per-tx ~390M CPU saved at N=8. |
 | 3 — drop `list.length` redundancy in `verify_pre` | **Shipped** | Combined into the item-2 commit's measurement. |
 | 4 — `list.count` over `list.filter` in fee_contract | **Shipped** | Net negative CPU; tiny mem +1.6k on N=6 fee_contract path is rounding error. |

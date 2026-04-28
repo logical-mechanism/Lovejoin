@@ -26,12 +26,14 @@ use cardano/address.{Credential}
 use cardano/assets.{AssetName, PolicyId}
 use cardano/certificate.{Certificate, RegisterCredential}
 use cardano/transaction.{InlineDatum, Input, Output, Transaction}
+use lovejoin/bls
 use lovejoin/mixbox.{
-  input_at_script, output_at_script, try_decode_well_formed_inline,
+  input_at_script, output_at_script, try_decode_well_formed_data,
+  try_decode_well_formed_inline,
 }
 use lovejoin/reference.{read_reference_datum}
 use lovejoin/schnorr
-use lovejoin/sigma_or.{DHTupleStatement, DHTupleStatementPt, SigmaOrProof}
+use lovejoin/sigma_or.{DHTupleStatementPt, SigmaOrProof}
 use lovejoin/types.{Mix, MixDatum, MixLogicRedeemer, Owner, ReferenceDatum}
 use lovejoin/value.{ada_only}
 
@@ -110,8 +112,11 @@ fn validate_mix(
   expect n >= 2
   expect list.length(proofs) == n
 
-  // The N mix outputs MUST occupy positions 0..N-1; later positions (the fee
-  // shard, change, etc.) must NOT be at the mix script.
+  // Cheap structural pre-checks first — the N mix outputs MUST occupy
+  // positions 0..N-1; later positions (fee shard, change, etc.) must NOT
+  // be at the mix script. Keeping these as `list.all` walks lets a
+  // wrong-at_script position fail fast without paying for the per-output
+  // decode + uncompress + serialise work below.
   let prefix_outputs = list.take(self.outputs, n)
   let tail_outputs = list.drop(self.outputs, n)
   expect
@@ -125,32 +130,28 @@ fn validate_mix(
       fn(output) { !output_at_script(output, reference_datum.mix_script_hash) },
     )
 
-  // Per-output well-formedness (denom, no native assets, valid MixDatum).
-  let mix_output_data: List<MixDatum> =
-    list.map(
-      prefix_outputs,
-      fn(output) { check_and_decode_mix_output(output, reference_datum) },
-    )
+  // Single tail-recursive walk over the prefix that subsumes FOUR previous
+  // traversals (and four intermediate N-element list allocations):
+  //   * `list.map(check_and_decode_mix_output)` — datum decode + ada_only
+  //     + denom check.
+  //   * `compute_mix_ctx` datums fold — `serialise_data(output.datum)`.
+  //   * `compute_mix_ctx` values fold — `serialise_data(output.value)`.
+  //   * `sigma_or.precompute_statements` — uncompress (a', b') into G1.
+  // Wire layout of the FS preimage is byte-identical to the old
+  // `compute_mix_ctx` (datum bytes 0..N-1 then value bytes 0..N-1 then
+  // mix_script_hash). The existing positive-prologue tests at N ∈
+  // {2,3,4,6,8} (mix_logic.test.ak `mix_full_prologue_then_proof_fails_n*`)
+  // exercise this whole region against the same byte-equal ctx that
+  // `verify_pre` re-derives from `proof.branches`.
+  let (statements_rev, datums_bytes, values_bytes) =
+    decode_prefix_into_statements_and_ctx_bytes(prefix_outputs, reference_datum)
+  let statements = list.reverse(statements_rev)
 
-  // ctx = blake2b_256( serialise(out_0.datum) || ... || serialise(out_{N-1}.datum)
-  //                 || serialise(out_0.value) || ... || serialise(out_{N-1}.value)
-  //                 || mix_script_hash )
-  let ctx = compute_mix_ctx(prefix_outputs, reference_datum.mix_script_hash)
-
-  // Build the OR-statement vector once: every input's OR-proof is over the
-  // SAME N output (a', b') pairs. Pre-uncompress each output (a', b')
-  // here — without this, each of the N `sigma_or.verify_pre` calls would
-  // re-uncompress every statement point (= N² uncompresses per tx). This
-  // is the dominant CPU-budget optimisation; bringing N² down to N
-  // uncompresses for statements is what lets `max_n` climb past 3.
-  let statements: List<DHTupleStatementPt> =
-    sigma_or.precompute_statements(
-      list.map(
-        mix_output_data,
-        fn(mix_output) {
-          DHTupleStatement { ap: mix_output.a, bp: mix_output.b }
-        },
-      ),
+  let ctx =
+    builtin.blake2b_256(
+      datums_bytes
+        |> bytearray.concat(values_bytes)
+        |> bytearray.concat(reference_datum.mix_script_hash),
     )
 
   // Per-input OR-proof verification. `proofs[i]` proves "input i's witness
@@ -166,45 +167,57 @@ fn validate_mix(
   )
 }
 
-fn check_and_decode_mix_output(
-  output: Output,
+/// Walk the N prefix outputs once; for each:
+///   * validate ada-only + canonical denom,
+///   * decode the inline `MixDatum`,
+///   * uncompress (a', b') into a `DHTupleStatementPt`,
+///   * accumulate `serialise_data(output.datum)` and
+///     `serialise_data(output.value)` into the FS-preimage byte strings.
+///
+/// `output_at_script` was already verified by the caller's `list.all`, so we
+/// pattern-match the inline data directly without re-checking the script
+/// credential. Statements are accumulated in REVERSE order (cheap cons);
+/// the caller `list.reverse`s once.
+///
+/// Tuple return rather than a record — Aiken compiles tuples with less
+/// per-step overhead than a 3-field record literal in this hot path.
+fn decode_prefix_into_statements_and_ctx_bytes(
+  outputs: List<Output>,
   reference_datum: ReferenceDatum,
-) -> MixDatum {
-  expect ada_only(output.value)
-  expect assets.lovelace_of(output.value) == reference_datum.denom_lovelace
-  expect Some(mix_datum) = try_decode_well_formed_inline(output.datum)
-  mix_datum
+) -> (List<DHTupleStatementPt>, ByteArray, ByteArray) {
+  do_decode_prefix(outputs, reference_datum, [], #"", #"")
 }
 
-fn compute_mix_ctx(
+fn do_decode_prefix(
   outputs: List<Output>,
-  mix_script_hash: ByteArray,
-) -> ByteArray {
-  let datums_bytes =
-    list.foldl(
-      outputs,
-      #"",
-      fn(output, acc) {
-        when output.datum is {
-          InlineDatum(inline_data) ->
-            bytearray.concat(acc, builtin.serialise_data(inline_data))
-          _ -> acc
+  reference_datum: ReferenceDatum,
+  stmts_rev: List<DHTupleStatementPt>,
+  datums_acc: ByteArray,
+  values_acc: ByteArray,
+) -> (List<DHTupleStatementPt>, ByteArray, ByteArray) {
+  when outputs is {
+    [] -> (stmts_rev, datums_acc, values_acc)
+    [output, ..rest] -> {
+      expect ada_only(output.value)
+      expect assets.lovelace_of(output.value) == reference_datum.denom_lovelace
+      expect InlineDatum(inline_data) = output.datum
+      expect Some(mix_datum) = try_decode_well_formed_data(inline_data)
+      let stmt =
+        DHTupleStatementPt {
+          ap: mix_datum.a,
+          bp: mix_datum.b,
+          ap_pt: bls.point_from_bytes(mix_datum.a),
+          bp_pt: bls.point_from_bytes(mix_datum.b),
         }
-      },
-    )
-  let values_bytes =
-    list.foldl(
-      outputs,
-      #"",
-      fn(output, acc) {
-        bytearray.concat(acc, builtin.serialise_data(output.value))
-      },
-    )
-  let preimage =
-    datums_bytes
-      |> bytearray.concat(values_bytes)
-      |> bytearray.concat(mix_script_hash)
-  builtin.blake2b_256(preimage)
+      do_decode_prefix(
+        rest,
+        reference_datum,
+        [stmt, ..stmts_rev],
+        datums_acc |> bytearray.concat(builtin.serialise_data(inline_data)),
+        values_acc |> bytearray.concat(builtin.serialise_data(output.value)),
+      )
+    }
+  }
 }
 
 // ---------------------------------------------------------------------------

@@ -177,54 +177,79 @@ for the full audit + reject list):
    `config/network.<net>.json`). One fewer Constr-field decode per
    reference-datum read; small but cumulative.
 
+6. **Single tail-recursive walk over the prefix** (audit item 1+5,
+   third attempt) — kept the cheap `list.take` / `list.drop` /
+   `list.all(at_script)` structural pre-checks (so wrong-at-script
+   negative cases still fail fast) and collapsed the four heavy
+   walks (`list.map(check_and_decode)`, two `compute_mix_ctx` folds,
+   `precompute_statements`) into ONE tail-recursive walk that
+   decodes + uncompresses + accumulates ctx bytes. Tuple
+   accumulator (cheaper than the 3-field record I tried first); one
+   `list.reverse` of the N-element statements list at the end.
+   Wire layout of the FS preimage is byte-identical.
+
+   Earlier attempts at items 1+5 had been parked because the
+   `mix_logic.test.ak` suite is 100% negative tests and the
+   restructure showed regressions there. Adding positive-prologue
+   benchmark tests (`mix_full_prologue_then_proof_fails_n*` —
+   build a fully valid Mix prefix, supply bogus OR proofs that fail
+   at the first uncompress, so the validator runs the entire
+   `validate_mix` prologue including `verify_pre`'s FS hash) gave
+   us a direct positive-path measurement. The new walk wins on
+   every N, and the full mix_logic suite drops 215M CPU /
+   426k mem.
+
 **What was rejected** (see audit `## Items rejected` for the
-reasoning):
+reasoning): the four other speculative items in the audit
+(`parallel_all` generic unify, soft-decode `choose_data` re-shape,
+OR-branch random-linear-combination check, dropping the scalar
+canonical-length check). Either no measurable CPU win or a
+security-weakening change.
 
-* The single-pass restructure of `validate_mix` (audit item 1+5):
-  attempted both a tail-recursive walk and a `list.foldr`-based one;
-  both regressed the all-negative `mix_logic.test.ak` suite (the
-  only positive-path coverage of `validate_mix` is on Preprod, not in
-  unit tests). Saving the positive-path wins for after Preprod
-  measurement so the trade-off is empirical, not speculative.
+### Measured deltas vs M4 baseline (`aiken check`, 365 tests)
 
-* The four other speculative items in the audit (`parallel_all`
-  generic unify, soft-decode `choose_data` re-shape, OR-branch
-  random-linear-combination check, dropping the scalar canonical-
-  length check). Either no measurable CPU win or a security-weakening
-  change.
+Cumulative whole-suite delta: **−2,613,438,233 CPU and
+−7,887,197 mem** (items 2+3+4+6+8 combined with the item-1+5 walk
+collapse).
 
-### Measured deltas vs M4 baseline (`aiken check`, 360 tests)
+Per-N savings on the `sigma_or` KAT suite — items 2 + 3 alone
+(8 vectors per N, summed):
 
-Cumulative across the test suite: **-2,398,518,236 CPU and
--7,461,248 mem**, all on the sigma-OR / fee-contract paths.
-
-Per-N savings on the `sigma_or` KAT suite (8 vectors per N, summed):
-
-| N | baseline CPU | post-M4.5 CPU | delta CPU | delta % |
-|---|--------------|----------------|-----------|---------|
+| N | baseline CPU | post items 2+3 CPU | delta CPU | delta % |
+|---|--------------|--------------------|-----------|---------|
 | 2 | 11,519,063,450 | 11,402,060,442 | −117,003,008 | −1.02% |
 | 3 | 16,801,051,469 | 16,638,481,029 | −162,570,440 | −0.97% |
 | 4 | 22,083,112,649 | 21,874,974,777 | −208,137,872 | −0.94% |
 | 6 | 32,647,753,007 | 32,348,480,271 | −299,272,736 | −0.92% |
 | 8 | 43,212,848,233 | 42,822,440,633 | −390,407,600 | −0.90% |
 
-Per-Mix-tx implication (each Mix tx runs N parallel `verify_pre`
-calls, so divide the delta by 8 vectors and multiply by N proofs):
+Per-Mix-tx-prologue savings on the new
+`mix_full_prologue_then_proof_fails_n*` benchmarks — item 1+5
+(walk-collapse) standalone:
+
+| N | pre-collapse CPU | post-collapse CPU | delta CPU | delta % | mem delta |
+|---|------------------|-------------------|-----------|---------|-----------|
+| 2 | 484,112,329 | 475,922,780 | −8,189,549 | −1.69% | −21,572 (−2.7%) |
+| 3 | 690,074,627 | 676,013,646 | −14,060,981 | −2.04% | −42,534 (−4.0%) |
+| 4 | 899,545,451 | 879,613,038 | −19,932,413 | −2.22% | −63,496 (−4.7%) |
+| 6 | 1,313,021,033 | 1,287,745,756 | −25,275,277 | −1.92% | −65,420 (−3.5%) |
+| 8 | 1,734,122,363 | 1,693,904,222 | −40,218,141 | −2.32% | −127,344 (−5.1%) |
+
+**Combined per-Mix-tx implication** (sigma-OR + walk-collapse,
+estimated from suite numbers):
 
 | N | per-tx CPU saved | as % of mainnet 10G budget |
 |---|--------------------|------------------------------|
-| 2 |  ~29M  | ~0.3% |
-| 3 |  ~61M  | ~0.6% |
-| 4 | ~104M  | ~1.0% |
-| 6 | ~225M  | ~2.2% |
-| 8 | ~390M  | ~3.9% |
+| 2 |  ~37M  | ~0.4% |
+| 3 |  ~75M  | ~0.7% |
+| 4 | ~125M  | ~1.2% |
+| 6 | ~250M  | ~2.5% |
+| 8 | ~430M  | ~4.3% |
 
-These are estimates from the test-suite numbers; the real positive-
-path savings inside a Mix tx (which also hits `mix_logic`'s constant-
-cost setup) come from the Preprod recalibration. The validator at N=4
-was overshooting by an unquantified amount in the M4 deployment
-([milestones.json M4.5 notes][m45]); whether the ~1.0% reclaimed at
-N=4 closes that gap is the recalibration's job to confirm.
+The validator at N=4 was overshooting by an unquantified amount in
+the M4 deployment ([milestones.json M4.5 notes][m45]); whether the
+~1.2% reclaimed at N=4 closes that gap is the recalibration's job to
+confirm.
 
 [m45]: ../milestones.json
 
