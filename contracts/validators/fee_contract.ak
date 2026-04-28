@@ -88,9 +88,9 @@ fn validate_pay_mix_fee(
         )
   expect mix_input_count >= 2
 
-  let fee_inputs =
-    self.inputs |> list.filter(fn(input) { input_at_fee(input, own_hash) })
-  expect [_only_fee_input] = fee_inputs
+  let fee_input_count =
+    self.inputs |> list.count(fn(input) { input_at_fee(input, own_hash) })
+  expect fee_input_count == 1
 
   let fee_outputs =
     self.outputs |> list.filter(fn(output) { output_at_fee(output, own_hash) })
@@ -117,9 +117,9 @@ fn validate_replenish(
   own_input: Input,
   own_hash: ScriptHash,
 ) -> Bool {
-  let fee_inputs =
-    self.inputs |> list.filter(fn(input) { input_at_fee(input, own_hash) })
-  expect [_only_fee_input] = fee_inputs
+  let fee_input_count =
+    self.inputs |> list.count(fn(input) { input_at_fee(input, own_hash) })
+  expect fee_input_count == 1
 
   let fee_outputs =
     self.outputs |> list.filter(fn(output) { output_at_fee(output, own_hash) })
