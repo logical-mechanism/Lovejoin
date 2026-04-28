@@ -43,10 +43,17 @@ describe("loadConfig / saveConfig", () => {
   });
 
   it("persists and reloads a config across calls", () => {
-    saveConfig({ network: "preprod", blockfrostProjectId: "preprodAbc123" });
+    saveConfig({
+      network: "preprod",
+      blockfrostProjectId: "preprodAbc123",
+      backendUrl: "",
+      collateralProviderEndpoint: "https://giveme.my",
+    });
     expect(loadConfig()).toEqual({
       network: "preprod",
       blockfrostProjectId: "preprodAbc123",
+      backendUrl: "",
+      collateralProviderEndpoint: "https://giveme.my",
     });
   });
 
@@ -67,7 +74,12 @@ describe("loadConfig / saveConfig", () => {
 describe("makeProvider", () => {
   it("throws a clear error when project id is missing", () => {
     expect(() =>
-      makeProvider({ network: "preprod", blockfrostProjectId: "   " }),
+      makeProvider({
+        network: "preprod",
+        blockfrostProjectId: "   ",
+        backendUrl: "",
+        collateralProviderEndpoint: "https://giveme.my",
+      }),
     ).toThrow(/project ID required/i);
   });
 
@@ -75,6 +87,8 @@ describe("makeProvider", () => {
     const provider = makeProvider({
       network: "preprod",
       blockfrostProjectId: "preprodFoo",
+      backendUrl: "",
+      collateralProviderEndpoint: "https://giveme.my",
     });
     expect(provider).toBeDefined();
     // The provider exposes the chain interface — we don't assert specific

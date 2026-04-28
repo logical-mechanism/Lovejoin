@@ -24,14 +24,31 @@ export type Network = (typeof NETWORKS)[number];
 
 const STORAGE_KEY = "lovejoin.config.v1";
 
+const DEFAULT_COLLATERAL_PROVIDER_ENDPOINT = "https://giveme.my";
+
+/**
+ * Persisted-across-reloads runtime configuration.
+ *
+ * `backendUrl` is optional — the M5 indexer is a deployment choice, not a
+ * hard dep. When set, the Pool screen reads pool size + indexer lag from it;
+ * when unset, the screen falls back to direct Blockfrost queries.
+ *
+ * `collateralProviderEndpoint` defaults to giveme.my (the canonical service
+ * called out in docs/spec/01-protocol.md §"Collateral provider"). Operators
+ * running their own provider override it.
+ */
 export interface RuntimeConfig {
   network: Network;
   blockfrostProjectId: string;
+  backendUrl: string;
+  collateralProviderEndpoint: string;
 }
 
 export const DEFAULT_CONFIG: RuntimeConfig = {
   network: "preprod",
   blockfrostProjectId: "",
+  backendUrl: "",
+  collateralProviderEndpoint: DEFAULT_COLLATERAL_PROVIDER_ENDPOINT,
 };
 
 export function loadConfig(): RuntimeConfig {
@@ -46,6 +63,10 @@ export function loadConfig(): RuntimeConfig {
     return {
       network,
       blockfrostProjectId: parsed.blockfrostProjectId ?? "",
+      backendUrl: parsed.backendUrl ?? "",
+      collateralProviderEndpoint:
+        parsed.collateralProviderEndpoint?.trim() ||
+        DEFAULT_COLLATERAL_PROVIDER_ENDPOINT,
     };
   } catch {
     return DEFAULT_CONFIG;

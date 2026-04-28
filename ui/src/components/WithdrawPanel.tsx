@@ -18,6 +18,7 @@ import {
 } from "@lovejoin/sdk";
 
 import type { Network } from "../lib/sdk.js";
+import { SeedelfHint } from "./SeedelfHint.js";
 import type { DepositedBox } from "./DepositPanel.js";
 
 export interface WithdrawPanelProps {
@@ -141,6 +142,7 @@ export function WithdrawPanel({
           onChange={setDestination}
           placeholder="addr_test1..."
         />
+        {destination.trim() && <SeedelfHint address={destination} />}
         <button
           type="submit"
           disabled={

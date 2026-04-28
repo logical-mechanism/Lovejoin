@@ -4,21 +4,37 @@
     "tagline": "Sigmajoin privacy mixer on Cardano. Hyperstructure.",
     "status": "Pre-alpha — see docs/spec for design.",
     "vertical_slice_banner": "Pre-alpha — Preprod only. Wallet-anonymous Mix collateral lands in M5.",
+    "preprod_banner": "Pre-alpha — Preprod only. Do not use real funds.",
     "connect_wallet": "Connect wallet",
     "disconnect_wallet": "Disconnect wallet"
   },
   "nav": {
+    "aria_label": "Main navigation",
     "home": "Home",
     "deposit": "Deposit",
     "pool": "Pool",
     "vault": "Vault",
     "withdraw": "Withdraw"
   },
+  "home": {
+    "title": "Welcome",
+    "explainer": "Lovejoin is a Cardano-native privacy mixer. Funds enter the pool as a fixed-denomination mix-box; subsequent re-randomisation hides which deposit corresponds to which withdrawal.",
+    "bullet_deposit": "Deposit into the pool to anonymise a fixed-denom amount.",
+    "bullet_mix": "Mix any time — anyone can mix, even without depositing.",
+    "bullet_withdraw": "Withdraw to a different address to break the link.",
+    "privacy_note": "Linkage probability after k mixes at width N is (1/N)^k.",
+    "connect_prompt": "Connect a CIP-30 wallet (Lace, Eternl, Nami) above to begin.",
+    "connected_prompt": "Wallet connected. Choose where to start:"
+  },
   "config": {
     "section_title": "Configuration",
     "network_label": "Network",
     "blockfrost_label": "Blockfrost project ID",
     "blockfrost_help": "Free key at blockfrost.io. Required for chain queries + tx submission.",
+    "backend_url_label": "Backend URL (optional)",
+    "backend_url_help": "Self-hosted indexer URL. Leave empty to query Blockfrost directly.",
+    "collateral_endpoint_label": "Collateral provider endpoint",
+    "collateral_endpoint_help": "Defaults to giveme.my. Override only if running your own provider.",
     "save": "Save",
     "saved": "Saved",
     "missing_addresses": "addresses.{{network}}.json missing under ui/public/. Copy from artifacts/{{network}}/."
@@ -33,10 +49,29 @@
     "connect_error": "Failed to connect: {{message}}"
   },
   "pool": {
+    "section_title": "Mix",
     "size": "Pool size",
-    "estimated_mixes_available": "Estimated mixes available",
-    "mix_n_random_boxes": "Mix N random boxes",
-    "mix_width": "Mix width (N)"
+    "estimated_mixes_available": "Mixes available",
+    "mix_n_random_boxes": "Mix {{n}} random boxes",
+    "mix_width": "Mix width",
+    "mix_width_min": "min 2",
+    "mix_width_max": "max {{n}}",
+    "mix_submitting": "Submitting…",
+    "mix_submitted": "Mix submitted. Tx {{txId}}",
+    "mix_failed": "Mix failed: {{message}}",
+    "mix_cooldown": "Cooldown ({{s}}s)",
+    "mix_disabled_collateral": "Collateral provider unreachable — Mix is disabled.",
+    "mix_disabled_pool": "Pool too small ({{have}} of {{need}} boxes loaded).",
+    "scan_failed": "Pool scan failed: {{message}}",
+    "pool_loaded": "{{count}} pool boxes loaded.",
+    "connect_to_mix": "Connect a wallet to submit a Mix tx."
+  },
+  "pool_status": {
+    "title": "Network status",
+    "no_backend": "No backend configured. Pool size + indexer lag unavailable; Mix submission still works via direct chain queries.",
+    "fee_balance": "Fee balance",
+    "indexer_lag": "Indexer lag",
+    "lag_seconds_value": "{{n}}s"
   },
   "deposit": {
     "section_title": "Deposit",
@@ -45,7 +80,9 @@
     "submit": "Deposit",
     "submitting": "Building deposit…",
     "success": "Deposit submitted. Tx {{txId}}",
-    "error": "Deposit failed: {{message}}"
+    "error": "Deposit failed: {{message}}",
+    "preconditions_missing": "Configure a Blockfrost key, load addresses, and connect a wallet to deposit.",
+    "see_vault": "Box stored — see it in the Vault."
   },
   "boxes": {
     "section_title": "My boxes (this session)",
@@ -88,11 +125,61 @@
     "submitting": "Building withdraw…",
     "success": "Withdraw submitted. Tx {{txId}}",
     "error": "Withdraw failed: {{message}}",
-    "seedelf_detected": "Seedelf address detected. Wallet identity will be hidden after withdraw.",
-    "seedelf_hint": "Use a Seedelf address to hide your wallet identity at the destination."
+    "seedelf_detected": "Stealth address detected — wallet identity will be hidden after withdraw.",
+    "seedelf_hint": "This is a key address — your wallet identity is visible at the destination. Use a Seedelf address for stealth.",
+    "preconditions_missing": "Configure a Blockfrost key, load addresses, and connect a wallet to withdraw."
   },
   "collateral_provider": {
     "ok": "Collateral provider online",
-    "down": "Collateral provider unreachable. Mix is disabled until it recovers."
+    "down": "Collateral provider unreachable",
+    "unknown": "Collateral provider unknown",
+    "banner_down": "The collateral provider is unreachable. Mix submission is disabled until it recovers."
+  },
+  "vault": {
+    "title": "Vault",
+    "lock": "Lock",
+    "empty": "Vault is empty. Deposit a box or import one from a backup JSON to populate it.",
+    "open_box": "Open",
+    "forget_box": "Forget",
+    "import_title": "Import box from JSON",
+    "import_explainer": "Paste the JSON exported from a SecretCard. The vault encrypts it under your passphrase.",
+    "import_invalid": "JSON missing one of: txId, outputIndex, ownerSecretHex, aHex, bHex",
+    "import_button": "Import",
+    "import_busy": "Importing…",
+    "unlock_title": "Unlock vault",
+    "unlock_explainer": "Box owner secrets are encrypted under your passphrase. The first time you unlock, the vault is created with a fresh salt.",
+    "unlock": "Unlock",
+    "unlocking": "Unlocking…",
+    "passphrase_placeholder": "Vault passphrase",
+    "unlock_to_view": "Unlock the vault above to see your stored boxes.",
+    "save_failed": "Vault write failed: {{message}}",
+    "forgot_summary": "Forgot the passphrase?",
+    "forgot_explainer": "There is no recovery path. Resetting the vault wipes every stored secret — funds remain on chain but you must hold the secret separately to withdraw.",
+    "reset_button": "Reset vault",
+    "reset_confirm_explainer": "This permanently deletes every encrypted secret in this browser. Are you sure?",
+    "reset_confirm_yes": "Yes, delete everything",
+    "reset_confirm_cancel": "Cancel"
+  },
+  "secret_card": {
+    "title": "Save this secret now",
+    "warning": "Without this secret no one — including you — can withdraw the box. The vault has stored an encrypted copy under your passphrase; copy or download a backup as a second-line defence.",
+    "saved_to_vault": "Saved to vault",
+    "label": "Label",
+    "tx": "Deposit tx",
+    "secret": "Owner secret",
+    "copy": "Copy backup JSON",
+    "copied": "Copied",
+    "download": "Download JSON"
+  },
+  "box": {
+    "title": "Box detail",
+    "label_field": "Label",
+    "deposit_tx": "Deposit tx",
+    "deposited_at": "Deposited at",
+    "intended_rounds": "Intended rounds",
+    "linkage_explainer": "Each Mix tx re-randomises the box; after k mixes at width N the linkage probability is (1/N)^k.",
+    "not_found": "No box found at that ref. It may have been withdrawn, mixed away, or never imported.",
+    "back_to_vault": "Back to vault",
+    "preconditions_missing": "Configure a Blockfrost key, load addresses, and connect a wallet to withdraw this box."
   }
 }

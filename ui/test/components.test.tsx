@@ -27,7 +27,12 @@ describe("ConfigPanel", () => {
     const onChange = vi.fn();
     render(
       <ConfigPanel
-        config={{ network: "preprod", blockfrostProjectId: "" }}
+        config={{
+          network: "preprod",
+          blockfrostProjectId: "",
+          backendUrl: "",
+          collateralProviderEndpoint: "https://giveme.my",
+        }}
         onChange={onChange}
       />,
     );
@@ -37,6 +42,8 @@ describe("ConfigPanel", () => {
     expect(onChange).toHaveBeenCalledWith({
       network: "preprod",
       blockfrostProjectId: "preprodAbc",
+      backendUrl: "",
+      collateralProviderEndpoint: "https://giveme.my",
     });
     expect(window.localStorage.getItem("lovejoin.config.v1")).toContain(
       "preprodAbc",
