@@ -167,6 +167,8 @@
     "lede": "Lock the fixed denomination into a fresh mix-box. The pool is deterministic — your wallet derives a Lovejoin owner key on first unlock, and the same wallet recovers every deposit on any browser.",
     "rounds_label": "Mix rounds",
     "rounds_help": "Higher rounds = more privacy. Funds the fee shard for future mixes.",
+    "count_label": "Boxes per tx",
+    "count_help": "Mint this many fresh mix-boxes in a single tx. Total locked: {{total}} ADA ({{denom}} per box).",
     "submit": "Deposit",
     "submitting": "Building deposit…",
     "success": "Deposit submitted. Tx {{txId}}",
@@ -175,6 +177,7 @@
     "see_vault": "Box stored — see it in the Vault.",
     "tx_preview_title": "Transaction preview",
     "tx_preview_copy": "Your wallet pays the {{denom}} ADA denomination plus a small replenish-fee top-up to the fee shard. Wallet signature is required.",
+    "tx_preview_copy_bulk": "Your wallet pays {{total}} ADA ({{count}} × {{denom}} ADA) plus a replenish-fee top-up to the fee shard. One signature for the whole batch.",
     "index_help": "Vault counter for this deposit's owner secret."
   },
   "boxes": {
