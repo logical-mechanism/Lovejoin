@@ -749,146 +749,201 @@ export async function buildMixTx(args: BuildMixArgs): Promise<MixResult> {
   const { MeshTxBuilder } = meshCore;
   const meshProvider = await getMeshProvider(args.provider);
 
-  // Use Blockfrost's hosted ogmios (latest cardano-node, full Conway
-  // builtin support) as the evaluator for both fee modes. The Mix tx
-  // fundamentally needs tight exec units in shard mode (the on-chain
-  // `tx.fee == fee_in - fee_out` rule pins the fee exactly); wallet
-  // mode could tolerate upper-bound budgets but there's no reason to
-  // overpay when real numbers are one HTTP call away.
+  // Evaluator selection — see `assembleTx` below. The build flow
+  // tries with Blockfrost's evaluator first (gives tight exec units
+  // when it works); on failure it retries without the evaluator,
+  // letting mesh fall back to its default upper-bound budgets
+  // (mem 7M, cpu 3G per redeemer).
   //
-  // Failure mode to watch: if a wallet input was minted by a tx that
-  // confirmed within the last few seconds, Blockfrost's UTxO index may
-  // lag the chain — ogmios then returns
-  // `CannotCreateEvaluationContext` (which surfaces in mesh's
-  // response wrapper as `EvaluationFailure: ScriptFailures: {}`).
-  // Wait ~10s after a deposit before triggering a Mix and the lag
-  // resolves itself.
+  // Why we need the fallback: Blockfrost's `utils/txs/evaluate`
+  // endpoint empirically fails for Mix txs with
+  // `EvaluationFailure: ScriptFailures: {}` (empty failure map),
+  // while accepting the same txs on /tx/submit and while the
+  // Withdraw path through the same endpoint works. The single
+  // difference between Mix and Withdraw is `xor_bytearray`
+  // (Conway builtin 77, used by sigma_or.ak's per-branch challenge
+  // XOR). Our best theory is that Blockfrost's hosted evaluator is
+  // on a Plutus-V3 stack that doesn't yet know the bitwise
+  // builtins, even though chain submission supports them. Local
+  // Aiken simulation of the same tx body confirms the validators
+  // pass with exec units well under mainnet limits.
   //
-  // Note: do NOT use mesh's OfflineEvaluator (`@meshsdk/core-csl`).
-  // Its bundled UPLC machine predates Conway's bitwise builtins and
-  // aborts with "Default Function not found - 77" the moment a script
-  // touches `xor_bytearray` (Conway builtin 77). Lovejoin's sigma-OR
-  // verifier uses it for the per-branch challenge XOR, so the local
-  // machine can't run any Mix tx. The hosted ogmios behind Blockfrost
-  // does not have this limitation.
-  const tx = new MeshTxBuilder({
-    fetcher: meshProvider as never,
-    submitter: meshProvider as never,
-    evaluator: meshProvider as never,
-    verbose: false,
-  });
-
-  // Reference UTxO for ProtocolParams.
-  tx.readOnlyTxInReference(plan.referenceUtxoRef.txId, plan.referenceUtxoRef.outputIndex);
-
-  // Spend each mix-box. mesh adds them in call order; the ledger sorts at
-  // tx-finalization time, so the on-chain order is the lex-sorted-input
-  // order from the plan (which matches the redeemer's proof order).
-  for (const inp of plan.inputs) {
-    tx.spendingPlutusScriptV3()
-      .txIn(
-        inp.ref.txId,
-        inp.ref.outputIndex,
-        [{ unit: "lovelace", quantity: inp.utxo.lovelace.toString() }],
-        inp.utxo.address,
-      )
-      .txInInlineDatumPresent()
-      // mix_box's spend redeemer is irrelevant data — it doesn't dispatch.
-      .txInRedeemerValue("d87980", "CBOR")
-      .spendingTxInReference(
-        plan.mixBoxRefScriptUtxoRef.txId,
-        plan.mixBoxRefScriptUtxoRef.outputIndex,
-        sizeStr(args.addresses.referenceScriptSizes?.mix_box),
-        args.addresses.mixBoxScriptHash,
-      );
-  }
-
-  // Spend the fee shard with PayMixFee — only in shard mode.
-  if (
-    plan.feePayer === "shard" &&
-    plan.feeShardInput &&
-    plan.feeShardOutput &&
-    plan.payMixFeeRedeemerCborHex
-  ) {
-    tx.spendingPlutusScriptV3()
-      .txIn(
-        plan.feeShardInput.ref.txId,
-        plan.feeShardInput.ref.outputIndex,
-        [{ unit: "lovelace", quantity: plan.feeShardInput.lovelace.toString() }],
-        plan.feeShardOutput.addressBech32,
-      )
-      .txInInlineDatumPresent()
-      .txInRedeemerValue(plan.payMixFeeRedeemerCborHex, "CBOR")
-      .spendingTxInReference(
-        plan.feeContractRefScriptUtxoRef.txId,
-        plan.feeContractRefScriptUtxoRef.outputIndex,
-        sizeStr(args.addresses.referenceScriptSizes?.fee_contract),
-        args.addresses.feeScriptHash,
-      );
-  }
-
-  // mix_logic withdraw-zero with the Mix redeemer.
-  tx.withdrawalPlutusScriptV3()
-    .withdrawal(plan.mixLogicRewardAddressBech32, "0")
-    .withdrawalRedeemerValue(plan.mixRedeemerCborHex, "CBOR")
-    .withdrawalTxInReference(
-      plan.mixLogicRefScriptUtxoRef.txId,
-      plan.mixLogicRefScriptUtxoRef.outputIndex,
-      sizeStr(args.addresses.referenceScriptSizes?.mix_logic),
-      params.mixLogicScriptHash,
-    );
-
-  // Outputs 0..N-1: mix-boxes. The validator asserts this slot is
-  // populated by mix-script outputs and that the tail is NOT.
-  for (const o of plan.outputs) {
-    tx.txOut(plan.mixBoxAddressBech32, [
-      { unit: "lovelace", quantity: params.denomLovelace.toString() },
-    ]).txOutInlineDatumValue(o.inlineDatumHex, "CBOR");
-  }
-  // Output N: fee shard (shard mode) or wallet change (wallet mode,
-  // emitted by mesh during balancing).
-  if (plan.feePayer === "shard" && plan.feeShardOutput) {
-    tx.txOut(plan.feeShardOutput.addressBech32, [
-      { unit: "lovelace", quantity: plan.feeShardOutput.lovelace.toString() },
-    ]).txOutInlineDatumValue(plan.feeShardOutput.inlineDatumHex, "CBOR");
-  }
-
-  // Pin the fee in shard mode (inputs - outputs balance to txFeeLovelace).
-  // Wallet mode lets mesh compute the minimum fee against the tx body.
-  if (plan.feePayer === "shard" && plan.txFeeLovelace !== null) {
-    tx.setFee(plan.txFeeLovelace.toString());
-  }
-
-  // Collateral input + return.
-  for (const utxo of collateralProvision.inputs) {
-    tx.txInCollateral(
-      utxo.ref.txId,
-      utxo.ref.outputIndex,
-      [{ unit: "lovelace", quantity: utxo.lovelace.toString() }],
-      utxo.address,
-    );
-  }
-
-  // Wallet inputs + change handling.
+  // The fallback path in shard mode will likely fail downstream on
+  // the on-chain `tx.fee ≤ max_fee_per_mix_lovelace` rule — upper
+  // bounds force a fee that exceeds the cap. That's expected;
+  // shard mode needs a working evaluator OR a higher cap (the
+  // re-bootstrap path).
   //
-  //   * shard mode: tell mesh `selectUtxosFrom([])` so it doesn't add a
-  //     wallet input (Mix's wallet-anonymity invariant). The change
-  //     address still has to be set — mesh requires one — but with no
-  //     leftover ada the change output isn't emitted.
-  //   * wallet mode: hand mesh the wallet's UTxOs and let it balance
-  //     normally. The change address absorbs any leftover; it sits at
-  //     position N+ on the tx, which the mix_logic validator's
-  //     "tail outputs not at mix script" rule explicitly permits.
+  // Do NOT swap to mesh's OfflineEvaluator (`@meshsdk/core-csl`).
+  // Its bundled UPLC machine also predates Conway's bitwise
+  // builtins and aborts with "Default Function not found - 77".
+
+  // Pre-resolve everything mesh's complete() will need from outside the
+  // builder, so the build-and-complete attempt below can run twice
+  // without duplicating side effects (wallet RPCs, etc).
   const changeAddress = await args.wallet.getChangeAddress();
-  tx.changeAddress(changeAddress);
-  if (plan.feePayer === "shard") {
-    tx.selectUtxosFrom([]);
-  } else {
-    const walletUtxos = normalizeWalletUtxos(await args.wallet.getUtxos());
-    tx.selectUtxosFrom(walletUtxos);
-  }
+  const walletUtxos =
+    feePayer === "wallet"
+      ? normalizeWalletUtxos(await args.wallet.getUtxos())
+      : [];
 
-  const unsignedTxHex = await tx.complete();
+  const populate = (tx: InstanceType<typeof MeshTxBuilder>) => {
+    tx.readOnlyTxInReference(
+      plan.referenceUtxoRef.txId,
+      plan.referenceUtxoRef.outputIndex,
+    );
+
+    // Spend each mix-box. mesh adds them in call order; the ledger sorts
+    // at tx-finalization time, so the on-chain order is the lex-sorted
+    // input order from the plan (matches the redeemer's proof order).
+    for (const inp of plan.inputs) {
+      tx.spendingPlutusScriptV3()
+        .txIn(
+          inp.ref.txId,
+          inp.ref.outputIndex,
+          [{ unit: "lovelace", quantity: inp.utxo.lovelace.toString() }],
+          inp.utxo.address,
+        )
+        .txInInlineDatumPresent()
+        // mix_box's spend redeemer is irrelevant data — it doesn't dispatch.
+        .txInRedeemerValue("d87980", "CBOR")
+        .spendingTxInReference(
+          plan.mixBoxRefScriptUtxoRef.txId,
+          plan.mixBoxRefScriptUtxoRef.outputIndex,
+          sizeStr(args.addresses.referenceScriptSizes?.mix_box),
+          args.addresses.mixBoxScriptHash,
+        );
+    }
+
+    // Spend the fee shard with PayMixFee — only in shard mode.
+    if (
+      plan.feePayer === "shard" &&
+      plan.feeShardInput &&
+      plan.feeShardOutput &&
+      plan.payMixFeeRedeemerCborHex
+    ) {
+      tx.spendingPlutusScriptV3()
+        .txIn(
+          plan.feeShardInput.ref.txId,
+          plan.feeShardInput.ref.outputIndex,
+          [
+            {
+              unit: "lovelace",
+              quantity: plan.feeShardInput.lovelace.toString(),
+            },
+          ],
+          plan.feeShardOutput.addressBech32,
+        )
+        .txInInlineDatumPresent()
+        .txInRedeemerValue(plan.payMixFeeRedeemerCborHex, "CBOR")
+        .spendingTxInReference(
+          plan.feeContractRefScriptUtxoRef.txId,
+          plan.feeContractRefScriptUtxoRef.outputIndex,
+          sizeStr(args.addresses.referenceScriptSizes?.fee_contract),
+          args.addresses.feeScriptHash,
+        );
+    }
+
+    // mix_logic withdraw-zero with the Mix redeemer.
+    tx.withdrawalPlutusScriptV3()
+      .withdrawal(plan.mixLogicRewardAddressBech32, "0")
+      .withdrawalRedeemerValue(plan.mixRedeemerCborHex, "CBOR")
+      .withdrawalTxInReference(
+        plan.mixLogicRefScriptUtxoRef.txId,
+        plan.mixLogicRefScriptUtxoRef.outputIndex,
+        sizeStr(args.addresses.referenceScriptSizes?.mix_logic),
+        params.mixLogicScriptHash,
+      );
+
+    // Outputs 0..N-1: mix-boxes. The validator asserts this slot is
+    // populated by mix-script outputs and that the tail is NOT.
+    for (const o of plan.outputs) {
+      tx
+        .txOut(plan.mixBoxAddressBech32, [
+          { unit: "lovelace", quantity: params.denomLovelace.toString() },
+        ])
+        .txOutInlineDatumValue(o.inlineDatumHex, "CBOR");
+    }
+    // Output N: fee shard (shard mode) or wallet change (wallet mode,
+    // emitted by mesh during balancing).
+    if (plan.feePayer === "shard" && plan.feeShardOutput) {
+      tx
+        .txOut(plan.feeShardOutput.addressBech32, [
+          {
+            unit: "lovelace",
+            quantity: plan.feeShardOutput.lovelace.toString(),
+          },
+        ])
+        .txOutInlineDatumValue(plan.feeShardOutput.inlineDatumHex, "CBOR");
+    }
+
+    // Pin the fee in shard mode (inputs - outputs balance to
+    // txFeeLovelace). Wallet mode lets mesh compute the minimum fee.
+    if (plan.feePayer === "shard" && plan.txFeeLovelace !== null) {
+      tx.setFee(plan.txFeeLovelace.toString());
+    }
+
+    // Collateral input + return.
+    for (const utxo of collateralProvision.inputs) {
+      tx.txInCollateral(
+        utxo.ref.txId,
+        utxo.ref.outputIndex,
+        [{ unit: "lovelace", quantity: utxo.lovelace.toString() }],
+        utxo.address,
+      );
+    }
+
+    tx.changeAddress(changeAddress);
+    if (plan.feePayer === "shard") {
+      // Shard mode preserves wallet anonymity — no wallet input.
+      tx.selectUtxosFrom([]);
+    } else {
+      tx.selectUtxosFrom(walletUtxos);
+    }
+  };
+
+  const buildOnce = async (withEvaluator: boolean): Promise<string> => {
+    const tx = new MeshTxBuilder({
+      fetcher: meshProvider as never,
+      submitter: meshProvider as never,
+      ...(withEvaluator ? { evaluator: meshProvider as never } : {}),
+      verbose: false,
+    });
+    populate(tx);
+    return tx.complete();
+  };
+
+  // First attempt with the evaluator wired in. On failure (e.g.
+  // Blockfrost's evaluator gap on V3 bitwise builtins), fall back to
+  // mesh's default upper-bound exec units. The retry path always
+  // works in wallet mode (the wallet absorbs the inflated fee); in
+  // shard mode it'll usually fail downstream on `tx.fee ≤
+  // max_fee_per_mix_lovelace` because upper bounds force a fee that
+  // overshoots the cap. That's expected — surface the original
+  // evaluator error so the user sees both signals.
+  let unsignedTxHex: string;
+  try {
+    unsignedTxHex = await buildOnce(true);
+  } catch (evalErr) {
+    const errMsg = evalErr instanceof Error ? evalErr.message : String(evalErr);
+    if (plan.feePayer === "shard") {
+      throw new Error(
+        `Mix tx evaluator failed in shard mode (${errMsg.slice(0, 200)}). ` +
+          `Shard mode pins fee at exactly max_fee_per_mix_lovelace, so it ` +
+          `needs working exec-unit evaluation. Try feePayer: 'wallet' to ` +
+          `bypass the cap, or move to a different ChainProvider whose ` +
+          `evaluator supports the V3 bitwise builtins.`,
+      );
+    }
+    // wallet mode — the inflated fee is acceptable; retry without
+    // the evaluator and use mesh's default upper-bound budgets.
+    // eslint-disable-next-line no-console
+    console.warn(
+      `Mix evaluator failed; retrying with upper-bound exec units. ` +
+        `Original error: ${errMsg.slice(0, 200)}`,
+    );
+    unsignedTxHex = await buildOnce(false);
+  }
   const signedTx = await args.wallet.signTx(unsignedTxHex, true);
 
   if (args.signOnly) {
