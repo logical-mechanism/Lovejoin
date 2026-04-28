@@ -222,7 +222,7 @@
     {
       "id": "M6",
       "name": "UI v1 — polish + remaining screens",
-      "status": "in-progress",
+      "status": "done",
       "depends_on": ["M3.5", "M4", "M5"],
       "spec": "docs/spec/09-milestones.md#m6--ui-v1",
       "notes": [
