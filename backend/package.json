@@ -10,7 +10,7 @@
     "test": "vitest run --passWithNoTests",
     "test:watch": "vitest",
     "lint": "tsc -p tsconfig.json --noEmit",
-    "dev": "tsx watch src/index.ts"
+    "dev": "node --env-file-if-exists=../.env --import tsx --watch src/index.ts"
   },
   "dependencies": {
     "@fastify/cors": "^11.2.0",

@@ -153,14 +153,17 @@ afterAll(async () => {
 });
 
 describe("API: /health", () => {
-  it("returns ok=true with tip + lag", async () => {
+  it("returns ok=true with tip; lag is null when there's no chainTip", async () => {
     const res = await server.inject({ method: "GET", url: "/health" });
     expect(res.statusCode).toBe(200);
     const body = res.json();
     expect(body.ok).toBe(true);
     expect(body.tip.slot).toBe(110);
     expect(body.referenceUtxoOk).toBe(true);
-    expect(body.lagSeconds).toBe(200 - 110);
+    // No runtime is passed in this test (we drive state directly), so
+    // the runtime's chainTip() is null and lag is undeterminable.
+    expect(body.lagSeconds).toBeNull();
+    expect(body.chainTip).toBeNull();
   });
 });
 

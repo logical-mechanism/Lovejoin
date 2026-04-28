@@ -44,6 +44,12 @@ export class IndexerRuntime {
   private running = false;
   private loopPromise: Promise<void> | null = null;
   private fatal: Error | null = null;
+  /**
+   * The most recent tip ogmios has told us about (separate from the
+   * indexer's own applied tip). Used by `/health` to compute lag as
+   * the slot difference between chain-tip and indexer-tip.
+   */
+  private chainTip_: { slot: number; blockHash: string; height: number } | null = null;
 
   constructor(
     private readonly state: IndexerState,
@@ -56,6 +62,10 @@ export class IndexerRuntime {
 
   fatalError(): Error | null {
     return this.fatal;
+  }
+
+  chainTip(): { slot: number; blockHash: string; height: number } | null {
+    return this.chainTip_;
   }
 
   async start(): Promise<void> {
@@ -127,15 +137,25 @@ export class IndexerRuntime {
 
   private applyEvent(event: ChainSyncEvent): void {
     if (event.kind === "forward") {
+      if (event.tip) this.chainTip_ = event.tip;
       this.state.applyForward(event.block);
       return;
     }
+    if (event.tip) this.chainTip_ = event.tip;
     if (event.point === "origin") {
-      // Rollback to genesis — re-init state and restart from origin.
-      // We don't currently mutate state for an origin rollback; a
-      // production deployment would re-create the IndexerState from
-      // scratch. Surface as an error so the supervisor can reset.
-      throw new Error("rollback to origin requires runtime restart");
+      // Ogmios's chainsync emits "rollback to origin" as the first
+      // backward event after `findIntersection(["origin"])` — it's
+      // the protocol's way of saying "your starting point is genesis,
+      // begin from here." If our state is already at origin (no
+      // buffered blocks), treat it as a no-op handshake. Otherwise
+      // it's a deep rollback past the buffer's reach and we can't
+      // recover — surface as fatal so the supervisor restarts us.
+      if (this.state.bufferDepth() === 0 && this.state.tip === null) {
+        return;
+      }
+      throw new Error(
+        "rollback to origin past indexer state — restart required",
+      );
     }
     this.state.applyRollback({
       slot: event.point.slot,

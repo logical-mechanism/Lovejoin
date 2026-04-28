@@ -68,17 +68,20 @@ export async function buildServer(deps: ApiServerDeps): Promise<FastifyInstance>
 function registerHealth(fastify: FastifyInstance, deps: ApiServerDeps): void {
   fastify.get("/health", async () => {
     const tip = deps.state.tip;
-    const now = (deps.nowMs ?? (() => Date.now()))();
-    // Cardano slot 1 second on Preprod/Mainnet (Conway era). We treat
-    // `slot` as seconds since chain start for the purposes of the lag
-    // calculation; a slot in the future from "now" simply means the
-    // backend's clock is behind the chain.
-    const lagSeconds = tip
-      ? Math.max(0, Math.floor(now / 1000) - tip.slot)
-      : null;
+    const chainTip = deps.runtime?.chainTip() ?? null;
+    // Lag is measured in *slots*, not seconds — slots on Cardano are
+    // slots-since-Shelley-genesis, not seconds-since-epoch, so wall
+    // clock can't be the reference point. Conway slot length is 1s on
+    // Preprod / Mainnet so the slot lag is the same number you'd see
+    // in seconds anyway; we keep the field name `lagSeconds` for
+    // backward compat with the spec but populate it from
+    // `chainTip.slot - indexerTip.slot`.
+    const lagSeconds =
+      tip && chainTip ? Math.max(0, chainTip.slot - tip.slot) : null;
     return {
       ok: deps.state.alarm() === null,
       tip,
+      chainTip,
       lagSeconds,
       referenceUtxoOk: deps.state.snapshot().referenceUtxoOk,
       runtimeRunning: deps.runtime?.isRunning() ?? null,
