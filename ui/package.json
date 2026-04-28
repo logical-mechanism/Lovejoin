@@ -1,6 +1,6 @@
 {
   "name": "@lovejoin/ui",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "description": "Lovejoin UI — React 19 + Vite + Tailwind v4 + react-i18next.",
   "license": "MIT",
   "private": true,
