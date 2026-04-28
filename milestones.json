@@ -197,7 +197,7 @@
     {
       "id": "M5",
       "name": "Backend indexer + API",
-      "status": "pending",
+      "status": "in-progress",
       "depends_on": ["M2"],
       "spec": "docs/spec/09-milestones.md#m5--backend-indexer--api",
       "notes": [
