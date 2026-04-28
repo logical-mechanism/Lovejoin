@@ -75,3 +75,17 @@ await show(
   "3. /utils/txs/evaluate/utxos?version=6 (JSON + additionalUtxoSet=[])",
   r3,
 );
+
+// 4) Koios's ogmios proxy — JSON-RPC 2.0 evaluateTransaction.
+//    https://preprod.koios.rest/#post-/ogmios — public, no API key.
+const koiosBody = {
+  jsonrpc: "2.0",
+  method: "evaluateTransaction",
+  params: { transaction: { cbor: txHex } },
+};
+const r4 = await fetch("https://preprod.koios.rest/api/v1/ogmios", {
+  method: "POST",
+  headers: { "Content-Type": "application/json" },
+  body: JSON.stringify(koiosBody),
+});
+await show("4. Koios /ogmios evaluateTransaction (free public endpoint)", r4);
