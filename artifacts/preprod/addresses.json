@@ -5,19 +5,22 @@
     "max_fee_per_mix_lovelace": 2000000,
     "fee_shard_target": 10
   },
-  "referenceNftPolicy": "201ea88a6fb022faea1c0ff43aeba0d4b91b366184e622432133ea73",
+  "referenceNftPolicy": "42f5853c1a7dd3e4749cfecd414253e0d14a9c130d8af8e0bb5d1ec7",
   "referenceNftAssetName": "6c6f76656a6f696e",
-  "referenceUtxoRef": "cd662adb8244e8d00432f0da8f4da52651686eef1c9420cc6d90539c03716085#0",
-  "referenceHolderScriptHash": "6a2e4d7e57e29ae7a28735a7125304dc4ddda0ef39e4f3378ec34a04",
-  "mixLogicScriptHash": "3262ec6dd637b0c7a1145bbe894780cb29b8d47c1cd96622a10cd0e4",
-  "mixBoxScriptHash": "e6ac2f03226bb619a8fcc266944676c44399685494a8dac6d01878d7",
-  "feeScriptHash": "3af91c12617e71a55a6873d3bafd006966f77437248ff8c51ed08479",
+  "referenceUtxoRef": "39a91ec1b3bd7762e7afc093ba45a0622a757f141922ba2195d00c91d0dae236#0",
+  "referenceHolderScriptHash": "9f6575e2e1be84709fc842ea751d428a6c1f95cc77b653b93fc1937c",
+  "mixLogicScriptHash": "4cd2a4bd2199bf7c534b09fad4559b0632bbeb45c27513d0a2d4cc99",
+  "mixBoxScriptHash": "b4f0c01e8deaa56d0c2560f1a0ddc9ceb6052a7daddff0a6780a6713",
+  "feeScriptHash": "4323eba23befede3a2806aafa88ab66fd32b4080961451072325b34f",
   "feeShardUtxos": [
-    "04f413e50e6ea214d2535dbf63f75b2e763643716cd482eda6b21f513cdfdd73#0"
+    "a64faa13ad8d0ddfdf1fa982561871bb7254e58296b466b4395dd47f12a5ed42#0"
   ],
   "referenceScriptUtxos": {
-    "mix_box": "f389b211090a9cc36c10b6456735c6cd46e8af73d425a292d3bc5dd46cddd76b#0",
-    "mix_logic": "b6022aaed45333911343dcff2dfa22cf8ed33940c3680dd6c0e03de4dcc6829d#0",
-    "fee_contract": "aefb62cc5e1c908d39e0b2950aa651ee01ac86fc8559f1bfdea5222988401ee0#0"
-  }
+    "mix_box": "1fce3ddc81526486b153e047620e71b1d572ddab367da45893b3fe48204b03c0#0",
+    "mix_logic": "3dd9a87cf8d8a720427d8d2661394a65dea2d634e3ba628f172cbc9194f7bdd8#0",
+    "fee_contract": "9c852f6cff7969c8235e7786dc628b4c333daff1c7614800f8557ad0a4a4c2a3#0"
+  },
+  "dappStakeKeyHashHex": "1e3105f23f2ac91b3fb4c35fa4fe301421028e356e114944e902005b",
+  "stage1ChangeUtxo": "9c852f6cff7969c8235e7786dc628b4c333daff1c7614800f8557ad0a4a4c2a3#1",
+  "mixLogicRegisterTx": "0fa104d4644333b48cf9e1b15a65c61c20f666a8805bfe4201bacfae9b991917"
 }
