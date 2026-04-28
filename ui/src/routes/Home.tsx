@@ -69,7 +69,7 @@ export function Home() {
           numeral="III"
           title={t("home.pillar_three_title")}
           copy={t("home.pillar_three_copy")}
-          to="/withdraw"
+          to="/vault"
         />
       </section>
 

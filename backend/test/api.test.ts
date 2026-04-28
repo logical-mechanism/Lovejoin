@@ -37,6 +37,8 @@ const CONFIG: BackendConfig = {
   host: "127.0.0.1",
   ogmiosUrl: "ws://localhost:0",
   dbsyncUrl: null,
+  blockfrostProjectId: null,
+  blockfrostBaseUrl: null,
   corsOrigins: "*",
   rateLimitPerMin: 6000, // generous so test calls don't trip rate limit
   addresses: ADDRESSES,
@@ -278,7 +280,7 @@ describe("API: /fee", () => {
 });
 
 describe("API: /history/:address", () => {
-  it("returns the stub history", async () => {
+  it("returns the stub history with source=dbsync", async () => {
     const res = await server.inject({
       method: "GET",
       url: "/history/addr_test1bob?limit=10",
@@ -286,7 +288,91 @@ describe("API: /history/:address", () => {
     expect(res.statusCode).toBe(200);
     const body = res.json();
     expect(body.address).toBe("addr_test1bob");
+    expect(body.source).toBe("dbsync");
     expect(body.history).toHaveLength(1);
     expect(body.history[0].lovelaceReceived).toBe("10000000");
+  });
+});
+
+describe("API: /history fallback to Blockfrost", () => {
+  it("uses the fallback when db-sync is null", async () => {
+    const fallback = new StubDbSyncClient({
+      addr_test1bob: [
+        {
+          txHash: txHash("bf1"),
+          blockHeight: 200,
+          blockTime: "2026-04-26T08:00:00.000Z",
+          lovelaceReceived: 4_500_000n,
+        },
+      ],
+    });
+    const fallbackOnlyServer = await buildServer({
+      state,
+      runtime: null,
+      config: CONFIG,
+      dbsync: null,
+      historyFallback: fallback,
+    });
+    const res = await fallbackOnlyServer.inject({
+      method: "GET",
+      url: "/history/addr_test1bob?limit=5",
+    });
+    expect(res.statusCode).toBe(200);
+    const body = res.json();
+    expect(body.source).toBe("blockfrost");
+    expect(body.history[0].lovelaceReceived).toBe("4500000");
+    await fallbackOnlyServer.close();
+  });
+
+  it("falls back to Blockfrost when db-sync throws", async () => {
+    const throwingDbsync = {
+      async addressHistory() {
+        throw new Error("connect ECONNREFUSED 127.0.0.1:5432");
+      },
+      async ping() {},
+      async close() {},
+    };
+    const fallback = new StubDbSyncClient({
+      addr_test1bob: [
+        {
+          txHash: txHash("bf2"),
+          blockHeight: 201,
+          blockTime: "2026-04-26T09:00:00.000Z",
+          lovelaceReceived: 1_000_000n,
+        },
+      ],
+    });
+    const failoverServer = await buildServer({
+      state,
+      runtime: null,
+      config: CONFIG,
+      dbsync: throwingDbsync,
+      historyFallback: fallback,
+    });
+    const res = await failoverServer.inject({
+      method: "GET",
+      url: "/history/addr_test1bob?limit=5",
+    });
+    expect(res.statusCode).toBe(200);
+    const body = res.json();
+    expect(body.source).toBe("blockfrost");
+    expect(body.history[0].lovelaceReceived).toBe("1000000");
+    await failoverServer.close();
+  });
+
+  it("returns 503 when neither source is configured", async () => {
+    const noBackendsServer = await buildServer({
+      state,
+      runtime: null,
+      config: CONFIG,
+      dbsync: null,
+    });
+    const res = await noBackendsServer.inject({
+      method: "GET",
+      url: "/history/addr_test1bob?limit=5",
+    });
+    expect(res.statusCode).toBe(503);
+    expect(res.json().error).toBe("history_unavailable");
+    await noBackendsServer.close();
   });
 });

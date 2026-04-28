@@ -70,23 +70,35 @@ export function Pool() {
     const refresh = async () => {
       if (firstRun) setLoading(true);
       try {
+        // Try the backend first when configured. Fall through to
+        // Blockfrost if the backend is unreachable (null) OR if it
+        // returns an empty pool — during initial sync the backend's
+        // in-memory state is empty even though the chain has live boxes,
+        // and we don't want Mix to silently show zero. Blockfrost is
+        // authoritative either way; using the backend is a perf
+        // optimisation, not a correctness gate.
+        let entries: DirectPoolEntry[] | null = null;
         if (config.backendUrl) {
-          const client = new BackendClient(config.backendUrl);
-          const page = await client.pool({ limit: 500 });
-          if (!page || cancelled) return;
-          setPoolEntries(
-            page.boxes.map((b) => ({
-              ref: { txId: b.txHash.toLowerCase(), outputIndex: b.outputIndex },
-              a: hexToBytes(b.a),
-              b: hexToBytes(b.b),
-            })),
-          );
-          setPoolError(null);
-          return;
+          try {
+            const client = new BackendClient(config.backendUrl);
+            const page = await client.pool({ limit: 500 });
+            if (cancelled) return;
+            if (page && page.boxes.length > 0) {
+              entries = page.boxes.map((b) => ({
+                ref: { txId: b.txHash.toLowerCase(), outputIndex: b.outputIndex },
+                a: hexToBytes(b.a),
+                b: hexToBytes(b.b),
+              }));
+            }
+          } catch {
+            // Backend threw — let Blockfrost cover.
+          }
         }
-        const direct = await fetchPoolDirect({ provider, addresses });
-        if (cancelled) return;
-        setPoolEntries(direct);
+        if (!entries) {
+          entries = await fetchPoolDirect({ provider, addresses });
+          if (cancelled) return;
+        }
+        setPoolEntries(entries);
         setPoolError(null);
       } catch (e) {
         if (!cancelled) setPoolError((e as Error).message);

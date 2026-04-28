@@ -22,7 +22,6 @@
     "pool": "Mix · Lovejoin",
     "vault": "Vault · Lovejoin",
     "box": "Box detail · Lovejoin",
-    "withdraw": "Withdraw · Lovejoin",
     "protocol": "Protocol · Lovejoin"
   },
   "toast": {
@@ -61,7 +60,6 @@
     "deposit": "Deposit",
     "pool": "Mix",
     "vault": "Vault",
-    "withdraw": "Withdraw",
     "protocol": "Protocol"
   },
   "home": {
@@ -282,8 +280,6 @@
     "scan_summary": "Found {{count}} owned box(es) in {{pool}} pool boxes.",
     "empty": "No owned boxes yet.",
     "empty_hint": "Make a deposit to populate the vault. The pool is rescanned each time the vault is unlocked.",
-    "open_box": "Open",
-    "withdraw_box": "Withdraw",
     "fallback_link": "I'd rather use a separate recovery phrase",
     "fallback_title": "Recovery-phrase fallback",
     "fallback_lede": "For hardware wallets that don't expose signData, or to keep your Lovejoin identity independent from any one wallet. The phrase is encrypted at rest under an Argon2id-derived key from the passphrase you choose.",

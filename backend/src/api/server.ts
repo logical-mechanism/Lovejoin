@@ -20,7 +20,17 @@ export interface ApiServerDeps {
   state: IndexerState;
   runtime: IndexerRuntime | null;
   config: BackendConfig;
+  /**
+   * Primary `/history/:address` source. When this throws or is null,
+   * the route falls through to `historyFallback`.
+   */
   dbsync: DbSyncClient | null;
+  /**
+   * Optional Blockfrost-backed fallback for `/history/:address` — used
+   * when db-sync is unavailable (initial sync, brief outage). Same wire
+   * shape as `dbsync`, just slower per request.
+   */
+  historyFallback?: DbSyncClient | null;
   /** When set, used as the "now" for `lagSeconds`; tests pin it. */
   nowMs?: () => number;
 }
@@ -229,11 +239,13 @@ function registerHistory(fastify: FastifyInstance, deps: ApiServerDeps): void {
       req: FastifyRequest<{ Params: HistoryParams; Querystring: HistoryQuery }>,
       reply: FastifyReply,
     ) => {
-      if (!deps.dbsync) {
+      const fallback = deps.historyFallback ?? null;
+      if (!deps.dbsync && !fallback) {
         reply.code(503);
         return {
-          error: "dbsync_unavailable",
-          message: "DBSYNC_URL not configured",
+          error: "history_unavailable",
+          message:
+            "Neither DBSYNC_URL nor BLOCKFROST_PROJECT_ID is configured",
         };
       }
       const address = req.params.address;
@@ -241,15 +253,43 @@ function registerHistory(fastify: FastifyInstance, deps: ApiServerDeps): void {
         reply.code(400);
         return { error: "bad_request", message: "address malformed" };
       }
-      const limit = clamp(
-        Number(req.query.limit ?? "50"),
-        1,
-        500,
-        50,
-      );
-      const rows = await deps.dbsync.addressHistory(address, limit);
+      const limit = clamp(Number(req.query.limit ?? "50"), 1, 500, 50);
+
+      // Prefer db-sync (1 SQL query). On error or absence, fall through to
+      // the Blockfrost fallback (N+1 HTTP calls). Both clients implement
+      // the same `DbSyncClient` shape so the response stays identical.
+      let rows;
+      let source: "dbsync" | "blockfrost" | null = null;
+      let dbsyncError: Error | null = null;
+      if (deps.dbsync) {
+        try {
+          rows = await deps.dbsync.addressHistory(address, limit);
+          source = "dbsync";
+        } catch (err) {
+          dbsyncError = err as Error;
+          fastify.log?.warn?.(
+            `/history dbsync failed: ${dbsyncError.message}` +
+              (fallback ? "; falling back to Blockfrost" : "; no fallback configured"),
+          );
+        }
+      }
+      if (rows === undefined && fallback) {
+        rows = await fallback.addressHistory(address, limit);
+        source = "blockfrost";
+      }
+      if (rows === undefined) {
+        reply.code(503);
+        return {
+          error: "history_unavailable",
+          message: dbsyncError
+            ? `dbsync error: ${dbsyncError.message}`
+            : "history backend unreachable",
+        };
+      }
+
       return {
         address,
+        source,
         history: rows.map((h) => ({
           txHash: h.txHash,
           blockHeight: h.blockHeight,

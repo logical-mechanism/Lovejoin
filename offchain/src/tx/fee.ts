@@ -152,6 +152,28 @@ export async function pickRandomFeeShard(args: {
 }
 
 /**
+ * Like `pickRandomFeeShard` but returns `null` instead of throwing when no
+ * shards are available. Deposit uses this to gracefully fall back to a
+ * shard-less tx (mix-box only, no Replenish branch). Mix doesn't — it
+ * requires a shard to source `tx.fee`, and bailing loud is the right move.
+ */
+export async function pickFeeShardOptional(args: {
+  provider: ChainProvider;
+  feeScriptAddressBech32: string;
+  excludeRefs?: ReadonlyArray<{ txId: string; outputIndex: number }>;
+  rng?: RandomInt;
+}): Promise<Utxo | null> {
+  const all = await args.provider.getUtxos(args.feeScriptAddressBech32);
+  const shards = all.filter((u) => isFeeShardCandidate(u, args.feeScriptAddressBech32));
+  if (shards.length === 0) return null;
+  return pickRandomShard({
+    shards,
+    ...(args.excludeRefs !== undefined ? { excludeRefs: args.excludeRefs } : {}),
+    ...(args.rng !== undefined ? { rng: args.rng } : {}),
+  });
+}
+
+/**
  * Compute the lovelace value the Replenish output of a Deposit tx should hold.
  *
  * Spec: docs/spec/01-protocol.md §"Deposit" — the user contributes
