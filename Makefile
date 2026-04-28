@@ -61,7 +61,11 @@ test:
 # `aiken fmt --check` is the format-only check (no test runs, no compile)
 # so it stays cheap and catches whitespace / import-ordering drift.
 # `aiken check` (typecheck + tests) lives under `make test`.
-lint:
+#
+# Depends on `sdk-build` because @lovejoin/ui imports `@lovejoin/sdk`,
+# which resolves to offchain/dist/. On a clean checkout (CI) the dist
+# directory doesn't exist yet and the UI's tsc step fails with TS2307.
+lint: sdk-build
 	cd contracts && $(AIKEN) fmt --check
 	$(PNPM) -r --filter ./offchain --filter ./backend --filter ./ui run lint
 
