@@ -549,3 +549,315 @@ function scalarToHex(s: Scalar): string {
   if (hex.length < 64) hex = hex.padStart(64, "0");
   return hex;
 }
+
+// ---------------------------------------------------------------------------
+// Bulk deposit — N distinct mix-box outputs from a single fee shard
+// ---------------------------------------------------------------------------
+
+/** One planned mix-box output in a bulk deposit. */
+export interface BulkDepositBoxPlan {
+  ownerSecret: Scalar;
+  /** 48-byte compressed `a = [d_i]·g`. */
+  a: Uint8Array;
+  /** 48-byte compressed `b = [x_i·d_i]·g`. */
+  b: Uint8Array;
+  output: {
+    addressBech32: string;
+    lovelace: Lovelace;
+    inlineDatumHex: string;
+  };
+}
+
+/**
+ * Plan for a bulk-deposit tx. N mix-box outputs at positions 0..N-1, then
+ * the replenished fee shard at position N. mesh handles fee + change after.
+ */
+export interface BulkDepositPlan {
+  boxes: BulkDepositBoxPlan[];
+  feeShardOutput: {
+    addressBech32: string;
+    lovelace: Lovelace;
+    inlineDatumHex: string;
+  };
+  feeShardInput: Utxo;
+  replenishRedeemerHex: string;
+  referenceUtxoRef: UtxoRef;
+  feeContractRefScriptUtxoRef: UtxoRef;
+}
+
+export interface PlanBulkDepositArgs {
+  /**
+   * Per-box owner secrets, in the order they should appear in the tx
+   * outputs (positions 0..N-1). N ≥ 1. Each secret should come from
+   * `deriveOwnerSecret(seed, index)` with a distinct index — the SDK
+   * doesn't enforce that here because it can't see the seed; the UI is
+   * expected to bump `nextDepositIndex` per box.
+   */
+  ownerSecrets: ReadonlyArray<Scalar>;
+  /**
+   * Per-box re-randomization scalars `d_i ∈ [1, r)`. If omitted, a fresh
+   * `d_i` is drawn per box via WebCrypto. Pass `null` for a slot to opt
+   * into the legacy `a = g` behaviour (the on-chain validator accepts
+   * either, but distinct `d_i` per box keeps the new boxes
+   * indistinguishable from mid-pool boxes).
+   */
+  rerandomizations?: ReadonlyArray<Scalar | null>;
+  /** Number of mix rounds to fund per new box. Total contribution =
+   *  `boxes × rounds × max_fee_per_mix`. */
+  rounds: number;
+  params: ProtocolParams;
+  addresses: LovejoinAddresses;
+  feeShard: Utxo;
+  networkId: LovejoinNetworkId;
+  minRounds?: number;
+}
+
+/**
+ * Pure planner for a bulk-deposit tx. Each box i gets its own
+ * `a_i = [d_i]·g` and `b_i = [x_i]·a_i`; equal datums are rejected on
+ * chain via `try_decode_well_formed_inline`'s a==b check, but bulk
+ * callers should already be using distinct (x_i, d_i) per index.
+ */
+export function planBulkDepositTx(args: PlanBulkDepositArgs): BulkDepositPlan {
+  const n = args.ownerSecrets.length;
+  if (n < 1) {
+    throw new Error("planBulkDepositTx: ownerSecrets must contain at least one secret");
+  }
+  if (args.rerandomizations !== undefined && args.rerandomizations.length !== n) {
+    throw new Error(
+      `planBulkDepositTx: rerandomizations length ${args.rerandomizations.length} ≠ ownerSecrets length ${n}`,
+    );
+  }
+  for (const x of args.ownerSecrets) assertOwnerSecret(x);
+
+  const mixBoxAddress = buildScriptAddress(
+    args.addresses.mixBoxScriptHash,
+    args.networkId,
+    args.addresses.dappStakeKeyHashHex ?? null,
+  );
+  const feeAddress = buildScriptAddress(
+    args.addresses.feeScriptHash,
+    args.networkId,
+    args.addresses.dappStakeKeyHashHex ?? null,
+  );
+
+  const seenDatums = new Set<string>();
+  const boxes: BulkDepositBoxPlan[] = [];
+  for (let i = 0; i < n; i++) {
+    const x = args.ownerSecrets[i]!;
+    const d: Scalar | null = args.rerandomizations === undefined
+      ? generateRerandomizationScalar()
+      : args.rerandomizations[i]!;
+    let aPoint;
+    let bPoint;
+    if (d === null) {
+      aPoint = generator();
+      bPoint = publicPointG(x);
+    } else {
+      if (d <= 0n || d >= SCALAR_ORDER) {
+        throw new Error(`rerandomization scalar [${i}] must be in [1, r)`);
+      }
+      aPoint = scalarMul(d, generator());
+      bPoint = scalarMul(x, aPoint);
+    }
+    const a = pointToBytes(aPoint);
+    const b = pointToBytes(bPoint);
+    const inlineDatumHex = encodeMixDatum({ a, b });
+    if (seenDatums.has(inlineDatumHex)) {
+      // Two boxes producing identical datums would collide as
+      // identical UTxOs in the same tx — practically impossible
+      // outside of caller error (reusing the same x AND the same d),
+      // but cheap to refuse early.
+      throw new Error(
+        `planBulkDepositTx: duplicate (a, b) at output ${i}; secrets/rerandomizations must be distinct per box`,
+      );
+    }
+    seenDatums.add(inlineDatumHex);
+    boxes.push({
+      ownerSecret: x,
+      a,
+      b,
+      output: {
+        addressBech32: mixBoxAddress,
+        lovelace: args.params.denomLovelace,
+        inlineDatumHex,
+      },
+    });
+  }
+
+  // Total replenishment: sum across all new boxes. Each box logically
+  // funds `rounds` mixes worth of fees; the on-chain rule is just
+  // `fee_out > fee_in`, so any positive contribution would satisfy it,
+  // but we keep the convention that bulk depositors top up the same
+  // per-box share they would have for N single deposits.
+  const perBoxContribution = BigInt(args.rounds) * args.params.maxFeePerMixLovelace;
+  if (!Number.isInteger(args.rounds) || args.rounds <= 0) {
+    throw new Error(`rounds must be a positive integer, got ${args.rounds}`);
+  }
+  if (args.minRounds !== undefined && args.rounds < args.minRounds) {
+    throw new Error(
+      `rounds=${args.rounds} below minRounds=${args.minRounds}; UI should reject`,
+    );
+  }
+  const replenishedLovelace: Lovelace =
+    args.feeShard.lovelace + perBoxContribution * BigInt(n);
+
+  return {
+    boxes,
+    feeShardOutput: {
+      addressBech32: feeAddress,
+      lovelace: replenishedLovelace,
+      inlineDatumHex: UNIT_DATUM_CBOR_HEX,
+    },
+    feeShardInput: args.feeShard,
+    replenishRedeemerHex: REPLENISH_REDEEMER_CBOR_HEX,
+    referenceUtxoRef: parseUtxoRef(args.addresses.referenceUtxoRef),
+    feeContractRefScriptUtxoRef: parseUtxoRef(args.addresses.referenceScriptUtxos.fee_contract),
+  };
+}
+
+export interface BuildBulkDepositArgs {
+  network: "preprod" | "preview" | "test" | "mainnet";
+  /** Per-box owner secrets in output-position order (positions 0..N-1). */
+  ownerSecrets: ReadonlyArray<Scalar>;
+  /** Number of mix rounds to fund per new box. */
+  rounds: number;
+  minRounds?: number;
+  wallet: LovejoinWallet;
+  provider: ChainProvider;
+  addresses: LovejoinAddresses;
+  feeShard?: Utxo;
+  collateralProvider?: CollateralProvider;
+  signOnly?: boolean;
+}
+
+export interface BulkDepositResult {
+  signedTxHex: string;
+  txId: string;
+  /** Owner material per output, in output-position order. */
+  owners: OwnerSecretMaterial[];
+  /** N — the number of mix-boxes created. */
+  count: number;
+}
+
+/**
+ * Build, sign, and (optionally) submit a bulk-deposit tx that mints N
+ * fresh mix-box UTxOs from a single fee-shard input.
+ *
+ * Output order: positions 0..N-1 are the new mix-boxes (in input order
+ * of `ownerSecrets`); position N is the replenished fee shard. mesh
+ * appends the wallet change after the explicit outputs.
+ */
+export async function buildBulkDepositTx(
+  args: BuildBulkDepositArgs,
+): Promise<BulkDepositResult> {
+  if (args.ownerSecrets.length === 0) {
+    throw new Error("buildBulkDepositTx: ownerSecrets must contain at least one secret");
+  }
+  const networkId = networkIdFor(args.network);
+
+  const { params } = await fetchProtocolParams(args.addresses, args.provider);
+  const feeAddress = buildScriptAddress(
+    args.addresses.feeScriptHash,
+    networkId,
+    args.addresses.dappStakeKeyHashHex ?? null,
+  );
+  const feeShard = args.feeShard ?? (await pickRandomFeeShard({
+    provider: args.provider,
+    feeScriptAddressBech32: feeAddress,
+  }));
+
+  const plan = planBulkDepositTx({
+    ownerSecrets: args.ownerSecrets,
+    rounds: args.rounds,
+    params,
+    addresses: args.addresses,
+    feeShard,
+    networkId,
+    ...(args.minRounds !== undefined ? { minRounds: args.minRounds } : {}),
+  });
+
+  const collateral = args.collateralProvider ?? new WalletProvider(args.wallet);
+  const collateralProvision = await collateral.requestCollateral({
+    txBodyDigest: new Uint8Array(32),
+    collateralAmountLovelace: 5_000_000n,
+  });
+
+  const { MeshTxBuilder } = await import("@meshsdk/core");
+  const meshProvider = await getMeshProvider(args.provider);
+  const txBuilder = new MeshTxBuilder({
+    fetcher: meshProvider as never,
+    submitter: meshProvider as never,
+    evaluator: meshProvider as never,
+    verbose: false,
+  });
+
+  const walletUtxos = normalizeWalletUtxos(await args.wallet.getUtxos());
+  const changeAddress = await args.wallet.getChangeAddress();
+
+  // Reference UTxO + fee shard spend (Replenish).
+  txBuilder
+    .readOnlyTxInReference(plan.referenceUtxoRef.txId, plan.referenceUtxoRef.outputIndex)
+    .spendingPlutusScriptV3()
+    .txIn(
+      plan.feeShardInput.ref.txId,
+      plan.feeShardInput.ref.outputIndex,
+      [{ unit: "lovelace", quantity: plan.feeShardInput.lovelace.toString() }],
+      plan.feeShardOutput.addressBech32,
+    )
+    .txInInlineDatumPresent()
+    .txInRedeemerValue(plan.replenishRedeemerHex, "CBOR")
+    .spendingTxInReference(
+      plan.feeContractRefScriptUtxoRef.txId,
+      plan.feeContractRefScriptUtxoRef.outputIndex,
+      args.addresses.referenceScriptSizes?.fee_contract?.toString(),
+      args.addresses.feeScriptHash,
+    );
+
+  // N mix-box outputs at positions 0..N-1.
+  for (const box of plan.boxes) {
+    txBuilder
+      .txOut(box.output.addressBech32, [
+        { unit: "lovelace", quantity: box.output.lovelace.toString() },
+      ])
+      .txOutInlineDatumValue(box.output.inlineDatumHex, "CBOR");
+  }
+  // Position N: replenished fee shard.
+  txBuilder
+    .txOut(plan.feeShardOutput.addressBech32, [
+      { unit: "lovelace", quantity: plan.feeShardOutput.lovelace.toString() },
+    ])
+    .txOutInlineDatumValue(plan.feeShardOutput.inlineDatumHex, "CBOR")
+    .changeAddress(changeAddress)
+    .selectUtxosFrom(walletUtxos);
+
+  for (const utxo of collateralProvision.inputs) {
+    txBuilder.txInCollateral(
+      utxo.ref.txId,
+      utxo.ref.outputIndex,
+      [{ unit: "lovelace", quantity: utxo.lovelace.toString() }],
+      utxo.address,
+    );
+  }
+
+  const unsignedTx = await txBuilder.complete();
+  const signedTx = await args.wallet.signTx(unsignedTx);
+  const owners = plan.boxes.map((box) => deriveOwner(box.ownerSecret, box.a));
+
+  if (args.signOnly) {
+    return {
+      signedTxHex: signedTx,
+      txId: "",
+      owners,
+      count: plan.boxes.length,
+    };
+  }
+
+  const txId = await args.provider.submitTx(signedTx);
+  return {
+    signedTxHex: signedTx,
+    txId,
+    owners,
+    count: plan.boxes.length,
+  };
+}

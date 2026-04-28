@@ -49,8 +49,8 @@ validator mix_logic(
       collect_well_formed_mix_inputs(self, reference_datum.mix_script_hash)
 
     when redeemer is {
-      Owner { proof } ->
-        validate_owner(self, reference_datum, mix_inputs, proof)
+      Owner { proofs } ->
+        validate_owner(self, reference_datum, mix_inputs, proofs)
       Mix { proofs } -> validate_mix(self, reference_datum, mix_inputs, proofs)
     }
   }
@@ -74,17 +74,32 @@ validator mix_logic(
 }
 
 // ---------------------------------------------------------------------------
-// Owner branch — exactly one well-formed mix input, Schnorr proof against
-// (a, b) bound to the tx's full output set.
+// Owner branch — N ≥ 1 well-formed mix inputs and N matching Schnorr proofs.
+// Every proof binds to the same `ctx` (the tx's full output set + mix script
+// hash), so output substitution invalidates every proof at once. Each proof
+// is checked against the (a_i, b_i) of its corresponding input — proofs
+// cannot be swapped between inputs because each Schnorr is bound to a
+// specific (a, b).
+//
+// Bulk withdraw safety:
+//   * `ctx` covers `self.outputs` so the destination(s) and amounts are
+//     committed; an attacker who reuses N-1 of the user's proofs in a
+//     different tx must produce identical outputs AND identical inputs (the
+//     Nth input would need a forged proof for its (a, b)). Conservation of
+//     value blocks any partial-input replay.
+//   * No collateral input check — same as the single-input path. The owner's
+//     wallet supplies collateral and signs the tx envelope.
 // ---------------------------------------------------------------------------
 
 fn validate_owner(
   self: Transaction,
   reference_datum: ReferenceDatum,
   mix_inputs: List<MixDatum>,
-  proof: schnorr.SchnorrProof,
+  proofs: List<schnorr.SchnorrProof>,
 ) -> Bool {
-  expect [mix_input] = mix_inputs
+  let n = list.length(mix_inputs)
+  expect n >= 1
+  expect list.length(proofs) == n
 
   // ctx = blake2b_256( serialise(self.outputs) || mix_script_hash )
   let outputs_bytes = builtin.serialise_data(self.outputs)
@@ -92,8 +107,16 @@ fn validate_owner(
     outputs_bytes |> bytearray.concat(reference_datum.mix_script_hash)
   let ctx = builtin.blake2b_256(ctx_preimage)
 
-  // Owner: prover knows x with b = [x] a → Schnorr with base = a, u = b.
-  schnorr.verify(mix_input.a, mix_input.b, proof, ctx)
+  // Per-input Schnorr verification. Each proof proves "I know x_i such that
+  // b_i = [x_i] a_i" against the shared ctx — see docs/spec/02-cryptography.md
+  // §"Schnorr".
+  pairs_match_and_all(
+    mix_inputs,
+    proofs,
+    fn(mix_input, proof) {
+      schnorr.verify(mix_input.a, mix_input.b, proof, ctx)
+    },
+  )
 }
 
 // ---------------------------------------------------------------------------
@@ -246,12 +269,10 @@ fn collect_well_formed_mix_inputs(
 /// Apply `pred` pairwise to two equal-length lists; True iff every pair
 /// passes. Length equality is pre-asserted by the caller. Stdlib has
 /// `list.zip` + `list.all` but the explicit recursion avoids allocating an
-/// intermediate list of pairs in the validator.
-fn pairs_match_and_all(
-  xs: List<MixDatum>,
-  ys: List<SigmaOrProof>,
-  pred: fn(MixDatum, SigmaOrProof) -> Bool,
-) -> Bool {
+/// intermediate list of pairs in the validator. Generic so the helper is
+/// shared between `validate_mix` (MixDatum × SigmaOrProof) and
+/// `validate_owner` (MixDatum × SchnorrProof).
+fn pairs_match_and_all(xs: List<a>, ys: List<b>, pred: fn(a, b) -> Bool) -> Bool {
   when (xs, ys) is {
     ([], []) -> True
     ([x, ..xs_tail], [y, ..ys_tail]) ->

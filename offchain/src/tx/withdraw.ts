@@ -202,36 +202,52 @@ export function computeOwnerCtx(args: {
 /**
  * Build the Owner redeemer's Plutus-Data CBOR.
  *
- *   MixLogicRedeemer.Owner { proof: SchnorrProof { t, z } }
- *     → Constr 0 [ Constr 0 [bytes(t, 48), bytes(z, 32)] ]
+ *   MixLogicRedeemer.Owner { proofs: List<SchnorrProof> }
+ *     → Constr 0 [ List [Constr 0 [bytes(t, 48), bytes(z, 32)], ...] ]
+ *
+ * Single-input withdraws pass a 1-element list. Bulk withdraws pass N.
+ * Empty lists are rejected on chain (`n >= 1`); we let the validator
+ * enforce it rather than duplicating the rule here.
  */
 export function encodeOwnerRedeemer(args: {
-  proofT: Uint8Array;
-  proofZ: Uint8Array;
+  proofs: ReadonlyArray<{ t: Uint8Array; z: Uint8Array }>;
 }): string {
-  if (args.proofT.length !== G1_COMPRESSED_BYTES) {
-    throw new Error(`SchnorrProof.t must be ${G1_COMPRESSED_BYTES} bytes`);
+  for (const p of args.proofs) {
+    if (p.t.length !== G1_COMPRESSED_BYTES) {
+      throw new Error(`SchnorrProof.t must be ${G1_COMPRESSED_BYTES} bytes`);
+    }
+    if (p.z.length !== SCALAR_BYTES) {
+      throw new Error(`SchnorrProof.z must be ${SCALAR_BYTES} bytes`);
+    }
   }
-  if (args.proofZ.length !== SCALAR_BYTES) {
-    throw new Error(`SchnorrProof.z must be ${SCALAR_BYTES} bytes`);
-  }
-  const inner = new Tag(
-    [Buffer.from(args.proofT), Buffer.from(args.proofZ)],
-    121, // Constr 0 — SchnorrProof's Aiken declaration
+  const proofTags = args.proofs.map(
+    (p) => new Tag([Buffer.from(p.t), Buffer.from(p.z)], 121),
   );
-  const outer = new Tag([inner], 121); // Constr 0 — MixLogicRedeemer.Owner
+  const outer = new Tag([proofTags], 121); // Constr 0 — MixLogicRedeemer.Owner
   return bytesToHex(cborEncoder.encode(outer));
 }
 
 /**
- * Placeholder Owner redeemer with zero-bytes Schnorr proof — used for the
- * first build pass so mesh can compute fees + exec units against a
- * fixed-shape redeemer. The real proof, once computed, replaces this.
+ * Placeholder Owner redeemer with N zero-bytes Schnorr proofs — used for
+ * the first build pass so mesh can size the redeemer and compute fees +
+ * exec units against a fixed-shape redeemer. The real proofs replace the
+ * placeholders before signing. `n` must match the number of mix inputs in
+ * the tx; otherwise the validator rejects on `proofs.length == n`.
  */
-export const PLACEHOLDER_OWNER_REDEEMER_CBOR_HEX: string = encodeOwnerRedeemer({
-  proofT: new Uint8Array(G1_COMPRESSED_BYTES),
-  proofZ: new Uint8Array(SCALAR_BYTES),
-});
+export function placeholderOwnerRedeemerCborHex(n: number): string {
+  if (!Number.isInteger(n) || n < 1) {
+    throw new Error(`placeholderOwnerRedeemerCborHex: n must be >= 1, got ${n}`);
+  }
+  const proofs = Array.from({ length: n }, () => ({
+    t: new Uint8Array(G1_COMPRESSED_BYTES),
+    z: new Uint8Array(SCALAR_BYTES),
+  }));
+  return encodeOwnerRedeemer({ proofs });
+}
+
+/** Pre-computed N=1 placeholder for the single-input withdraw fast path. */
+export const PLACEHOLDER_OWNER_REDEEMER_CBOR_HEX: string =
+  placeholderOwnerRedeemerCborHex(1);
 
 /**
  * Generate the Schnorr proof for the Owner branch.
@@ -431,7 +447,7 @@ export async function buildWithdrawTx(args: BuildWithdrawArgs): Promise<Withdraw
       b: plan.mixBoxInput.b,
       ctx,
     });
-    return encodeOwnerRedeemer({ proofT: proof.t, proofZ: proof.z });
+    return encodeOwnerRedeemer({ proofs: [{ t: proof.t, z: proof.z }] });
   };
 
   // 1: placeholder + default exec units.
@@ -468,6 +484,306 @@ export async function buildWithdrawTx(args: BuildWithdrawArgs): Promise<Withdraw
   }
   const txId = await args.provider.submitTx(signedTx);
   return { signedTxHex: signedTx, txId, owner };
+}
+
+// ---------------------------------------------------------------------------
+// Bulk withdraw — N inputs, N proofs, single combined destination output
+// ---------------------------------------------------------------------------
+
+/**
+ * One mix-box paired with its owner secret. The SDK pairs boxes 1:1 with
+ * proofs in the redeemer; per-input ordering is fixed below by sorting on
+ * `(txId, outputIndex)` to match Aiken's ledger-supplied input order.
+ */
+export interface BulkWithdrawEntry {
+  mixBox: MixBoxRef;
+  ownerSecret: Scalar;
+}
+
+export interface BuildBulkWithdrawArgs {
+  network: "preprod" | "preview" | "test" | "mainnet";
+  /** N ≥ 1 mix-boxes to spend in a single tx, each with its owner secret. */
+  entries: ReadonlyArray<BulkWithdrawEntry>;
+  /** Single destination address that receives `N × denom_lovelace`. */
+  destinationAddressBech32: string;
+  wallet: LovejoinWallet;
+  provider: ChainProvider;
+  addresses: LovejoinAddresses;
+  collateralProvider?: CollateralProvider;
+  signOnly?: boolean;
+}
+
+export interface BulkWithdrawResult {
+  signedTxHex: string;
+  txId: string;
+  /** Owner material per input, in the same order as `entries` after sorting. */
+  owners: OwnerSecretMaterial[];
+  /** N — the number of mix-boxes spent. */
+  count: number;
+  /** Total lovelace sent to the destination (`N × denom_lovelace`). */
+  totalLovelace: Lovelace;
+}
+
+/**
+ * Build, sign, and (optionally) submit a bulk-withdraw tx that spends N ≥ 1
+ * mix-boxes via the Owner branch and forwards their combined denom-ADA to a
+ * single destination address.
+ *
+ * Per-input proofs all bind to the same `ctx` (the tx's full output set).
+ * Output substitution invalidates every proof; an attacker who reuses some
+ * subset of proofs in another tx must produce identical outputs AND an
+ * identical input set, since each Schnorr is bound to its own (a_i, b_i).
+ *
+ * Inputs are sorted by `(txId, outputIndex)` before proof generation so the
+ * proofs[i] in the redeemer pairs with the i-th input in Aiken's
+ * `tx.inputs` (which is already lex-sorted by the ledger). Mismatched
+ * pairing would fail every proof on chain.
+ */
+export async function buildBulkWithdrawTx(
+  args: BuildBulkWithdrawArgs,
+): Promise<BulkWithdrawResult> {
+  if (args.entries.length === 0) {
+    throw new Error("buildBulkWithdrawTx: entries must contain at least one box");
+  }
+  const networkId = networkIdFor(args.network);
+  const { params } = await fetchProtocolParams(args.addresses, args.provider);
+
+  // Sort entries by (txId asc, outputIndex asc) — matches the ledger's
+  // canonical input ordering. The validator's `collect_well_formed_mix_inputs`
+  // walks `tx.inputs` in that same order, so `proofs[i]` MUST line up.
+  const entries = [...args.entries].sort((a, b) => {
+    if (a.mixBox.ref.txId !== b.mixBox.ref.txId) {
+      return a.mixBox.ref.txId < b.mixBox.ref.txId ? -1 : 1;
+    }
+    return a.mixBox.ref.outputIndex - b.mixBox.ref.outputIndex;
+  });
+  const n = entries.length;
+
+  // Per-entry validation: secret unlocks box, points are right shape.
+  for (const e of entries) {
+    assertOwnerSecret(e.ownerSecret);
+    if (e.mixBox.a.length !== G1_COMPRESSED_BYTES) {
+      throw new Error(`mixBox.a must be ${G1_COMPRESSED_BYTES} bytes`);
+    }
+    if (e.mixBox.b.length !== G1_COMPRESSED_BYTES) {
+      throw new Error(`mixBox.b must be ${G1_COMPRESSED_BYTES} bytes`);
+    }
+    const a = pointFromBytes(e.mixBox.a);
+    const bGiven = pointFromBytes(e.mixBox.b);
+    if (!pointEqual(scalarMul(e.ownerSecret, a), bGiven)) {
+      throw new Error(
+        `bulk withdraw: ownerSecret does not unlock mix-box ${e.mixBox.ref.txId}#${e.mixBox.ref.outputIndex} (b ≠ [x]·a)`,
+      );
+    }
+  }
+
+  // Resolve every input UTxO + cross-check inline datum bytes.
+  const mixBoxUtxos: Utxo[] = [];
+  for (const e of entries) {
+    const u = e.mixBox.utxo
+      ?? (await args.provider.getUtxoByRef(e.mixBox.ref));
+    if (!u) {
+      throw new Error(
+        `bulk withdraw: mix-box UTxO ${e.mixBox.ref.txId}#${e.mixBox.ref.outputIndex} not found on chain`,
+      );
+    }
+    if (!u.inlineDatum) {
+      throw new Error(
+        `bulk withdraw: mix-box ${e.mixBox.ref.txId}#${e.mixBox.ref.outputIndex} has no inline datum`,
+      );
+    }
+    const expectedHex = encodeMixDatum({ a: e.mixBox.a, b: e.mixBox.b });
+    if (u.inlineDatum.toLowerCase() !== expectedHex.toLowerCase()) {
+      throw new Error(
+        `bulk withdraw: on-chain inline datum for ${e.mixBox.ref.txId}#${e.mixBox.ref.outputIndex} doesn't match (a, b)`,
+      );
+    }
+    mixBoxUtxos.push(u);
+  }
+
+  const mixLogicRewardAddressBech32 = buildScriptRewardAddress(
+    params.mixLogicScriptHash,
+    networkId,
+  );
+  const referenceUtxoRef = parseUtxoRef(args.addresses.referenceUtxoRef);
+  const mixLogicRefScriptUtxoRef = parseUtxoRef(
+    args.addresses.referenceScriptUtxos.mix_logic,
+  );
+  const mixBoxRefScriptUtxoRef = parseUtxoRef(
+    args.addresses.referenceScriptUtxos.mix_box,
+  );
+  const totalLovelace: Lovelace = params.denomLovelace * BigInt(n);
+
+  const collateralProvider = args.collateralProvider ?? new WalletProvider(args.wallet);
+  const collateralProvision = await collateralProvider.requestCollateral({
+    txBodyDigest: new Uint8Array(32),
+    collateralAmountLovelace: 5_000_000n,
+  });
+
+  const meshCore = await import("@meshsdk/core");
+  const { MeshTxBuilder } = meshCore;
+  const cst = await import("@meshsdk/core-cst");
+
+  const walletUtxos = normalizeWalletUtxos(await args.wallet.getUtxos());
+  const changeAddress = await args.wallet.getChangeAddress();
+  const meshProvider = await getMeshProvider(args.provider);
+
+  // Same two-pass-into-six-build dance as single-input withdraw — see
+  // `buildWithdrawTx` for the rationale. The only differences here are:
+  //   * N spend-script inputs (each gets its own SPEND redeemer; mesh's
+  //     evaluator returns one tight unit per spend redeemer)
+  //   * single combined destination output of `N × denom`
+  //   * placeholder/real owner redeemer carries N proofs
+  const DEFAULT_EX_UNITS: ExUnits = { mem: 7_000_000, steps: 3_000_000_000 };
+  const placeholderRedeemer = placeholderOwnerRedeemerCborHex(n);
+
+  type TightUnits = { spends: ExUnits[]; withdraw: ExUnits };
+  const buildOnce = (
+    redeemerCborHex: string,
+    spendUnitsForInput: (i: number) => ExUnits,
+    withdrawExUnits: ExUnits,
+  ): Promise<string> => {
+    const tx = new MeshTxBuilder({
+      fetcher: meshProvider as never,
+      submitter: meshProvider as never,
+      verbose: false,
+    });
+    tx.readOnlyTxInReference(referenceUtxoRef.txId, referenceUtxoRef.outputIndex);
+    mixBoxUtxos.forEach((u, i) => {
+      tx
+        .spendingPlutusScriptV3()
+        .txIn(u.ref.txId, u.ref.outputIndex, [
+          { unit: "lovelace", quantity: u.lovelace.toString() },
+        ], u.address)
+        .txInInlineDatumPresent()
+        .txInRedeemerValue("d87980", "CBOR", spendUnitsForInput(i))
+        .spendingTxInReference(
+          mixBoxRefScriptUtxoRef.txId,
+          mixBoxRefScriptUtxoRef.outputIndex,
+          sizeStr(args.addresses.referenceScriptSizes?.mix_box),
+          args.addresses.mixBoxScriptHash,
+        );
+    });
+    tx
+      .withdrawalPlutusScriptV3()
+      .withdrawal(mixLogicRewardAddressBech32, "0")
+      .withdrawalRedeemerValue(redeemerCborHex, "CBOR", withdrawExUnits)
+      .withdrawalTxInReference(
+        mixLogicRefScriptUtxoRef.txId,
+        mixLogicRefScriptUtxoRef.outputIndex,
+        sizeStr(args.addresses.referenceScriptSizes?.mix_logic),
+        params.mixLogicScriptHash,
+      )
+      // Output 0: combined destination.
+      .txOut(args.destinationAddressBech32, [
+        { unit: "lovelace", quantity: totalLovelace.toString() },
+      ])
+      .changeAddress(changeAddress)
+      .selectUtxosFrom(walletUtxos);
+    for (const utxo of collateralProvision.inputs) {
+      tx.txInCollateral(
+        utxo.ref.txId,
+        utxo.ref.outputIndex,
+        [{ unit: "lovelace", quantity: utxo.lovelace.toString() }],
+        utxo.address,
+      );
+    }
+    return tx.complete();
+  };
+
+  const computeRedeemerForOutputs = (txCborHex: string): string => {
+    const outputsCbor = serializeOutputsForCtx(txCborHex, cst);
+    const ctx = computeOwnerCtx({
+      outputsCbor,
+      mixScriptHashHex: params.mixScriptHash,
+    });
+    const proofs = entries.map((e) => {
+      const proof = generateOwnerSchnorrProof({
+        ownerSecret: e.ownerSecret,
+        a: e.mixBox.a,
+        b: e.mixBox.b,
+        ctx,
+      });
+      return { t: proof.t, z: proof.z };
+    });
+    return encodeOwnerRedeemer({ proofs });
+  };
+
+  // Pass 1: placeholder + default exec units.
+  const txPlaceholder = await buildOnce(
+    placeholderRedeemer,
+    () => DEFAULT_EX_UNITS,
+    DEFAULT_EX_UNITS,
+  );
+  // Pass 2: real proofs against placeholder outputs.
+  const proof1 = computeRedeemerForOutputs(txPlaceholder);
+  // Pass 3: proof_1 + default exec units → run evaluator.
+  const txForEval = await buildOnce(proof1, () => DEFAULT_EX_UNITS, DEFAULT_EX_UNITS);
+  const tightUnits = await evaluateBulkExUnits(meshProvider, txForEval, n);
+  // Pass 4: proof_1 + tight units → outputs shift (fee shrinks).
+  const txTightOutputs = await buildOnce(
+    proof1,
+    (i) => tightUnits.spends[i] ?? DEFAULT_EX_UNITS,
+    tightUnits.withdraw,
+  );
+  // Pass 5: proofs against the new outputs.
+  const proof3 = computeRedeemerForOutputs(txTightOutputs);
+  // Pass 6: final tx.
+  const unsignedHexFinal = await buildOnce(
+    proof3,
+    (i) => tightUnits.spends[i] ?? DEFAULT_EX_UNITS,
+    tightUnits.withdraw,
+  );
+
+  const signedTx = await args.wallet.signTx(unsignedHexFinal);
+  const owners = entries.map((e) => deriveOwner(e.ownerSecret, e.mixBox.a));
+
+  if (args.signOnly) {
+    return { signedTxHex: signedTx, txId: "", owners, count: n, totalLovelace };
+  }
+  const txId = await args.provider.submitTx(signedTx);
+  return { signedTxHex: signedTx, txId, owners, count: n, totalLovelace };
+}
+
+/**
+ * Mesh's evaluator for a bulk-withdraw tx: collect N SPEND units (one per
+ * mix-box input) plus the single REWARD/WITHDRAW unit. SPEND units are
+ * returned in redeemer-pointer order; combined with our lex-sorted inputs
+ * that matches the order of `entries` after sorting.
+ */
+async function evaluateBulkExUnits(
+  mesh: { evaluateTx(cbor: string): Promise<unknown> },
+  unsignedTxCborHex: string,
+  expectedSpendCount: number,
+): Promise<{ spends: ExUnits[]; withdraw: ExUnits }> {
+  const raw = await mesh.evaluateTx(unsignedTxCborHex);
+  if (!Array.isArray(raw)) {
+    throw new Error(
+      `bulk withdraw evaluator: expected an array of actions, got ${typeof raw}`,
+    );
+  }
+  const spends: ExUnits[] = [];
+  let withdraw: ExUnits | null = null;
+  for (const a of raw as Array<{
+    tag?: string;
+    budget?: { mem?: number; steps?: number };
+  }>) {
+    const tag = a.tag;
+    const b = a.budget;
+    if (!b || typeof b.mem !== "number" || typeof b.steps !== "number") continue;
+    const u: ExUnits = { mem: b.mem, steps: b.steps };
+    if (tag === "SPEND") spends.push(u);
+    else if ((tag === "REWARD" || tag === "WITHDRAW") && !withdraw) withdraw = u;
+  }
+  if (spends.length !== expectedSpendCount) {
+    throw new Error(
+      `bulk withdraw evaluator: expected ${expectedSpendCount} SPEND units, got ${spends.length}`,
+    );
+  }
+  if (!withdraw) {
+    throw new Error(`bulk withdraw evaluator: missing REWARD/WITHDRAW unit`);
+  }
+  return { spends, withdraw };
 }
 
 // ---------------------------------------------------------------------------

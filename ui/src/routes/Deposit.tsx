@@ -13,7 +13,7 @@ import { useState } from "react";
 import { Link } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 
-import { buildDepositTx } from "@lovejoin/sdk";
+import { buildBulkDepositTx } from "@lovejoin/sdk";
 
 import { useAppState } from "../lib/store.js";
 import { Eyebrow } from "../components/ui/Eyebrow.js";
@@ -34,7 +34,14 @@ export function Deposit() {
     rescan,
   } = useAppState();
   const [rounds, setRounds] = useState<number>(30);
+  const [count, setCount] = useState<number>(1);
   const [submitting, setSubmitting] = useState(false);
+
+  // Reasonable upper bound: a deposit tx has 1 fee-shard input, N mix-box
+  // outputs, 1 fee-shard output, plus mesh's wallet change — all ada-only.
+  // 20 mix-boxes per tx fits comfortably within Cardano's 16 KB tx size
+  // (each mix-box output is ~150 bytes for the address+value+inline datum).
+  const MAX_BULK_COUNT = 20;
 
   if (!provider || !addresses || !wallet) {
     return (
@@ -71,11 +78,16 @@ export function Deposit() {
     if (submitting) return;
     setSubmitting(true);
     try {
-      const { secret } = deriveDepositSecret(vault.seed, nextDepositIndex);
-      const result = await buildDepositTx({
+      // Derive N owner secrets at consecutive HKDF indices so each new
+      // mix-box has a distinct (a, b) and the vault rescan can find them
+      // by sweeping the index range on next unlock.
+      const ownerSecrets = Array.from({ length: count }, (_, i) =>
+        deriveDepositSecret(vault.seed, nextDepositIndex + i).secret,
+      );
+      const result = await buildBulkDepositTx({
         network: config.network as "preprod" | "preview" | "mainnet",
         rounds,
-        ownerSecret: secret,
+        ownerSecrets,
         wallet,
         provider,
         addresses,
@@ -122,30 +134,60 @@ export function Deposit() {
         aria-busy={submitting}
       >
         <fieldset disabled={submitting} className="contents">
-          <label className="lj-field max-w-xs">
-            <span className="lj-field__label">{t("deposit.rounds_label")}</span>
-            <input
-              type="number"
-              min={1}
-              max={500}
-              value={rounds}
-              onChange={(e) => setRounds(Number.parseInt(e.target.value, 10) || 1)}
-              className="lj-input max-w-[10rem]"
-            />
-            <span className="lj-field__hint">{t("deposit.rounds_help")}</span>
-          </label>
+          <div className="grid gap-6 sm:grid-cols-2">
+            <label className="lj-field">
+              <span className="lj-field__label">{t("deposit.count_label")}</span>
+              <input
+                type="number"
+                min={1}
+                max={MAX_BULK_COUNT}
+                value={count}
+                onChange={(e) =>
+                  setCount(
+                    Math.min(
+                      MAX_BULK_COUNT,
+                      Math.max(1, Number.parseInt(e.target.value, 10) || 1),
+                    ),
+                  )
+                }
+                className="lj-input max-w-[10rem]"
+              />
+              <span className="lj-field__hint">
+                {t("deposit.count_help", { denom: denomAda, total: formatAda(denomLovelace * BigInt(count)) })}
+              </span>
+            </label>
+
+            <label className="lj-field">
+              <span className="lj-field__label">{t("deposit.rounds_label")}</span>
+              <input
+                type="number"
+                min={1}
+                max={500}
+                value={rounds}
+                onChange={(e) => setRounds(Number.parseInt(e.target.value, 10) || 1)}
+                className="lj-input max-w-[10rem]"
+              />
+              <span className="lj-field__hint">{t("deposit.rounds_help")}</span>
+            </label>
+          </div>
 
           <div className="lj-banner lj-banner--signal">
             <span className="lj-eyebrow">{t("deposit.tx_preview_title")}</span>
             <span className="lj-banner__detail">
-              {t("deposit.tx_preview_copy", { denom: denomAda })}
+              {count > 1
+                ? t("deposit.tx_preview_copy_bulk", {
+                    count,
+                    denom: denomAda,
+                    total: formatAda(denomLovelace * BigInt(count)),
+                  })
+                : t("deposit.tx_preview_copy", { denom: denomAda })}
             </span>
           </div>
 
           <div>
             <button
               type="submit"
-              disabled={submitting || rounds <= 0}
+              disabled={submitting || rounds <= 0 || count <= 0}
               className="lj-btn lj-btn--primary lj-btn--lg"
             >
               {submitting ? t("deposit.submitting") : t("deposit.submit")}
