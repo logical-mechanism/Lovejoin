@@ -202,36 +202,52 @@ export function computeOwnerCtx(args: {
 /**
  * Build the Owner redeemer's Plutus-Data CBOR.
  *
- *   MixLogicRedeemer.Owner { proof: SchnorrProof { t, z } }
- *     → Constr 0 [ Constr 0 [bytes(t, 48), bytes(z, 32)] ]
+ *   MixLogicRedeemer.Owner { proofs: List<SchnorrProof> }
+ *     → Constr 0 [ List [Constr 0 [bytes(t, 48), bytes(z, 32)], ...] ]
+ *
+ * Single-input withdraws pass a 1-element list. Bulk withdraws pass N.
+ * Empty lists are rejected on chain (`n >= 1`); we let the validator
+ * enforce it rather than duplicating the rule here.
  */
 export function encodeOwnerRedeemer(args: {
-  proofT: Uint8Array;
-  proofZ: Uint8Array;
+  proofs: ReadonlyArray<{ t: Uint8Array; z: Uint8Array }>;
 }): string {
-  if (args.proofT.length !== G1_COMPRESSED_BYTES) {
-    throw new Error(`SchnorrProof.t must be ${G1_COMPRESSED_BYTES} bytes`);
+  for (const p of args.proofs) {
+    if (p.t.length !== G1_COMPRESSED_BYTES) {
+      throw new Error(`SchnorrProof.t must be ${G1_COMPRESSED_BYTES} bytes`);
+    }
+    if (p.z.length !== SCALAR_BYTES) {
+      throw new Error(`SchnorrProof.z must be ${SCALAR_BYTES} bytes`);
+    }
   }
-  if (args.proofZ.length !== SCALAR_BYTES) {
-    throw new Error(`SchnorrProof.z must be ${SCALAR_BYTES} bytes`);
-  }
-  const inner = new Tag(
-    [Buffer.from(args.proofT), Buffer.from(args.proofZ)],
-    121, // Constr 0 — SchnorrProof's Aiken declaration
+  const proofTags = args.proofs.map(
+    (p) => new Tag([Buffer.from(p.t), Buffer.from(p.z)], 121),
   );
-  const outer = new Tag([inner], 121); // Constr 0 — MixLogicRedeemer.Owner
+  const outer = new Tag([proofTags], 121); // Constr 0 — MixLogicRedeemer.Owner
   return bytesToHex(cborEncoder.encode(outer));
 }
 
 /**
- * Placeholder Owner redeemer with zero-bytes Schnorr proof — used for the
- * first build pass so mesh can compute fees + exec units against a
- * fixed-shape redeemer. The real proof, once computed, replaces this.
+ * Placeholder Owner redeemer with N zero-bytes Schnorr proofs — used for
+ * the first build pass so mesh can size the redeemer and compute fees +
+ * exec units against a fixed-shape redeemer. The real proofs replace the
+ * placeholders before signing. `n` must match the number of mix inputs in
+ * the tx; otherwise the validator rejects on `proofs.length == n`.
  */
-export const PLACEHOLDER_OWNER_REDEEMER_CBOR_HEX: string = encodeOwnerRedeemer({
-  proofT: new Uint8Array(G1_COMPRESSED_BYTES),
-  proofZ: new Uint8Array(SCALAR_BYTES),
-});
+export function placeholderOwnerRedeemerCborHex(n: number): string {
+  if (!Number.isInteger(n) || n < 1) {
+    throw new Error(`placeholderOwnerRedeemerCborHex: n must be >= 1, got ${n}`);
+  }
+  const proofs = Array.from({ length: n }, () => ({
+    t: new Uint8Array(G1_COMPRESSED_BYTES),
+    z: new Uint8Array(SCALAR_BYTES),
+  }));
+  return encodeOwnerRedeemer({ proofs });
+}
+
+/** Pre-computed N=1 placeholder for the single-input withdraw fast path. */
+export const PLACEHOLDER_OWNER_REDEEMER_CBOR_HEX: string =
+  placeholderOwnerRedeemerCborHex(1);
 
 /**
  * Generate the Schnorr proof for the Owner branch.
@@ -431,7 +447,7 @@ export async function buildWithdrawTx(args: BuildWithdrawArgs): Promise<Withdraw
       b: plan.mixBoxInput.b,
       ctx,
     });
-    return encodeOwnerRedeemer({ proofT: proof.t, proofZ: proof.z });
+    return encodeOwnerRedeemer({ proofs: [{ t: proof.t, z: proof.z }] });
   };
 
   // 1: placeholder + default exec units.
