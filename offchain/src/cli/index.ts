@@ -30,10 +30,19 @@ import {
 } from "../chain/index.js";
 import {
   buildDepositTx,
+  buildMixTx,
   buildWithdrawTx,
   type LovejoinAddresses,
   type MixBoxRef,
+  type MixInput,
 } from "../tx/index.js";
+import {
+  fetchPool,
+  pickRandomNTuple,
+  type PoolEntry,
+} from "../pool/index.js";
+import { fetchProtocolParams } from "../tx/params.js";
+import { buildScriptAddress } from "../tx/address.js";
 import {
   type LovejoinNetworkId,
   type LovejoinWallet,
@@ -249,6 +258,129 @@ async function cmdWithdraw(argv: string[]): Promise<void> {
   );
 }
 
+async function cmdMix(argv: string[]): Promise<void> {
+  const { values } = parseArgs({
+    args: argv,
+    options: {
+      n: { type: "string" },
+      rounds: { type: "string", default: "1" },
+      "box-ref": { type: "string", multiple: true },
+      "sign-only": { type: "boolean", default: false },
+    },
+    strict: true,
+  });
+  const rounds = Number.parseInt(values.rounds!, 10);
+  if (!Number.isFinite(rounds) || rounds <= 0) {
+    fatal(`--rounds must be a positive integer (got ${values.rounds})`);
+  }
+  const env = readEnv();
+  const addresses = loadAddresses(env);
+  const provider = chainProvider(env);
+  const wallet = await loadWallet(env);
+
+  const { params } = await fetchProtocolParams(addresses, provider);
+  const mixBoxAddress = buildScriptAddress(
+    addresses.mixBoxScriptHash,
+    env.networkId,
+    addresses.dappStakeKeyHashHex ?? null,
+  );
+
+  const explicitRefs: ReadonlyArray<string> | undefined = values["box-ref"] as
+    | ReadonlyArray<string>
+    | undefined;
+
+  const recordedTxs: string[] = [];
+  for (let i = 0; i < rounds; i++) {
+    const pool = await fetchPool({
+      provider,
+      mixBoxAddressBech32: mixBoxAddress,
+      params,
+    });
+    if (pool.length < 2) {
+      fatal(`mix: pool has ${pool.length} entries; need at least 2`);
+    }
+    const targetN = values.n
+      ? Number.parseInt(values.n, 10)
+      : Math.min(pool.length, 6); // legacy default; UI/calibration drives the real cap
+    if (!Number.isInteger(targetN) || targetN < 2) {
+      fatal(`--n must be a positive integer >= 2`);
+    }
+    let inputs: MixInput[];
+    if (explicitRefs && i === 0 && explicitRefs.length >= 2) {
+      // First round honours --box-ref. Subsequent rounds ignore (the boxes
+      // were just spent — pick fresh ones from the pool).
+      inputs = await resolveExplicitRefs(explicitRefs, pool, mixBoxAddress);
+    } else {
+      const picked = pickRandomNTuple({ pool, n: Math.min(targetN, pool.length) });
+      inputs = picked.map<MixInput>((p) => ({
+        ref: p.ref,
+        a: p.a,
+        b: p.b,
+        utxo: p.utxo,
+      }));
+    }
+    if (inputs.length < 2) {
+      fatal(`mix: only ${inputs.length} inputs available; need >= 2`);
+    }
+    const result = await buildMixTx({
+      network: env.network,
+      inputs,
+      wallet,
+      provider,
+      addresses,
+      ...(values["sign-only"] === true ? { signOnly: true } : {}),
+    });
+    recordedTxs.push(result.txId);
+    process.stdout.write(
+      JSON.stringify(
+        {
+          action: "mix",
+          network: env.network,
+          round: i + 1,
+          rounds,
+          n: result.plan.n,
+          txId: result.txId,
+        },
+        null,
+        2,
+      ) + "\n",
+    );
+    if (i + 1 < rounds && result.txId) {
+      // Wait for confirmation before the next round so the new mix-boxes
+      // are visible in the pool. The SDK's awaitConfirmation polls
+      // Blockfrost; cap at 5 minutes per round.
+      await provider.awaitConfirmation(result.txId, 5 * 60_000);
+    }
+  }
+  if (rounds > 1) {
+    process.stdout.write(
+      JSON.stringify({ action: "mix-summary", rounds, txIds: recordedTxs }, null, 2) +
+        "\n",
+    );
+  }
+}
+
+async function resolveExplicitRefs(
+  refs: ReadonlyArray<string>,
+  pool: ReadonlyArray<PoolEntry>,
+  mixBoxAddress: string,
+): Promise<MixInput[]> {
+  const byRef = new Map<string, PoolEntry>();
+  for (const e of pool) byRef.set(`${e.ref.txId}#${e.ref.outputIndex}`, e);
+  const out: MixInput[] = [];
+  for (const r of refs) {
+    const entry = byRef.get(r.toLowerCase());
+    if (!entry) {
+      fatal(
+        `mix: --box-ref ${r} not found in pool at ${mixBoxAddress}; ` +
+          `bad ref or already spent.`,
+      );
+    }
+    out.push({ ref: entry.ref, a: entry.a, b: entry.b, utxo: entry.utxo });
+  }
+  return out;
+}
+
 async function cmdHelp(): Promise<void> {
   process.stdout.write(
     [
@@ -256,6 +388,7 @@ async function cmdHelp(): Promise<void> {
       "",
       "Usage:",
       "  lovejoin deposit --rounds N [--min-rounds M] [--owner-secret HEX] [--sign-only]",
+      "  lovejoin mix [--n N] [--rounds K] [--box-ref TXID#IDX --box-ref ...] [--sign-only]",
       "  lovejoin withdraw --secret HEX --box-ref TXID#IDX --box-a HEX --box-b HEX --to ADDR [--sign-only]",
       "  lovejoin help",
       "",
@@ -289,6 +422,9 @@ async function main(): Promise<void> {
       return;
     case "deposit":
       await cmdDeposit(rest);
+      return;
+    case "mix":
+      await cmdMix(rest);
       return;
     case "withdraw":
       await cmdWithdraw(rest);
