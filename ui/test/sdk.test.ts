@@ -1,13 +1,16 @@
-// Unit tests for the M3.5 UI ↔ SDK bridge.
+// Unit tests for the UI ↔ SDK bridge.
 //
-// These exercise the pure parts (config persistence, network → URL, fetch
-// path) without spinning up the wallet or mesh — those need a browser.
+// These exercise the pure parts (env defaults, advanced-mode override
+// gating, network → URL, fetch path) without spinning up the wallet or
+// mesh — those need a browser.
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
-  DEFAULT_CONFIG,
   blockfrostBaseUrl,
+  clearConfigOverrides,
+  envDefaults,
+  isAdvancedMode,
   loadAddresses,
   loadConfig,
   makeProvider,
@@ -17,6 +20,8 @@ import {
 beforeEach(() => {
   window.localStorage.clear();
   vi.unstubAllGlobals();
+  // Strip ?advanced=1 between tests so each one starts in production mode.
+  window.history.replaceState({}, "", "/");
 });
 
 afterEach(() => {
@@ -37,12 +42,43 @@ describe("blockfrostBaseUrl", () => {
   });
 });
 
+describe("envDefaults", () => {
+  it("returns env-driven defaults that the test harness boots with", () => {
+    const d = envDefaults();
+    expect(["preprod", "preview", "mainnet"]).toContain(d.network);
+    // The test env doesn't set a project id; the resulting provider will
+    // be null until VITE_BLOCKFROST_PROJECT_ID is set at build time.
+    expect(typeof d.blockfrostProjectId).toBe("string");
+  });
+});
+
+describe("isAdvancedMode", () => {
+  it("is false by default", () => {
+    expect(isAdvancedMode()).toBe(false);
+  });
+  it("flips to true when ?advanced=1 is in the URL", () => {
+    window.history.replaceState({}, "", "/?advanced=1");
+    expect(isAdvancedMode()).toBe(true);
+  });
+});
+
 describe("loadConfig / saveConfig", () => {
-  it("returns the default config when nothing is stored", () => {
-    expect(loadConfig()).toEqual(DEFAULT_CONFIG);
+  it("returns env defaults when no override + production mode", () => {
+    expect(loadConfig()).toEqual(envDefaults());
   });
 
-  it("persists and reloads a config across calls", () => {
+  it("ignores localStorage overrides outside ?advanced=1", () => {
+    saveConfig({
+      network: "mainnet",
+      blockfrostProjectId: "shouldNotLeak",
+      backendUrl: "https://nope",
+      collateralProviderEndpoint: "https://nope",
+    });
+    expect(loadConfig()).toEqual(envDefaults());
+  });
+
+  it("honours localStorage overrides under ?advanced=1", () => {
+    window.history.replaceState({}, "", "/?advanced=1");
     saveConfig({
       network: "preprod",
       blockfrostProjectId: "preprodAbc123",
@@ -57,30 +93,35 @@ describe("loadConfig / saveConfig", () => {
     });
   });
 
-  it("falls back to default when the stored value is malformed JSON", () => {
+  it("falls back to env defaults when stored JSON is malformed", () => {
+    window.history.replaceState({}, "", "/?advanced=1");
     window.localStorage.setItem("lovejoin.config.v1", "{not json");
-    expect(loadConfig()).toEqual(DEFAULT_CONFIG);
+    expect(loadConfig()).toEqual(envDefaults());
   });
 
-  it("falls back to the default network when an unknown one is stored", () => {
-    window.localStorage.setItem(
-      "lovejoin.config.v1",
-      JSON.stringify({ network: "ferrum-2099", blockfrostProjectId: "x" }),
-    );
-    expect(loadConfig().network).toBe("preprod");
+  it("clearConfigOverrides removes the persisted entry", () => {
+    saveConfig({
+      network: "preprod",
+      blockfrostProjectId: "x",
+      backendUrl: "",
+      collateralProviderEndpoint: "https://giveme.my",
+    });
+    expect(window.localStorage.getItem("lovejoin.config.v1")).not.toBeNull();
+    clearConfigOverrides();
+    expect(window.localStorage.getItem("lovejoin.config.v1")).toBeNull();
   });
 });
 
 describe("makeProvider", () => {
-  it("throws a clear error when project id is missing", () => {
-    expect(() =>
+  it("returns null when project id is missing", () => {
+    expect(
       makeProvider({
         network: "preprod",
         blockfrostProjectId: "   ",
         backendUrl: "",
         collateralProviderEndpoint: "https://giveme.my",
       }),
-    ).toThrow(/project ID required/i);
+    ).toBeNull();
   });
 
   it("constructs a BlockfrostProvider when configured", () => {
@@ -90,10 +131,7 @@ describe("makeProvider", () => {
       backendUrl: "",
       collateralProviderEndpoint: "https://giveme.my",
     });
-    expect(provider).toBeDefined();
-    // The provider exposes the chain interface — we don't assert specific
-    // methods here because that ties the test to the SDK's surface; the SDK
-    // owns its own contract tests.
+    expect(provider).not.toBeNull();
   });
 });
 

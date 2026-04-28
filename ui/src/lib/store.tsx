@@ -114,21 +114,17 @@ export function AppStateProvider({ children, testOverrides }: AppStateProviderPr
     setConfigState(next);
   }, []);
 
-  const provider = useMemo<BlockfrostProvider | null>(() => {
-    try {
-      return makeProvider(config);
-    } catch {
-      return null;
-    }
-  }, [config]);
-  const providerError = useMemo<string | null>(() => {
-    try {
-      makeProvider(config);
-      return null;
-    } catch (e) {
-      return (e as Error).message;
-    }
-  }, [config]);
+  const provider = useMemo<BlockfrostProvider | null>(
+    () => makeProvider(config),
+    [config],
+  );
+  const providerError = useMemo<string | null>(
+    () =>
+      provider
+        ? null
+        : "Chain provider not configured. Set VITE_BLOCKFROST_PROJECT_ID at build time.",
+    [provider],
+  );
 
   // Load addresses.<network>.json on first mount + whenever the user
   // switches network. Skipped under tests so unit tests don't depend on
