@@ -135,9 +135,9 @@ export class UnlockedVault {
     const iv = crypto.getRandomValues(new Uint8Array(12));
     const cipher = new Uint8Array(
       await crypto.subtle.encrypt(
-        { name: "AES-GCM", iv: toBufferSource(iv) },
+        { name: "AES-GCM", iv: bs(iv) },
         this.key,
-        new TextEncoder().encode(plaintext),
+        bs(new TextEncoder().encode(plaintext)),
       ),
     );
     return { ciphertextHex: bytesToHex(cipher), ivHex: bytesToHex(iv) };
@@ -148,9 +148,9 @@ export class UnlockedVault {
     const iv = hexToBytes(blob.ivHex);
     const plain = new Uint8Array(
       await crypto.subtle.decrypt(
-        { name: "AES-GCM", iv: toBufferSource(iv) },
+        { name: "AES-GCM", iv: bs(iv) },
         this.key,
-        toBufferSource(cipher),
+        bs(cipher),
       ),
     );
     return new TextDecoder().decode(plain);
@@ -264,7 +264,7 @@ async function deriveKey(
   params: KdfParams,
   salt: Uint8Array,
 ): Promise<CryptoKey> {
-  const raw = await argon2id({
+  const raw = (await argon2id({
     password: passphrase,
     salt,
     iterations: params.iterations,
@@ -272,10 +272,12 @@ async function deriveKey(
     parallelism: params.parallelism,
     hashLength: params.hashLength,
     outputType: "binary",
-  });
+  })) as Uint8Array;
+  // Copy out of any wasm-backed buffer into a plain Uint8Array — the
+  // hash-wasm runtime can recycle its internal buffer after returning.
   return crypto.subtle.importKey(
     "raw",
-    toBufferSource(raw),
+    bs(Uint8Array.from(raw)),
     { name: "AES-GCM" },
     false,
     ["encrypt", "decrypt"],
@@ -286,9 +288,9 @@ async function encryptVerifier(key: CryptoKey): Promise<string> {
   const iv = crypto.getRandomValues(new Uint8Array(12));
   const cipher = new Uint8Array(
     await crypto.subtle.encrypt(
-      { name: "AES-GCM", iv: toBufferSource(iv) },
+      { name: "AES-GCM", iv: bs(iv) },
       key,
-      new TextEncoder().encode(VAULT_VERIFIER),
+      bs(new TextEncoder().encode(VAULT_VERIFIER)),
     ),
   );
   // We pack iv|cipher into one hex blob so meta stays a single field.
@@ -304,27 +306,26 @@ async function decryptVerifier(key: CryptoKey, packedHex: string): Promise<strin
   const cipher = packed.slice(12);
   const plain = new Uint8Array(
     await crypto.subtle.decrypt(
-      { name: "AES-GCM", iv: toBufferSource(iv) },
+      { name: "AES-GCM", iv: bs(iv) },
       key,
-      toBufferSource(cipher),
+      bs(cipher),
     ),
   );
   return new TextDecoder().decode(plain);
 }
 
 /**
- * Coerce a Uint8Array to the strict `BufferSource` shape WebCrypto wants.
+ * Cast a Uint8Array to `BufferSource` for the WebCrypto subtle calls.
+ *
  * TypeScript 5.7's lib.dom.d.ts narrowed `BufferSource` to require the
  * underlying buffer to be an `ArrayBuffer` (not `SharedArrayBuffer`); we
- * always allocate via `new Uint8Array(...)` or `crypto.getRandomValues`,
- * both of which give plain `ArrayBuffer`s, but the compiler can't see
- * that statically. Copying into a fresh ArrayBuffer is cheap and keeps
- * the call sites readable.
+ * only ever build TypedArrays here (Uint8Array of plain ArrayBuffer),
+ * which the runtime accepts but the typechecker rejects. The cast is a
+ * one-line bypass — at runtime Node + browsers accept TypedArrays in
+ * BufferSource positions for the AES-GCM / importKey APIs we use.
  */
-function toBufferSource(b: Uint8Array): ArrayBuffer {
-  const out = new ArrayBuffer(b.byteLength);
-  new Uint8Array(out).set(b);
-  return out;
+function bs(b: Uint8Array): BufferSource {
+  return b as unknown as BufferSource;
 }
 
 function boxKey(txId: string, outputIndex: number): string {
