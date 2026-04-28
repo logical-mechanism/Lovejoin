@@ -11,24 +11,33 @@
 // signature is a stable per-wallet "Lovejoin master key" that costs the
 // user a single click on every fresh browser.
 //
-// Layering (kept narrow on purpose so the SDK doesn't depend on mesh):
+// Defense-in-depth layering (each step domain-separated):
 //
-//   * `deriveSeedFromSignatureBytes(sig)` — pure, takes the signature
-//     bytes and returns a 32-byte seed via blake2b_256. This is what the
-//     determinism test pins.
-//   * `deriveOwnerSecret(seed, index)` — pure, takes the seed + a 32-bit
-//     unsigned counter and returns a uniformly random `Scalar` in `Z_r`
-//     via HKDF-SHA256 expansion. The 64-byte HKDF output is then reduced
-//     mod r — bias is negligible (2^512 / r ≫ 2^255).
-//   * `deriveSeedFromWalletSignature({ wallet, stakeAddrBech32 })` —
-//     thin wrapper that drives a CIP-30 signData round-trip through the
-//     mesh wallet handle and feeds the resulting signature into the pure
-//     derivation. Async because signData is async.
+//   1. The wallet signs a long, distinctive multi-line payload (see
+//      `SIGN_DATA_PAYLOAD_V1`). The payload is what the user sees in the
+//      wallet popup — verbatim text that names Lovejoin and warns
+//      against re-signing it for another app, so a malicious dApp asking
+//      the user to sign the same prompt would have to do so deliberately.
+//   2. We refuse to sign with anything other than a stake address (HRP
+//      `stake1` or `stake_test1`). CIP-8 signatures can't be confused
+//      with tx witnesses, but the address header is part of CIP-8's
+//      protected_header — restricting to the stake key keeps the
+//      derivation independent of which payment address the wallet is
+//      currently using.
+//   3. The 32-byte vault seed is `blake2b_256(SEED_DOMAIN_TAG_V1 ||
+//      stake_addr_bech32_utf8 || cose_sign1_hex_decoded)`. CIP-8's
+//      protected header already binds the signature to the address; we
+//      re-bind here so a future framing quirk in any wallet doesn't
+//      silently weaken the derivation. The leading domain tag means the
+//      raw signature alone is not enough to recover a Lovejoin seed
+//      without also knowing the Lovejoin tag.
+//   4. Per-deposit `x_i = HKDF-SHA256(seed, info=OWNER_HKDF_TAG_V1 ||
+//      u32_be(i)) mod r` (`deriveOwnerSecret`). Unchanged.
 //
 // The seed never leaves memory. Callers hold `UnlockedSeed` for the
 // session and drop it on lock-out (vault lock / inactivity timer / tab
-// close). Re-unlocking a fresh session re-prompts the wallet for the
-// same signData and recomputes the same seed — no IndexedDB involved.
+// close). Re-unlocking re-prompts the wallet for the same signature and
+// recomputes the same seed — no IndexedDB involved.
 
 import { hkdf } from "@noble/hashes/hkdf.js";
 import { sha256 } from "@noble/hashes/sha2.js";
@@ -42,12 +51,22 @@ import {
 } from "../crypto/bls.js";
 
 /**
- * Domain-separation tag baked into every Lovejoin owner-secret derivation.
- * The version suffix lets a future protocol revision (e.g. M7) introduce
- * `lovejoin/owner/v2` without colliding with v1 secrets a user has already
- * deposited under.
+ * The exact UTF-8 string the wallet is asked to sign. CIP-8-compatible
+ * wallets (Lace, Eternl, Nami, Flint) display this verbatim in the
+ * signing-confirmation popup. Multi-line + branded so a colliding prompt
+ * from another dApp would have to be a deliberate attack the user can
+ * read and reject.
+ *
+ * If you change this string, every existing user's vault changes — the
+ * seed is signature-derived. So bump to v2 alongside any edit; do not
+ * reflow whitespace silently.
  */
-export const SIGN_DATA_PAYLOAD_V1 = "lovejoin/owner/v1";
+export const SIGN_DATA_PAYLOAD_V1 = [
+  "Lovejoin Owner Vault — v1",
+  "",
+  "This signature derives every Lovejoin owner key for this wallet.",
+  "Sign once per browser session; never sign this prompt for another app.",
+].join("\n");
 
 /** UTF-8 bytes of the v1 payload. Pre-encoded so callers don't reach for TextEncoder. */
 export const SIGN_DATA_PAYLOAD_V1_BYTES: Uint8Array = new TextEncoder().encode(
@@ -55,13 +74,42 @@ export const SIGN_DATA_PAYLOAD_V1_BYTES: Uint8Array = new TextEncoder().encode(
 );
 
 /**
- * Derive a 32-byte vault seed from raw CIP-8 signature bytes.
- *
- * The seed is `blake2b_256(signature_bytes)`. We hash rather than use the
- * signature directly so the output is uniformly distributed even if the
- * underlying Ed25519 signature has any structural bias. blake2b_256 is the
- * same hash the on-chain protocol uses, which keeps the dependency surface
- * tight.
+ * Domain-separation tag prefix for the seed-derivation hash. Bound into
+ * every blake2b call so a CIP-8 signature taken in some other context
+ * can't double as a Lovejoin seed input. v1 here is independent of the
+ * payload's v1 — bumping either is a breaking change for users.
+ */
+export const SEED_DOMAIN_TAG_V1 = "lovejoin/owner-seed/v1";
+const SEED_DOMAIN_TAG_V1_BYTES = new TextEncoder().encode(SEED_DOMAIN_TAG_V1);
+
+/**
+ * Domain-separation tag for the per-index HKDF expansion. Different from
+ * SEED_DOMAIN_TAG_V1 so a future leak of seed-bytes derivation doesn't
+ * compromise the per-deposit `x_i` values.
+ */
+export const OWNER_HKDF_TAG_V1 = "lovejoin/owner/v1";
+const OWNER_HKDF_TAG_V1_BYTES = new TextEncoder().encode(OWNER_HKDF_TAG_V1);
+
+/**
+ * Refuse to derive a seed from anything other than a Cardano stake
+ * (reward) address. Stake addresses use HRP `stake1` (mainnet) or
+ * `stake_test1` (preprod / preview). Wallets vary in what their
+ * `getRewardAddresses()` returns — most return only stake addresses, but
+ * some hardware-wallet bridges have been seen returning a payment
+ * address by mistake. We surface a loud error rather than silently
+ * deriving the seed from a non-stake key.
+ */
+export function isStakeAddressBech32(address: string): boolean {
+  return (
+    address.startsWith("stake1") || address.startsWith("stake_test1")
+  );
+}
+
+/**
+ * Pure helper: blake2b_256 of arbitrary signature bytes. Kept exported
+ * for test/debugging use — the production seed derivation goes through
+ * `deriveVaultSeed`, which adds the domain tag + stake-address binding
+ * required by the M6.5 hardening pass.
  */
 export function deriveSeedFromSignatureBytes(signatureBytes: Uint8Array): Uint8Array {
   if (signatureBytes.length === 0) {
@@ -70,23 +118,47 @@ export function deriveSeedFromSignatureBytes(signatureBytes: Uint8Array): Uint8A
   return blake2b256(signatureBytes);
 }
 
-/**
- * Hex convenience wrapper for `deriveSeedFromSignatureBytes`. The CIP-30
- * `DataSignature.signature` field is a hex string of the COSE_Sign1
- * envelope; we hash the whole envelope rather than parsing out just the
- * 64-byte Ed25519 signature, because:
- *
- *   1. The envelope bytes are deterministic (mesh uses a stable CBOR
- *      encoder), so hashing the envelope is just as stable as hashing the
- *      raw signature.
- *   2. We avoid pulling a CBOR parser into this module, which keeps it
- *      callable from any environment that has the @noble/hashes deps.
- *   3. CIP-8's protected header binds the address — including it in the
- *      hash means a stake-address change yields a different seed even if
- *      somehow the underlying Ed25519 sig collided.
- */
+/** Hex convenience wrapper for `deriveSeedFromSignatureBytes`. */
 export function deriveSeedFromSignatureHex(signatureHex: string): Uint8Array {
   return deriveSeedFromSignatureBytes(hexToBytes(signatureHex));
+}
+
+/**
+ * The production vault-seed derivation. Domain-separated + bound to the
+ * stake address that produced the signature.
+ *
+ * Layout: `blake2b_256(SEED_DOMAIN_TAG_V1 || stake_addr_utf8 || sig_bytes)`.
+ *
+ * - The domain tag means the raw CIP-8 signature alone isn't enough to
+ *   recompute a Lovejoin seed without also knowing the tag.
+ * - Mixing in the bech32 stake address (UTF-8 bytes — the bech32 string
+ *   is per-network and per-wallet-account, no decoding needed) re-binds
+ *   the seed even if a future wallet/CIP-8 quirk loosens the protected
+ *   header's binding.
+ */
+export function deriveVaultSeed(args: {
+  signatureBytes: Uint8Array;
+  stakeAddrBech32: string;
+}): Uint8Array {
+  if (args.signatureBytes.length === 0) {
+    throw new Error("seed: signature bytes must be non-empty");
+  }
+  if (!isStakeAddressBech32(args.stakeAddrBech32)) {
+    throw new Error(
+      `seed: refusing to derive vault seed from non-stake address ${JSON.stringify(args.stakeAddrBech32)}`,
+    );
+  }
+  const addrBytes = new TextEncoder().encode(args.stakeAddrBech32);
+  const buf = new Uint8Array(
+    SEED_DOMAIN_TAG_V1_BYTES.length + addrBytes.length + args.signatureBytes.length,
+  );
+  let off = 0;
+  buf.set(SEED_DOMAIN_TAG_V1_BYTES, off);
+  off += SEED_DOMAIN_TAG_V1_BYTES.length;
+  buf.set(addrBytes, off);
+  off += addrBytes.length;
+  buf.set(args.signatureBytes, off);
+  return blake2b256(buf);
 }
 
 /**
@@ -110,9 +182,14 @@ function counterToBytes(index: number): Uint8Array {
  * Derive the i-th per-deposit owner secret from a seed.
  *
  * Implementation: HKDF-SHA256 with the 32-byte seed as IKM, no salt, info
- * = `"lovejoin/owner/v1/" || u32_be(index)`, expand to 64 bytes, reduce
+ * = `OWNER_HKDF_TAG_V1 || u32_be(index)`, expand to 64 bytes, reduce
  * mod r. The 64-byte expansion makes the bias from `mod r` reduction
  * negligible (≪ 2⁻²⁵⁶).
+ *
+ * Note that `OWNER_HKDF_TAG_V1` ("lovejoin/owner/v1") is independent from
+ * the human-readable `SIGN_DATA_PAYLOAD_V1` text — the latter is what the
+ * wallet shows the user, the former is the HKDF context tag. Decoupling
+ * lets us reword the prompt without rotating every per-deposit secret.
  *
  * The result is a non-zero scalar by overwhelming probability; we still
  * reject the zero case loudly so callers don't accidentally generate the
@@ -122,7 +199,7 @@ export function deriveOwnerSecret(seed: Uint8Array, index: number): Scalar {
   if (seed.length !== 32) {
     throw new Error(`seed: seed must be 32 bytes, got ${seed.length}`);
   }
-  const info = concat(SIGN_DATA_PAYLOAD_V1_BYTES, counterToBytes(index));
+  const info = concat(OWNER_HKDF_TAG_V1_BYTES, counterToBytes(index));
   const okm = hkdf(sha256, seed, undefined, info, 64);
   const x = reduceScalar(bytesToBigIntBE(okm));
   if (x === 0n) {
@@ -179,18 +256,25 @@ export interface SignDataCapableWallet {
 /**
  * Drive a wallet signData round-trip and return the derived 32-byte seed.
  *
+ * Sequence:
+ *   1. Pick the signing stake address (caller-supplied, otherwise the
+ *      wallet's first reward address).
+ *   2. Refuse anything that isn't a stake-HRP bech32 string. Defends
+ *      against a wallet bridge that returns a payment address by mistake.
+ *   3. Drive `wallet.signData(payload, address)` — mesh's argument order
+ *      is (payload, address), and mesh hex-encodes UTF-8 internally.
+ *   4. Run the resulting CIP-8 envelope through `deriveVaultSeed` so the
+ *      32-byte seed is bound to the domain tag + the stake address, not
+ *      just to the raw signature bytes.
+ *
  * Args:
  *   wallet:           any mesh BrowserWallet / MeshWallet handle.
  *   payloadOverride:  optional override for the signed payload — defaults
- *                     to `SIGN_DATA_PAYLOAD_V1` ("lovejoin/owner/v1"). The
- *                     override exists for test fixtures and for a future
- *                     v2 derivation.
+ *                     to `SIGN_DATA_PAYLOAD_V1`. Overrides exist for test
+ *                     fixtures and for a future v2 derivation; production
+ *                     code should always use the default.
  *   stakeAddrBech32:  optional override for the signing address. Defaults
  *                     to the wallet's first reward address.
- *
- * The seed is `blake2b_256(signatureHex_bytes)` — see the doc on
- * `deriveSeedFromSignatureHex` for why we hash the envelope rather than
- * the raw Ed25519 signature.
  */
 export async function deriveSeedFromWalletSignature(args: {
   wallet: SignDataCapableWallet;
@@ -208,11 +292,19 @@ export async function deriveSeedFromWalletSignature(args: {
     }
     address = rewards[0]!;
   }
+  if (!isStakeAddressBech32(address)) {
+    throw new Error(
+      `seed: refusing to sign with non-stake address ${JSON.stringify(address)} — expected stake1… / stake_test1… HRP`,
+    );
+  }
   // Mesh's wrapper signature is (payload, address) — payload first — and
   // mesh handles the UTF-8→hex conversion internally. Passing the bech32
   // string directly is correct.
   const result = await args.wallet.signData(payload, address);
-  const seed = deriveSeedFromSignatureHex(result.signature);
+  const seed = deriveVaultSeed({
+    signatureBytes: hexToBytes(result.signature),
+    stakeAddrBech32: address,
+  });
   return { seed, signatureHex: result.signature, address };
 }
 
