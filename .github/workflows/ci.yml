@@ -3,9 +3,14 @@ name: CI
 # Fast PR + main suite. M7 spec (docs/spec/09-milestones.md):
 #   "Builds all packages. Unit + validator + property tests on every PR."
 #
-# Heavyweight checks live in sibling workflows: nightly.yml runs the
-# Preprod integration suite + 30-min fuzz, release.yml ships SDK / Docker /
-# UI bundles on merges to main.
+# Chain-touching checks (Preprod integration suite, 30-min fuzz harness)
+# are operator-run today, not on a cron — automating them in GitHub
+# Actions would require putting a funded Preprod wallet's key into repo
+# secrets, and the risk/reward is wrong while the project is one
+# maintainer + infrequent merges. They'll come back as a manual
+# workflow_dispatch pre-release gate (run from a self-hosted runner)
+# when M4.5 tags a real version. release.yml handles SDK / Docker /
+# UI-bundle shipping on merges to main.
 
 on:
   push:
