@@ -155,12 +155,13 @@ fn validate_mix(
 
   // Per-input OR-proof verification. `proofs[i]` proves "input i's witness
   // re-randomized to one of the N outputs" — see
-  // docs/spec/02-cryptography.md §"N-way Sigma-OR".
+  // docs/spec/02-cryptography.md §"N-way Sigma-OR". `n` is threaded through
+  // so `verify_pre` doesn't re-measure `list.length(statements)` per call.
   pairs_match_and_all(
     mix_inputs,
     proofs,
     fn(mix_input, proof) {
-      sigma_or.verify_pre(mix_input.a, mix_input.b, statements, proof, ctx)
+      sigma_or.verify_pre(mix_input.a, mix_input.b, statements, proof, ctx, n)
     },
   )
 }

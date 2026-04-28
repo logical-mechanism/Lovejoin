@@ -71,6 +71,25 @@ pub type SigmaOrCommitment {
   t1: ByteArray,
 }
 
+/// Canonical sigma-OR FS preimage prefix (everything before the per-branch
+/// fields): `DOMAIN || 0x03 || N(1 byte) || a || b`. Exposed so callers
+/// that want to walk *typed* per-branch lists (sigma_or.verify_pre) can
+/// share the prefix without going through the wrapper-struct codepath.
+/// `n` is required as a 1-byte big-endian prefix; callers must enforce
+/// `2 <= n <= 255` themselves before calling.
+pub fn fs_hash_sigma_or_header(
+  a: ByteArray,
+  b: ByteArray,
+  n: Int,
+) -> ByteArray {
+  let n_byte = bytearray.from_int_big_endian(n, 1)
+  domain_tag_v1
+    |> bytearray.concat(statement_id_sigma_or_n)
+    |> bytearray.concat(n_byte)
+    |> bytearray.concat(a)
+    |> bytearray.concat(b)
+}
+
 /// N-way sigma-OR Fiat-Shamir hash. `branches` and `commitments` MUST have the same
 /// length N (the verifier enforces this; see `lovejoin/sigma_or`).
 ///
@@ -88,13 +107,7 @@ pub fn fs_hash_sigma_or(
   expect n == list.length(commitments)
   expect n >= 2
   expect n <= 255
-  let n_byte = bytearray.from_int_big_endian(n, 1)
-  let header =
-    domain_tag_v1
-      |> bytearray.concat(statement_id_sigma_or_n)
-      |> bytearray.concat(n_byte)
-      |> bytearray.concat(a)
-      |> bytearray.concat(b)
+  let header = fs_hash_sigma_or_header(a, b, n)
   let with_branches =
     list.foldl(
       branches,
