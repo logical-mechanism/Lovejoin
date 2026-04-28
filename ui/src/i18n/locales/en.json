@@ -3,7 +3,7 @@
     "title": "Lovejoin",
     "tagline": "Sigmajoin privacy mixer on Cardano. Hyperstructure.",
     "status": "Pre-alpha — see docs/spec for design.",
-    "vertical_slice_banner": "M3.5 vertical slice — deposit + withdraw only. Mix lands in M4.",
+    "vertical_slice_banner": "Pre-alpha — Preprod only. Wallet-anonymous Mix collateral lands in M5.",
     "connect_wallet": "Connect wallet",
     "disconnect_wallet": "Disconnect wallet"
   },
@@ -57,6 +57,18 @@
     "header_action": "Action",
     "use_for_withdraw": "Use",
     "copy": "Copy"
+  },
+  "mix": {
+    "section_title": "Mix",
+    "session_only_hint": "Pick boxes from this session and mix them. Pool-wide selection lands in M6.",
+    "need_more_boxes": "Mix needs at least 2 deposited boxes. Run two deposits first.",
+    "pick_label": "Boxes to mix",
+    "n_label": "Mix width (N)",
+    "n_help": "Picked {{picked}}; N = {{n}}. They must match.",
+    "submit": "Mix",
+    "submitting": "Building mix…",
+    "success": "Mix submitted at N={{n}}. Tx {{txId}}",
+    "error": "Mix failed: {{message}}"
   },
   "withdraw": {
     "section_title": "Withdraw",

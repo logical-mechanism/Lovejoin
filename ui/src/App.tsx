@@ -15,6 +15,7 @@ import {
   DepositPanel,
   type DepositedBox,
 } from "./components/DepositPanel.js";
+import { MixPanel } from "./components/MixPanel.js";
 import { MyBoxesPanel } from "./components/MyBoxesPanel.js";
 import { WalletPanel } from "./components/WalletPanel.js";
 import { WithdrawPanel } from "./components/WithdrawPanel.js";
@@ -119,6 +120,46 @@ export function App() {
           onSelect={(box) => setWithdrawPrefill(box)}
         />
         {ready && (
+          <MixPanel
+            network={config.network}
+            provider={provider}
+            addresses={addresses}
+            wallet={wallet}
+            myBoxes={boxes}
+            onMixed={({ txId, spent, newOutputs }) => {
+              // M4 vertical-slice handling: drop the spent boxes from
+              // the in-memory list and append placeholders for the new
+              // ones. We don't know which output (a', b') belongs to
+              // which input — the SDK's planMixTx applies a random
+              // permutation that the UI doesn't surface yet — so we
+              // keep the user's secret on every new entry. A future
+              // fetchPool call (M5/M6) will use ownsBox to confirm
+              // which entries actually unlock under the secret.
+              setBoxes((prev) => {
+                const spentRefs = new Set(
+                  spent.map((b) => `${b.txId}#${b.outputIndex}`),
+                );
+                const remaining = prev.filter(
+                  (b) => !spentRefs.has(`${b.txId}#${b.outputIndex}`),
+                );
+                const seedSecret = spent[0]!.ownerSecretHex;
+                const seedRounds = spent[0]!.rounds;
+                const refreshed = newOutputs.map((o) => ({
+                  txId,
+                  outputIndex: o.outputIndex as 0,
+                  ownerSecretHex: seedSecret,
+                  aHex: bytesToHex(o.a),
+                  bHex: bytesToHex(o.b),
+                  label: bytesToHex(o.b).slice(0, 16),
+                  rounds: seedRounds,
+                  createdAt: Date.now(),
+                }));
+                return [...refreshed, ...remaining];
+              });
+            }}
+          />
+        )}
+        {ready && (
           <WithdrawPanel
             network={config.network}
             provider={provider}
@@ -142,4 +183,10 @@ export function App() {
       </div>
     </main>
   );
+}
+
+function bytesToHex(b: Uint8Array): string {
+  let s = "";
+  for (const x of b) s += x.toString(16).padStart(2, "0");
+  return s;
 }
