@@ -1,1 +1,949 @@
 @import "tailwindcss";
+
+/* ---------------------------------------------------------------------------
+ * Design tokens — Lovejoin v1.5
+ * ---------------------------------------------------------------------------
+ *
+ * Aesthetic: cryptographic instrument. Privacy software for serious users.
+ * Hard edges, monospace typography for headings, electric-teal signal,
+ * no decorative serifs. The earlier editorial-serif direction read as a
+ * blog — replaced wholesale.
+ *
+ * Palette: warm near-black ground; near-white "paper" foreground; one
+ * signal accent (electric teal) used for primary CTAs / connected state /
+ * success only. Everything else lives in muted/whisper greys.
+ *
+ * Type: DM Sans for prose + section titles; JetBrains Mono for the hero,
+ * for every numeric value, hash, and address. No serif anywhere.
+ * --------------------------------------------------------------------------- */
+
+@theme {
+  --color-ink: #0a0a0c;
+  --color-surface: #131318;
+  --color-rise: #1c1c22;
+  --color-rule: #2a2a30;
+  --color-rule-strong: #44444c;
+  --color-paper: #f1efe9;
+  --color-muted: #a8a4a0;
+  --color-whisper: #5e5c58;
+
+  /* No chromatic accent. The signal IS paper — high-contrast monochrome
+   * is the differentiator now that every "modern dapp" reaches for the
+   * teal/cyan/mint palette by default. CTAs, focus rings, active states
+   * fill with paper and invert text to ink. */
+  --color-signal: var(--color-paper);
+  --color-signal-ink: var(--color-ink);
+  --color-signal-deep: #d6d4ce;
+
+  /* Amber is the ONLY chromatic colour. It marks state, not brand:
+   * connected wallet dot, live-pool indicator, success toast, warning
+   * banner. A vintage instrument-panel tell, not a CTA fill. */
+  --color-amber: #f5b200;
+  --color-coral: #f87171;
+
+  /* Display = mono. Body = sans (one humanist choice, kept for prose
+   * legibility). Mono everywhere math + figures show up.
+   *
+   * Fonts are self-hosted via @fontsource-variable/* (SIL OFL),
+   * imported from main.tsx. The "Variable" suffix is the family name
+   * fontsource exposes; the older non-variable names remain in the
+   * fallback list so a stale cache that has the static woff2 files
+   * still renders. */
+  --font-display: "JetBrains Mono Variable", "JetBrains Mono", ui-monospace, monospace;
+  --font-body: "DM Sans Variable", "DM Sans", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "JetBrains Mono Variable", "JetBrains Mono", ui-monospace, monospace;
+
+  /* Hard edges. The previous radii (4–10px) read as "soft consumer
+   * product"; max 2px reads as "instrument". 0 for actively-clinical
+   * surfaces. */
+  --radius-xs: 0px;
+  --radius-sm: 1px;
+  --radius-md: 2px;
+  --radius-lg: 2px;
+}
+
+/* ---------------------------------------------------------------------------
+ * Base layer
+ * --------------------------------------------------------------------------- */
+
+@layer base {
+  html, body, #root {
+    height: 100%;
+    background: var(--color-ink);
+    color: var(--color-paper);
+    font-family: var(--font-body);
+    font-feature-settings: "ss01", "cv01";
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+
+  body {
+    /* Subtle grain so flat black doesn't read sterile. */
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 0.96  0 0 0 0 0.945  0 0 0 0 0.915  0 0 0 0.03 0'/></filter><rect width='100%25' height='100%25' filter='url(%23n)'/></svg>");
+    background-attachment: fixed;
+  }
+
+  ::selection {
+    background: var(--color-signal);
+    color: var(--color-signal-ink);
+  }
+
+  .lj-num, code, kbd, samp, pre, [data-num] {
+    font-family: var(--font-mono);
+    font-variant-numeric: tabular-nums;
+    font-feature-settings: "tnum";
+  }
+}
+
+/* ---------------------------------------------------------------------------
+ * Components
+ * --------------------------------------------------------------------------- */
+
+@layer components {
+  .lj-shell {
+    min-height: 100vh;
+    display: grid;
+    grid-template-rows: auto 1fr auto;
+  }
+  .lj-main {
+    width: 100%;
+    max-width: 60rem;
+    margin: 0 auto;
+    padding: 2.5rem 1.5rem 4rem;
+    display: flex;
+    flex-direction: column;
+    gap: 2rem;
+  }
+  .lj-footer {
+    border-top: 1px solid var(--color-rule);
+    padding: 0.85rem 1.5rem;
+    text-align: center;
+    color: var(--color-whisper);
+    font-size: 0.7rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    font-family: var(--font-mono);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.6rem;
+    flex-wrap: wrap;
+  }
+  .lj-footer__mark { color: var(--color-muted); letter-spacing: 0.16em; }
+  .lj-footer__sep { opacity: 0.5; }
+  .lj-footer__warn { color: var(--color-amber); }
+
+  .lj-header {
+    border-bottom: 1px solid var(--color-rule);
+    background: color-mix(in oklab, var(--color-ink) 88%, transparent);
+    backdrop-filter: blur(8px);
+    position: sticky;
+    top: 0;
+    z-index: 30;
+  }
+  .lj-header__inner {
+    width: 100%;
+    max-width: 80rem;
+    margin: 0 auto;
+    padding: 0.85rem 1.5rem;
+    display: flex;
+    align-items: center;
+    gap: 1.5rem;
+  }
+  /* Mono-letterspaced wordmark — instrument-panel branding, not a logo. */
+  .lj-brand {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    font-family: var(--font-mono);
+    font-weight: 500;
+    font-size: 0.92rem;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--color-paper);
+    text-decoration: none;
+  }
+  .lj-brand__caret {
+    color: var(--color-signal);
+    font-weight: 500;
+  }
+  .lj-nav {
+    display: flex;
+    align-items: center;
+    gap: 1.25rem;
+    margin-left: auto;
+    margin-right: 1.25rem;
+  }
+  .lj-nav a {
+    position: relative;
+    font-size: 0.74rem;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    font-family: var(--font-mono);
+    color: var(--color-muted);
+    text-decoration: none;
+    padding: 0.4rem 0;
+    transition: color 120ms ease;
+  }
+  .lj-nav a:hover { color: var(--color-paper); }
+  .lj-nav a[aria-current="page"] { color: var(--color-paper); }
+  .lj-nav a[aria-current="page"]::after {
+    content: "";
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: -2px;
+    height: 1px;
+    background: var(--color-signal);
+  }
+
+  .lj-eyebrow {
+    display: block;
+    font-size: 0.68rem;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    font-family: var(--font-mono);
+    color: var(--color-whisper);
+  }
+
+  .lj-btn {
+    --btn-bg: transparent;
+    --btn-fg: var(--color-paper);
+    --btn-border: var(--color-rule-strong);
+    appearance: none;
+    border: 1px solid var(--btn-border);
+    background: var(--btn-bg);
+    color: var(--btn-fg);
+    font-family: var(--font-mono);
+    font-size: 0.78rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    padding: 0.65rem 1.1rem;
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    transition: background 120ms ease, color 120ms ease, border-color 120ms ease, transform 80ms ease;
+    line-height: 1;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    white-space: nowrap;
+  }
+  .lj-btn:hover:not(:disabled) { border-color: var(--color-paper); }
+  .lj-btn:active:not(:disabled) { transform: translateY(1px); }
+  .lj-btn:disabled { cursor: not-allowed; }
+  .lj-btn:not(.lj-btn--primary):disabled { opacity: 0.35; }
+  .lj-btn:focus-visible {
+    outline: 2px solid var(--color-signal);
+    outline-offset: 2px;
+  }
+  .lj-btn--primary {
+    --btn-bg: var(--color-signal);
+    --btn-fg: var(--color-signal-ink);
+    --btn-border: var(--color-signal);
+    font-weight: 600;
+  }
+  .lj-btn--primary:hover:not(:disabled) {
+    --btn-border: var(--color-signal-deep);
+    background: color-mix(in oklab, var(--color-signal) 92%, white);
+  }
+  /* Inert primary: no longer reads as "slightly dimmed paper". Recedes
+   * to a true non-interactive surface so users stop clicking through. */
+  .lj-btn--primary:disabled {
+    --btn-bg: var(--color-rule);
+    --btn-fg: var(--color-whisper);
+    --btn-border: var(--color-rule);
+    background: var(--color-rule);
+    color: var(--color-whisper);
+    border-color: var(--color-rule);
+    font-weight: 500;
+  }
+  .lj-btn--quiet {
+    --btn-border: transparent;
+    --btn-fg: var(--color-muted);
+    padding: 0.4rem 0.6rem;
+  }
+  .lj-btn--quiet:hover:not(:disabled) {
+    --btn-fg: var(--color-paper);
+    --btn-border: var(--color-rule);
+    background: var(--color-surface);
+  }
+  .lj-btn--danger {
+    --btn-fg: var(--color-coral);
+    --btn-border: color-mix(in oklab, var(--color-coral) 50%, transparent);
+  }
+  .lj-btn--danger:hover:not(:disabled) { --btn-border: var(--color-coral); }
+  .lj-btn--lg { padding: 0.85rem 1.5rem; font-size: 0.84rem; }
+
+  .lj-field { display: flex; flex-direction: column; gap: 0.4rem; }
+  .lj-field__label {
+    font-size: 0.7rem;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    font-family: var(--font-mono);
+    color: var(--color-muted);
+  }
+  .lj-field__hint {
+    font-size: 0.78rem;
+    color: var(--color-whisper);
+    line-height: 1.5;
+  }
+  .lj-input, .lj-textarea, .lj-select {
+    appearance: none;
+    background: var(--color-surface);
+    border: 1px solid var(--color-rule);
+    color: var(--color-paper);
+    font-family: var(--font-mono);
+    font-size: 0.88rem;
+    padding: 0.6rem 0.8rem;
+    border-radius: var(--radius-sm);
+    transition: border-color 120ms ease;
+    width: 100%;
+  }
+  .lj-input:focus, .lj-textarea:focus, .lj-select:focus {
+    outline: none;
+    border-color: var(--color-signal);
+    box-shadow: 0 0 0 2px var(--color-signal);
+  }
+  .lj-textarea { min-height: 6.5rem; resize: vertical; }
+  .lj-select { font-family: var(--font-body); }
+  /* Validation states for form inputs — coral border + matching ring on
+   * focus. Used by Withdraw destination and any future client-validated
+   * fields. */
+  .lj-input--error,
+  .lj-textarea--error {
+    border-color: var(--color-coral);
+  }
+  .lj-input--error:focus,
+  .lj-textarea--error:focus {
+    border-color: var(--color-coral);
+    box-shadow: 0 0 0 2px var(--color-coral);
+  }
+  .lj-field__error {
+    font-size: 0.78rem;
+    color: var(--color-coral);
+    font-family: var(--font-mono);
+    line-height: 1.4;
+  }
+  .lj-field__warn {
+    font-size: 0.78rem;
+    color: var(--color-amber);
+    font-family: var(--font-mono);
+    line-height: 1.4;
+  }
+
+  /* Cards: thinner padding, harder edges than v1. Title in DM Sans
+   * semibold (not Fraunces), eyebrow in mono above. */
+  .lj-card {
+    border: 1px solid var(--color-rule);
+    background: var(--color-surface);
+    border-radius: var(--radius-md);
+    padding: 1.5rem;
+  }
+  .lj-card--quiet { background: transparent; }
+  .lj-card__head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 1rem;
+    margin-bottom: 1.25rem;
+  }
+  .lj-card__title {
+    font-family: var(--font-body);
+    font-weight: 600;
+    font-size: 1.15rem;
+    letter-spacing: -0.005em;
+    color: var(--color-paper);
+    line-height: 1.2;
+  }
+
+  .lj-stat { display: flex; flex-direction: column; gap: 0.3rem; }
+  .lj-stat__label {
+    font-size: 0.68rem;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    font-family: var(--font-mono);
+    color: var(--color-whisper);
+  }
+  .lj-stat__value {
+    font-family: var(--font-mono);
+    font-weight: 500;
+    font-size: 1.5rem;
+    letter-spacing: -0.02em;
+    color: var(--color-paper);
+    font-variant-numeric: tabular-nums;
+  }
+  .lj-stat__value--mono { font-family: var(--font-mono); font-size: 1.35rem; }
+  .lj-stat__sub { font-size: 0.78rem; color: var(--color-whisper); font-family: var(--font-mono); }
+
+  .lj-dot {
+    display: inline-block;
+    width: 6px; height: 6px;
+    border-radius: 999px;
+    background: var(--color-whisper);
+    flex-shrink: 0;
+  }
+  /* Amber is the live/connected tell — vintage power-LED, not a CTA. */
+  .lj-dot--ok { background: var(--color-amber); box-shadow: 0 0 10px color-mix(in oklab, var(--color-amber) 70%, transparent); }
+  .lj-dot--warn { background: var(--color-amber); }
+  .lj-dot--bad { background: var(--color-coral); }
+
+  /* Pre-submit review block — used by Withdraw + Pool to show what's
+   * actually about to commit. Heavier than a banner, lighter than a
+   * card. Two-column rows collapse to one column on narrow viewports. */
+  .lj-review {
+    border: 1px solid var(--color-rule);
+    border-left: 2px solid var(--color-signal);
+    background: var(--color-surface);
+    border-radius: var(--radius-sm);
+    padding: 1rem 1.1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.7rem;
+  }
+  .lj-review__rows {
+    display: flex;
+    flex-direction: column;
+    gap: 0.55rem;
+    margin: 0;
+  }
+  .lj-review__row {
+    display: grid;
+    grid-template-columns: 9rem 1fr;
+    gap: 0.85rem;
+    align-items: baseline;
+  }
+  @media (max-width: 480px) {
+    .lj-review__row { grid-template-columns: 1fr; gap: 0.15rem; }
+  }
+  .lj-review__label {
+    margin: 0;
+    font-size: 0.66rem;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    font-family: var(--font-mono);
+    color: var(--color-whisper);
+  }
+  .lj-review__value {
+    margin: 0;
+    color: var(--color-paper);
+    font-size: 0.92rem;
+    line-height: 1.4;
+    min-width: 0;
+    overflow-wrap: anywhere;
+  }
+  .lj-review__value--num {
+    font-family: var(--font-mono);
+    font-size: 1.1rem;
+    font-weight: 500;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: -0.01em;
+  }
+  .lj-review__value--muted {
+    color: var(--color-whisper);
+    font-family: var(--font-mono);
+    font-size: 0.82rem;
+  }
+  .lj-review__placeholder {
+    color: var(--color-whisper);
+    font-family: var(--font-mono);
+  }
+
+  .lj-banner {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+    border: 1px solid var(--color-rule);
+    border-left: 2px solid var(--color-rule);
+    background: var(--color-surface);
+    padding: 0.75rem 0.9rem;
+    border-radius: var(--radius-sm);
+  }
+  .lj-banner__title { font-size: 0.85rem; color: var(--color-paper); }
+  .lj-banner__detail { font-size: 0.76rem; color: var(--color-whisper); font-family: var(--font-mono); word-break: break-all; }
+  .lj-banner--amber { border-left-color: var(--color-amber); }
+  .lj-banner--amber .lj-banner__title { color: var(--color-amber); }
+  .lj-banner--coral { border-left-color: var(--color-coral); }
+  .lj-banner--coral .lj-banner__title { color: var(--color-coral); }
+  .lj-banner--signal { border-left-color: var(--color-signal); }
+  .lj-banner--signal .lj-banner__title { color: var(--color-signal); }
+
+  .lj-modal-backdrop {
+    position: fixed;
+    inset: 0;
+    background: color-mix(in oklab, var(--color-ink) 80%, transparent);
+    backdrop-filter: blur(4px);
+    z-index: 100;
+    display: grid;
+    place-items: center;
+    padding: 1.5rem;
+    animation: lj-fade 140ms ease;
+  }
+  .lj-modal {
+    background: var(--color-ink);
+    border: 1px solid var(--color-rule);
+    border-radius: var(--radius-md);
+    width: 100%;
+    max-width: 26rem;
+    padding: 1.75rem;
+    animation: lj-rise 180ms ease;
+  }
+  .lj-modal--wide { max-width: 36rem; }
+  @keyframes lj-fade { from { opacity: 0; } to { opacity: 1; } }
+  @keyframes lj-rise { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+
+  .lj-wallet-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    border: 1px solid var(--color-rule-strong);
+    border-radius: var(--radius-sm);
+    padding: 0.4rem 0.7rem 0.4rem 0.5rem;
+    background: var(--color-surface);
+    color: var(--color-paper);
+    font-size: 0.76rem;
+    font-family: var(--font-mono);
+    letter-spacing: 0.04em;
+    cursor: pointer;
+    transition: border-color 120ms ease;
+  }
+  .lj-wallet-pill:hover { border-color: var(--color-paper); }
+  .lj-wallet-pill__addr { color: var(--color-muted); font-size: 0.74rem; }
+  .lj-wallet-pill__icon {
+    width: 16px; height: 16px;
+    border-radius: var(--radius-xs);
+    background: var(--color-rise);
+  }
+
+  /* Hero: mono headline, large but tight. No serif. */
+  .lj-hero {
+    padding: 3rem 0 1.5rem;
+  }
+  .lj-hero__title {
+    font-family: var(--font-mono);
+    font-weight: 500;
+    font-size: clamp(2.5rem, 5.5vw, 4.5rem);
+    letter-spacing: -0.04em;
+    line-height: 1.02;
+    color: var(--color-paper);
+  }
+  .lj-hero__title em {
+    font-style: normal;
+    color: var(--color-signal);
+    font-weight: 500;
+  }
+  .lj-hero__lede {
+    margin-top: 1.5rem;
+    max-width: 38rem;
+    font-size: 0.98rem;
+    line-height: 1.55;
+    color: var(--color-muted);
+  }
+  .lj-hero__cta {
+    margin-top: 2rem;
+    display: flex;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+  }
+
+  .lj-pillars {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 0;
+    border-top: 1px solid var(--color-rule);
+    border-bottom: 1px solid var(--color-rule);
+  }
+  @media (max-width: 720px) {
+    .lj-pillars { grid-template-columns: 1fr; }
+    .lj-pillars > * + * { border-top: 1px solid var(--color-rule); }
+  }
+  .lj-pillar {
+    padding: 1.5rem 1.25rem;
+    border-left: 1px solid var(--color-rule);
+    transition: background 120ms ease;
+  }
+  .lj-pillar:first-child { border-left: none; }
+  @media (max-width: 720px) {
+    .lj-pillar { border-left: none; }
+  }
+  .lj-pillar:hover { background: var(--color-surface); }
+  .lj-pillar__numeral {
+    font-family: var(--font-mono);
+    font-size: 0.78rem;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--color-amber);
+    font-weight: 500;
+  }
+  .lj-pillar__title {
+    margin-top: 0.6rem;
+    font-family: var(--font-body);
+    font-size: 1.05rem;
+    font-weight: 600;
+    color: var(--color-paper);
+  }
+  .lj-pillar__copy {
+    margin-top: 0.4rem;
+    font-size: 0.86rem;
+    line-height: 1.55;
+    color: var(--color-muted);
+  }
+
+  /* Slider: thinner track, sharper thumb. Hidden when there's only
+   * one valid value (caller decides). */
+  .lj-slider {
+    appearance: none;
+    width: 100%;
+    height: 22px;
+    background: transparent;
+  }
+  .lj-slider::-webkit-slider-runnable-track { height: 1px; background: var(--color-rule-strong); }
+  .lj-slider::-moz-range-track { height: 1px; background: var(--color-rule-strong); }
+  .lj-slider::-webkit-slider-thumb {
+    appearance: none;
+    width: 14px; height: 14px;
+    margin-top: -7px;
+    background: var(--color-signal);
+    border-radius: var(--radius-xs);
+    cursor: grab;
+  }
+  .lj-slider::-moz-range-thumb {
+    width: 14px; height: 14px;
+    background: var(--color-signal);
+    border-radius: var(--radius-xs);
+    border: none;
+    cursor: grab;
+  }
+  .lj-slider:active::-webkit-slider-thumb { cursor: grabbing; }
+
+  .lj-meter { display: flex; gap: 3px; margin-top: 0.4rem; }
+  .lj-meter__seg { flex: 1; height: 4px; background: var(--color-rule); border-radius: 0; }
+  .lj-meter__seg--lit { background: var(--color-signal); }
+
+  .lj-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.84rem;
+  }
+  .lj-table th {
+    text-align: left;
+    font-weight: 500;
+    font-size: 0.66rem;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    font-family: var(--font-mono);
+    color: var(--color-whisper);
+    border-bottom: 1px solid var(--color-rule);
+    padding: 0.55rem 0.75rem 0.75rem;
+  }
+  .lj-table td {
+    border-bottom: 1px solid var(--color-rule);
+    padding: 0.75rem;
+    color: var(--color-paper);
+    vertical-align: middle;
+  }
+  .lj-table tr:hover td { background: color-mix(in oklab, var(--color-surface) 70%, transparent); }
+  .lj-table td.lj-table__num,
+  .lj-table th.lj-table__num {
+    font-family: var(--font-mono);
+    font-variant-numeric: tabular-nums;
+    text-align: right;
+  }
+
+  /* Tighter toggle group — sized to content. */
+  .lj-toggle {
+    display: inline-flex;
+    border: 1px solid var(--color-rule);
+    border-radius: var(--radius-sm);
+    overflow: hidden;
+    background: var(--color-ink);
+    width: fit-content;
+  }
+  .lj-toggle button {
+    appearance: none;
+    background: transparent;
+    color: var(--color-muted);
+    border: none;
+    padding: 0.45rem 0.85rem;
+    font-size: 0.74rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    font-family: var(--font-mono);
+    cursor: pointer;
+    border-right: 1px solid var(--color-rule);
+    transition: color 120ms ease, background 120ms ease;
+    white-space: nowrap;
+  }
+  .lj-toggle button:last-child { border-right: none; }
+  .lj-toggle button[aria-pressed="true"] {
+    background: var(--color-rise);
+    color: var(--color-paper);
+    font-weight: 500;
+    box-shadow: inset 0 -1px 0 var(--color-paper);
+  }
+  .lj-toggle button:hover:not([aria-pressed="true"]) { color: var(--color-paper); }
+
+  .lj-empty {
+    text-align: center;
+    padding: 2.25rem 1rem;
+    color: var(--color-muted);
+    font-size: 0.9rem;
+    line-height: 1.5;
+  }
+  .lj-empty__title {
+    font-family: var(--font-body);
+    font-weight: 600;
+    font-size: 1.05rem;
+    color: var(--color-paper);
+    margin-bottom: 0.4rem;
+  }
+  .lj-loading {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    color: var(--color-muted);
+    font-size: 0.86rem;
+    font-family: var(--font-mono);
+  }
+  .lj-loading::before {
+    content: "";
+    width: 6px; height: 6px;
+    border-radius: 999px;
+    background: var(--color-signal);
+    animation: lj-pulse 1.2s ease-in-out infinite;
+  }
+  @keyframes lj-pulse { 0%, 100% { opacity: 0.3; } 50% { opacity: 1; } }
+
+  .lj-hash {
+    font-family: var(--font-mono);
+    font-size: 0.78rem;
+    color: var(--color-muted);
+    letter-spacing: -0.01em;
+  }
+  .lj-hash--copy {
+    cursor: pointer;
+    border-bottom: 1px dashed transparent;
+    transition: border-color 120ms ease, color 120ms ease;
+  }
+  .lj-hash--copy:hover {
+    color: var(--color-paper);
+    border-bottom-color: var(--color-rule-strong);
+  }
+
+  /* ---------------------------------------------------------------- Toaster */
+  .lj-toaster {
+    position: fixed;
+    top: 1.25rem;
+    right: 1.25rem;
+    z-index: 200;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    width: min(22rem, calc(100vw - 2.5rem));
+    pointer-events: none;
+  }
+  .lj-toast {
+    pointer-events: auto;
+    display: flex;
+    align-items: flex-start;
+    gap: 0.75rem;
+    padding: 0.85rem 1rem;
+    border: 1px solid var(--color-rule);
+    border-left: 2px solid var(--color-rule-strong);
+    background: color-mix(in oklab, var(--color-surface) 96%, var(--color-paper));
+    border-radius: var(--radius-sm);
+    box-shadow: 0 12px 32px rgba(0, 0, 0, 0.35);
+    animation: lj-toast-in 220ms cubic-bezier(0.2, 0.8, 0.2, 1);
+  }
+  .lj-toast--closing { animation: lj-toast-out 220ms cubic-bezier(0.5, 0, 0.6, 0) forwards; }
+  .lj-toast--success { border-left-color: var(--color-amber); }
+  .lj-toast--success .lj-toast__title { color: var(--color-amber); }
+  .lj-toast--error { border-left-color: var(--color-coral); }
+  .lj-toast--error .lj-toast__title { color: var(--color-coral); }
+  .lj-toast--info { border-left-color: var(--color-paper); }
+  .lj-toast__body {
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+    flex: 1;
+    min-width: 0;
+  }
+  .lj-toast__title {
+    font-family: var(--font-mono);
+    font-size: 0.78rem;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--color-paper);
+  }
+  .lj-toast__detail {
+    font-family: var(--font-mono);
+    font-size: 0.75rem;
+    color: var(--color-muted);
+    word-break: break-all;
+  }
+  .lj-toast__link {
+    margin-top: 0.25rem;
+    font-family: var(--font-mono);
+    font-size: 0.74rem;
+    color: var(--color-amber);
+    text-decoration: none;
+    border-bottom: 1px dashed transparent;
+    width: fit-content;
+  }
+  .lj-toast__link:hover { border-bottom-color: var(--color-amber); }
+  .lj-toast__close {
+    appearance: none;
+    background: transparent;
+    border: none;
+    color: var(--color-whisper);
+    cursor: pointer;
+    font-size: 1.1rem;
+    line-height: 1;
+    padding: 0.2rem 0.3rem;
+    transition: color 120ms ease;
+  }
+  .lj-toast__close:hover { color: var(--color-paper); }
+  @keyframes lj-toast-in {
+    from { opacity: 0; transform: translateX(12px); }
+    to { opacity: 1; transform: none; }
+  }
+  @keyframes lj-toast-out {
+    from { opacity: 1; transform: none; }
+    to { opacity: 0; transform: translateX(20px); }
+  }
+
+  /* In-flight overlay — shown over forms during async submit so the
+   * user has unambiguous feedback that the click registered. */
+  .lj-overlay {
+    position: relative;
+  }
+  .lj-overlay--busy::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: color-mix(in oklab, var(--color-ink) 70%, transparent);
+    border-radius: inherit;
+    pointer-events: none;
+  }
+  .lj-overlay__indicator {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1;
+    pointer-events: none;
+  }
+  .lj-spinner {
+    width: 28px;
+    height: 28px;
+    border: 1.5px solid var(--color-rule-strong);
+    border-top-color: var(--color-amber);
+    border-radius: 999px;
+    animation: lj-spin 700ms linear infinite;
+  }
+  @keyframes lj-spin {
+    to { transform: rotate(360deg); }
+  }
+
+  /* Math display block — used on the protocol page. */
+  .lj-math {
+    font-family: var(--font-mono);
+    font-size: 1rem;
+    background: var(--color-surface);
+    border: 1px solid var(--color-rule);
+    border-left: 2px solid var(--color-signal);
+    border-radius: var(--radius-sm);
+    padding: 1rem 1.25rem;
+    color: var(--color-paper);
+    overflow-x: auto;
+  }
+  .lj-math em {
+    font-style: italic;
+    color: var(--color-signal);
+  }
+
+  /* Long-form prose for the protocol page. */
+  .lj-prose {
+    color: var(--color-paper);
+    font-size: 0.95rem;
+    line-height: 1.65;
+    max-width: 42rem;
+  }
+  .lj-prose h2 {
+    font-family: var(--font-mono);
+    font-size: 0.78rem;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--color-amber);
+    margin-top: 2.5rem;
+    margin-bottom: 0.75rem;
+  }
+  .lj-prose h3 {
+    font-family: var(--font-body);
+    font-weight: 600;
+    font-size: 1.1rem;
+    color: var(--color-paper);
+    margin-top: 1.5rem;
+    margin-bottom: 0.4rem;
+  }
+  .lj-prose p { margin-bottom: 1rem; color: var(--color-muted); }
+  .lj-prose p strong { color: var(--color-paper); font-weight: 500; }
+  .lj-prose code {
+    background: var(--color-surface);
+    border: 1px solid var(--color-rule);
+    padding: 0.05rem 0.3rem;
+    border-radius: var(--radius-xs);
+    font-size: 0.84rem;
+    color: var(--color-paper);
+  }
+  .lj-prose ul {
+    margin-bottom: 1rem;
+    padding-left: 1.25rem;
+    list-style: none;
+    color: var(--color-muted);
+  }
+  .lj-prose li {
+    position: relative;
+    margin-bottom: 0.5rem;
+  }
+  .lj-prose li::before {
+    content: "—";
+    position: absolute;
+    left: -1.25rem;
+    color: var(--color-amber);
+  }
+}
+
+/* ---------------------------------------------------------------------------
+ * Reduced-motion fallback (WCAG 2.3.3)
+ * ---------------------------------------------------------------------------
+ * Users who set prefers-reduced-motion: reduce in their OS see no
+ * animation: toasts appear instantly, the spinner is replaced by a
+ * pulse-free amber dot, the live-pool indicator stops pulsing, and
+ * the modal rise/fade is suppressed. We don't animate transform on
+ * hover anyway, so :hover micro-interactions are unaffected.
+ * --------------------------------------------------------------------------- */
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+  .lj-spinner {
+    /* Spinner needs *some* indication that work is in flight even
+     * when motion is suppressed — fall back to a static amber ring. */
+    animation: none;
+    border-top-color: var(--color-amber);
+    border-color: var(--color-amber);
+    opacity: 0.6;
+  }
+}
+

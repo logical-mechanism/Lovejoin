@@ -1,9 +1,11 @@
-// Seedelf-address detection.
+// Seedelf-address detection + destination-address validation.
 //
-// Spec: docs/spec/06-ui.md §"Withdraw" — the screen distinguishes between a
-// regular Cardano payment-key destination (yellow `SeedelfHint`) and a
-// stealth Seedelf destination (green confirmation that wallet identity is
-// hidden after withdraw).
+// Spec: docs/spec/06-ui.md §"Withdraw" + M6.5+ punch-list H3. The
+// Withdraw screen distinguishes between a regular Cardano payment-key
+// destination (warning hint: wallet identity visible) and a stealth
+// Seedelf destination (confirmation that wallet identity is hidden
+// after withdraw). It also blocks submission for invalid bech32 and
+// for cross-network addresses (mainnet bech32 on a preprod build, etc).
 //
 // Seedelf addresses (https://github.com/logical-mechanism/seedelf-platform)
 // park funds at a script address that the recipient unlocks via a
@@ -19,11 +21,27 @@
 // "looks like" rather than "is".
 
 import { bech32Decode } from "./bech32.js";
+import type { Network } from "./sdk.js";
 
 export type AddressKind =
   | { kind: "stealth"; addressType: AddressType }
   | { kind: "regular-key"; addressType: AddressType }
   | { kind: "unknown"; reason: string };
+
+/**
+ * Result of validating a destination address before withdraw submit.
+ *
+ * `empty` and `ok` are non-error states; `invalid` and `wrong-network`
+ * should both block submission and surface inline feedback under the
+ * input. The Withdraw screen uses this to drive both the input border
+ * (coral on invalid, amber on wrong-network) and the submit-disabled
+ * state.
+ */
+export type DestinationStatus =
+  | { status: "empty" }
+  | { status: "invalid"; reason: string }
+  | { status: "wrong-network"; addressNetwork: "mainnet" | "testnet"; expected: Network }
+  | { status: "ok"; kind: AddressKind };
 
 /** CIP-19 address types we care about. */
 export type AddressType =
@@ -97,4 +115,48 @@ export function classifyAddress(bech32: string): AddressKind {
 export function looksLikeCardanoAddress(bech32: string): boolean {
   const k = classifyAddress(bech32);
   return k.kind !== "unknown";
+}
+
+/**
+ * Validate a destination address against the active network. Used by
+ * the Withdraw screen to gate submit + surface inline feedback. The
+ * returned status maps directly to the UX:
+ *
+ *   empty           — no message
+ *   invalid         — coral error under input, submit disabled
+ *   wrong-network   — amber warning under input, submit disabled
+ *   ok              — green / signal-toned review block, submit enabled
+ *
+ * Stake addresses (HRP `stake`/`stake_test`) are rejected as `invalid`
+ * because they can't receive payments — the tx builder would fail
+ * later anyway.
+ */
+export function validateDestination(
+  bech32: string,
+  expectedNetwork: Network,
+): DestinationStatus {
+  const trimmed = bech32.trim();
+  if (!trimmed) return { status: "empty" };
+  const decoded = bech32Decode(trimmed);
+  if (!decoded) {
+    return { status: "invalid", reason: "not a valid bech32 address" };
+  }
+  const { hrp } = decoded;
+  if (hrp.startsWith("stake")) {
+    return { status: "invalid", reason: "stake addresses can't receive payments" };
+  }
+  if (!hrp.startsWith("addr")) {
+    return { status: "invalid", reason: `unrecognised prefix "${hrp}"` };
+  }
+  const isTestnet = hrp.startsWith("addr_test");
+  const expectIsTestnet =
+    expectedNetwork === "preprod" || expectedNetwork === "preview";
+  if (isTestnet !== expectIsTestnet) {
+    return {
+      status: "wrong-network",
+      addressNetwork: isTestnet ? "testnet" : "mainnet",
+      expected: expectedNetwork,
+    };
+  }
+  return { status: "ok", kind: classifyAddress(trimmed) };
 }

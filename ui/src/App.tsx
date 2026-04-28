@@ -8,11 +8,13 @@
 import { BrowserRouter, Route, Routes } from "react-router-dom";
 
 import { CollateralStatusProvider } from "./components/CollateralProviderStatus.js";
+import { ToasterProvider } from "./components/Toaster.js";
 import { Box } from "./routes/Box.js";
 import { Deposit } from "./routes/Deposit.js";
 import { Home } from "./routes/Home.js";
 import { Layout } from "./routes/Layout.js";
 import { Pool } from "./routes/Pool.js";
+import { Protocol } from "./routes/Protocol.js";
 import { Vault } from "./routes/Vault.js";
 import { Withdraw } from "./routes/Withdraw.js";
 import { AppStateProvider, useAppState } from "./lib/store.js";
@@ -20,20 +22,23 @@ import { AppStateProvider, useAppState } from "./lib/store.js";
 export function App() {
   return (
     <AppStateProvider>
-      <CollateralStatusBridge>
-        <BrowserRouter>
-          <Routes>
-            <Route element={<Layout />}>
-              <Route index element={<Home />} />
-              <Route path="deposit" element={<Deposit />} />
-              <Route path="pool" element={<Pool />} />
-              <Route path="vault" element={<Vault />} />
-              <Route path="vault/:txid/:idx" element={<Box />} />
-              <Route path="withdraw" element={<Withdraw />} />
-            </Route>
-          </Routes>
-        </BrowserRouter>
-      </CollateralStatusBridge>
+      <ToasterProvider>
+        <CollateralStatusBridge>
+          <BrowserRouter>
+            <Routes>
+              <Route element={<Layout />}>
+                <Route index element={<Home />} />
+                <Route path="deposit" element={<Deposit />} />
+                <Route path="pool" element={<Pool />} />
+                <Route path="vault" element={<Vault />} />
+                <Route path="vault/:txid/:idx" element={<Box />} />
+                <Route path="withdraw" element={<Withdraw />} />
+                <Route path="protocol" element={<Protocol />} />
+              </Route>
+            </Routes>
+          </BrowserRouter>
+        </CollateralStatusBridge>
+      </ToasterProvider>
     </AppStateProvider>
   );
 }

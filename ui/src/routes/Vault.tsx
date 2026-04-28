@@ -1,143 +1,192 @@
-// Vault — owner-side view of the boxes the user holds across sessions.
+// Vault — wallet-derived owned-boxes view + lock + tier-2 BIP-39 fallback.
 //
-// Spec: docs/spec/06-ui.md §"Vault" — boxes the user owns, derived by
-// scanning the pool with each saved secret. Per-row: id, denom, generation,
-// last mixed, withdraw button. Import box-secret button.
-//
-// Implementation note: the M3.5 vertical slice tracked boxes in memory.
-// M6 swaps that for the encrypted IndexedDB vault — once unlocked, the
-// stored boxes load and persist across reloads.
+// Spec: docs/spec/06-ui.md M6.5 — "wallet-derived vault (default flow) —
+// zero new keys for the user to manage. On first 'unlock' the connected
+// CIP-30 wallet does a single signData(stakeAddr, 'lovejoin/owner/v1');
+// ... seed = blake2b_256(signature_bytes); per-deposit owner secret x_i =
+// scalar_from_hkdf(seed, 'lovejoin/owner/v1', counter=i) reduced mod r.
+// The seed is held in memory for the session only — IndexedDB stores
+// nothing. Locking the vault drops the seed; unlocking re-prompts the
+// wallet for one signature."
 
 import { useState } from "react";
-import { useTranslation } from "react-i18next";
 import { Link } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 
-import { PassphraseModal } from "../components/PassphraseModal.js";
 import { useAppState } from "../lib/store.js";
-import type { StoredBox } from "../storage/secrets.js";
+import { Eyebrow } from "../components/ui/Eyebrow.js";
+import { Hash } from "../components/ui/Hash.js";
+import { StatusDot } from "../components/ui/StatusDot.js";
+import { Bip39FallbackPanel } from "../components/Bip39FallbackPanel.js";
+import { formatAda } from "../lib/format.js";
 
 export function Vault() {
   const { t } = useTranslation();
-  const { vault, boxes, lockVault, addBox, removeBox } = useAppState();
-  const [importJson, setImportJson] = useState("");
-  const [importError, setImportError] = useState<string | null>(null);
-  const [importBusy, setImportBusy] = useState(false);
+  const {
+    wallet,
+    vault,
+    vaultBusy,
+    vaultError,
+    ownedBoxes,
+    poolSize,
+    scanError,
+    unlockWithWallet,
+    lockVault,
+    rescan,
+  } = useAppState();
+  const [showFallback, setShowFallback] = useState(false);
 
   if (!vault) {
+    if (showFallback) {
+      return (
+        <Bip39FallbackPanel onClose={() => setShowFallback(false)} />
+      );
+    }
     return (
-      <>
-        <PassphraseModal />
-        <p className="text-xs text-gray-600">{t("vault.unlock_to_view")}</p>
-      </>
+      <section className="lj-card">
+        <header className="lj-card__head">
+          <div>
+            <Eyebrow>{t("vault.eyebrow")}</Eyebrow>
+            <h2 className="lj-card__title">{t("vault.locked_title")}</h2>
+          </div>
+          <StatusDot tone="neutral" hollow label="locked" />
+        </header>
+        <p className="text-sm text-muted leading-relaxed max-w-prose">
+          {t("vault.locked_lede")}
+        </p>
+        <div className="mt-6">
+          <button
+            type="button"
+            className="lj-btn lj-btn--primary lj-btn--lg"
+            disabled={!wallet || vaultBusy}
+            onClick={() => void unlockWithWallet()}
+          >
+            {vaultBusy ? t("vault.unlocking") : t("vault.unlock_with_wallet")}
+          </button>
+        </div>
+        {!wallet && (
+          <p className="mt-4 text-sm text-whisper">{t("vault.no_wallet")}</p>
+        )}
+        <div className="mt-6 border-t border-rule pt-4">
+          <button
+            type="button"
+            className="lj-btn lj-btn--quiet"
+            onClick={() => setShowFallback(true)}
+          >
+            {t("vault.fallback_link")}
+            <span aria-hidden="true">→</span>
+          </button>
+        </div>
+        {vaultError && (
+          <div className="lj-banner lj-banner--coral mt-6">
+            <span className="lj-banner__title">
+              {t("vault.unlock_failed", { message: vaultError })}
+            </span>
+          </div>
+        )}
+      </section>
     );
   }
 
-  const onImport = async () => {
-    setImportError(null);
-    setImportBusy(true);
-    try {
-      const parsed = JSON.parse(importJson) as Partial<StoredBox>;
-      if (
-        typeof parsed.txId !== "string" ||
-        typeof parsed.outputIndex !== "number" ||
-        typeof parsed.ownerSecretHex !== "string" ||
-        typeof parsed.aHex !== "string" ||
-        typeof parsed.bHex !== "string"
-      ) {
-        throw new Error(t("vault.import_invalid"));
-      }
-      const box: StoredBox = {
-        txId: parsed.txId.toLowerCase(),
-        outputIndex: parsed.outputIndex,
-        ownerSecretHex: parsed.ownerSecretHex.toLowerCase(),
-        aHex: parsed.aHex.toLowerCase(),
-        bHex: parsed.bHex.toLowerCase(),
-        label: parsed.label ?? parsed.bHex.slice(0, 16),
-        rounds: parsed.rounds ?? 0,
-        createdAt: parsed.createdAt ?? Date.now(),
-      };
-      await addBox(box);
-      setImportJson("");
-    } catch (e) {
-      setImportError((e as Error).message);
-    } finally {
-      setImportBusy(false);
-    }
-  };
-
   return (
     <>
-      <section className="rounded-md border border-gray-200 bg-white p-4">
-        <header className="flex items-center justify-between">
-          <h2 className="text-lg font-semibold">{t("vault.title")}</h2>
-          <button
-            type="button"
-            onClick={lockVault}
-            className="rounded border border-gray-300 px-2 py-1 text-xs"
-          >
-            {t("vault.lock")}
-          </button>
+      <section className="lj-card">
+        <header className="lj-card__head">
+          <div>
+            <Eyebrow>
+              {vault.kind === "wallet"
+                ? t("vault.eyebrow")
+                : t("vault.fallback_title")}
+            </Eyebrow>
+            <h2 className="lj-card__title">{t("vault.title")}</h2>
+          </div>
+          <div className="flex items-center gap-2">
+            <StatusDot tone="ok" label="unlocked" />
+            <button type="button" className="lj-btn lj-btn--quiet" onClick={() => void rescan()}>
+              {t("vault.scan_again")}
+            </button>
+            <button type="button" className="lj-btn lj-btn--quiet" onClick={lockVault}>
+              {t("vault.lock")}
+            </button>
+          </div>
         </header>
-        {boxes.length === 0 ? (
-          <p className="mt-3 text-sm text-gray-600">{t("vault.empty")}</p>
-        ) : (
-          <ul className="mt-3 divide-y divide-gray-100">
-            {boxes.map((box) => (
-              <li
-                key={`${box.txId}#${box.outputIndex}`}
-                className="flex flex-wrap items-center justify-between gap-3 py-2 text-xs"
-              >
-                <div className="flex flex-col">
-                  <span className="font-mono font-semibold">{box.label}</span>
-                  <span className="font-mono text-gray-600">
-                    {box.txId.slice(0, 12)}…#{box.outputIndex}
-                  </span>
-                </div>
-                <div className="flex gap-2">
-                  <Link
-                    to={`/vault/${box.txId}/${box.outputIndex}`}
-                    className="rounded border border-gray-300 px-2 py-1"
-                  >
-                    {t("vault.open_box")}
-                  </Link>
-                  <button
-                    type="button"
-                    onClick={() => void removeBox(box.txId, box.outputIndex)}
-                    className="rounded border border-red-300 px-2 py-1 text-red-700"
-                  >
-                    {t("vault.forget_box")}
-                  </button>
-                </div>
-              </li>
-            ))}
-          </ul>
-        )}
-      </section>
 
-      <section className="rounded-md border border-gray-200 bg-white p-4">
-        <h3 className="text-sm font-semibold">{t("vault.import_title")}</h3>
-        <p className="mt-1 text-xs text-gray-600">{t("vault.import_explainer")}</p>
-        <textarea
-          value={importJson}
-          onChange={(e) => setImportJson(e.target.value)}
-          placeholder={t("vault.import_placeholder")}
-          rows={5}
-          className="mt-2 w-full rounded border border-gray-300 p-2 font-mono text-xs"
-        />
-        <div className="mt-2 flex items-center gap-3">
-          <button
-            type="button"
-            onClick={() => void onImport()}
-            disabled={importBusy || importJson.trim().length === 0}
-            className="rounded bg-black px-3 py-1.5 text-sm font-medium text-white disabled:opacity-40"
-          >
-            {importBusy ? t("vault.import_busy") : t("vault.import_button")}
-          </button>
-          {importError && (
-            <span className="text-xs text-red-700">{importError}</span>
-          )}
-        </div>
+        <p className="text-sm text-muted">
+          {t("vault.scan_summary", { count: ownedBoxes.length, pool: poolSize })}
+        </p>
+
+        {scanError && (
+          <div className="lj-banner lj-banner--coral mt-4">
+            <span className="lj-banner__title">
+              {t("vault.scan_failed", { message: scanError })}
+            </span>
+          </div>
+        )}
+
+        {ownedBoxes.length === 0 ? (
+          <div className="lj-empty mt-8">
+            <p className="lj-empty__title">{t("vault.empty")}</p>
+            <p>{t("vault.empty_hint")}</p>
+          </div>
+        ) : (
+          <div className="mt-6 overflow-x-auto">
+            <table className="lj-table">
+              <thead>
+                <tr>
+                  <th>i</th>
+                  <th>{t("common.tx_hash")}</th>
+                  <th className="lj-table__num">b</th>
+                  <th className="lj-table__num">{t("common.amount")}</th>
+                  <th />
+                </tr>
+              </thead>
+              <tbody>
+                {ownedBoxes.map((box) => {
+                  const ada = formatAda(box.entry.utxo.lovelace);
+                  return (
+                    <tr key={`${box.entry.ref.txId}#${box.entry.ref.outputIndex}`}>
+                      <td className="lj-table__num">{box.index}</td>
+                      <td>
+                        <Hash value={box.entry.ref.txId} edge={6} />
+                        <span className="text-whisper text-xs">#{box.entry.ref.outputIndex}</span>
+                      </td>
+                      <td className="lj-table__num">
+                        <Hash value={bytesToHexShort(box.entry.b)} edge={4} copyable={false} />
+                      </td>
+                      <td className="lj-table__num">{ada} ₳</td>
+                      <td className="text-right">
+                        <div className="inline-flex items-center gap-2">
+                          <Link
+                            to={`/vault/${box.entry.ref.txId}/${box.entry.ref.outputIndex}`}
+                            className="lj-btn lj-btn--primary"
+                          >
+                            {t("vault.withdraw_box")}
+                          </Link>
+                          {/* Open is a desktop-only convenience — on mobile,
+                           * the table already overflows horizontally so we
+                           * collapse to the single primary action. */}
+                          <Link
+                            to={`/vault/${box.entry.ref.txId}/${box.entry.ref.outputIndex}?detail=1`}
+                            className="lj-btn lj-btn--quiet hidden sm:inline-flex"
+                          >
+                            {t("vault.open_box")}
+                          </Link>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
       </section>
     </>
   );
+}
+
+function bytesToHexShort(b: Uint8Array): string {
+  let s = "";
+  for (const x of b) s += x.toString(16).padStart(2, "0");
+  return s;
 }

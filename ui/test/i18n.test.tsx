@@ -1,11 +1,10 @@
 // Smoke test: the App boots through the router shell + AppState provider
 // and renders English copy from en.json.
 //
-// We can't render the full App here without a fetch shim for addresses.json,
-// so we mount the Layout directly under MemoryRouter + AppStateProvider
-// with `skipAddressLoad` set. The asserts cover the header copy + the nav
-// — enough to prove the i18n harness is wired correctly under the new
-// router topology.
+// We mount the Layout directly under MemoryRouter + AppStateProvider with
+// `skipAddressLoad` set so the test doesn't need a fetch shim for
+// addresses.json. The asserts cover the header brand mark + the nav —
+// enough to prove the i18n harness is wired correctly.
 
 import { render, screen } from "@testing-library/react";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
@@ -30,20 +29,23 @@ function renderShell() {
 }
 
 describe("UI i18n harness", () => {
-  it("renders the English app title from en.json", () => {
+  it("renders the brand mark from en.json", () => {
     renderShell();
-    expect(screen.getByRole("heading", { name: "Lovejoin" })).toBeInTheDocument();
+    // The brand appears in the header brand link AND the footer mark; both
+    // are valid hits.
+    expect(screen.getAllByText("Lovejoin").length).toBeGreaterThanOrEqual(1);
   });
 
-  it("renders the English tagline from en.json", () => {
+  it("renders the Preprod warning banner", () => {
     renderShell();
     expect(
-      screen.getByText("Sigmajoin privacy mixer on Cardano. Hyperstructure."),
+      screen.getByText(/Preprod only/i),
     ).toBeInTheDocument();
   });
 
   it("renders the navigation links", () => {
     renderShell();
-    expect(screen.getAllByRole("link").length).toBeGreaterThanOrEqual(5);
+    // Brand link + 3 nav items (Deposit / Mix / Vault).
+    expect(screen.getAllByRole("link").length).toBeGreaterThanOrEqual(4);
   });
 });

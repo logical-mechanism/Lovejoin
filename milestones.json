@@ -247,7 +247,7 @@
     {
       "id": "M6.5",
       "name": "UI v1.5 — design pass + UX rework",
-      "status": "pending",
+      "status": "done",
       "depends_on": ["M6"],
       "spec": "docs/spec/06-ui.md",
       "notes": [

@@ -1,21 +1,17 @@
 // SDK bridge — wires @lovejoin/sdk into the React app.
 //
-// Spec: M3.5 vertical slice (docs/spec/12-build-guide.md
-// §"The thin happy-path slice"). The UI exercises the M3 SDK with a real
-// CIP-30 browser wallet so we surface mesh + libsodium + bundling issues
-// before going deep on M4's Mix builder.
+// Spec: docs/spec/06-ui.md + M6.5 (06-ui.md "config" deliverable).
 //
-// What this module owns:
-//   * Loading addresses.json (the bootstrap output) over fetch — committed
-//     copy lives in ui/public/addresses.preprod.json.
-//   * Persisting per-user runtime config (Blockfrost project id, network)
-//     in localStorage so reloads don't lose the dev's key.
-//   * Constructing the BlockfrostProvider on demand.
-//   * Providing a BrowserWallet helper that survives the lazy mesh import.
+// Two-layer config model:
+//   1. Build-time defaults baked from Vite env vars (VITE_NETWORK,
+//      VITE_BACKEND_URL, VITE_BLOCKFROST_PROJECT_ID, VITE_COLLATERAL_ENDPOINT).
+//      These ship in the static bundle and let the production UI run with
+//      zero user input.
+//   2. Per-browser overrides written to localStorage by the dev-only
+//      ?advanced=1 panel. Overrides win when present but are never required.
 //
-// What this module deliberately does NOT own: any tx-builder logic. Deposit
-// + withdraw screens call into the SDK's `buildDepositTx` / `buildWithdrawTx`
-// directly with the wallet handle and provider that this bridge produces.
+// The production UI never surfaces a config form — every screen reads
+// `useAppState().config` and just works.
 
 import { BlockfrostProvider, type LovejoinAddresses } from "@lovejoin/sdk";
 
@@ -23,20 +19,14 @@ export const NETWORKS = ["preprod", "preview", "mainnet"] as const;
 export type Network = (typeof NETWORKS)[number];
 
 const STORAGE_KEY = "lovejoin.config.v1";
-
 const DEFAULT_COLLATERAL_PROVIDER_ENDPOINT = "https://giveme.my";
 
-/**
- * Persisted-across-reloads runtime configuration.
- *
- * `backendUrl` is optional — the M5 indexer is a deployment choice, not a
- * hard dep. When set, the Pool screen reads pool size + indexer lag from it;
- * when unset, the screen falls back to direct Blockfrost queries.
- *
- * `collateralProviderEndpoint` defaults to giveme.my (the canonical service
- * called out in docs/spec/01-protocol.md §"Collateral provider"). Operators
- * running their own provider override it.
- */
+// Default backend URL — points at the dev-mode `make backend-dev` target
+// (Fastify on :3001) so `pnpm dev` + `make backend-dev` "just works"
+// out of the box. Production deploys override via VITE_BACKEND_URL at
+// build time. Set VITE_BACKEND_URL="" explicitly to disable.
+const DEFAULT_BACKEND_URL = "http://localhost:3001";
+
 export interface RuntimeConfig {
   network: Network;
   blockfrostProjectId: string;
@@ -44,38 +34,99 @@ export interface RuntimeConfig {
   collateralProviderEndpoint: string;
 }
 
-export const DEFAULT_CONFIG: RuntimeConfig = {
-  network: "preprod",
-  blockfrostProjectId: "",
-  backendUrl: "",
-  collateralProviderEndpoint: DEFAULT_COLLATERAL_PROVIDER_ENDPOINT,
-};
+function envNetwork(): Network {
+  const v = (import.meta.env.VITE_NETWORK ?? "").trim();
+  return NETWORKS.includes(v as Network) ? (v as Network) : "preprod";
+}
 
-export function loadConfig(): RuntimeConfig {
-  if (typeof window === "undefined") return DEFAULT_CONFIG;
+/**
+ * Build-time defaults from Vite env. These are immutable per build — see
+ * ui/.env.example. The function is called once at module load to seed
+ * `loadConfig`; the result is stable for the lifetime of the tab.
+ */
+export function envDefaults(): RuntimeConfig {
+  // VITE_BACKEND_URL semantics:
+  //   - undefined  → fall back to DEFAULT_BACKEND_URL (localhost:3001).
+  //   - ""         → caller explicitly disabled the backend; UI uses
+  //                  direct Blockfrost queries.
+  //   - any value  → use that URL.
+  const rawBackend = import.meta.env.VITE_BACKEND_URL;
+  const backendUrl =
+    rawBackend === undefined ? DEFAULT_BACKEND_URL : rawBackend.trim();
+  return {
+    network: envNetwork(),
+    blockfrostProjectId: (import.meta.env.VITE_BLOCKFROST_PROJECT_ID ?? "").trim(),
+    backendUrl,
+    collateralProviderEndpoint:
+      (import.meta.env.VITE_COLLATERAL_ENDPOINT ?? "").trim() ||
+      DEFAULT_COLLATERAL_PROVIDER_ENDPOINT,
+  };
+}
+
+/**
+ * True when `?advanced=1` is present in the current URL. We re-read it on
+ * each call rather than caching at module load so unit tests can flip it
+ * by mutating `location.search`.
+ */
+export function isAdvancedMode(): boolean {
+  if (typeof window === "undefined") return false;
   try {
-    const raw = window.localStorage.getItem(STORAGE_KEY);
-    if (!raw) return DEFAULT_CONFIG;
-    const parsed = JSON.parse(raw) as Partial<RuntimeConfig>;
-    const network = NETWORKS.includes(parsed.network as Network)
-      ? (parsed.network as Network)
-      : DEFAULT_CONFIG.network;
-    return {
-      network,
-      blockfrostProjectId: parsed.blockfrostProjectId ?? "",
-      backendUrl: parsed.backendUrl ?? "",
-      collateralProviderEndpoint:
-        parsed.collateralProviderEndpoint?.trim() ||
-        DEFAULT_COLLATERAL_PROVIDER_ENDPOINT,
-    };
+    return new URLSearchParams(window.location.search).get("advanced") === "1";
   } catch {
-    return DEFAULT_CONFIG;
+    return false;
   }
 }
 
+/**
+ * Read the effective config: env defaults overlaid with the
+ * advanced-mode-only localStorage overrides. Without `?advanced=1` the
+ * overrides are deliberately ignored — a user who once flipped a setting
+ * and shared the URL doesn't permanently mutate other people's UI.
+ */
+export function loadConfig(): RuntimeConfig {
+  const defaults = envDefaults();
+  if (typeof window === "undefined") return defaults;
+  if (!isAdvancedMode()) return defaults;
+  try {
+    const raw = window.localStorage.getItem(STORAGE_KEY);
+    if (!raw) return defaults;
+    const parsed = JSON.parse(raw) as Partial<RuntimeConfig>;
+    const network = NETWORKS.includes(parsed.network as Network)
+      ? (parsed.network as Network)
+      : defaults.network;
+    return {
+      network,
+      blockfrostProjectId:
+        (parsed.blockfrostProjectId ?? "").trim() || defaults.blockfrostProjectId,
+      // For backendUrl: an explicit "" override means the user disabled the
+      // backend (UI falls back to direct Blockfrost). Only `undefined` (key
+      // absent from the persisted blob) falls back to the env default.
+      backendUrl:
+        parsed.backendUrl === undefined
+          ? defaults.backendUrl
+          : parsed.backendUrl.trim(),
+      collateralProviderEndpoint:
+        (parsed.collateralProviderEndpoint ?? "").trim() ||
+        defaults.collateralProviderEndpoint,
+    };
+  } catch {
+    return defaults;
+  }
+}
+
+/**
+ * Persist a config override to localStorage. No-op outside the browser and
+ * outside `?advanced=1`. Persisted state is only honoured when the
+ * advanced flag is set on a future load.
+ */
 export function saveConfig(cfg: RuntimeConfig): void {
   if (typeof window === "undefined") return;
   window.localStorage.setItem(STORAGE_KEY, JSON.stringify(cfg));
+}
+
+export function clearConfigOverrides(): void {
+  if (typeof window === "undefined") return;
+  window.localStorage.removeItem(STORAGE_KEY);
 }
 
 /**
@@ -90,14 +141,12 @@ export function blockfrostBaseUrl(network: Network): string {
 }
 
 /**
- * Build a chain provider for the given runtime config. Throws if no project
- * id has been entered — surfaces the empty-config case loudly rather than
- * letting Blockfrost reject the request later with a 403.
+ * Build a chain provider for the given runtime config. Returns null when
+ * no project id has been baked or overridden — the UI surfaces a calm
+ * "configuration missing" state rather than a thrown error.
  */
-export function makeProvider(cfg: RuntimeConfig): BlockfrostProvider {
-  if (!cfg.blockfrostProjectId.trim()) {
-    throw new Error("Blockfrost project ID required — open the config panel.");
-  }
+export function makeProvider(cfg: RuntimeConfig): BlockfrostProvider | null {
+  if (!cfg.blockfrostProjectId.trim()) return null;
   return new BlockfrostProvider({
     baseUrl: blockfrostBaseUrl(cfg.network),
     projectId: cfg.blockfrostProjectId.trim(),
@@ -107,12 +156,7 @@ export function makeProvider(cfg: RuntimeConfig): BlockfrostProvider {
 /**
  * Fetch the bootstrap addresses.json for the given network. The file is a
  * static asset under ui/public/addresses.<network>.json copied from
- * artifacts/<network>/addresses.json by the developer running M3.5.
- *
- * Why fetch instead of import: the file is generated by the bootstrap
- * ceremony and not always present at typecheck time. A runtime fetch keeps
- * the build self-contained and lets the dev swap in a different network's
- * addresses without rebuilding.
+ * artifacts/<network>/addresses.json by the bootstrap operator.
  */
 export async function loadAddresses(
   network: Network,
@@ -147,11 +191,6 @@ export async function listInstalledWallets(): Promise<
 /**
  * Connect to a CIP-30 wallet by its id (e.g. "lace", "eternl", "nami") and
  * return the wallet handle the SDK tx builders accept.
- *
- * The result is structurally compatible with `LovejoinWallet` — the
- * minimum surface the tx builders need. We don't widen the return type to
- * `LovejoinWallet` here because consumers may want the full BrowserWallet
- * (e.g. `getBalance`, `getNetworkId`) for diagnostics.
  */
 export async function connectWallet(
   id: string,

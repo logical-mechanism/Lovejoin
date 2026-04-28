@@ -1,66 +1,75 @@
-// E2E smoke test — drives the M6 router shell against a real Vite dev
+// E2E smoke test — drives the M6.5 router shell against a real Vite dev
 // server. No wallet, no chain.
 //
 // Spec coverage:
-//   * docs/spec/06-ui.md §"Layout" — header copy renders.
-//   * docs/spec/06-ui.md §"Home" / §"Pool" / §"Vault" / §"Withdraw" —
-//     each route mounts and surfaces its primary heading.
-//   * docs/spec/06-ui.md §"Privacy UX rules" rule 8 — the collateral-
-//     provider banner appears on the Pool route once the probe fails
-//     (default offline-by-config).
+//   * docs/spec/06-ui.md §"Layout" — brand mark + nav + footer.
+//   * docs/spec/06-ui.md §"Home" — splash hero + the three I/II/III pillars.
+//   * docs/spec/06-ui.md §"Pool" — mix-width slider, fee-payer toggle,
+//     collateral banner when the probe fails.
+//   * docs/spec/06-ui.md §"Vault" — locked-state copy + the
+//     wallet-derived unlock CTA.
+//   * docs/spec/06-ui.md §"Withdraw" — preconditions copy when no wallet
+//     is connected.
 //
-// This is the smoke layer; the funded-wallet Preprod flow is in
-// full-flow.spec.ts (skipped unless E2E_PREPROD_WALLET=1).
+// The funded-wallet Preprod flow lives in full-flow.spec.ts (skipped
+// unless E2E_PREPROD_WALLET=1).
 
 import { expect, test } from "@playwright/test";
 
-test.describe("M6 router smoke", () => {
-  test("Home route renders the title + nav", async ({ page }) => {
+test.describe("M6.5 router smoke", () => {
+  test("Home route renders hero + three pillars", async ({ page }) => {
     await page.goto("/");
-    await expect(
-      page.getByRole("heading", { name: "Lovejoin", level: 1 }),
-    ).toBeVisible();
+    await expect(page.getByRole("link", { name: /Lovejoin/i }).first()).toBeVisible();
+    await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
+    // Three I/II/III pillar headings.
+    await expect(page.getByRole("heading", { name: "Deposit" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Mix" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Withdraw" })).toBeVisible();
     await expect(page.getByRole("navigation", { name: /main/i })).toBeVisible();
-    await expect(
-      page.getByRole("heading", { name: /^Welcome$/ }),
-    ).toBeVisible();
   });
 
-  test("Deposit route is reachable via the nav", async ({ page }) => {
-    await page.goto("/");
-    await page.getByRole("link", { name: "Deposit" }).first().click();
-    await expect(page).toHaveURL(/\/deposit$/);
-    await expect(
-      page.getByText(/Configure a Blockfrost key/i).first(),
-    ).toBeVisible();
-  });
-
-  test("Pool route shows the mix-width slider + collateral banner when down", async ({
+  test("Pool route shows the mix-width slider + fee-payer toggle", async ({
     page,
   }) => {
-    // The default config points at https://giveme.my; with no network the
-    // probe fails and we render the banner. We assert on the banner role
-    // instead of the live-reload text so the test isn't language-bound.
     await page.goto("/pool");
     await expect(page.getByRole("slider")).toBeVisible();
-    // Slider title — "Mix width" in en.json.
     await expect(page.getByText(/Mix width/i).first()).toBeVisible();
+    await expect(page.getByText(/Fee payer/i).first()).toBeVisible();
+    await expect(
+      page.getByRole("button", { name: /Fee shard/i }),
+    ).toBeVisible();
+    await expect(
+      page.getByRole("button", { name: /^Wallet$/i }),
+    ).toBeVisible();
   });
 
-  test("Vault route shows the unlock prompt before any passphrase is entered", async ({
+  test("Vault route shows the wallet-derived unlock CTA when locked", async ({
     page,
   }) => {
     await page.goto("/vault");
     await expect(
-      page.getByRole("heading", { name: /Unlock vault/i }),
+      page.getByRole("heading", { name: /Vault locked/i }),
     ).toBeVisible();
-    await expect(page.getByPlaceholder(/Vault passphrase/i)).toBeVisible();
+    await expect(
+      page.getByRole("button", { name: /Unlock with wallet/i }),
+    ).toBeVisible();
+    // The tier-2 fallback link is present but de-emphasised.
+    await expect(
+      page.getByRole("button", { name: /recovery phrase/i }),
+    ).toBeVisible();
   });
 
-  test("Withdraw route renders the destination form", async ({ page }) => {
+  test("Deposit route shows preconditions copy when no wallet is connected", async ({
+    page,
+  }) => {
+    await page.goto("/deposit");
+    await expect(page.getByText(/Connect a wallet/i).first()).toBeVisible();
+  });
+
+  test("Withdraw route shows preconditions copy when no wallet is connected", async ({
+    page,
+  }) => {
     await page.goto("/withdraw");
-    await expect(
-      page.getByText(/Configure a Blockfrost key/i).first(),
-    ).toBeVisible();
+    await expect(page.getByText(/Connect a wallet/i).first()).toBeVisible();
   });
 });
