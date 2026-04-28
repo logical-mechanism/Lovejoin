@@ -139,7 +139,7 @@
     {
       "id": "M4",
       "name": "Mix tx builder + Mix UI",
-      "status": "in-progress",
+      "status": "done",
       "depends_on": ["M3.5"],
       "spec": "docs/spec/09-milestones.md#m4--mix-tx-builder",
       "notes": [
