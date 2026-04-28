@@ -2,7 +2,7 @@
   "network": "preprod",
   "protocol": {
     "denom_lovelace": 10000000,
-    "max_fee_per_mix_lovelace": 800000,
+    "max_fee_per_mix_lovelace": 2000000,
     "fee_shard_target": 10
   },
   "referenceNftPolicy": "310d0d4ff25e73a4a0442eac873e68810e11c824aa0e858acc56f1df",

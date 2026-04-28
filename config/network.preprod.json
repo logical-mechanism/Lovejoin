@@ -1,7 +1,7 @@
 {
   "network": "preprod",
   "denom_lovelace": 10000000,
-  "max_fee_per_mix_lovelace": 800000,
+  "max_fee_per_mix_lovelace": 2000000,
   "max_n": 6,
   "fee_shard_target": 10,
   "min_mix_rounds": 5,

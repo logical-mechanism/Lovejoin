@@ -141,24 +141,46 @@ cat infra/bootstrap/wallets/payment.preprod.addr   # paste into the faucet
 # wait for confirmation
 ```
 
-Then commit the address book:
+Then propagate the new addresses to the UI and commit:
 
 ```sh
-git add artifacts/preprod/addresses.json
+# Backend reads artifacts/<network>/addresses.json directly via
+# ADDRESSES_PATH (defaulting to ./artifacts/<network>/addresses.json),
+# so just restart the backend and it picks up the new state.
+
+# The UI fetches a static asset under ui/public/. Sync it after every
+# bootstrap (and after every max-n-calibration run that updates max_n
+# in config/network.<network>.json):
+make sync-ui-addresses NETWORK=preprod    # or NETWORK=preview, etc.
+
+git add artifacts/preprod/addresses.json ui/public/addresses.preprod.json
 git commit -m "bootstrap(preprod): mint NFT <policy>, ref UTxO <txid>#<idx>"
 ```
+
+`make sync-ui-addresses` copies `artifacts/<network>/addresses.json` into
+`ui/public/addresses.<network>.json` and stamps `protocol.max_n` from
+`config/network.<network>.json` so the UI's MixWidthSlider clamps to the
+deployed cap. Re-run it any time the calibration sweep changes `max_n`.
 
 `addresses.json` is the source of truth for what has already been done — its
 `referenceScriptUtxos`, `referenceUtxoRef`, and `feeShardUtxos` fields get
 populated as the corresponding stages confirm. If a stage fails partway,
 re-run only the stages whose fields aren't populated yet.
 
-Then commit:
+### Tweaking pre-bootstrap parameters
 
-```sh
-git add artifacts/preprod/addresses.json
-git commit -m "bootstrap(preprod): mint NFT <policy>, ref UTxO <txid>#<idx>"
-```
+The bootstrap reads two values out of `artifacts/<network>/addresses.json`'s
+`protocol` block when it constructs the inline `ReferenceDatum` (in
+`02-mint-and-lock.sh`):
+
+* `denom_lovelace` — the canonical mix-box denomination (10 ADA on Preprod).
+* `max_fee_per_mix_lovelace` — the upper bound the on-chain `fee_contract`
+  enforces for every Mix tx's fee.
+
+If you need to change either, edit `artifacts/<network>/addresses.json` AND
+`config/network.<network>.json` (the SDK reads the latter at runtime to gate
+submissions client-side) BEFORE running `02-mint-and-lock.sh`. The mint is
+irreversible, so the value baked here is permanent for this deployment.
 
 ### How the chain in 01a works
 
