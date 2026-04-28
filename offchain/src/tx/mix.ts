@@ -127,6 +127,29 @@ export interface MixOutputPlan {
   inlineDatumHex: string;
 }
 
+/**
+ * How the Mix tx pays its on-chain fee.
+ *
+ *   * `"shard"` — the canonical hyperstructure path. Spend a fee_contract
+ *     shard with `PayMixFee`; the validator pins
+ *     `fee_in - fee_out == tx.fee` and `tx.fee ≤ max_fee_per_mix_lovelace`.
+ *     Cost is socialised across the pool of shards.
+ *   * `"wallet"` — submitter-pays. No fee shard input or output;
+ *     mesh balances the tx by drawing a wallet UTxO and emitting a
+ *     wallet change output. The on-chain `max_fee_per_mix` cap doesn't
+ *     apply because `fee_contract.validate_pay_mix_fee` never runs in
+ *     this mode. Trade-off: the wallet's identity is on the tx (same
+ *     leak as the M4 wallet-collateral default — no incremental cost
+ *     until M5's giveme.my refactor lands).
+ *
+ * The on-chain validators in M2 already permit both shapes — the fee
+ * shard is a public-good coordination mechanism, not a protocol
+ * constraint. See `mix_logic.validate_mix` (no fee_contract reference)
+ * and `fee_contract.validate_pay_mix_fee` (only fires when the shard
+ * is consumed).
+ */
+export type MixFeePayer = "shard" | "wallet";
+
 export interface MixPlan {
   /** N mix-box inputs in **lex sorted order** — the order the validator sees. */
   inputs: MixInput[];
@@ -143,16 +166,24 @@ export interface MixPlan {
   mixRedeemerCborHex: string;
   /** Mix-box script address (bech32). */
   mixBoxAddressBech32: string;
-  /** Fee-shard input being consumed. */
-  feeShardInput: Utxo;
-  /** Fee-shard output (one only, datum unchanged, value = fee_in - tx.fee). */
+  /** Who pays the tx fee — see {@link MixFeePayer}. */
+  feePayer: MixFeePayer;
+  /** Fee-shard input being consumed. `null` when `feePayer === "wallet"`. */
+  feeShardInput: Utxo | null;
+  /**
+   * Fee-shard output (one only, datum unchanged, value = fee_in - tx.fee).
+   * `null` when `feePayer === "wallet"`.
+   */
   feeShardOutput: {
     addressBech32: string;
     lovelace: Lovelace;
     inlineDatumHex: string;
-  };
-  /** Plutus-Data CBOR hex of the PayMixFee redeemer (Constr 0 []). */
-  payMixFeeRedeemerCborHex: string;
+  } | null;
+  /**
+   * Plutus-Data CBOR hex of the PayMixFee redeemer (Constr 0 []).
+   * `null` when `feePayer === "wallet"`.
+   */
+  payMixFeeRedeemerCborHex: string | null;
   /** Reference UTxO for ProtocolParams. */
   referenceUtxoRef: UtxoRef;
   /** mix_box CIP-33 reference-script UTxO ref. */
@@ -163,8 +194,12 @@ export interface MixPlan {
   feeContractRefScriptUtxoRef: UtxoRef;
   /** Bech32 reward address for the mix_logic withdraw-zero. */
   mixLogicRewardAddressBech32: string;
-  /** The exact fee the tx will pay (= max_fee_per_mix_lovelace by default). */
-  txFeeLovelace: Lovelace;
+  /**
+   * The exact fee the tx will pay. `Lovelace` in shard mode (= max_fee_per_mix
+   * by default — pinned because it has to match `fee_in - fee_out` exactly).
+   * `null` in wallet mode — mesh computes the minimum fee from the tx body.
+   */
+  txFeeLovelace: Lovelace | null;
   /** N (== inputs.length == outputs.length == proofs.length). */
   n: number;
 }
@@ -351,14 +386,20 @@ export interface PlanMixArgs {
   params: ProtocolParams;
   /** Bootstrap addresses.json — provides script hashes + reference UTxOs. */
   addresses: LovejoinAddresses;
-  /** Fee shard the SDK has chosen to consume. */
-  feeShard: Utxo;
+  /**
+   * Fee shard the SDK has chosen to consume. Required in `"shard"` fee
+   * mode (the default); ignored when `feePayer === "wallet"`.
+   */
+  feeShard?: Utxo;
+  /** Who pays the tx fee. Default: `"shard"`. See {@link MixFeePayer}. */
+  feePayer?: MixFeePayer;
   /** Network discriminator for bech32 address construction. */
   networkId: LovejoinNetworkId;
   /**
    * Lovelace fee the tx will pay. Default: `params.maxFeePerMixLovelace`.
    * Caller may pass a smaller value for fee-calibration sweeps; the on-chain
-   * rule `tx.fee ≤ max_fee_per_mix_lovelace` still applies.
+   * rule `tx.fee ≤ max_fee_per_mix_lovelace` still applies. Ignored in
+   * wallet mode — mesh computes the fee from the tx body.
    */
   txFeeLovelace?: Lovelace;
 }
@@ -471,21 +512,43 @@ export function planMixTx(args: PlanMixArgs): MixPlan {
     args.addresses.dappStakeKeyHashHex ?? null,
   );
 
-  const txFee = args.txFeeLovelace ?? args.params.maxFeePerMixLovelace;
-  if (txFee <= 0n) {
-    throw new Error(`tx fee must be > 0, got ${txFee}`);
-  }
-  if (txFee > args.params.maxFeePerMixLovelace) {
-    throw new Error(
-      `tx fee ${txFee} exceeds max_fee_per_mix_lovelace ${args.params.maxFeePerMixLovelace}`,
-    );
-  }
-  const feeOutLovelace = args.feeShard.lovelace - txFee;
-  if (feeOutLovelace <= 0n) {
-    throw new Error(
-      `fee shard ${args.feeShard.ref.txId}#${args.feeShard.ref.outputIndex} has too little ` +
-        `lovelace (${args.feeShard.lovelace}) to absorb tx.fee=${txFee}`,
-    );
+  const feePayer: MixFeePayer = args.feePayer ?? "shard";
+
+  // Resolve fee-shard inputs/outputs based on mode. In wallet mode the
+  // shard is bypassed entirely — mesh balances against a wallet UTxO.
+  let feeShardInput: Utxo | null = null;
+  let feeShardOutput: MixPlan["feeShardOutput"] = null;
+  let payMixFeeRedeemerCborHex: string | null = null;
+  let txFee: Lovelace | null = null;
+  if (feePayer === "shard") {
+    if (!args.feeShard) {
+      throw new Error("planMixTx: feeShard is required when feePayer === 'shard'");
+    }
+    txFee = args.txFeeLovelace ?? args.params.maxFeePerMixLovelace;
+    if (txFee <= 0n) {
+      throw new Error(`tx fee must be > 0, got ${txFee}`);
+    }
+    if (txFee > args.params.maxFeePerMixLovelace) {
+      throw new Error(
+        `tx fee ${txFee} exceeds max_fee_per_mix_lovelace ${args.params.maxFeePerMixLovelace}`,
+      );
+    }
+    const feeOutLovelace = args.feeShard.lovelace - txFee;
+    if (feeOutLovelace <= 0n) {
+      throw new Error(
+        `fee shard ${args.feeShard.ref.txId}#${args.feeShard.ref.outputIndex} has too little ` +
+          `lovelace (${args.feeShard.lovelace}) to absorb tx.fee=${txFee}`,
+      );
+    }
+    feeShardInput = args.feeShard;
+    feeShardOutput = {
+      addressBech32: feeAddress,
+      lovelace: feeOutLovelace,
+      inlineDatumHex: FEE_UNIT_DATUM_CBOR_HEX,
+    };
+    payMixFeeRedeemerCborHex = PAY_MIX_FEE_REDEEMER_CBOR_HEX;
+  } else if (feePayer !== "wallet") {
+    throw new Error(`planMixTx: unknown feePayer "${feePayer as string}"`);
   }
 
   return {
@@ -495,13 +558,10 @@ export function planMixTx(args: PlanMixArgs): MixPlan {
     proofs,
     mixRedeemerCborHex: encodeMixRedeemer(proofs),
     mixBoxAddressBech32: mixBoxAddress,
-    feeShardInput: args.feeShard,
-    feeShardOutput: {
-      addressBech32: feeAddress,
-      lovelace: feeOutLovelace,
-      inlineDatumHex: FEE_UNIT_DATUM_CBOR_HEX,
-    },
-    payMixFeeRedeemerCborHex: PAY_MIX_FEE_REDEEMER_CBOR_HEX,
+    feePayer,
+    feeShardInput,
+    feeShardOutput,
+    payMixFeeRedeemerCborHex,
     referenceUtxoRef: parseUtxoRef(args.addresses.referenceUtxoRef),
     mixBoxRefScriptUtxoRef: parseUtxoRef(args.addresses.referenceScriptUtxos.mix_box),
     mixLogicRefScriptUtxoRef: parseUtxoRef(args.addresses.referenceScriptUtxos.mix_logic),
@@ -573,8 +633,16 @@ export interface BuildMixArgs {
   provider: ChainProvider;
   addresses: LovejoinAddresses;
   /**
-   * Optional pre-picked fee shard. If omitted the SDK picks one uniformly
-   * at random — the M3 `pickRandomFeeShard` helper.
+   * Who pays the tx fee. Default: `"shard"` — the canonical hyperstructure
+   * path that consumes a fee_contract shard. Use `"wallet"` to bypass the
+   * shard (and its `max_fee_per_mix` cap) at the cost of revealing the
+   * submitter's wallet on the tx. See {@link MixFeePayer}.
+   */
+  feePayer?: MixFeePayer;
+  /**
+   * Optional pre-picked fee shard. Only honoured when `feePayer === "shard"`;
+   * if omitted in shard mode the SDK picks one uniformly at random
+   * (`pickRandomFeeShard`). Ignored in wallet mode.
    */
   feeShard?: Utxo;
   /**
@@ -584,8 +652,9 @@ export interface BuildMixArgs {
    */
   collateralProvider?: CollateralProvider;
   /**
-   * Override the tx fee. Default: `params.maxFeePerMixLovelace`. Lower
-   * values are useful for the fee-calibration sweep.
+   * Override the tx fee. Default: `params.maxFeePerMixLovelace` (shard
+   * mode only). Lower values are useful for the fee-calibration sweep.
+   * Ignored in wallet mode — mesh computes the minimum fee.
    */
   txFeeLovelace?: Lovelace;
   /** If true, sign but don't submit. Default: false. */
@@ -617,16 +686,21 @@ export interface MixResult {
 export async function buildMixTx(args: BuildMixArgs): Promise<MixResult> {
   const networkId = networkIdFor(args.network);
   const { params } = await fetchProtocolParams(args.addresses, args.provider);
+  const feePayer: MixFeePayer = args.feePayer ?? "shard";
 
-  // Pick a fee shard if the caller didn't supply one.
-  const feeShard: Utxo = args.feeShard ?? (await pickRandomFeeShard({
-    provider: args.provider,
-    feeScriptAddressBech32: buildScriptAddress(
-      args.addresses.feeScriptHash,
-      networkId,
-      args.addresses.dappStakeKeyHashHex ?? null,
-    ),
-  }));
+  // Resolve the fee shard. Shard mode picks one if not supplied; wallet
+  // mode skips this entirely (no shard input on the tx).
+  let feeShard: Utxo | undefined;
+  if (feePayer === "shard") {
+    feeShard = args.feeShard ?? (await pickRandomFeeShard({
+      provider: args.provider,
+      feeScriptAddressBech32: buildScriptAddress(
+        args.addresses.feeScriptHash,
+        networkId,
+        args.addresses.dappStakeKeyHashHex ?? null,
+      ),
+    }));
+  }
 
   const plan = planMixTx({
     inputs: args.inputs,
@@ -634,7 +708,8 @@ export async function buildMixTx(args: BuildMixArgs): Promise<MixResult> {
     ...(args.permutation ? { permutation: args.permutation } : {}),
     params,
     addresses: args.addresses,
-    feeShard,
+    ...(feeShard ? { feeShard } : {}),
+    feePayer,
     networkId,
     ...(args.txFeeLovelace !== undefined ? { txFeeLovelace: args.txFeeLovelace } : {}),
   });
@@ -706,22 +781,29 @@ export async function buildMixTx(args: BuildMixArgs): Promise<MixResult> {
       );
   }
 
-  // Spend the fee shard with PayMixFee.
-  tx.spendingPlutusScriptV3()
-    .txIn(
-      plan.feeShardInput.ref.txId,
-      plan.feeShardInput.ref.outputIndex,
-      [{ unit: "lovelace", quantity: plan.feeShardInput.lovelace.toString() }],
-      plan.feeShardOutput.addressBech32,
-    )
-    .txInInlineDatumPresent()
-    .txInRedeemerValue(plan.payMixFeeRedeemerCborHex, "CBOR")
-    .spendingTxInReference(
-      plan.feeContractRefScriptUtxoRef.txId,
-      plan.feeContractRefScriptUtxoRef.outputIndex,
-      sizeStr(args.addresses.referenceScriptSizes?.fee_contract),
-      args.addresses.feeScriptHash,
-    );
+  // Spend the fee shard with PayMixFee — only in shard mode.
+  if (
+    plan.feePayer === "shard" &&
+    plan.feeShardInput &&
+    plan.feeShardOutput &&
+    plan.payMixFeeRedeemerCborHex
+  ) {
+    tx.spendingPlutusScriptV3()
+      .txIn(
+        plan.feeShardInput.ref.txId,
+        plan.feeShardInput.ref.outputIndex,
+        [{ unit: "lovelace", quantity: plan.feeShardInput.lovelace.toString() }],
+        plan.feeShardOutput.addressBech32,
+      )
+      .txInInlineDatumPresent()
+      .txInRedeemerValue(plan.payMixFeeRedeemerCborHex, "CBOR")
+      .spendingTxInReference(
+        plan.feeContractRefScriptUtxoRef.txId,
+        plan.feeContractRefScriptUtxoRef.outputIndex,
+        sizeStr(args.addresses.referenceScriptSizes?.fee_contract),
+        args.addresses.feeScriptHash,
+      );
+  }
 
   // mix_logic withdraw-zero with the Mix redeemer.
   tx.withdrawalPlutusScriptV3()
@@ -734,19 +816,26 @@ export async function buildMixTx(args: BuildMixArgs): Promise<MixResult> {
       params.mixLogicScriptHash,
     );
 
-  // Outputs 0..N-1: mix-boxes.
+  // Outputs 0..N-1: mix-boxes. The validator asserts this slot is
+  // populated by mix-script outputs and that the tail is NOT.
   for (const o of plan.outputs) {
     tx.txOut(plan.mixBoxAddressBech32, [
       { unit: "lovelace", quantity: params.denomLovelace.toString() },
     ]).txOutInlineDatumValue(o.inlineDatumHex, "CBOR");
   }
-  // Output N: fee shard, datum unchanged.
-  tx.txOut(plan.feeShardOutput.addressBech32, [
-    { unit: "lovelace", quantity: plan.feeShardOutput.lovelace.toString() },
-  ]).txOutInlineDatumValue(plan.feeShardOutput.inlineDatumHex, "CBOR");
+  // Output N: fee shard (shard mode) or wallet change (wallet mode,
+  // emitted by mesh during balancing).
+  if (plan.feePayer === "shard" && plan.feeShardOutput) {
+    tx.txOut(plan.feeShardOutput.addressBech32, [
+      { unit: "lovelace", quantity: plan.feeShardOutput.lovelace.toString() },
+    ]).txOutInlineDatumValue(plan.feeShardOutput.inlineDatumHex, "CBOR");
+  }
 
-  // Pin the fee. Inputs - outputs already balance to txFeeLovelace.
-  tx.setFee(plan.txFeeLovelace.toString());
+  // Pin the fee in shard mode (inputs - outputs balance to txFeeLovelace).
+  // Wallet mode lets mesh compute the minimum fee against the tx body.
+  if (plan.feePayer === "shard" && plan.txFeeLovelace !== null) {
+    tx.setFee(plan.txFeeLovelace.toString());
+  }
 
   // Collateral input + return.
   for (const utxo of collateralProvision.inputs) {
@@ -758,17 +847,24 @@ export async function buildMixTx(args: BuildMixArgs): Promise<MixResult> {
     );
   }
 
-  // Mesh wants a change address even when we believe the tx is balanced.
-  // Use the wallet's change address — if nothing's left, mesh emits no
-  // change output. (For Mix, no leftover.)
+  // Wallet inputs + change handling.
+  //
+  //   * shard mode: tell mesh `selectUtxosFrom([])` so it doesn't add a
+  //     wallet input (Mix's wallet-anonymity invariant). The change
+  //     address still has to be set — mesh requires one — but with no
+  //     leftover ada the change output isn't emitted.
+  //   * wallet mode: hand mesh the wallet's UTxOs and let it balance
+  //     normally. The change address absorbs any leftover; it sits at
+  //     position N+ on the tx, which the mix_logic validator's
+  //     "tail outputs not at mix script" rule explicitly permits.
   const changeAddress = await args.wallet.getChangeAddress();
   tx.changeAddress(changeAddress);
-  // Tell mesh not to add wallet inputs — they would break Mix's
-  // wallet-anonymity invariant. selectUtxosFrom([]) is the explicit
-  // "the wallet contributes nothing as a regular input" signal.
-  const walletUtxos = normalizeWalletUtxos(await args.wallet.getUtxos());
-  void walletUtxos; // currently unused; kept so the wallet handle warms up cache
-  tx.selectUtxosFrom([]);
+  if (plan.feePayer === "shard") {
+    tx.selectUtxosFrom([]);
+  } else {
+    const walletUtxos = normalizeWalletUtxos(await args.wallet.getUtxos());
+    tx.selectUtxosFrom(walletUtxos);
+  }
 
   const unsignedTxHex = await tx.complete();
   const signedTx = await args.wallet.signTx(unsignedTxHex, true);

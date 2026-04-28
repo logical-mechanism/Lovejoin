@@ -475,6 +475,75 @@ describe("tx/mix — planMixTx", () => {
 });
 
 // ---------------------------------------------------------------------------
+// Wallet-fee mode — fee shard bypassed, no max_fee_per_mix cap
+// ---------------------------------------------------------------------------
+
+describe("tx/mix — planMixTx (feePayer = 'wallet')", () => {
+  it("plans without a fee shard and emits null fee-shard fields", () => {
+    const inputs = [
+      makeMixInput("aa".repeat(32), 0, 7n, 11n),
+      makeMixInput("bb".repeat(32), 1, 13n, 17n),
+    ];
+    const plan = planMixTx({
+      inputs,
+      ySecrets: [3n, 5n],
+      permutation: [1, 0],
+      params: PARAMS,
+      addresses: ADDRESSES,
+      feePayer: "wallet",
+      networkId: 0,
+    });
+
+    expect(plan.feePayer).toBe("wallet");
+    expect(plan.feeShardInput).toBeNull();
+    expect(plan.feeShardOutput).toBeNull();
+    expect(plan.payMixFeeRedeemerCborHex).toBeNull();
+    expect(plan.txFeeLovelace).toBeNull();
+    // Proofs still verify — sigma-OR has nothing to do with fee mode.
+    expect(verifyMixPlanWithHash(plan, PARAMS.mixScriptHash)).toBe(-1);
+  });
+
+  it("ignores txFeeLovelace > max_fee_per_mix in wallet mode", () => {
+    // Shard mode would throw — see the matching test above. Wallet
+    // mode lets the user pay any fee they want, so the cap is moot.
+    const inputs = [
+      makeMixInput("aa".repeat(32), 0, 7n, 11n),
+      makeMixInput("bb".repeat(32), 1, 13n, 17n),
+    ];
+    expect(() =>
+      planMixTx({
+        inputs,
+        ySecrets: [3n, 5n],
+        permutation: [0, 1],
+        params: PARAMS,
+        addresses: ADDRESSES,
+        feePayer: "wallet",
+        networkId: 0,
+        txFeeLovelace: PARAMS.maxFeePerMixLovelace * 10n,
+      }),
+    ).not.toThrow();
+  });
+
+  it("rejects shard mode without a fee shard", () => {
+    const inputs = [
+      makeMixInput("aa".repeat(32), 0, 7n, 11n),
+      makeMixInput("bb".repeat(32), 1, 13n, 17n),
+    ];
+    expect(() =>
+      planMixTx({
+        inputs,
+        ySecrets: [3n, 5n],
+        permutation: [0, 1],
+        params: PARAMS,
+        addresses: ADDRESSES,
+        feePayer: "shard",
+        networkId: 0,
+      }),
+    ).toThrow(/feeShard is required/);
+  });
+});
+
+// ---------------------------------------------------------------------------
 // Cross-check: verify the generated proof against the same statement vector.
 // This is the "is the planner internally consistent" test.
 // ---------------------------------------------------------------------------

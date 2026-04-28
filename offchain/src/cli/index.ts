@@ -265,10 +265,16 @@ async function cmdMix(argv: string[]): Promise<void> {
       n: { type: "string" },
       rounds: { type: "string", default: "1" },
       "box-ref": { type: "string", multiple: true },
+      "fee-payer": { type: "string", default: "shard" },
       "sign-only": { type: "boolean", default: false },
     },
     strict: true,
   });
+  const feePayerArg = values["fee-payer"]!;
+  if (feePayerArg !== "shard" && feePayerArg !== "wallet") {
+    fatal(`--fee-payer must be 'shard' or 'wallet' (got ${feePayerArg})`);
+  }
+  const feePayer = feePayerArg as "shard" | "wallet";
   const rounds = Number.parseInt(values.rounds!, 10);
   if (!Number.isFinite(rounds) || rounds <= 0) {
     fatal(`--rounds must be a positive integer (got ${values.rounds})`);
@@ -328,6 +334,7 @@ async function cmdMix(argv: string[]): Promise<void> {
       wallet,
       provider,
       addresses,
+      feePayer,
       ...(values["sign-only"] === true ? { signOnly: true } : {}),
     });
     recordedTxs.push(result.txId);
@@ -388,7 +395,8 @@ async function cmdHelp(): Promise<void> {
       "",
       "Usage:",
       "  lovejoin deposit --rounds N [--min-rounds M] [--owner-secret HEX] [--sign-only]",
-      "  lovejoin mix [--n N] [--rounds K] [--box-ref TXID#IDX --box-ref ...] [--sign-only]",
+      "  lovejoin mix [--n N] [--rounds K] [--box-ref TXID#IDX --box-ref ...]",
+      "                [--fee-payer shard|wallet] [--sign-only]",
       "  lovejoin withdraw --secret HEX --box-ref TXID#IDX --box-a HEX --box-b HEX --to ADDR [--sign-only]",
       "  lovejoin help",
       "",

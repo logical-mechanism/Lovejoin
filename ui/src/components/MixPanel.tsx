@@ -22,6 +22,7 @@ import {
   buildMixTx,
   type LovejoinAddresses,
   type BlockfrostProvider,
+  type MixFeePayer,
   type MixInput,
   type Utxo,
 } from "@lovejoin/sdk";
@@ -60,6 +61,7 @@ export function MixPanel({
   const { t } = useTranslation();
   const [selectedRefs, setSelectedRefs] = useState<Set<string>>(new Set());
   const [nField, setNField] = useState<string>("2");
+  const [feePayer, setFeePayer] = useState<MixFeePayer>("shard");
   const [submitting, setSubmitting] = useState(false);
   const [success, setSuccess] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -121,6 +123,7 @@ export function MixPanel({
         wallet,
         provider,
         addresses,
+        feePayer,
       });
       const newOutputs = result.plan.outputs.map((o, i) => ({
         a: o.a,
@@ -197,6 +200,41 @@ export function MixPanel({
               {t("mix.n_help", { picked: selectedBoxes.length, n })}
             </span>
           </label>
+          <fieldset className="flex flex-col gap-1 text-sm">
+            <legend className="font-medium">{t("mix.fee_payer_label")}</legend>
+            <label className="flex items-start gap-2">
+              <input
+                type="radio"
+                name="fee-payer"
+                value="shard"
+                checked={feePayer === "shard"}
+                onChange={() => setFeePayer("shard")}
+                className="mt-1"
+              />
+              <span>
+                <span className="font-medium">{t("mix.fee_payer_shard")}</span>
+                <span className="ml-2 text-xs text-gray-500">
+                  {t("mix.fee_payer_shard_hint")}
+                </span>
+              </span>
+            </label>
+            <label className="flex items-start gap-2">
+              <input
+                type="radio"
+                name="fee-payer"
+                value="wallet"
+                checked={feePayer === "wallet"}
+                onChange={() => setFeePayer("wallet")}
+                className="mt-1"
+              />
+              <span>
+                <span className="font-medium">{t("mix.fee_payer_wallet")}</span>
+                <span className="ml-2 text-xs text-amber-700">
+                  {t("mix.fee_payer_wallet_hint")}
+                </span>
+              </span>
+            </label>
+          </fieldset>
           <button
             type="submit"
             disabled={submitting || !validN}
