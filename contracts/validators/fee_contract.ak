@@ -24,7 +24,7 @@
 use aiken/collection/list
 use aiken/crypto.{ScriptHash}
 use cardano/address.{Script}
-use cardano/assets.{AssetName, PolicyId, Value}
+use cardano/assets.{AssetName, PolicyId}
 use cardano/transaction.{Input, OutputReference, Transaction}
 use lovejoin/fee.{
   input_at_fee, is_unit_inline_datum, is_unit_optional, output_at_fee,
@@ -32,6 +32,7 @@ use lovejoin/fee.{
 use lovejoin/mixbox.{input_at_script}
 use lovejoin/reference.{read_reference_datum}
 use lovejoin/types.{FeeRedeemer, PayMixFee, ReferenceDatum, Replenish}
+use lovejoin/value.{ada_only}
 
 // Flat params — one CBOR atom per `aiken blueprint apply` call.
 validator fee_contract(
@@ -135,13 +136,3 @@ fn validate_replenish(
   }
 }
 
-/// `Value` carries only ADA iff `policies(v)` is `[ada_policy_id]` (when ADA
-/// is non-zero) or `[]` (when zero). Mix/fee txs always have non-zero ADA, so
-/// the stronger check is "the only policy is the ada policy".
-fn ada_only(value: Value) -> Bool {
-  when assets.policies(value) is {
-    [] -> True
-    [policy] -> policy == assets.ada_policy_id
-    _ -> False
-  }
-}

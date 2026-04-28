@@ -23,7 +23,7 @@ use aiken/builtin
 use aiken/collection/list
 use aiken/primitive/bytearray
 use cardano/address.{Credential}
-use cardano/assets.{AssetName, PolicyId, Value}
+use cardano/assets.{AssetName, PolicyId}
 use cardano/certificate.{Certificate, RegisterCredential}
 use cardano/transaction.{InlineDatum, Input, Output, Transaction}
 use lovejoin/mixbox.{
@@ -33,6 +33,7 @@ use lovejoin/reference.{read_reference_datum}
 use lovejoin/schnorr
 use lovejoin/sigma_or.{DHTupleStatement, DHTupleStatementPt, SigmaOrProof}
 use lovejoin/types.{Mix, MixDatum, MixLogicRedeemer, Owner, ReferenceDatum}
+use lovejoin/value.{ada_only}
 
 // Flat params — one CBOR atom per `aiken blueprint apply` call.
 validator mix_logic(
@@ -226,14 +227,6 @@ fn collect_well_formed_mix_inputs(
       }
     },
   )
-}
-
-fn ada_only(value: Value) -> Bool {
-  when assets.policies(value) is {
-    [] -> True
-    [policy] -> policy == assets.ada_policy_id
-    _ -> False
-  }
 }
 
 /// Apply `pred` pairwise to two equal-length lists; True iff every pair
