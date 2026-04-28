@@ -142,33 +142,49 @@ export function deriveOwnerSecret(seed: Uint8Array, index: number): Scalar {
 /**
  * Mesh wallet surface for `signData`. Both `BrowserWallet` and
  * `MeshWallet` already implement this — we type the minimum so this
- * module is callable with a bare CIP-30 stub in tests.
+ * module is callable with a bare mesh-shaped stub in tests.
+ *
+ * NOTE: mesh's argument order is `(payload, address?)` — payload first,
+ * address optional and second. This is the OPPOSITE of the raw CIP-30
+ * convention (which is `signData(address, payload)`); mesh's wrapper
+ * also UTF-8-encodes the payload internally, so callers pass plain text,
+ * not hex. We mirror mesh's contract here so a `BrowserWallet` instance
+ * is structurally assignable to `SignDataCapableWallet` — passing the
+ * wallet straight in just works.
  */
 export interface SignDataCapableWallet {
   /**
-   * CIP-30 signData. Returns a CIP-8 envelope in `signature` (hex) and a
-   * COSE_Key in `key` (hex). For Lovejoin we only consume `signature`.
+   * CIP-30 signData via mesh's wrapper. Returns a CIP-8 envelope in
+   * `signature` (hex) and a COSE_Key in `key` (hex). For Lovejoin we only
+   * consume `signature`.
+   *
+   * @param payload - plain UTF-8 string. Mesh hex-encodes internally.
+   * @param address - bech32 address (stake / reward / payment). When
+   *   omitted mesh defaults to the first used address; we ALWAYS pass an
+   *   explicit stake address so the seed is per-account.
    */
   signData(
-    address: string,
     payload: string,
+    address?: string,
   ): Promise<{ signature: string; key: string }>;
   /**
-   * Bech32 stake / reward address used as the signing key. CIP-30 lets
-   * a wallet sign with any of its keys; we always sign with the stake
-   * key so the seed is per-account, not per-payment-address.
+   * Bech32 stake / reward addresses owned by the wallet. CIP-30 lets a
+   * wallet sign with any of its keys; we always sign with the stake key
+   * so the seed is per-account, not per-payment-address. Mesh's
+   * BrowserWallet returns these as bech32 strings.
    */
   getRewardAddresses(): Promise<string[]>;
 }
 
 /**
- * Drive a CIP-30 signData round-trip and return the derived 32-byte seed.
+ * Drive a wallet signData round-trip and return the derived 32-byte seed.
  *
  * Args:
- *   wallet:           any CIP-30 / mesh-shaped handle.
+ *   wallet:           any mesh BrowserWallet / MeshWallet handle.
  *   payloadOverride:  optional override for the signed payload — defaults
- *                     to `SIGN_DATA_PAYLOAD_V1`. The override exists for
- *                     test fixtures and for a future v2 derivation.
+ *                     to `SIGN_DATA_PAYLOAD_V1` ("lovejoin/owner/v1"). The
+ *                     override exists for test fixtures and for a future
+ *                     v2 derivation.
  *   stakeAddrBech32:  optional override for the signing address. Defaults
  *                     to the wallet's first reward address.
  *
@@ -182,7 +198,6 @@ export async function deriveSeedFromWalletSignature(args: {
   stakeAddrBech32?: string;
 }): Promise<{ seed: Uint8Array; signatureHex: string; address: string }> {
   const payload = args.payloadOverride ?? SIGN_DATA_PAYLOAD_V1;
-  const payloadHex = bytesToHex(new TextEncoder().encode(payload));
   let address = args.stakeAddrBech32 ?? "";
   if (!address) {
     const rewards = await args.wallet.getRewardAddresses();
@@ -193,7 +208,10 @@ export async function deriveSeedFromWalletSignature(args: {
     }
     address = rewards[0]!;
   }
-  const result = await args.wallet.signData(address, payloadHex);
+  // Mesh's wrapper signature is (payload, address) — payload first — and
+  // mesh handles the UTF-8→hex conversion internally. Passing the bech32
+  // string directly is correct.
+  const result = await args.wallet.signData(payload, address);
   const seed = deriveSeedFromSignatureHex(result.signature);
   return { seed, signatureHex: result.signature, address };
 }
@@ -216,10 +234,4 @@ function hexToBytes(hex: string): Uint8Array {
     out[i] = byte;
   }
   return out;
-}
-
-function bytesToHex(b: Uint8Array): string {
-  let s = "";
-  for (const x of b) s += x.toString(16).padStart(2, "0");
-  return s;
 }

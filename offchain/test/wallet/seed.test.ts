@@ -135,8 +135,11 @@ describe("deriveOwnerSecret", () => {
 });
 
 describe("deriveSeedFromWalletSignature", () => {
+  // Mesh's BrowserWallet.signData(payload, address) — payload first,
+  // address second, plain UTF-8 payload (mesh hex-encodes internally).
+  // The fakeWallet mirrors that contract exactly.
   function fakeWallet(
-    handler: (addr: string, payload: string) => Promise<{ signature: string; key: string }>,
+    handler: (payload: string, address?: string) => Promise<{ signature: string; key: string }>,
     rewardAddrs: string[] = ["stake_test1u_dummy"],
   ): SignDataCapableWallet {
     return {
@@ -148,16 +151,15 @@ describe("deriveSeedFromWalletSignature", () => {
   it("calls signData with the v1 payload + first reward address by default", async () => {
     let lastAddr = "";
     let lastPayload = "";
-    const wallet = fakeWallet(async (addr, payload) => {
-      lastAddr = addr;
+    const wallet = fakeWallet(async (payload, address) => {
+      lastAddr = address ?? "";
       lastPayload = payload;
       return { signature: FIXED_SIG_HEX, key: "00" };
     });
     const out = await deriveSeedFromWalletSignature({ wallet });
     expect(lastAddr).toBe("stake_test1u_dummy");
-    // payload is hex-encoded utf-8 of "lovejoin/owner/v1"
-    const expectedPayloadHex = Buffer.from(SIGN_DATA_PAYLOAD_V1).toString("hex");
-    expect(lastPayload).toBe(expectedPayloadHex);
+    // Mesh wants plain UTF-8 — not hex — and handles encoding internally.
+    expect(lastPayload).toBe(SIGN_DATA_PAYLOAD_V1);
     expect(out.signatureHex).toBe(FIXED_SIG_HEX);
     expect(out.address).toBe("stake_test1u_dummy");
   });
@@ -171,8 +173,8 @@ describe("deriveSeedFromWalletSignature", () => {
 
   it("uses a caller-supplied stake address override", async () => {
     let seenAddr = "";
-    const wallet = fakeWallet(async (addr) => {
-      seenAddr = addr;
+    const wallet = fakeWallet(async (_payload, address) => {
+      seenAddr = address ?? "";
       return { signature: FIXED_SIG_HEX, key: "00" };
     });
     await deriveSeedFromWalletSignature({

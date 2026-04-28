@@ -38,6 +38,12 @@ const libsodiumEsbuildShim = {
 // in browser code (events, crypto, stream, util). All four plugins are dev
 // dependencies and only affect the bundler.
 export default defineConfig({
+  // Read .env from the workspace root, not ui/. Keeps the project to a
+  // single source of truth (workspace .env) for both UI runtime config
+  // (VITE_*) and backend / CLI / Makefile config. Vite still only
+  // exposes VITE_* keys to client code — the non-VITE entries in the
+  // shared file are ignored by the bundler.
+  envDir: "..",
   plugins: [
     react(),
     tailwindcss(),

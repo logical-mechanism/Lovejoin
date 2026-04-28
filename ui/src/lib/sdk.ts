@@ -21,6 +21,12 @@ export type Network = (typeof NETWORKS)[number];
 const STORAGE_KEY = "lovejoin.config.v1";
 const DEFAULT_COLLATERAL_PROVIDER_ENDPOINT = "https://giveme.my";
 
+// Default backend URL — points at the dev-mode `make backend-dev` target
+// (Fastify on :3001) so `pnpm dev` + `make backend-dev` "just works"
+// out of the box. Production deploys override via VITE_BACKEND_URL at
+// build time. Set VITE_BACKEND_URL="" explicitly to disable.
+const DEFAULT_BACKEND_URL = "http://localhost:3001";
+
 export interface RuntimeConfig {
   network: Network;
   blockfrostProjectId: string;
@@ -39,10 +45,18 @@ function envNetwork(): Network {
  * `loadConfig`; the result is stable for the lifetime of the tab.
  */
 export function envDefaults(): RuntimeConfig {
+  // VITE_BACKEND_URL semantics:
+  //   - undefined  → fall back to DEFAULT_BACKEND_URL (localhost:3001).
+  //   - ""         → caller explicitly disabled the backend; UI uses
+  //                  direct Blockfrost queries.
+  //   - any value  → use that URL.
+  const rawBackend = import.meta.env.VITE_BACKEND_URL;
+  const backendUrl =
+    rawBackend === undefined ? DEFAULT_BACKEND_URL : rawBackend.trim();
   return {
     network: envNetwork(),
     blockfrostProjectId: (import.meta.env.VITE_BLOCKFROST_PROJECT_ID ?? "").trim(),
-    backendUrl: (import.meta.env.VITE_BACKEND_URL ?? "").trim(),
+    backendUrl,
     collateralProviderEndpoint:
       (import.meta.env.VITE_COLLATERAL_ENDPOINT ?? "").trim() ||
       DEFAULT_COLLATERAL_PROVIDER_ENDPOINT,
@@ -84,7 +98,13 @@ export function loadConfig(): RuntimeConfig {
       network,
       blockfrostProjectId:
         (parsed.blockfrostProjectId ?? "").trim() || defaults.blockfrostProjectId,
-      backendUrl: (parsed.backendUrl ?? "").trim() || defaults.backendUrl,
+      // For backendUrl: an explicit "" override means the user disabled the
+      // backend (UI falls back to direct Blockfrost). Only `undefined` (key
+      // absent from the persisted blob) falls back to the env default.
+      backendUrl:
+        parsed.backendUrl === undefined
+          ? defaults.backendUrl
+          : parsed.backendUrl.trim(),
       collateralProviderEndpoint:
         (parsed.collateralProviderEndpoint ?? "").trim() ||
         defaults.collateralProviderEndpoint,
