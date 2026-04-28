@@ -114,9 +114,10 @@ pub fn verify_pre(
   proof: SigmaOrProof,
   ctx: ByteArray,
 ) -> Bool {
-  let n = list.length(statements)
-  expect n >= 2
-  expect list.length(proof.branches) == n
+  // O(1) guard: at least two statements. Length parity between
+  // `statements` and `proof.branches` is enforced by `parallel_all`'s
+  // `_ -> False` arm below — no need to walk the lists twice for it.
+  expect [_, _, ..] = statements
 
   // Decompose into the byte-only form for hash.fs_hash_sigma_or.
   let stmt_for_hash =
