@@ -113,7 +113,9 @@ fn validate_owner(
   pairs_match_and_all(
     mix_inputs,
     proofs,
-    fn(mix_input, proof) { schnorr.verify(mix_input.a, mix_input.b, proof, ctx) },
+    fn(mix_input, proof) {
+      schnorr.verify(mix_input.a, mix_input.b, proof, ctx)
+    },
   )
 }
 
@@ -270,11 +272,7 @@ fn collect_well_formed_mix_inputs(
 /// intermediate list of pairs in the validator. Generic so the helper is
 /// shared between `validate_mix` (MixDatum × SigmaOrProof) and
 /// `validate_owner` (MixDatum × SchnorrProof).
-fn pairs_match_and_all(
-  xs: List<a>,
-  ys: List<b>,
-  pred: fn(a, b) -> Bool,
-) -> Bool {
+fn pairs_match_and_all(xs: List<a>, ys: List<b>, pred: fn(a, b) -> Bool) -> Bool {
   when (xs, ys) is {
     ([], []) -> True
     ([x, ..xs_tail], [y, ..ys_tail]) ->
