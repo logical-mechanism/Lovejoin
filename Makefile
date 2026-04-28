@@ -15,7 +15,8 @@ ENV_FILE ?= .env
 NODE_ENV_FLAG := --env-file-if-exists=$(ENV_FILE)
 
 .PHONY: help install build test lint contracts ui-dev backend-dev clean \
-        cli deposit withdraw integration-test sdk-test sdk-build
+        cli deposit withdraw integration-test sdk-test sdk-build \
+        probe-evaluator
 
 help:
 	@echo "Lovejoin — top-level targets"
@@ -40,6 +41,9 @@ help:
 	@echo "  make deposit ROUNDS=30  # builds + submits a deposit tx"
 	@echo "  make withdraw SECRET=... BOX_REF=... BOX_A=... BOX_B=... TO=..."
 	@echo "  make integration-test   # runs the Preprod deposit-withdraw round-trip"
+	@echo ""
+	@echo "Diagnostics:"
+	@echo "  make probe-evaluator TX=<hex>  # POST <hex> to Blockfrost's evaluator three ways"
 
 install:
 	$(PNPM) install
@@ -105,6 +109,17 @@ withdraw: sdk-build
 	fi
 	$(NODE) $(NODE_ENV_FLAG) offchain/dist/cli/index.js withdraw \
 		--secret $(SECRET) --box-ref $(BOX_REF) --box-a $(BOX_A) --box-b $(BOX_B) --to $(TO)
+
+# Probe Blockfrost's tx-evaluate endpoint three ways with the given tx hex.
+# See scripts/probe-blockfrost-evaluator.mjs for what it actually tests.
+# Usage: make probe-evaluator TX=84a700d901...
+probe-evaluator:
+	@if [ -z "$(TX)" ]; then \
+		echo "probe-evaluator needs TX=<cbor-hex>"; \
+		echo "  copy the hex from a failing browser error's 'For txHex: …' trailer"; \
+		exit 1; \
+	fi
+	$(NODE) $(NODE_ENV_FLAG) scripts/probe-blockfrost-evaluator.mjs $(TX)
 
 # Vitest doesn't surface --env-file directly, but it inherits process.env. We
 # wrap the runner with `node --env-file-if-exists=.env -- pnpm` so the env is
