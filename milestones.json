@@ -285,7 +285,7 @@
     {
       "id": "M7",
       "name": "CI/CD and release engineering",
-      "status": "in-progress",
+      "status": "done",
       "depends_on": ["M0", "M1", "M2", "M3", "M3.5", "M4", "M5", "M6", "M6.5"],
       "spec": "docs/spec/09-milestones.md#m7--cicd-and-release-engineering",
       "deliverables": [
