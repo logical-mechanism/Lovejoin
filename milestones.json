@@ -245,10 +245,41 @@
       ]
     },
     {
+      "id": "M6.5",
+      "name": "UI v1.5 — design pass + UX rework",
+      "status": "pending",
+      "depends_on": ["M6"],
+      "spec": "docs/spec/06-ui.md",
+      "notes": [
+        "Inserted between M6 and M7 (per 2026-04-27 dogfood review): M6 shipped every spec'd screen + behavior, but the result reads as a test page. M6.5 is the design + UX pass that turns it into something a real user can use without prior protocol knowledge.",
+        "Owner-finds-utxo refactor (deliverable 5) supersedes the M3.5/M4 'in-memory boxes' contract: with [x]·a == b, the SDK can already locate every owned box from just the secret via findOwnedBoxes(). The vault should store secrets only — current ref + (a, b) come from a fresh pool scan on every unlock. Stored a/b/ref values go stale the moment a box is mixed.",
+        "Calibrated max_n on Preprod is 3 (per docs/perf.md / live testing); the M6 slider's hard-coded 6 is wrong. M4.5's optimisation pass aims to lift it back to 4+ but until that lands the UI must reflect the deployed reality."
+      ],
+      "deliverables": [
+        "Visual design pass: real splash on Home (not a status-dump dashboard); brand-aware header with the connect-wallet CTA promoted to the top bar; consistent typography + spacing + color tokens; loading / empty / error states for every screen; Configuration panel moved to a Settings route (or modal) so the front page isn't a debug surface.",
+        "Wallet UX: connect/disconnect lives in the header (visible state + change-address truncated to one line); installed-wallet picker rendered as a modal on click; never as a floating section panel.",
+        "Vault UX rework: opt-in encrypted-file backup on first vault create (download .lovejoin-vault.json); passphrase strength meter + confirm-passphrase on create; recovery copy that explains the 'no recovery path' tradeoff before reset; lock-on-inactivity timer.",
+        "Pool slider clamps to the empirical max_n (currently 3, sourced from network.<net>.json or the addresses bundle — surface it to the UI rather than hard-coding); inline copy explains the privacy-vs-cost tradeoff per N.",
+        "Fee-payer toggle on the Pool MixButton (wallet vs shard) — the SDK already supports it; the M6 Mix flow hard-codes 'shard'. Restore the choice with a clear explanation of the anonymity tradeoff.",
+        "Owner-finds-utxo refactor: vault stores ONLY the owner secret (32-byte scalar) + label; on unlock, the Vault screen scans the pool via findOwnedBoxes() and renders the live (ref, a, b). Box detail + Withdraw read from the live scan, not stale stored datums. Removes the manual paste-the-mix-box-bytes affordance from Withdraw entirely (it's an advanced disclosure at most).",
+        "Withdraw UX: vault-backed primary flow (pick a stored box + destination); address book / paste-history affordance; one-click 'create a Seedelf destination' as a first-class option (delegates to Seedelf when present); manual hex paste hidden behind an 'advanced' disclosure.",
+        "Privacy-UX rules audit (06-ui.md §Privacy UX rules 1–8): explicit fee/collateral source line on every Mix tx preview; banner copy revisions; double-check no analytics/cookies/Buffer-tracking sneaks in via mesh transitive deps."
+      ],
+      "exit_criteria": [
+        { "description": "UI builds for production", "check": "pnpm --filter ui build" },
+        { "description": "UI unit + i18n tests pass", "check": "pnpm --filter ui test" },
+        { "description": "i18n lint rule still passes", "check": "pnpm --filter ui lint" },
+        { "description": "Pool slider max equals network.preprod.json max_n at runtime (not hard-coded)", "check": "node -e \"const fs=require('fs'); const c=JSON.parse(fs.readFileSync('config/network.preprod.json','utf8')); const t=fs.readFileSync('ui/src/routes/Pool.tsx','utf8'); if (/DEFAULT_MAX_N\\s*=\\s*[0-9]/.test(t)) { console.error('Pool.tsx still has a hard-coded DEFAULT_MAX_N'); process.exit(1); } if (!t.includes('max_n') && !t.includes('maxN')) { console.error('Pool.tsx does not reference dynamic max_n'); process.exit(1); }\"" },
+        { "description": "Vault stores secrets only (no aHex/bHex in the schema)", "check": "node -e \"const t=require('fs').readFileSync('ui/src/storage/secrets.ts','utf8'); if (/aHex\\s*:\\s*string/.test(t) || /bHex\\s*:\\s*string/.test(t)) { console.error('secrets.ts still persists aHex/bHex on StoredBox'); process.exit(1); }\"" },
+        { "description": "Pool MixButton exposes the fee-payer toggle", "check": "grep -q 'feePayer' ui/src/components/MixButton.tsx" },
+        { "description": "E2E Playwright suite passes", "check": "pnpm --filter ui test:e2e" }
+      ]
+    },
+    {
       "id": "M7",
       "name": "CI/CD and release engineering",
       "status": "pending",
-      "depends_on": ["M0", "M1", "M2", "M3", "M3.5", "M4", "M5", "M6"],
+      "depends_on": ["M0", "M1", "M2", "M3", "M3.5", "M4", "M5", "M6", "M6.5"],
       "spec": "docs/spec/09-milestones.md#m7--cicd-and-release-engineering",
       "deliverables": [
         "GitHub Actions workflow that on PR + merge: builds all, runs unit + validator + property tests, runs integration nightly on Preprod, runs fuzz nightly 30 min",
