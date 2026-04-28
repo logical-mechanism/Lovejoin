@@ -27,6 +27,7 @@ import {
   deriveOwner,
   encodeMixDatum,
   generateOwnerSecret,
+  planBulkDepositTx,
   planDepositTx,
 } from "../../src/tx/deposit.js";
 import type { LovejoinAddresses, ProtocolParams } from "../../src/tx/params.js";
@@ -273,5 +274,106 @@ describe("tx/deposit — planDepositTx", () => {
         networkId: 0,
       }),
     ).toThrow(/below minRounds/);
+  });
+});
+
+describe("tx/deposit — planBulkDepositTx", () => {
+  it("plans N=3 boxes with distinct datums and a single replenished shard", () => {
+    const secrets = [3n, 5n, 7n];
+    const plan = planBulkDepositTx({
+      ownerSecrets: secrets,
+      // null-rerandomization opts into the legacy a=g path so the test
+      // stays deterministic; production callers pass undefined to draw
+      // fresh d_i per box.
+      rerandomizations: [null, null, null],
+      rounds: 4,
+      params: PARAMS,
+      addresses: ADDRESSES,
+      feeShard: feeShard(2_000_000n),
+      networkId: 0,
+    });
+    expect(plan.boxes).toHaveLength(3);
+    // Each box has its own (a, b); a = g, b_i = [x_i]·g.
+    for (let i = 0; i < 3; i++) {
+      const x = secrets[i]!;
+      const expectedA = pointToBytes(generator());
+      const expectedB = pointToBytes(publicPointG(x));
+      expect(bytesToHex(plan.boxes[i]!.a)).toBe(bytesToHex(expectedA));
+      expect(bytesToHex(plan.boxes[i]!.b)).toBe(bytesToHex(expectedB));
+      expect(plan.boxes[i]!.output.lovelace).toBe(PARAMS.denomLovelace);
+    }
+    // Datums must all be distinct.
+    const datumHexes = plan.boxes.map((b) => b.output.inlineDatumHex);
+    expect(new Set(datumHexes).size).toBe(3);
+    // Replenishment = shard + N × rounds × maxFee.
+    expect(plan.feeShardOutput.lovelace).toBe(
+      2_000_000n + BigInt(3) * BigInt(4) * PARAMS.maxFeePerMixLovelace,
+    );
+    expect(plan.feeShardOutput.inlineDatumHex).toBe(UNIT_DATUM_CBOR_HEX);
+    expect(plan.replenishRedeemerHex).toBe(REPLENISH_REDEEMER_CBOR_HEX);
+  });
+
+  it("rejects an empty ownerSecrets list", () => {
+    expect(() =>
+      planBulkDepositTx({
+        ownerSecrets: [],
+        rounds: 1,
+        params: PARAMS,
+        addresses: ADDRESSES,
+        feeShard: feeShard(),
+        networkId: 0,
+      }),
+    ).toThrow(/at least one secret/);
+  });
+
+  it("rejects rerandomizations of mismatched length", () => {
+    expect(() =>
+      planBulkDepositTx({
+        ownerSecrets: [3n, 5n],
+        rerandomizations: [null],
+        rounds: 1,
+        params: PARAMS,
+        addresses: ADDRESSES,
+        feeShard: feeShard(),
+        networkId: 0,
+      }),
+    ).toThrow(/length/);
+  });
+
+  it("rejects duplicate datums", () => {
+    // Same secret + same legacy `a=g` re-randomization → same datum.
+    expect(() =>
+      planBulkDepositTx({
+        ownerSecrets: [3n, 3n],
+        rerandomizations: [null, null],
+        rounds: 1,
+        params: PARAMS,
+        addresses: ADDRESSES,
+        feeShard: feeShard(),
+        networkId: 0,
+      }),
+    ).toThrow(/duplicate/);
+  });
+
+  it("scales replenishment linearly with N", () => {
+    const planN1 = planBulkDepositTx({
+      ownerSecrets: [11n],
+      rerandomizations: [null],
+      rounds: 5,
+      params: PARAMS,
+      addresses: ADDRESSES,
+      feeShard: feeShard(0n),
+      networkId: 0,
+    });
+    const planN4 = planBulkDepositTx({
+      ownerSecrets: [11n, 12n, 13n, 14n],
+      rerandomizations: [null, null, null, null],
+      rounds: 5,
+      params: PARAMS,
+      addresses: ADDRESSES,
+      feeShard: feeShard(0n),
+      networkId: 0,
+    });
+    expect(planN4.feeShardOutput.lovelace).toBe(planN1.feeShardOutput.lovelace * 4n);
   });
 });
