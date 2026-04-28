@@ -14,7 +14,7 @@ NETWORK_CONFIG ?= config/network.preprod.json
 ENV_FILE ?= .env
 NODE_ENV_FLAG := --env-file-if-exists=$(ENV_FILE)
 
-.PHONY: help install build test contracts ui-dev backend-dev clean \
+.PHONY: help install build test lint contracts ui-dev backend-dev clean \
         cli deposit withdraw integration-test sdk-test sdk-build
 
 help:
@@ -24,6 +24,7 @@ help:
 	@echo "  make install            # pnpm install (workspace deps)"
 	@echo "  make build              # builds contracts + offchain + backend + ui"
 	@echo "  make test               # runs all package tests + aiken check"
+	@echo "  make lint               # type-checks offchain + backend + ui + aiken check"
 	@echo "  make sdk-build          # builds just the @lovejoin/sdk package"
 	@echo "  make sdk-test           # runs just the SDK unit tests"
 	@echo "  make contracts          # aiken build + emits artifacts/<network>/{blueprint.json, *.plutus, addresses.json}"
@@ -54,6 +55,13 @@ build: contracts
 test:
 	cd contracts && $(AIKEN) check
 	$(PNPM) -r --filter ./offchain --filter ./backend --filter ./ui run test
+
+# Lint: type-check every TS workspace + run aiken check (the contract-side
+# linter). Each workspace's `lint` script is `tsc --noEmit` against its own
+# tsconfig, so this catches type regressions without producing build output.
+lint:
+	cd contracts && $(AIKEN) check
+	$(PNPM) -r --filter ./offchain --filter ./backend --filter ./ui run lint
 
 sdk-build:
 	$(PNPM) --filter @lovejoin/sdk build
