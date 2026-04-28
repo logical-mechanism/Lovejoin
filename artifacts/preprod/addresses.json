@@ -5,6 +5,7 @@
     "max_fee_per_mix_lovelace": 2000000,
     "fee_shard_target": 10
   },
+  "dappStakeKeyHashHex": "1e3105f23f2ac91b3fb4c35fa4fe301421028e356e114944e902005b",
   "referenceNftPolicy": "310d0d4ff25e73a4a0442eac873e68810e11c824aa0e858acc56f1df",
   "referenceNftAssetName": "6c6f76656a6f696e",
   "referenceUtxoRef": "b809b4e363067886174b57fd04101eb2e59f654220b6c11530c77b75f25ec945#0",
