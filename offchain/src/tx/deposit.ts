@@ -138,9 +138,6 @@ export const UNIT_DATUM_CBOR_HEX = "d87980";
 /** CBOR hex for `Constr 1 []` — the FeeRedeemer.Replenish variant. */
 export const REPLENISH_REDEEMER_CBOR_HEX = "d87a80";
 
-/** CBOR hex for `Constr 0 []` used as a placeholder PayMixFee redeemer. */
-export const PAY_MIX_FEE_REDEEMER_CBOR_HEX = "d87980";
-
 /**
  * Encode a `MixDatum { a, b }` to canonical Plutus-Data CBOR.
  *
