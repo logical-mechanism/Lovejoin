@@ -24,7 +24,7 @@ help:
 	@echo "  make install            # pnpm install (workspace deps)"
 	@echo "  make build              # builds contracts + offchain + backend + ui"
 	@echo "  make test               # runs all package tests + aiken check"
-	@echo "  make lint               # type-checks offchain + backend + ui + aiken check"
+	@echo "  make lint               # tsc --noEmit on TS workspaces + aiken fmt --check"
 	@echo "  make sdk-build          # builds just the @lovejoin/sdk package"
 	@echo "  make sdk-test           # runs just the SDK unit tests"
 	@echo "  make contracts          # aiken build + emits artifacts/<network>/{blueprint.json, *.plutus, addresses.json}"
@@ -56,11 +56,13 @@ test:
 	cd contracts && $(AIKEN) check
 	$(PNPM) -r --filter ./offchain --filter ./backend --filter ./ui run test
 
-# Lint: type-check every TS workspace + run aiken check (the contract-side
-# linter). Each workspace's `lint` script is `tsc --noEmit` against its own
-# tsconfig, so this catches type regressions without producing build output.
+# Lint: type-check every TS workspace + check Aiken formatting. Each
+# workspace's `lint` script is `tsc --noEmit` against its own tsconfig.
+# `aiken fmt --check` is the format-only check (no test runs, no compile)
+# so it stays cheap and catches whitespace / import-ordering drift.
+# `aiken check` (typecheck + tests) lives under `make test`.
 lint:
-	cd contracts && $(AIKEN) check
+	cd contracts && $(AIKEN) fmt --check
 	$(PNPM) -r --filter ./offchain --filter ./backend --filter ./ui run lint
 
 sdk-build:
