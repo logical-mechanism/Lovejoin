@@ -747,22 +747,30 @@ export async function buildMixTx(args: BuildMixArgs): Promise<MixResult> {
 
   const meshCore = await import("@meshsdk/core");
   const { MeshTxBuilder } = meshCore;
+  const meshCsl = await import("@meshsdk/core-csl");
+  const { OfflineEvaluator } = meshCsl;
   const meshProvider = await getMeshProvider(args.provider);
 
-  // Wire the evaluator only in shard mode. Shard mode pins the on-chain
-  // fee at exactly `max_fee_per_mix_lovelace` and needs tight exec units
-  // to fit under that cap. Wallet mode pays whatever fee mesh computes
-  // from the upper-bound exec units (mem 7M, cpu 3G per redeemer); on
-  // Preprod we've seen Blockfrost's evaluator return `ScriptFailures:
-  // {}` — empty failure map — when wallet-input UTxOs from a recent
-  // deposit haven't been indexed yet. The local Aiken simulator
-  // confirms the tx is valid; we just can't get tight units in that
-  // window. Skipping the evaluator unblocks submission for ~30% more
-  // fee, which the wallet absorbs.
+  // Use mesh's OfflineEvaluator — it runs the UPLC machine in-process
+  // against the validators + cost models, fetching only the input UTxOs
+  // through our IFetcher. We were on Blockfrost's hosted evaluator
+  // before and hit `EvaluationFailure: ScriptFailures: {}` (empty
+  // failure map) on Mix txs whose wallet inputs were freshly minted by
+  // a prior deposit — Blockfrost's UTxO index lags the chain by a few
+  // seconds, so its server-side evaluator couldn't resolve the inputs
+  // and bailed before reaching the validators. Local UPLC has no such
+  // lag and gives us the real exec units for both shard and wallet
+  // modes. Same machine the Aiken simulator uses; same numbers it
+  // would produce.
+  const evaluatorNetwork = args.network === "test" ? "preprod" : args.network;
+  const evaluator = new OfflineEvaluator(
+    meshProvider as never,
+    evaluatorNetwork,
+  );
   const tx = new MeshTxBuilder({
     fetcher: meshProvider as never,
     submitter: meshProvider as never,
-    ...(feePayer === "shard" ? { evaluator: meshProvider as never } : {}),
+    evaluator: evaluator as never,
     verbose: false,
   });
 
