@@ -1,10 +1,11 @@
 // Box detail / withdraw — single owned box, with the inline withdraw form.
 //
-// Spec: docs/spec/06-ui.md §"Box" + M6.5 dogfood feedback. The vault row's
-// primary action lands here pre-pointed at the withdraw form. The
-// SeedelfHint stays (passive copy when the destination is a key
-// address), but the "create a Seedelf" CTA is gone — Seedelf integration
-// is its own milestone, premature to surface here.
+// Spec: docs/spec/06-ui.md §"Box" + M6.5 dogfood feedback + M6.5+ punch-list
+// (H1 amount/destination review, H3 client-side bech32 + network check).
+// The vault row's primary action lands here pre-pointed at the withdraw
+// form. Address-kind hints (stealth vs key) are surfaced inline under
+// the destination input rather than as a separate banner — same pattern
+// the /withdraw flow uses.
 //
 // Withdraw collateral is supplied by the configured external provider
 // (giveme.my by default). The wallet still signs the tx (it pays the
@@ -27,8 +28,10 @@ import {
 import { useAppState } from "../lib/store.js";
 import { Eyebrow } from "../components/ui/Eyebrow.js";
 import { Hash } from "../components/ui/Hash.js";
-import { SeedelfHint } from "../components/SeedelfHint.js";
 import { useToast } from "../components/Toaster.js";
+import { WithdrawReview } from "../components/WithdrawReview.js";
+import { formatAda } from "../lib/format.js";
+import { validateDestination } from "../lib/seedelf.js";
 
 export function Box() {
   const { t } = useTranslation();
@@ -85,11 +88,16 @@ export function Box() {
     );
   }
 
-  const ada = (Number(box.entry.utxo.lovelace) / 1_000_000).toFixed(2);
+  const ada = formatAda(box.entry.utxo.lovelace);
+
+  const validation = validateDestination(destination, config.network);
+  const canSubmit =
+    !!provider && !!addresses && !!wallet && !submitting && validation.status === "ok";
 
   const onWithdraw = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!provider || !addresses || !wallet || submitting) return;
+    if (validation.status !== "ok") return;
     setSubmitting(true);
     try {
       const mixBox: MixBoxRef = {
@@ -203,10 +211,52 @@ export function Box() {
                   spellCheck={false}
                   autoComplete="off"
                   placeholder={t("withdraw.destination_placeholder")}
-                  className="lj-input"
+                  className={`lj-input${
+                    validation.status === "invalid" ||
+                    validation.status === "wrong-network"
+                      ? " lj-input--error"
+                      : ""
+                  }`}
+                  aria-invalid={
+                    validation.status === "invalid" ||
+                    validation.status === "wrong-network"
+                  }
                 />
-                {destination.trim() && <SeedelfHint address={destination} />}
+                {validation.status === "invalid" && (
+                  <p className="lj-field__error" role="alert">
+                    {t("withdraw.dest_invalid")}
+                  </p>
+                )}
+                {validation.status === "wrong-network" && (
+                  <p className="lj-field__warn" role="alert">
+                    {t("withdraw.dest_wrong_network", {
+                      addressNet:
+                        validation.addressNetwork === "testnet"
+                          ? t("withdraw.net_testnet")
+                          : t("withdraw.net_mainnet"),
+                      expected: config.network,
+                    })}
+                  </p>
+                )}
+                {validation.status === "ok" &&
+                  validation.kind.kind === "regular-key" && (
+                    <p className="lj-field__hint">
+                      {t("withdraw.dest_regular_key")}
+                    </p>
+                  )}
+                {validation.status === "ok" &&
+                  validation.kind.kind === "stealth" && (
+                    <p className="lj-field__hint">
+                      {t("withdraw.dest_stealth")}
+                    </p>
+                  )}
               </label>
+
+              <WithdrawReview
+                lovelace={box.entry.utxo.lovelace}
+                destination={destination}
+                validation={validation}
+              />
 
               <div className="lj-banner lj-banner--signal">
                 <span className="lj-eyebrow">{t("withdraw.tx_preview_title")}</span>
@@ -218,7 +268,7 @@ export function Box() {
               <div>
                 <button
                   type="submit"
-                  disabled={submitting || !destination.trim()}
+                  disabled={!canSubmit}
                   className="lj-btn lj-btn--primary lj-btn--lg"
                 >
                   {submitting ? t("withdraw.submitting") : t("withdraw.submit")}

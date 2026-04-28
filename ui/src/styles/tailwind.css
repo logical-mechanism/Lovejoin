@@ -225,7 +225,12 @@
   }
   .lj-btn:hover:not(:disabled) { border-color: var(--color-paper); }
   .lj-btn:active:not(:disabled) { transform: translateY(1px); }
-  .lj-btn:disabled { opacity: 0.35; cursor: not-allowed; }
+  .lj-btn:disabled { cursor: not-allowed; }
+  .lj-btn:not(.lj-btn--primary):disabled { opacity: 0.35; }
+  .lj-btn:focus-visible {
+    outline: 2px solid var(--color-signal);
+    outline-offset: 2px;
+  }
   .lj-btn--primary {
     --btn-bg: var(--color-signal);
     --btn-fg: var(--color-signal-ink);
@@ -235,6 +240,17 @@
   .lj-btn--primary:hover:not(:disabled) {
     --btn-border: var(--color-signal-deep);
     background: color-mix(in oklab, var(--color-signal) 92%, white);
+  }
+  /* Inert primary: no longer reads as "slightly dimmed paper". Recedes
+   * to a true non-interactive surface so users stop clicking through. */
+  .lj-btn--primary:disabled {
+    --btn-bg: var(--color-rule);
+    --btn-fg: var(--color-whisper);
+    --btn-border: var(--color-rule);
+    background: var(--color-rule);
+    color: var(--color-whisper);
+    border-color: var(--color-rule);
+    font-weight: 500;
   }
   .lj-btn--quiet {
     --btn-border: transparent;
@@ -281,10 +297,34 @@
   .lj-input:focus, .lj-textarea:focus, .lj-select:focus {
     outline: none;
     border-color: var(--color-signal);
-    box-shadow: 0 0 0 1px var(--color-signal);
+    box-shadow: 0 0 0 2px var(--color-signal);
   }
   .lj-textarea { min-height: 6.5rem; resize: vertical; }
   .lj-select { font-family: var(--font-body); }
+  /* Validation states for form inputs — coral border + matching ring on
+   * focus. Used by Withdraw destination and any future client-validated
+   * fields. */
+  .lj-input--error,
+  .lj-textarea--error {
+    border-color: var(--color-coral);
+  }
+  .lj-input--error:focus,
+  .lj-textarea--error:focus {
+    border-color: var(--color-coral);
+    box-shadow: 0 0 0 2px var(--color-coral);
+  }
+  .lj-field__error {
+    font-size: 0.78rem;
+    color: var(--color-coral);
+    font-family: var(--font-mono);
+    line-height: 1.4;
+  }
+  .lj-field__warn {
+    font-size: 0.78rem;
+    color: var(--color-amber);
+    font-family: var(--font-mono);
+    line-height: 1.4;
+  }
 
   /* Cards: thinner padding, harder edges than v1. Title in DM Sans
    * semibold (not Fraunces), eyebrow in mono above. */
@@ -341,6 +381,67 @@
   .lj-dot--ok { background: var(--color-amber); box-shadow: 0 0 10px color-mix(in oklab, var(--color-amber) 70%, transparent); }
   .lj-dot--warn { background: var(--color-amber); }
   .lj-dot--bad { background: var(--color-coral); }
+
+  /* Pre-submit review block — used by Withdraw + Pool to show what's
+   * actually about to commit. Heavier than a banner, lighter than a
+   * card. Two-column rows collapse to one column on narrow viewports. */
+  .lj-review {
+    border: 1px solid var(--color-rule);
+    border-left: 2px solid var(--color-signal);
+    background: var(--color-surface);
+    border-radius: var(--radius-sm);
+    padding: 1rem 1.1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.7rem;
+  }
+  .lj-review__rows {
+    display: flex;
+    flex-direction: column;
+    gap: 0.55rem;
+    margin: 0;
+  }
+  .lj-review__row {
+    display: grid;
+    grid-template-columns: 9rem 1fr;
+    gap: 0.85rem;
+    align-items: baseline;
+  }
+  @media (max-width: 480px) {
+    .lj-review__row { grid-template-columns: 1fr; gap: 0.15rem; }
+  }
+  .lj-review__label {
+    margin: 0;
+    font-size: 0.66rem;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    font-family: var(--font-mono);
+    color: var(--color-whisper);
+  }
+  .lj-review__value {
+    margin: 0;
+    color: var(--color-paper);
+    font-size: 0.92rem;
+    line-height: 1.4;
+    min-width: 0;
+    overflow-wrap: anywhere;
+  }
+  .lj-review__value--num {
+    font-family: var(--font-mono);
+    font-size: 1.1rem;
+    font-weight: 500;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: -0.01em;
+  }
+  .lj-review__value--muted {
+    color: var(--color-whisper);
+    font-family: var(--font-mono);
+    font-size: 0.82rem;
+  }
+  .lj-review__placeholder {
+    color: var(--color-whisper);
+    font-family: var(--font-mono);
+  }
 
   .lj-banner {
     display: flex;

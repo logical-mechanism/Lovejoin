@@ -19,6 +19,7 @@ import { useAppState } from "../lib/store.js";
 import { Eyebrow } from "../components/ui/Eyebrow.js";
 import { useToast } from "../components/Toaster.js";
 import { deriveDepositSecret } from "../lib/vault.js";
+import { formatAda } from "../lib/format.js";
 
 export function Deposit() {
   const { t } = useTranslation();
@@ -63,7 +64,7 @@ export function Deposit() {
   }
 
   const denomLovelace = BigInt(addresses.protocol.denom_lovelace);
-  const denomAda = (Number(denomLovelace) / 1_000_000).toFixed(2);
+  const denomAda = formatAda(denomLovelace);
 
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

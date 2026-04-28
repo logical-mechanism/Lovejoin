@@ -8,8 +8,6 @@ import {
   CollateralProviderPill,
 } from "../src/components/CollateralProviderStatus.js";
 import { MixWidthSlider } from "../src/components/MixWidthSlider.js";
-import { SeedelfHint } from "../src/components/SeedelfHint.js";
-import { buildScriptAddress } from "@lovejoin/sdk";
 import "../src/i18n/index.js";
 
 describe("CollateralProviderPill", () => {
@@ -55,16 +53,3 @@ describe("MixWidthSlider", () => {
   });
 });
 
-describe("SeedelfHint", () => {
-  const SCRIPT_HASH = "ba176a7604f3e062a7ed315780801495ed0ffb0191c6f8e7d88362e2";
-  it("renders the green stealth hint for a script address", () => {
-    const addr = buildScriptAddress(SCRIPT_HASH, 0);
-    render(<SeedelfHint address={addr} />);
-    expect(screen.getByText(/Stealth address/i)).toBeInTheDocument();
-  });
-
-  it("renders nothing for an empty input", () => {
-    const { container } = render(<SeedelfHint address="" />);
-    expect(container.firstChild).toBeNull();
-  });
-});

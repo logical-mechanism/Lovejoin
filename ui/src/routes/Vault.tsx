@@ -18,6 +18,7 @@ import { Eyebrow } from "../components/ui/Eyebrow.js";
 import { Hash } from "../components/ui/Hash.js";
 import { StatusDot } from "../components/ui/StatusDot.js";
 import { Bip39FallbackPanel } from "../components/Bip39FallbackPanel.js";
+import { formatAda } from "../lib/format.js";
 
 export function Vault() {
   const { t } = useTranslation();
@@ -69,10 +70,11 @@ export function Vault() {
         <div className="mt-6 border-t border-rule pt-4">
           <button
             type="button"
-            className="text-xs text-whisper hover:text-paper underline-offset-4 hover:underline"
+            className="lj-btn lj-btn--quiet"
             onClick={() => setShowFallback(true)}
           >
-            {t("vault.fallback_link")} →
+            {t("vault.fallback_link")}
+            <span aria-hidden="true">→</span>
           </button>
         </div>
         {vaultError && (
@@ -140,7 +142,7 @@ export function Vault() {
               </thead>
               <tbody>
                 {ownedBoxes.map((box) => {
-                  const ada = (Number(box.entry.utxo.lovelace) / 1_000_000).toFixed(2);
+                  const ada = formatAda(box.entry.utxo.lovelace);
                   return (
                     <tr key={`${box.entry.ref.txId}#${box.entry.ref.outputIndex}`}>
                       <td className="lj-table__num">{box.index}</td>
@@ -160,9 +162,12 @@ export function Vault() {
                           >
                             {t("vault.withdraw_box")}
                           </Link>
+                          {/* Open is a desktop-only convenience — on mobile,
+                           * the table already overflows horizontally so we
+                           * collapse to the single primary action. */}
                           <Link
                             to={`/vault/${box.entry.ref.txId}/${box.entry.ref.outputIndex}?detail=1`}
-                            className="lj-btn lj-btn--quiet"
+                            className="lj-btn lj-btn--quiet hidden sm:inline-flex"
                           >
                             {t("vault.open_box")}
                           </Link>

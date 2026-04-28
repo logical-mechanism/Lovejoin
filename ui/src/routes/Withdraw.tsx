@@ -11,7 +11,7 @@
 // overlay while the tx builder is running so users have unambiguous
 // feedback that their click registered.
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
 import {
@@ -23,8 +23,10 @@ import {
 import { useAppState } from "../lib/store.js";
 import { Eyebrow } from "../components/ui/Eyebrow.js";
 import { Hash } from "../components/ui/Hash.js";
-import { SeedelfHint } from "../components/SeedelfHint.js";
 import { useToast } from "../components/Toaster.js";
+import { WithdrawReview } from "../components/WithdrawReview.js";
+import { formatAda } from "../lib/format.js";
+import { validateDestination } from "../lib/seedelf.js";
 import type { OwnedBox } from "../lib/vault.js";
 
 export function Withdraw() {
@@ -70,9 +72,16 @@ export function Withdraw() {
       (b) => `${b.entry.ref.txId}#${b.entry.ref.outputIndex}` === selectedRef,
     ) ?? null;
 
+  const validation = useMemo(
+    () => validateDestination(destination, config.network),
+    [destination, config.network],
+  );
+  const canSubmit = !!selected && validation.status === "ok" && !submitting;
+
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selected || submitting) return;
+    if (validation.status !== "ok") return;
     setSubmitting(true);
     try {
       const mixBox: MixBoxRef = {
@@ -133,8 +142,8 @@ export function Withdraw() {
         <fieldset disabled={submitting} className="contents">
           {ownedBoxes.length === 0 ? (
             <div className="lj-empty">
-              <p className="lj-empty__title">{t("vault.empty")}</p>
-              <p>{t("vault.empty_hint")}</p>
+              <p className="lj-empty__title">{t("withdraw.empty_title")}</p>
+              <p>{t("withdraw.empty_hint")}</p>
             </div>
           ) : (
             <div className="space-y-2">
@@ -142,7 +151,7 @@ export function Withdraw() {
               <ul className="flex flex-col divide-y divide-rule rounded-sm border border-rule">
                 {ownedBoxes.map((box) => {
                   const ref = `${box.entry.ref.txId}#${box.entry.ref.outputIndex}`;
-                  const ada = (Number(box.entry.utxo.lovelace) / 1_000_000).toFixed(2);
+                  const ada = formatAda(box.entry.utxo.lovelace);
                   const checked = ref === selectedRef;
                   return (
                     <li key={ref}>
@@ -185,10 +194,54 @@ export function Withdraw() {
               spellCheck={false}
               autoComplete="off"
               placeholder={t("withdraw.destination_placeholder")}
-              className="lj-input"
+              className={`lj-input${
+                validation.status === "invalid" ||
+                validation.status === "wrong-network"
+                  ? " lj-input--error"
+                  : ""
+              }`}
+              aria-invalid={
+                validation.status === "invalid" ||
+                validation.status === "wrong-network"
+              }
             />
-            {destination.trim() && <SeedelfHint address={destination} />}
+            {validation.status === "invalid" && (
+              <p className="lj-field__error" role="alert">
+                {t("withdraw.dest_invalid")}
+              </p>
+            )}
+            {validation.status === "wrong-network" && (
+              <p className="lj-field__warn" role="alert">
+                {t("withdraw.dest_wrong_network", {
+                  addressNet:
+                    validation.addressNetwork === "testnet"
+                      ? t("withdraw.net_testnet")
+                      : t("withdraw.net_mainnet"),
+                  expected: config.network,
+                })}
+              </p>
+            )}
+            {validation.status === "ok" &&
+              validation.kind.kind === "regular-key" && (
+                <p className="lj-field__hint">
+                  {t("withdraw.dest_regular_key")}
+                </p>
+              )}
+            {validation.status === "ok" &&
+              validation.kind.kind === "stealth" && (
+                <p className="lj-field__hint">
+                  {t("withdraw.dest_stealth")}
+                </p>
+              )}
           </label>
+
+          {selected && (
+            <WithdrawReview
+              lovelace={selected.entry.utxo.lovelace}
+              destination={destination}
+              validation={validation}
+            />
+          )}
 
           <div className="lj-banner lj-banner--signal">
             <span className="lj-eyebrow">{t("withdraw.tx_preview_title")}</span>
@@ -200,7 +253,7 @@ export function Withdraw() {
           <div>
             <button
               type="submit"
-              disabled={submitting || !selected || !destination.trim()}
+              disabled={!canSubmit}
               className="lj-btn lj-btn--primary lj-btn--lg"
             >
               {submitting ? t("withdraw.submitting") : t("withdraw.submit")}

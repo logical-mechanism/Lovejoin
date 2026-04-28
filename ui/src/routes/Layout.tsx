@@ -1,12 +1,16 @@
 // App shell — header (with wallet pill) + outlet for the active route.
 //
-// Spec: docs/spec/06-ui.md §"Layout" + M6.5 design pass. The user-facing
-// Configuration panel that M6 mounted unconditionally is gone — runtime
-// config now ships baked from Vite env vars (see ui/.env.example). A
-// developer-only `?advanced=1` query string surfaces the same overrides
-// panel inline; production users never see config UI.
+// Spec: docs/spec/06-ui.md §"Layout" + M6.5 design pass + M6.5+ punch-list
+// (L2 dev-only AdvancedPanel, M7 sr-only h1 per route).
+//
+// The user-facing Configuration panel that M6 mounted unconditionally is
+// gone — runtime config now ships baked from Vite env vars (see
+// ui/.env.example). A developer-only `?advanced=1` query string surfaces
+// the same overrides panel inline; production users never see config UI,
+// and the panel itself tree-shakes out of the production bundle because
+// the mount is gated behind `import.meta.env.DEV`.
 
-import { Outlet } from "react-router-dom";
+import { Outlet, useLocation } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 
 import { Header } from "../components/Header.js";
@@ -17,12 +21,20 @@ import { isAdvancedMode } from "../lib/sdk.js";
 export function Layout() {
   const { t } = useTranslation();
   const { config, addressesError } = useAppState();
-  const advanced = isAdvancedMode();
+  // The advanced overrides panel only lives in dev builds. The
+  // `?advanced=1` query param still gates the UI inside dev, so the
+  // localStorage override + Blockfrost-key-in-the-URL story stays
+  // identical for developers; production builds ship without the panel
+  // at all (Vite tree-shakes the dead branch).
+  const advanced = import.meta.env.DEV && isAdvancedMode();
+  const location = useLocation();
+  const routeKey = routeTitleKey(location.pathname);
 
   return (
     <div className="lj-shell">
       <Header />
       <main className="lj-main">
+        <h1 className="sr-only">{t(routeKey)}</h1>
         {addressesError && (
           <div role="alert" className="lj-banner lj-banner--amber">
             <span className="lj-banner__title">
@@ -43,4 +55,25 @@ export function Layout() {
       </footer>
     </div>
   );
+}
+
+/**
+ * Map a route path to the i18n key used for the sr-only page heading.
+ *
+ * Why this exists: every inner route renders its content inside an
+ * `lj-card` with an `<h2>` in the card head, so document outlines were
+ * starting at h2. Adding one visually-hidden `<h1>` per route restores
+ * the AT/SEO-friendly heading hierarchy without touching the visual
+ * design. Route paths are stable and few; a dispatch table is simpler
+ * than a lookup hook.
+ */
+function routeTitleKey(pathname: string): string {
+  if (pathname === "/" || pathname === "") return "page_title.home";
+  if (pathname.startsWith("/deposit")) return "page_title.deposit";
+  if (pathname.startsWith("/pool")) return "page_title.pool";
+  if (pathname.startsWith("/withdraw")) return "page_title.withdraw";
+  if (pathname.startsWith("/protocol")) return "page_title.protocol";
+  if (pathname.startsWith("/vault/")) return "page_title.box";
+  if (pathname.startsWith("/vault")) return "page_title.vault";
+  return "page_title.app";
 }

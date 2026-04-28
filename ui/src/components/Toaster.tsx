@@ -60,10 +60,15 @@ export function ToasterProvider({ children }: { children: ReactNode }) {
     (t: Omit<Toast, "id">) => {
       idRef.current += 1;
       const id = idRef.current;
-      setToasts((cur) => [...cur, { ...t, id }]);
-      const ttl = t.ttl ?? DEFAULT_TTL;
-      if (ttl > 0) {
-        window.setTimeout(() => dismiss(id), ttl);
+      // Errors stick by default — a 7-second flash for "deposit failed:
+      // CBOR decode" loses the message before the user finishes reading
+      // it, which leads to blind retries. Caller can still pass an
+      // explicit ttl to override.
+      const effectiveTtl = t.ttl ?? (t.tone === "error" ? 0 : DEFAULT_TTL);
+      const queued: Toast = { ...t, id, ttl: effectiveTtl };
+      setToasts((cur) => [...cur, queued]);
+      if (effectiveTtl > 0) {
+        window.setTimeout(() => dismiss(id), effectiveTtl);
       }
       return id;
     },
@@ -94,10 +99,20 @@ function ToastStack({
   toasts: Toast[];
   onDismiss: (id: number) => void;
 }) {
+  const { t } = useTranslation();
   return (
-    <ol className="lj-toaster">
-      {toasts.map((t) => (
-        <ToastItem key={t.id} toast={t} onDismiss={() => onDismiss(t.id)} />
+    <ol
+      className="lj-toaster"
+      role="region"
+      aria-live="polite"
+      aria-label={t("toast.region_label")}
+    >
+      {toasts.map((toast) => (
+        <ToastItem
+          key={toast.id}
+          toast={toast}
+          onDismiss={() => onDismiss(toast.id)}
+        />
       ))}
     </ol>
   );
@@ -123,8 +138,13 @@ function ToastItem({ toast, onDismiss }: { toast: Toast; onDismiss: () => void }
     closing ? "lj-toast--closing" : "",
   ].filter(Boolean).join(" ");
 
+  // Errors fire `role="alert"` so AT announces them assertively even
+  // when the parent region's `aria-live="polite"` would defer. Success
+  // / info toasts stay polite — they're informational, not urgent.
+  const itemRole = toast.tone === "error" ? "alert" : "status";
+
   return (
-    <li className={cls} role="status">
+    <li className={cls} role={itemRole}>
       <div className="lj-toast__body">
         <span className="lj-toast__title">{toast.title}</span>
         {toast.detail && <span className="lj-toast__detail">{toast.detail}</span>}
