@@ -110,14 +110,6 @@
     "tx_preview_fee_shard": "Fee paid by the fee_contract shard. Collateral provided by the configured collateral service. Your wallet is not involved in this tx.",
     "tx_preview_fee_wallet": "Fee paid by your wallet. Collateral provided by the configured collateral service. Your wallet is on the tx."
   },
-  "pool_status": {
-    "eyebrow": "Network",
-    "title": "Live status",
-    "no_backend": "No backend configured. Pool size + indexer lag unavailable; Mix submission still works via direct chain queries.",
-    "fee_balance": "Fee balance",
-    "indexer_lag": "Indexer lag",
-    "lag_seconds_value": "{{n}}s"
-  },
   "deposit": {
     "section_title": "Deposit",
     "eyebrow": "Step I · enter the pool",

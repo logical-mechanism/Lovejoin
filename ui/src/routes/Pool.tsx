@@ -15,9 +15,9 @@ import type { MixFeePayer } from "@lovejoin/sdk";
 
 import { MixButton } from "../components/MixButton.js";
 import { MixWidthSlider } from "../components/MixWidthSlider.js";
-import { PoolStatus } from "../components/PoolStatus.js";
 import {
   CollateralProviderBanner,
+  CollateralProviderPill,
   useCollateralStatus,
 } from "../components/CollateralProviderStatus.js";
 import { Eyebrow } from "../components/ui/Eyebrow.js";
@@ -85,8 +85,6 @@ export function Pool() {
 
   return (
     <>
-      <PoolStatus backendUrl={config.backendUrl} />
-
       {collateral?.status === "down" && (
         <CollateralProviderBanner status={collateral.status} />
       )}
@@ -97,6 +95,7 @@ export function Pool() {
             <Eyebrow>{t("pool.eyebrow")}</Eyebrow>
             <h2 className="lj-card__title">{t("pool.section_title")}</h2>
           </div>
+          {collateral && <CollateralProviderPill status={collateral.status} />}
         </header>
         <p className="text-sm text-muted leading-relaxed max-w-prose">
           {t("pool.lede")}
