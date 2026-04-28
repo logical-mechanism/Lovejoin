@@ -3,7 +3,8 @@
 //// Spec: docs/spec/03-contracts.md §0, §2.
 ////
 //// Coverage today:
-////   * Owner branch — input count rule (positive=1, negative=0/2+).
+////   * Owner branch — input/proof count rules (positive=N inputs + N proofs,
+////     negative=zero inputs, length mismatch).
 ////   * Mix branch  — N bounds, proofs-list length, output positions, output
 ////     well-formedness (denom, ada_only, datum decode), Rule 2 input filtering.
 ////   * Reference UTxO present / absent / malformed.
@@ -68,7 +69,7 @@ fn replicate_branch(n: Int, acc: List<SigmaOrBranch>) -> List<SigmaOrBranch> {
 // ---------------------------------------------------------------------------
 
 test owner_rejects_zero_well_formed_inputs() fail {
-  // No mix inputs at all — the `expect [d] = mix_inputs` aborts.
+  // No mix inputs at all — the `n >= 1` expect aborts.
   let tx =
     Transaction {
       ..transaction.placeholder,
@@ -80,14 +81,14 @@ test owner_rejects_zero_well_formed_inputs() fail {
   mix_logic.mix_logic.withdraw(
     ref_nft_policy,
     ref_nft_name,
-    Owner { proof: bogus_schnorr() },
+    Owner { proofs: [bogus_schnorr()] },
     script_address(mix_script_hash).payment_credential,
     tx,
   )
 }
 
-test owner_rejects_two_well_formed_inputs() fail {
-  // 2 well-formed mix inputs in Owner mode — must be exactly 1.
+test owner_rejects_proof_count_mismatch() fail {
+  // 2 well-formed mix inputs but only 1 proof — must be N==N.
   let i0 = mix_box_input(0xa0, 0, a48, b48, denom_lovelace)
   let i1 = mix_box_input(0xa1, 0, a48, c48, denom_lovelace)
   let tx =
@@ -101,7 +102,31 @@ test owner_rejects_two_well_formed_inputs() fail {
   mix_logic.mix_logic.withdraw(
     ref_nft_policy,
     ref_nft_name,
-    Owner { proof: bogus_schnorr() },
+    Owner { proofs: [bogus_schnorr()] },
+    script_address(mix_script_hash).payment_credential,
+    tx,
+  )
+}
+
+test owner_with_two_inputs_rejects_bogus_proofs() fail {
+  // 2 well-formed mix inputs + 2 proofs (count matches) — but the proofs are
+  // zero-bytes, so `bls12_381_g1_uncompress` aborts on the first one. This
+  // exercises the bulk-owner code path: structural length checks pass and we
+  // reach per-input Schnorr verification.
+  let i0 = mix_box_input(0xa0, 0, a48, b48, denom_lovelace)
+  let i1 = mix_box_input(0xa1, 0, a48, c48, denom_lovelace)
+  let tx =
+    Transaction {
+      ..transaction.placeholder,
+      reference_inputs: [default_reference_input()],
+      inputs: [i0, i1],
+      outputs: [vk_output_lovelace(random_user_vk, denom_lovelace * 2)],
+      fee: 200_000,
+    }
+  mix_logic.mix_logic.withdraw(
+    ref_nft_policy,
+    ref_nft_name,
+    Owner { proofs: [bogus_schnorr(), bogus_schnorr()] },
     script_address(mix_script_hash).payment_credential,
     tx,
   )
@@ -125,7 +150,7 @@ test owner_with_one_well_formed_input_rejects_bogus_proof() fail {
   mix_logic.mix_logic.withdraw(
     ref_nft_policy,
     ref_nft_name,
-    Owner { proof: bogus_schnorr() },
+    Owner { proofs: [bogus_schnorr()] },
     script_address(mix_script_hash).payment_credential,
     tx,
   )
@@ -154,7 +179,7 @@ test owner_ignores_bad_datum_inputs() fail {
   mix_logic.mix_logic.withdraw(
     ref_nft_policy,
     ref_nft_name,
-    Owner { proof: bogus_schnorr() },
+    Owner { proofs: [bogus_schnorr()] },
     script_address(mix_script_hash).payment_credential,
     tx,
   )
@@ -415,7 +440,7 @@ test owner_rejects_no_reference_input() fail {
   mix_logic.mix_logic.withdraw(
     ref_nft_policy,
     ref_nft_name,
-    Owner { proof: bogus_schnorr() },
+    Owner { proofs: [bogus_schnorr()] },
     script_address(mix_script_hash).payment_credential,
     tx,
   )

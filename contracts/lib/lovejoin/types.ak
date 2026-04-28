@@ -44,10 +44,11 @@ pub type MixDatum {
   b: ByteArray,
 }
 
-/// `mix_logic` redeemer. Owner spends one well-formed mix-box; Mix spends N
-/// well-formed mix-boxes (2 ≤ N ≤ max_n) and produces N fresh ones.
+/// `mix_logic` redeemer. Owner spends N well-formed mix-boxes (N ≥ 1, the
+/// bulk-withdraw extension) and supplies one Schnorr proof per input; Mix
+/// spends N well-formed mix-boxes (2 ≤ N) and produces N fresh ones.
 pub type MixLogicRedeemer {
-  Owner { proof: SchnorrProof }
+  Owner { proofs: List<SchnorrProof> }
   Mix { proofs: List<SigmaOrProof> }
 }
 

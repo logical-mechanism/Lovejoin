@@ -124,35 +124,56 @@ describe("tx/withdraw — planWithdrawTx", () => {
 });
 
 describe("tx/withdraw — encodeOwnerRedeemer", () => {
-  it("produces Constr 0 [Constr 0 [bytes(48), bytes(32)]]", () => {
-    const proofT = new Uint8Array(G1_COMPRESSED_BYTES);
-    const proofZ = new Uint8Array(SCALAR_BYTES);
-    proofT[0] = 0x80; // make t look point-shaped
-    proofZ[31] = 0x01;
-    const hex = encodeOwnerRedeemer({ proofT, proofZ });
+  it("produces Constr 0 [List [Constr 0 [bytes(48), bytes(32)]]]", () => {
+    const t = new Uint8Array(G1_COMPRESSED_BYTES);
+    const z = new Uint8Array(SCALAR_BYTES);
+    t[0] = 0x80; // make t look point-shaped
+    z[31] = 0x01;
+    const hex = encodeOwnerRedeemer({ proofs: [{ t, z }] });
     const decoded = cborDecode(Buffer.from(hex, "hex")) as { tag: number; value: unknown };
     expect(decoded.tag).toBe(121); // outer Owner
-    const innerArr = decoded.value as unknown[];
-    expect(innerArr).toHaveLength(1);
-    const inner = innerArr[0] as { tag: number; value: unknown[] };
+    const fields = decoded.value as unknown[];
+    expect(fields).toHaveLength(1);
+    const proofList = fields[0] as unknown[];
+    expect(proofList).toHaveLength(1);
+    const inner = proofList[0] as { tag: number; value: unknown[] };
     expect(inner.tag).toBe(121); // SchnorrProof
     expect((inner.value[0] as Uint8Array).length).toBe(G1_COMPRESSED_BYTES);
     expect((inner.value[1] as Uint8Array).length).toBe(SCALAR_BYTES);
   });
 
+  it("encodes N>1 proofs as a list", () => {
+    const t = new Uint8Array(G1_COMPRESSED_BYTES);
+    const z = new Uint8Array(SCALAR_BYTES);
+    t[0] = 0x80;
+    const hex = encodeOwnerRedeemer({
+      proofs: [
+        { t, z },
+        { t, z },
+        { t, z },
+      ],
+    });
+    const decoded = cborDecode(Buffer.from(hex, "hex")) as { tag: number; value: unknown };
+    const proofList = (decoded.value as unknown[])[0] as unknown[];
+    expect(proofList).toHaveLength(3);
+  });
+
   it("placeholder uses zero-bytes of the right shape", () => {
     expect(PLACEHOLDER_OWNER_REDEEMER_CBOR_HEX.length).toBeGreaterThan(0);
     const decoded = cborDecode(Buffer.from(PLACEHOLDER_OWNER_REDEEMER_CBOR_HEX, "hex"));
-    // Same outer Constr 0 → SchnorrProof Constr 0 → [bytes48, bytes32]
     expect((decoded as { tag: number }).tag).toBe(121);
   });
 
   it("rejects misshaped proof bytes", () => {
     expect(() =>
-      encodeOwnerRedeemer({ proofT: new Uint8Array(47), proofZ: new Uint8Array(32) }),
+      encodeOwnerRedeemer({
+        proofs: [{ t: new Uint8Array(47), z: new Uint8Array(32) }],
+      }),
     ).toThrow(/48 bytes/);
     expect(() =>
-      encodeOwnerRedeemer({ proofT: new Uint8Array(48), proofZ: new Uint8Array(31) }),
+      encodeOwnerRedeemer({
+        proofs: [{ t: new Uint8Array(48), z: new Uint8Array(31) }],
+      }),
     ).toThrow(/32 bytes/);
   });
 });
