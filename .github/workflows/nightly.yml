@@ -1,0 +1,136 @@
+name: Nightly (Preprod integration + fuzz)
+
+# Runs the chain-touching test suite once a day on Preprod. M7 spec
+# (docs/spec/09-milestones.md):
+#   "Integration suite on Preprod nightly."
+#   "Fuzz suite nightly for 30 minutes."
+#
+# Both jobs need a funded Preprod wallet + a Blockfrost project. They are
+# gated on repo secrets being set — when the secrets are absent (forks,
+# new clones), the jobs short-circuit with a friendly skip note instead
+# of failing red. The integration tests already use vitest's it.skipIf
+# pattern internally; this gate just prevents the workflow itself from
+# burning minutes on a no-op.
+#
+# Required secrets (all repo-level):
+#   BLOCKFROST_PROJECT_ID_PREPROD   Blockfrost Preprod project id (free tier OK)
+#   LOVEJOIN_MNEMONIC               24-word mnemonic for the test wallet
+#                                   (alternatively LOVEJOIN_PAYMENT_SKEY +
+#                                    LOVEJOIN_STAKE_SKEY hex skeys)
+#
+# The wallet must be funded with enough ADA for ~50 deposit/withdraw
+# round-trips per nightly run plus collateral. Top up via the Preprod
+# faucet when the balance dips.
+
+on:
+  schedule:
+    # 03:17 UTC nightly — picked to avoid the on-the-hour scheduler stampede.
+    - cron: "17 3 * * *"
+  workflow_dispatch:
+
+concurrency:
+  group: nightly-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  preflight:
+    name: Preflight (secret presence)
+    runs-on: ubuntu-latest
+    timeout-minutes: 1
+    outputs:
+      have_preprod: ${{ steps.check.outputs.have_preprod }}
+    steps:
+      - id: check
+        env:
+          PROJECT_ID: ${{ secrets.BLOCKFROST_PROJECT_ID_PREPROD }}
+          MNEMONIC: ${{ secrets.LOVEJOIN_MNEMONIC }}
+          PAYMENT_SKEY: ${{ secrets.LOVEJOIN_PAYMENT_SKEY }}
+        run: |
+          if [[ -n "$PROJECT_ID" && ( -n "$MNEMONIC" || -n "$PAYMENT_SKEY" ) ]]; then
+            echo "have_preprod=true" >> "$GITHUB_OUTPUT"
+            echo "Preprod credentials present — integration + fuzz will run."
+          else
+            echo "have_preprod=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::Preprod credentials not set — skipping integration + fuzz. See nightly.yml header for setup."
+          fi
+
+  integration:
+    name: Preprod integration tests
+    needs: preflight
+    if: needs.preflight.outputs.have_preprod == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      LOVEJOIN_NETWORK: preprod
+      BLOCKFROST_PROJECT_ID_PREPROD: ${{ secrets.BLOCKFROST_PROJECT_ID_PREPROD }}
+      LOVEJOIN_MNEMONIC: ${{ secrets.LOVEJOIN_MNEMONIC }}
+      LOVEJOIN_PAYMENT_SKEY: ${{ secrets.LOVEJOIN_PAYMENT_SKEY }}
+      LOVEJOIN_STAKE_SKEY: ${{ secrets.LOVEJOIN_STAKE_SKEY }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.28.2
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install
+        run: pnpm install --frozen-lockfile
+
+      - name: Build SDK
+        run: pnpm --filter @lovejoin/sdk run build
+
+      - name: Run integration suite (deposit-withdraw, mix-n2, mix-at-max-n, fee-exhaustion, full-lifecycle)
+        run: pnpm --filter integration-tests test
+
+  fuzz:
+    name: Fuzz (30-min on Preprod)
+    needs: preflight
+    if: needs.preflight.outputs.have_preprod == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      LOVEJOIN_NETWORK: preprod
+      BLOCKFROST_PROJECT_ID_PREPROD: ${{ secrets.BLOCKFROST_PROJECT_ID_PREPROD }}
+      LOVEJOIN_MNEMONIC: ${{ secrets.LOVEJOIN_MNEMONIC }}
+      LOVEJOIN_PAYMENT_SKEY: ${{ secrets.LOVEJOIN_PAYMENT_SKEY }}
+      LOVEJOIN_STAKE_SKEY: ${{ secrets.LOVEJOIN_STAKE_SKEY }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.28.2
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install
+        run: pnpm install --frozen-lockfile
+
+      - name: Build SDK
+        run: pnpm --filter @lovejoin/sdk run build
+
+      - name: Run 30-minute fuzz harness
+        run: pnpm --filter stress-tests run fuzz
+
+      - name: Upload fuzz status
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: fuzz-last-run-status
+          path: tests/fuzz/last-run-status.txt
+          if-no-files-found: ignore
+
+      - name: Assert fuzz status is PASS
+        run: |
+          if [[ "$(cat tests/fuzz/last-run-status.txt 2>/dev/null || echo MISSING)" != "PASS" ]]; then
+            echo "::error::fuzz run did not write PASS to tests/fuzz/last-run-status.txt"
+            exit 1
+          fi

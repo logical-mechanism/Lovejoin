@@ -1,5 +1,12 @@
 name: CI
 
+# Fast PR + main suite. M7 spec (docs/spec/09-milestones.md):
+#   "Builds all packages. Unit + validator + property tests on every PR."
+#
+# Heavyweight checks live in sibling workflows: nightly.yml runs the
+# Preprod integration suite + 30-min fuzz, release.yml ships SDK / Docker /
+# UI bundles on merges to main.
+
 on:
   push:
     branches: [main]
@@ -13,6 +20,7 @@ jobs:
   contracts:
     name: Aiken (lint + test)
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
 
@@ -24,6 +32,10 @@ jobs:
       - name: aiken --version
         run: aiken --version
 
+      - name: aiken fmt --check
+        working-directory: contracts
+        run: aiken fmt --check
+
       - name: aiken check
         working-directory: contracts
         run: aiken check
@@ -31,6 +43,7 @@ jobs:
   ts:
     name: TS (lint + build + test)
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
 
@@ -40,15 +53,15 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
           cache: pnpm
 
       - name: Install
         run: pnpm install --frozen-lockfile
 
-      # The UI imports @lovejoin/sdk which resolves to offchain/dist/.
-      # On a clean checkout that doesn't exist yet, so build the SDK
-      # before linting consumers — otherwise UI's tsc fails with TS2307.
+      # The UI imports @lovejoin/sdk which resolves to offchain/dist/. On a
+      # clean checkout that doesn't exist yet, so build the SDK before
+      # linting consumers — otherwise UI's tsc fails with TS2307.
       - name: Build SDK (for downstream lint resolution)
         run: pnpm --filter @lovejoin/sdk run build
 
@@ -58,5 +71,37 @@ jobs:
       - name: Build
         run: pnpm -r --filter ./offchain --filter ./backend --filter ./ui run build
 
-      - name: Test
+      - name: Test (unit + property)
         run: pnpm -r --filter ./offchain --filter ./backend --filter ./ui run test
+
+  rust:
+    name: Rust ref impl (cargo test)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: crypto/ref
+
+      - name: cargo test --release
+        working-directory: crypto/ref
+        run: cargo test --release
+
+  reproducibility:
+    name: Reproducible-build verification
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Aiken 1.1.21
+        uses: aiken-lang/setup-aiken@v1.0.3
+        with:
+          version: v1.1.21
+
+      - name: scripts/check-reproducibility.sh
+        run: ./scripts/check-reproducibility.sh
