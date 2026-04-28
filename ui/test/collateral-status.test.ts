@@ -11,7 +11,7 @@ describe("probeCollateralProvider", () => {
   });
 
   it("reports 'online' on a 200 response", async () => {
-    const fetchFn = vi.fn(
+    const fetchFn = vi.fn<typeof fetch>(
       async () => ({ ok: true, status: 200, json: async () => ({}) }) as unknown as Response,
     );
     const r = await probeCollateralProvider("https://giveme.my", fetchFn);
@@ -39,7 +39,7 @@ describe("probeCollateralProvider", () => {
   });
 
   it("strips trailing slashes before appending /health", async () => {
-    const fetchFn = vi.fn(
+    const fetchFn = vi.fn<typeof fetch>(
       async () => ({ ok: true, status: 200, json: async () => ({}) }) as unknown as Response,
     );
     await probeCollateralProvider("https://giveme.my/", fetchFn);

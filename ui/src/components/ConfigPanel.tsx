@@ -63,7 +63,7 @@ export function ConfigPanel({ config, onChange }: ConfigPanelProps) {
             onChange={(e) =>
               setDraft({ ...draft, blockfrostProjectId: e.target.value })
             }
-            placeholder="preprodXXXXXXXXXXXXXXXXXXXXXXXXXX"
+            placeholder={t("config.blockfrost_placeholder")}
           />
           <span className="mt-1 text-xs text-gray-500">
             {t("config.blockfrost_help")}
@@ -77,7 +77,7 @@ export function ConfigPanel({ config, onChange }: ConfigPanelProps) {
             className="mt-1 rounded border border-gray-300 px-2 py-1 font-mono"
             value={draft.backendUrl}
             onChange={(e) => setDraft({ ...draft, backendUrl: e.target.value })}
-            placeholder="https://lovejoin-backend.example"
+            placeholder={t("config.backend_url_placeholder")}
           />
           <span className="mt-1 text-xs text-gray-500">
             {t("config.backend_url_help")}
@@ -95,7 +95,7 @@ export function ConfigPanel({ config, onChange }: ConfigPanelProps) {
             onChange={(e) =>
               setDraft({ ...draft, collateralProviderEndpoint: e.target.value })
             }
-            placeholder="https://giveme.my"
+            placeholder={t("config.collateral_endpoint_placeholder")}
           />
           <span className="mt-1 text-xs text-gray-500">
             {t("config.collateral_endpoint_help")}

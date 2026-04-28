@@ -120,7 +120,7 @@ export function Vault() {
         <textarea
           value={importJson}
           onChange={(e) => setImportJson(e.target.value)}
-          placeholder='{"txId":"…","outputIndex":0,"ownerSecretHex":"…","aHex":"…","bHex":"…"}'
+          placeholder={t("vault.import_placeholder")}
           rows={5}
           className="mt-2 w-full rounded border border-gray-300 p-2 font-mono text-xs"
         />
