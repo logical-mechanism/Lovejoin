@@ -133,6 +133,17 @@ export class OgmiosTxClient {
     return result as RedeemerBudget[];
   }
 
+  /**
+   * Query the current ledger state's protocol parameters. Returns the
+   * verbatim ogmios v6 object so the SDK's translation layer is the
+   * single place that knows how to map ogmios names to mesh / Blockfrost
+   * names. Includes cost models for every Plutus version, which is the
+   * field the Conway SDK fee-estimation can't live without.
+   */
+  async protocolParameters(): Promise<unknown> {
+    return this.request("queryLedgerState/protocolParameters", {});
+  }
+
   // ---------------------------------------------------------------
 
   private async request(method: string, params: unknown): Promise<unknown> {

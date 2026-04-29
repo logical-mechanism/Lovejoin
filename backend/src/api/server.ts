@@ -74,6 +74,7 @@ export async function buildServer(deps: ApiServerDeps): Promise<FastifyInstance>
 
   registerHealth(fastify, deps);
   registerParams(fastify, deps);
+  registerProtocolParams(fastify, deps);
   registerPool(fastify, deps);
   registerBox(fastify, deps);
   registerFee(fastify, deps);
@@ -143,6 +144,40 @@ function registerParams(fastify: FastifyInstance, deps: ApiServerDeps): void {
       },
     };
   });
+}
+
+function registerProtocolParams(fastify: FastifyInstance, deps: ApiServerDeps): void {
+  // /protocol-params returns the live ledger protocol parameters from
+  // ogmios's queryLedgerState. Distinct from /params (which is the
+  // protocol's own static config — denominations, script addresses,
+  // etc., from addresses.json). The SDK's tx builder needs *both*:
+  // /params for "what does Lovejoin charge" and /protocol-params for
+  // "what does the ledger charge in fees this epoch".
+  //
+  // Body is an ogmios v6 object — same shape the SDK already knows how
+  // to translate via its mesh-bridge.
+  fastify.get(
+    "/protocol-params",
+    async (_req, reply: FastifyReply) => {
+      if (!deps.ogmiosTx) {
+        reply.code(503);
+        return {
+          error: "protocol_params_unavailable",
+          message: "ogmios tx client not configured",
+        };
+      }
+      try {
+        const params = await deps.ogmiosTx.protocolParameters();
+        return params;
+      } catch (err) {
+        reply.code(502);
+        return {
+          error: "ogmios_error",
+          message: (err as Error).message,
+        };
+      }
+    },
+  );
 }
 
 interface PoolQuery {
