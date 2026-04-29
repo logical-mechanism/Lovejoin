@@ -87,6 +87,7 @@ import {
 } from "./collateral.js";
 import { appendVkeyWitness } from "./witness-merge.js";
 import { encodeMixDatum, generateOwnerSecret as drawScalar } from "./deposit.js";
+import { computeRefScriptFee, extractFeeFromTxCbor } from "./fee-helpers.js";
 import { pickRandomFeeShard } from "./fee.js";
 import { getMeshProtocolParams, getMeshProvider } from "./mesh-bridge.js";
 import {
@@ -875,7 +876,16 @@ export async function buildMixTx(args: BuildMixArgs): Promise<MixResult> {
   // `max_fee_per_mix_lovelace`.
   const exUnits = POPULATE_TIME_EXUNITS_PLACEHOLDER;
 
-  const populate = (tx: InstanceType<typeof MeshTxBuilder>) => {
+  const populate = (
+    tx: InstanceType<typeof MeshTxBuilder>,
+    feeOverride?: bigint,
+  ) => {
+    if (feeOverride !== undefined) {
+      // Wallet-mode fee correction (pinned ABOVE the rest of the body so
+      // mesh's auto-fee path is bypassed). See the multi-pass build
+      // below for why we override.
+      tx.setFee(feeOverride.toString());
+    }
     tx.readOnlyTxInReference(
       plan.referenceUtxoRef.txId,
       plan.referenceUtxoRef.outputIndex,
@@ -999,21 +1009,35 @@ export async function buildMixTx(args: BuildMixArgs): Promise<MixResult> {
     }
   };
 
-  const tx = new MeshTxBuilder({
-    fetcher: meshProvider as never,
-    submitter: meshProvider as never,
-    evaluator: meshProvider as never,
-    params: meshParams as never,
-    verbose: false,
-  });
-  // mesh's default 1.1× safety buffer pushes evaluator-real budgets
-  // further over the chain's per-tx exec cap at high N. We trust the
-  // evaluator's numbers exactly — they're the chain's own values.
-  tx.txEvaluationMultiplier = 1;
-  populate(tx);
+  const buildOnce = async (feeOverride?: bigint): Promise<string> => {
+    const tx = new MeshTxBuilder({
+      fetcher: meshProvider as never,
+      submitter: meshProvider as never,
+      evaluator: meshProvider as never,
+      params: meshParams as never,
+      verbose: false,
+    });
+    // mesh's default 1.1× safety buffer pushes evaluator-real budgets
+    // further over the chain's per-tx exec cap at high N. We trust the
+    // evaluator's numbers exactly — they're the chain's own values.
+    tx.txEvaluationMultiplier = 1;
+    populate(tx, feeOverride);
+    return tx.complete();
+  };
+
+  // Build pass(es). In shard mode the fee is pinned on-chain via
+  // plan.txFeeLovelace, so a single build is enough. In wallet mode mesh
+  // computes its own fee — but mesh-csl @1.8.14 omits Conway's
+  // reference-script-fee component (`set_ref_script_coins_per_byte` is
+  // unwired), so the chain rejects with `FeeTooSmallUTxO`. We mirror the
+  // withdraw flow's workaround: do one build to get mesh's auto-fee, add
+  // the missing ref-script-fee, then do a second build with the corrected
+  // fee pinned via `setFee`. Mix outputs at positions 0..N-1 are unaffected
+  // by the wallet change output (which lands at position ≥ N), so the OR
+  // proofs do not need to be regenerated between passes.
   let unsignedTxHex: string;
   try {
-    unsignedTxHex = await tx.complete();
+    unsignedTxHex = await buildOnce();
   } catch (evalErr) {
     const errMsg = evalErr instanceof Error ? evalErr.message : String(evalErr);
     throw new Error(
@@ -1021,6 +1045,24 @@ export async function buildMixTx(args: BuildMixArgs): Promise<MixResult> {
         `evaluateTx must return refined exec units for every redeemer. ` +
         `Original error: ${errMsg}`,
     );
+  }
+  if (feePayer === "wallet") {
+    const cst = await import("@meshsdk/core-cst");
+    const meshFee = extractFeeFromTxCbor(unsignedTxHex, cst);
+    const refScriptSize = computeMixRefScriptBytes(args.addresses, feePayer);
+    const refScriptCostPerByte = Number(
+      meshParams.minFeeRefScriptCostPerByte ?? 15,
+    );
+    const refScriptFee = computeRefScriptFee(refScriptSize, refScriptCostPerByte);
+    const correctedFee = meshFee + refScriptFee;
+    // eslint-disable-next-line no-console
+    console.log(
+      `[lovejoin/mix] wallet-mode fee correction: mesh=${meshFee} + ref-script(` +
+        `${refScriptSize}b × ${refScriptCostPerByte}/b)=${refScriptFee} → setFee(${correctedFee})`,
+    );
+    if (refScriptFee > 0n) {
+      unsignedTxHex = await buildOnce(correctedFee);
+    }
   }
 
   // Witness path. With GivemeMyProvider (the default for Mix) the user's
@@ -1087,6 +1129,25 @@ function defaultMixCollateralProvider(args: BuildMixArgs): CollateralProvider {
 // ---------------------------------------------------------------------------
 // Local utilities
 // ---------------------------------------------------------------------------
+
+/// Sum the byte sizes of every reference script attached to a Mix tx.
+/// Conway's reference-script fee (`min_fee_ref_script_cost_per_byte`)
+/// is computed against the SUM of unique reference-script bytes that
+/// the tx pulls in. mix_box and mix_logic are always present; the fee
+/// shard's ref script (`fee_contract`) is pulled in only in shard mode.
+/// Returns 0 if `referenceScriptSizes` is missing from addresses.json
+/// (older bootstraps); in that case the correction is a no-op and the
+/// caller falls back to mesh's broken auto-fee, which the chain may
+/// reject with `FeeTooSmallUTxO`.
+function computeMixRefScriptBytes(
+  addresses: LovejoinAddresses,
+  feePayer: MixFeePayer,
+): number {
+  const sizes = addresses.referenceScriptSizes;
+  if (!sizes) return 0;
+  const base = (sizes.mix_box ?? 0) + (sizes.mix_logic ?? 0);
+  return feePayer === "shard" ? base + (sizes.fee_contract ?? 0) : base;
+}
 
 function compareUtxoRef(a: MixInput, b: MixInput): number {
   // Lex compare on lowercase hex txid, then numeric compare on output index.

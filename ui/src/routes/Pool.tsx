@@ -50,15 +50,21 @@ export function Pool() {
   const [poolError, setPoolError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
-  // The slider's cap is whatever the deployed addresses bundle declares.
-  // Falls back to N=2 if the field is absent (older bootstraps); the
-  // slider clamps `value` into [2, max], so a cap of 2 just means "no
-  // slider" — the user can still mix at N=2.
-  const maxN = addresses?.protocol?.max_n ?? 2;
-  const [n, setN] = useState<number>(maxN);
+  // The slider's cap depends on the selected fee mode. Shard mode adds a
+  // fee_contract.spend invocation (~187M CPU at Conway prices) which
+  // pushes N=4 over the 10G CPU cap; wallet mode skips fee_contract and
+  // fits N=4 with headroom. Both caps are stamped into addresses.json
+  // by `make sync-ui-addresses` from `config/network.<net>.json`.
+  // Legacy `max_n` is read as a fallback for older bootstraps.
+  const protocol = addresses?.protocol;
+  const legacyMaxN = protocol?.max_n ?? 2;
+  const maxNShard = protocol?.max_n_shard ?? legacyMaxN;
+  const maxNWallet = protocol?.max_n_wallet ?? legacyMaxN;
   const [feePayer, setFeePayer] = useState<MixFeePayer>("shard");
+  const maxN = feePayer === "shard" ? maxNShard : maxNWallet;
+  const [n, setN] = useState<number>(maxN);
 
-  // If max_n changes (network swap), re-clamp current width.
+  // Re-clamp when feePayer flips or when the cap changes (network swap).
   useMemo(() => {
     if (n > maxN) setN(maxN);
   }, [maxN, n]);

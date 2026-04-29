@@ -48,11 +48,26 @@ export interface LovejoinAddresses {
     denom_lovelace: number;
     max_fee_per_mix_lovelace: number;
     /**
-     * Optional. Off-chain calibrated max-N for this deployment, copied
-     * from `config/network.<net>.json` at bootstrap time. Surfaces to
-     * the UI's MixWidthSlider so the cap reflects deployed reality.
-     * Absent in legacy bootstraps; clients tolerating it as undefined
-     * fall back to a deployment-wide minimum (N=2).
+     * Optional. Off-chain calibrated max-N for shard-fee mode.
+     * shard mode pays the tx fee from a fee_contract shard, which adds
+     * fee_contract.spend (~187M CPU @ Conway prices) to the per-tx
+     * budget — pushing N=4 over the 10G CPU cap. The cap is therefore
+     * lower in shard mode than in wallet mode.
+     */
+    max_n_shard?: number;
+    /**
+     * Optional. Off-chain calibrated max-N for wallet-fee mode (the
+     * submitter pays directly). Skips fee_contract.spend, freeing
+     * ~187M CPU and letting N=4 fit. Trade-off: the wallet's identity
+     * is on the tx, so fee anonymity is lost (Mix anonymity itself is
+     * unaffected).
+     */
+    max_n_wallet?: number;
+    /**
+     * Legacy single cap. Older bootstraps wrote one `max_n` instead of
+     * the per-mode pair above. Newer SDK code reads `max_n_shard` /
+     * `max_n_wallet`; this field is retained so a legacy addresses.json
+     * still parses.
      */
     max_n?: number;
     /**

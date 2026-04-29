@@ -3,7 +3,9 @@
   "protocol": {
     "denom_lovelace": 10000000,
     "max_fee_per_mix_lovelace": 2000000,
-    "fee_shard_target": 10
+    "fee_shard_target": 10,
+    "max_n_shard": 3,
+    "max_n_wallet": 4
   },
   "referenceNftPolicy": "fc5de619ab0a1ec45f4dfcfc57f3e7e4f8a4b2596f18b354cc17333b",
   "referenceNftAssetName": "6c6f76656a6f696e",
@@ -22,5 +24,10 @@
   },
   "dappStakeKeyHashHex": "1e3105f23f2ac91b3fb4c35fa4fe301421028e356e114944e902005b",
   "stage1ChangeUtxo": "1a63a3f5c932752df8d63b2c936fe89a93ccbbfb07a454920a520401811ed6fa#1",
-  "mixLogicRegisterTx": "6256cd77589e73ea5ff454f3177fae8a48b1d98fcd994406916cb519b20159e9"
+  "mixLogicRegisterTx": "6256cd77589e73ea5ff454f3177fae8a48b1d98fcd994406916cb519b20159e9",
+  "referenceScriptSizes": {
+    "mix_box": 632,
+    "mix_logic": 3019,
+    "fee_contract": 2143
+  }
 }
