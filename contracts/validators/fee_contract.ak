@@ -7,8 +7,9 @@
 ////
 ////   * `PayMixFee` — consumed by a Mix tx; the value drop on this shard
 ////     equals the tx's fee, with `tx.fee ≤ max_fee_per_mix_lovelace`. The
-////     `mix_script_hash` is present in the tx (≥ 2 inputs at it), making
-////     this a real Mix tx.
+////     mix_logic withdraw redeemer in the same tx must be `Mix { .. }`
+////     (not `Owner`), and there must be ≥ 2 mix-script inputs — together
+////     these gate "this is actually a Mix tx" (see audit finding F-1).
 ////   * `Replenish` — strict-increase top-up; usable in a Deposit tx.
 ////
 //// Rule 2 (hyperstructure): an input whose datum isn't `()` is treated as
@@ -22,16 +23,19 @@
 //// real numbers.
 
 use aiken/collection/list
+use aiken/collection/pairs
 use aiken/crypto.{ScriptHash}
 use cardano/address.{Script}
 use cardano/assets.{AssetName, PolicyId}
-use cardano/transaction.{Input, OutputReference, Transaction}
+use cardano/transaction.{Input, OutputReference, Transaction, Withdraw}
 use lovejoin/fee.{
   input_at_fee, is_unit_inline_datum, is_unit_optional, output_at_fee,
 }
 use lovejoin/mixbox.{input_at_script}
 use lovejoin/reference.{read_reference_datum}
-use lovejoin/types.{FeeRedeemer, PayMixFee, ReferenceDatum, Replenish}
+use lovejoin/types.{
+  FeeRedeemer, Mix, MixLogicRedeemer, PayMixFee, ReferenceDatum, Replenish,
+}
 use lovejoin/value.{expect_ada_only_lovelace}
 
 // Flat params — one CBOR atom per `aiken blueprint apply` call.
@@ -71,17 +75,37 @@ validator fee_contract(
 }
 
 /// PayMixFee:
-///   1. ≥ 2 mix-script inputs (it's a real Mix tx).
-///   2. Exactly one fee input (this) and one fee output, datum unchanged.
-///   3. fee_in.lovelace − fee_out.lovelace == self.fee.
-///   4. self.fee ≤ reference_datum.max_fee_per_mix_lovelace.
-///   5. No native assets in fee input/output.
+///   1. The `mix_logic` withdraw redeemer in this tx is `Mix { .. }` (not
+///      `Owner { .. }`). This is the binding gate that makes "this is a real
+///      Mix tx" enforceable on chain — see audit finding F-1. Owner-branch
+///      txs that happen to bundle ≥ 2 mix-script inputs would otherwise
+///      satisfy the structural check below and let an attacker rotate their
+///      own boxes to drain the shard.
+///   2. ≥ 2 mix-script inputs.
+///   3. Exactly one fee input (this) and one fee output, datum unchanged.
+///   4. fee_in.lovelace − fee_out.lovelace == self.fee.
+///   5. self.fee ≤ reference_datum.max_fee_per_mix_lovelace.
+///   6. No native assets in fee input/output.
 fn validate_pay_mix_fee(
   reference_datum: ReferenceDatum,
   self: Transaction,
   own_input: Input,
   own_hash: ScriptHash,
 ) -> Bool {
+  // Rule 1 — the mix_logic withdraw must use the Mix redeemer. We look up
+  // the redeemer by `Withdraw(Script(mix_logic_script_hash))` in
+  // `self.redeemers` (a sorted Pairs by ScriptPurpose) and `expect`-cast it
+  // to MixLogicRedeemer. If the cast hard-fails (Owner-shape data) the
+  // whole script aborts, which is the right "fee_contract rejects this tx"
+  // semantics.
+  expect Some(mix_logic_redeemer_data) =
+    pairs.get_first(
+      self.redeemers,
+      Withdraw(Script(reference_datum.mix_logic_script_hash)),
+    )
+  expect mix_logic_redeemer: MixLogicRedeemer = mix_logic_redeemer_data
+  expect Mix { .. } = mix_logic_redeemer
+
   // Single-pass fold replaces two separate `list.count` walks: count
   // mix-script inputs (need >=2) and fee-script inputs (need ==1) in one
   // pass over `self.inputs`. Saves N input-list walks per Mix tx.

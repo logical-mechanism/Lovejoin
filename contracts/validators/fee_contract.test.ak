@@ -3,18 +3,22 @@
 //// Spec: docs/spec/03-contracts.md §0 Rule 2 (datum tolerance), §3.
 
 use aiken/collection/list
+use cardano/address.{Script}
 use cardano/assets
 use cardano/transaction.{
-  InlineDatum, Input, Output, OutputReference, Transaction,
+  InlineDatum, Input, Output, OutputReference, Transaction, Withdraw,
 }
 use fee_contract
+use lovejoin/schnorr.{SchnorrProof}
+use lovejoin/sigma_or.{SigmaOrBranch, SigmaOrProof}
 use lovejoin/test_fixtures.{
   a48, b48, default_reference_input, denom_lovelace, fee_script_hash,
   fee_shard_input, fee_shard_output, fee_shard_output_no_datum,
-  max_fee_per_mix_lovelace, mix_box_input, out_ref, random_user_vk, ref_nft_name,
-  ref_nft_policy, script_address, vk_output_lovelace,
+  max_fee_per_mix_lovelace, mix_box_input, mix_logic_hash, out_ref,
+  random_user_vk, ref_nft_name, ref_nft_policy, script_address,
+  vk_output_lovelace,
 }
-use lovejoin/types.{PayMixFee, Replenish}
+use lovejoin/types.{Mix, Owner, PayMixFee, Replenish}
 
 const fee_input_byte: Int = 0xf0
 
@@ -53,13 +57,66 @@ test fee_contract_accepts_int_datum_recovery() {
 // PayMixFee builder + tests
 // ---------------------------------------------------------------------------
 
+/// Bogus Mix sigma-OR redeemer (length-N list of zero-bytes branches). The
+/// fee_contract validator only `expect`-casts the redeemer Data into
+/// MixLogicRedeemer and pattern-matches `Mix { .. }`; it doesn't traverse the
+/// proof contents. Zero-length / zero-bytes branches are fine for that gate.
+fn bogus_mix_redeemer(n: Int) -> Data {
+  let branches: List<SigmaOrBranch> = []
+  let bogus_proof: SigmaOrProof = SigmaOrProof { branches }
+  let proofs: List<SigmaOrProof> = replicate_proof(n, bogus_proof, [])
+  let r: Data = Mix { proofs }
+  r
+}
+
+fn replicate_proof(
+  n: Int,
+  proof: SigmaOrProof,
+  acc: List<SigmaOrProof>,
+) -> List<SigmaOrProof> {
+  if n == 0 {
+    acc
+  } else {
+    replicate_proof(n - 1, proof, [proof, ..acc])
+  }
+}
+
+fn bogus_owner_redeemer(n: Int) -> Data {
+  let zero32: ByteArray =
+    #"0000000000000000000000000000000000000000000000000000000000000000"
+  let zero48: ByteArray =
+    #"000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"
+  let proof: SchnorrProof = SchnorrProof { t: zero48, z: zero32 }
+  let proofs: List<SchnorrProof> = replicate_schnorr(n, proof, [])
+  let r: Data = Owner { proofs }
+  r
+}
+
+fn replicate_schnorr(
+  n: Int,
+  proof: SchnorrProof,
+  acc: List<SchnorrProof>,
+) -> List<SchnorrProof> {
+  if n == 0 {
+    acc
+  } else {
+    replicate_schnorr(n - 1, proof, [proof, ..acc])
+  }
+}
+
 /// Build a synthetic Mix tx with `mix_input_count` mix-script inputs, one fee
 /// shard input, one fee shard output, and a tx fee. Returns (tx, fee_input_utxo).
-fn pay_mix_fee_tx(
+///
+/// `mix_logic_redeemer_data` is what we attach at `Withdraw(Script(mix_logic))`
+/// in `tx.redeemers`. PayMixFee asserts this decodes as `Mix { .. }`; pass a
+/// `Mix`-shaped Data for happy-path tests, an `Owner`-shaped Data (or omit
+/// the redeemer entirely) for the F-1 negative tests.
+fn pay_mix_fee_tx_with_redeemer(
   fee_in_lovelace: Int,
   fee_out_lovelace: Int,
   tx_fee: Int,
   mix_input_count: Int,
+  mix_logic_redeemer_data: Data,
 ) -> (Transaction, OutputReference) {
   let fee_in = fee_shard_input(fee_input_byte, 0, fee_in_lovelace)
   let fee_out = fee_shard_output(fee_out_lovelace)
@@ -73,8 +130,28 @@ fn pay_mix_fee_tx(
       inputs,
       outputs: [fee_out, user_change],
       fee: tx_fee,
+      redeemers: [
+        Pair(Withdraw(Script(mix_logic_hash)), mix_logic_redeemer_data),
+      ],
     }
   (tx, fee_in.output_reference)
+}
+
+/// Default happy-path builder — supplies a Mix redeemer of correct N at
+/// `Withdraw(Script(mix_logic_hash))`.
+fn pay_mix_fee_tx(
+  fee_in_lovelace: Int,
+  fee_out_lovelace: Int,
+  tx_fee: Int,
+  mix_input_count: Int,
+) -> (Transaction, OutputReference) {
+  pay_mix_fee_tx_with_redeemer(
+    fee_in_lovelace,
+    fee_out_lovelace,
+    tx_fee,
+    mix_input_count,
+    bogus_mix_redeemer(mix_input_count),
+  )
 }
 
 fn build_mix_inputs(n: Int) -> List<Input> {
@@ -321,6 +398,90 @@ test pay_mix_fee_rejects_native_asset_in_output() fail {
       outputs: [fee_out],
       fee: 200_000,
     }
+  fee_contract.fee_contract.spend(
+    ref_nft_policy,
+    ref_nft_name,
+    Some(unit),
+    PayMixFee,
+    fee_in.output_reference,
+    tx,
+  )
+}
+
+// ---------------------------------------------------------------------------
+// F-1 regression — PayMixFee must reject Owner-branch txs even when the
+// structural input-count gate is satisfied. Without this, an attacker who
+// already owns ≥ 2 mix-boxes can rotate them via Owner withdraw + PayMixFee
+// and drain `max_fee_per_mix_lovelace` per tx from the shard indefinitely.
+// See docs/audit-2026-04-28.md F-1.
+// ---------------------------------------------------------------------------
+
+test pay_mix_fee_rejects_owner_redeemer_n2() fail {
+  // Same shape as the happy-path N=2 PayMixFee tx, but the mix_logic
+  // withdraw redeemer is Owner instead of Mix. The new gate must abort.
+  let (tx, utxo) =
+    pay_mix_fee_tx_with_redeemer(
+      default_fee_in,
+      default_fee_in - 200_000,
+      200_000,
+      2,
+      bogus_owner_redeemer(2),
+    )
+  let unit: Data = Void
+  fee_contract.fee_contract.spend(
+    ref_nft_policy,
+    ref_nft_name,
+    Some(unit),
+    PayMixFee,
+    utxo,
+    tx,
+  )
+}
+
+test pay_mix_fee_rejects_owner_redeemer_n6() fail {
+  // Same drain but with a wider Owner withdraw (N=6) — wider rotation
+  // would mean more attacker-side proof work but the same drain rate per
+  // shard. Must still reject.
+  let (tx, utxo) =
+    pay_mix_fee_tx_with_redeemer(
+      default_fee_in,
+      default_fee_in - 700_000,
+      700_000,
+      6,
+      bogus_owner_redeemer(6),
+    )
+  let unit: Data = Void
+  fee_contract.fee_contract.spend(
+    ref_nft_policy,
+    ref_nft_name,
+    Some(unit),
+    PayMixFee,
+    utxo,
+    tx,
+  )
+}
+
+test pay_mix_fee_rejects_missing_mix_logic_redeemer() fail {
+  // Pathological: structural inputs satisfy ≥ 2 mix-script + 1 fee, but
+  // the tx omits the mix_logic withdraw redeemer entirely. The Cardano
+  // ledger would have already rejected this tx (mix_box.spend forces a
+  // mix_logic withdraw to exist), but defense-in-depth: PayMixFee must
+  // also abort because `pairs.get_first(...)` returns None.
+  let fee_in = fee_shard_input(fee_input_byte, 0, default_fee_in)
+  let fee_out = fee_shard_output(default_fee_in - 200_000)
+  let mix_inputs = build_mix_inputs(2)
+  let inputs = list.concat(mix_inputs, [fee_in])
+  let user_change = vk_output_lovelace(random_user_vk, 1_000_000)
+  let tx =
+    Transaction {
+      ..transaction.placeholder,
+      reference_inputs: [default_reference_input()],
+      inputs,
+      outputs: [fee_out, user_change],
+      fee: 200_000,
+      redeemers: [],
+    }
+  let unit: Data = Void
   fee_contract.fee_contract.spend(
     ref_nft_policy,
     ref_nft_name,
