@@ -87,7 +87,12 @@ import {
 } from "./collateral.js";
 import { appendVkeyWitness } from "./witness-merge.js";
 import { encodeMixDatum, generateOwnerSecret as drawScalar } from "./deposit.js";
-import { computeRefScriptFee, extractFeeFromTxCbor } from "./fee-helpers.js";
+import {
+  computeMinTxFee,
+  computeRefScriptFee,
+  extractFeeFromTxCbor,
+  sumEvaluatorExUnits,
+} from "./fee-helpers.js";
 import { pickRandomFeeShard } from "./fee.js";
 import { getMeshProtocolParams, getMeshProvider } from "./mesh-bridge.js";
 import {
@@ -880,12 +885,28 @@ export async function buildMixTx(args: BuildMixArgs): Promise<MixResult> {
     tx: InstanceType<typeof MeshTxBuilder>,
     feeOverride?: bigint,
   ) => {
-    if (feeOverride !== undefined) {
-      // Wallet-mode fee correction (pinned ABOVE the rest of the body so
-      // mesh's auto-fee path is bypassed). See the multi-pass build
-      // below for why we override.
-      tx.setFee(feeOverride.toString());
-    }
+    // Effective tx fee for this build pass:
+    //   - shard mode: feeOverride (post-discovery actual fee) ?? plan.txFeeLovelace
+    //                 (initial = max_fee_per_mix_lovelace).
+    //   - wallet mode: feeOverride if set (Conway ref-script-fee correction);
+    //                  otherwise mesh auto-computes during complete().
+    const effectiveFee: bigint | null =
+      feeOverride !== undefined
+        ? feeOverride
+        : plan.feePayer === "shard"
+          ? plan.txFeeLovelace
+          : null;
+    // Effective fee_shard_output lovelace: feeIn - effectiveFee. Validator's
+    // `fee_in - fee_out == tx.fee` invariant requires this to be coherent
+    // with `effectiveFee`.
+    const effectiveFeeOutLovelace: bigint | null =
+      plan.feePayer === "shard" &&
+      plan.feeShardInput !== null &&
+      plan.feeShardOutput !== null &&
+      effectiveFee !== null
+        ? plan.feeShardInput.lovelace - effectiveFee
+        : null;
+
     tx.readOnlyTxInReference(
       plan.referenceUtxoRef.txId,
       plan.referenceUtxoRef.outputIndex,
@@ -964,21 +985,24 @@ export async function buildMixTx(args: BuildMixArgs): Promise<MixResult> {
     }
     // Output N: fee shard (shard mode) or wallet change (wallet mode,
     // emitted by mesh during balancing).
-    if (plan.feePayer === "shard" && plan.feeShardOutput) {
+    if (
+      plan.feePayer === "shard" &&
+      plan.feeShardOutput &&
+      effectiveFeeOutLovelace !== null
+    ) {
       tx
         .txOut(plan.feeShardOutput.addressBech32, [
-          {
-            unit: "lovelace",
-            quantity: plan.feeShardOutput.lovelace.toString(),
-          },
+          { unit: "lovelace", quantity: effectiveFeeOutLovelace.toString() },
         ])
         .txOutInlineDatumValue(plan.feeShardOutput.inlineDatumHex, "CBOR");
     }
 
-    // Pin the fee in shard mode (inputs - outputs balance to
-    // txFeeLovelace). Wallet mode lets mesh compute the minimum fee.
-    if (plan.feePayer === "shard" && plan.txFeeLovelace !== null) {
-      tx.setFee(plan.txFeeLovelace.toString());
+    // Pin the tx fee in shard mode (validator forces inputs - outputs ==
+    // tx.fee), or when a wallet-mode override is provided (Conway
+    // ref-script-fee correction). Wallet mode without override lets mesh
+    // auto-compute.
+    if (effectiveFee !== null) {
+      tx.setFee(effectiveFee.toString());
     }
 
     // Collateral input + return. mesh derives `collateral_return` from the
@@ -1025,16 +1049,22 @@ export async function buildMixTx(args: BuildMixArgs): Promise<MixResult> {
     return tx.complete();
   };
 
-  // Build pass(es). In shard mode the fee is pinned on-chain via
-  // plan.txFeeLovelace, so a single build is enough. In wallet mode mesh
-  // computes its own fee — but mesh-csl @1.8.14 omits Conway's
+  // Build pass(es).
+  //
+  // Shard mode: pass 1 sets fee = max_fee_per_mix_lovelace (plan.txFeeLovelace)
+  // and runs mesh's internal evaluator. We then read the per-redeemer
+  // exec units from the chain's evaluator, recompute the actual minimum
+  // fee from Cardano's formula (size + script + ref-script), and re-build
+  // with that pinned. The validator's `fee_in - fee_out == tx.fee` invariant
+  // means populate() also adjusts feeShardOutput.lovelace = feeIn - actualFee
+  // in lockstep. Mix outputs at positions 0..N-1 are unchanged across passes
+  // (the proofs are bound to those bytes), so the OR proofs stay valid.
+  //
+  // Wallet mode: mesh-csl @1.8.14 doesn't compute Conway's
   // reference-script-fee component (`set_ref_script_coins_per_byte` is
   // unwired), so the chain rejects with `FeeTooSmallUTxO`. We mirror the
-  // withdraw flow's workaround: do one build to get mesh's auto-fee, add
-  // the missing ref-script-fee, then do a second build with the corrected
-  // fee pinned via `setFee`. Mix outputs at positions 0..N-1 are unaffected
-  // by the wallet change output (which lands at position ≥ N), so the OR
-  // proofs do not need to be regenerated between passes.
+  // withdraw flow's workaround: read mesh's auto-fee, add the missing
+  // ref-script-fee, re-build with that pinned via `setFee`.
   let unsignedTxHex: string;
   try {
     unsignedTxHex = await buildOnce();
@@ -1046,13 +1076,62 @@ export async function buildMixTx(args: BuildMixArgs): Promise<MixResult> {
         `Original error: ${errMsg}`,
     );
   }
+
+  const refScriptSize = computeMixRefScriptBytes(args.addresses, feePayer);
+  const refScriptCostPerByte = Number(
+    meshParams.minFeeRefScriptCostPerByte ?? 15,
+  );
+
+  if (feePayer === "shard" && plan.feeShardInput && plan.txFeeLovelace !== null) {
+    // Discovery pass: ask the chain's evaluator for the real per-redeemer
+    // exec units now that pass 1 produced a complete tx body, then compute
+    // Cardano's actual minimum fee. Re-build with that fee pinned so the
+    // shard pays only what the chain will actually charge — instead of
+    // over-paying max_fee_per_mix_lovelace every tx.
+    const evalRaw = await meshProvider.evaluateTx(unsignedTxHex);
+    if (Array.isArray(evalRaw)) {
+      const totalExUnits = sumEvaluatorExUnits(
+        evalRaw as Array<{ budget?: { mem?: number; steps?: number } }>,
+      );
+      const realParams = await args.provider.getProtocolParameters();
+      const minFee = computeMinTxFee({
+        txCborHex: unsignedTxHex,
+        totalExUnits,
+        refScriptBytes: refScriptSize,
+        params: {
+          minFeeA: realParams.minFeeA,
+          minFeeB: realParams.minFeeB,
+          priceStep: realParams.pricesStep,
+          priceMem: realParams.pricesMem,
+          minFeeRefScriptCostPerByte: refScriptCostPerByte,
+        },
+      });
+      // Cap at the on-chain max so the validator's
+      // `tx.fee <= max_fee_per_mix_lovelace` rule still passes if the
+      // network is unusually expensive (defensive — under normal Conway
+      // params minFee << max).
+      const capped = minFee > plan.txFeeLovelace ? plan.txFeeLovelace : minFee;
+      // eslint-disable-next-line no-console
+      console.log(
+        `[lovejoin/mix] shard-mode fee discovery: minFee=${minFee} ` +
+          `(size+script+ref) cap=${plan.txFeeLovelace} → setFee(${capped}); ` +
+          `feeOut=${plan.feeShardInput.lovelace - capped}`,
+      );
+      if (capped !== plan.txFeeLovelace) {
+        unsignedTxHex = await buildOnce(capped);
+      }
+    } else {
+      // eslint-disable-next-line no-console
+      console.warn(
+        `[lovejoin/mix] shard-mode fee discovery: evaluator returned non-array ` +
+          `result; falling back to plan.txFeeLovelace=${plan.txFeeLovelace}`,
+      );
+    }
+  }
+
   if (feePayer === "wallet") {
     const cst = await import("@meshsdk/core-cst");
     const meshFee = extractFeeFromTxCbor(unsignedTxHex, cst);
-    const refScriptSize = computeMixRefScriptBytes(args.addresses, feePayer);
-    const refScriptCostPerByte = Number(
-      meshParams.minFeeRefScriptCostPerByte ?? 15,
-    );
     const refScriptFee = computeRefScriptFee(refScriptSize, refScriptCostPerByte);
     const correctedFee = meshFee + refScriptFee;
     // eslint-disable-next-line no-console

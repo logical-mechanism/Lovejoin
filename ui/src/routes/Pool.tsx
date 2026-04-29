@@ -22,13 +22,12 @@
 // subsequent polls we don't re-show the loading state — the user
 // already trusts the screen.
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Link } from "react-router-dom";
 import type { MixFeePayer } from "@lovejoin/sdk";
 
 import { MixButton } from "../components/MixButton.js";
-import { MixWidthSlider } from "../components/MixWidthSlider.js";
 import {
   CollateralProviderBanner,
   CollateralProviderPill,
@@ -50,24 +49,18 @@ export function Pool() {
   const [poolError, setPoolError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
-  // The slider's cap depends on the selected fee mode. Shard mode adds a
-  // fee_contract.spend invocation (~187M CPU at Conway prices) which
+  // N is fixed by the selected fee mode — no half-width mixes. Shard mode
+  // adds a fee_contract.spend invocation (~187M CPU at Conway prices) which
   // pushes N=4 over the 10G CPU cap; wallet mode skips fee_contract and
-  // fits N=4 with headroom. Both caps are stamped into addresses.json
-  // by `make sync-ui-addresses` from `config/network.<net>.json`.
-  // Legacy `max_n` is read as a fallback for older bootstraps.
+  // fits N=4 with headroom. Both caps are stamped into addresses.json by
+  // `make sync-ui-addresses` from `config/network.<net>.json`. Legacy
+  // `max_n` is read as a fallback for older bootstraps.
   const protocol = addresses?.protocol;
   const legacyMaxN = protocol?.max_n ?? 2;
   const maxNShard = protocol?.max_n_shard ?? legacyMaxN;
   const maxNWallet = protocol?.max_n_wallet ?? legacyMaxN;
   const [feePayer, setFeePayer] = useState<MixFeePayer>("shard");
-  const maxN = feePayer === "shard" ? maxNShard : maxNWallet;
-  const [n, setN] = useState<number>(maxN);
-
-  // Re-clamp when feePayer flips or when the cap changes (network swap).
-  useMemo(() => {
-    if (n > maxN) setN(maxN);
-  }, [maxN, n]);
+  const n = feePayer === "shard" ? maxNShard : maxNWallet;
 
   useEffect(() => {
     if (!provider || !addresses) return;
@@ -151,8 +144,6 @@ export function Pool() {
         </p>
 
         <div className="mt-6 flex flex-col gap-6">
-          <MixWidthSlider value={n} maxN={maxN} onChange={setN} />
-
           <div className="flex flex-wrap items-center gap-x-6 gap-y-2">
             <Eyebrow>{t("pool.fee_payer_label")}</Eyebrow>
             <div className="lj-toggle" role="group">
@@ -161,14 +152,14 @@ export function Pool() {
                 aria-pressed={feePayer === "shard"}
                 onClick={() => setFeePayer("shard")}
               >
-                {t("pool.fee_payer_shard")}
+                {t("pool.fee_payer_shard")} (N={maxNShard})
               </button>
               <button
                 type="button"
                 aria-pressed={feePayer === "wallet"}
                 onClick={() => setFeePayer("wallet")}
               >
-                {t("pool.fee_payer_wallet")}
+                {t("pool.fee_payer_wallet")} (N={maxNWallet})
               </button>
             </div>
             <p className="text-xs text-whisper basis-full leading-relaxed">

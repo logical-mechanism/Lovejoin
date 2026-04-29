@@ -64,3 +64,79 @@ export function computeRefScriptFee(
   }
   return BigInt(acc);
 }
+
+/**
+ * Compute Cardano's minimum required tx fee from the four components
+ * the chain checks at submission time:
+ *
+ *   * size_fee = a * txSize + b               (a, b from network params)
+ *   * step_fee = ceil(steps * priceStep)
+ *   * mem_fee  = ceil(mem * priceMem)
+ *   * ref_script_fee (Conway tier formula — see {@link computeRefScriptFee}).
+ *
+ * Use this when the SDK has to set a tx fee MANUALLY rather than letting
+ * mesh's auto-fee path handle it. The two cases in Lovejoin are:
+ *
+ *   1. Mix shard mode — the validator pins `fee_in - fee_out == tx.fee`,
+ *      which in turn pins the fee value directly (no wallet change to
+ *      absorb slack), so mesh has no degree of freedom and we must pick
+ *      a number ourselves.
+ *   2. Withdraw box mode — same pattern; the single change-to-destination
+ *      output absorbs the chosen fee.
+ *
+ * `txCborHex` is the body+witness CBOR (mesh's `tx.complete()` output). The
+ * caller is responsible for passing a CBOR whose body size is a faithful
+ * proxy for the post-fee-correction body — in practice fee values within
+ * the same CBOR-uint-length tier (e.g. 65,536 ≤ fee < 4,294,967,296 → 5
+ * bytes encoding) produce identical body sizes.
+ */
+export function computeMinTxFee(args: {
+  txCborHex: string;
+  totalExUnits: { mem: bigint; steps: bigint };
+  refScriptBytes: number;
+  params: {
+    minFeeA: number;
+    minFeeB: number;
+    priceStep: number;
+    priceMem: number;
+    minFeeRefScriptCostPerByte: number;
+  };
+}): bigint {
+  const txSize = BigInt(args.txCborHex.length / 2);
+  const sizeFee =
+    BigInt(args.params.minFeeA) * txSize + BigInt(args.params.minFeeB);
+  const stepFee = BigInt(
+    Math.ceil(Number(args.totalExUnits.steps) * args.params.priceStep),
+  );
+  const memFee = BigInt(
+    Math.ceil(Number(args.totalExUnits.mem) * args.params.priceMem),
+  );
+  const refFee = computeRefScriptFee(
+    args.refScriptBytes,
+    args.params.minFeeRefScriptCostPerByte,
+  );
+  return sizeFee + stepFee + memFee + refFee;
+}
+
+/**
+ * Sum per-redeemer exec units returned from a mesh-shaped evaluator
+ * (`{tag, index, budget: {mem, steps}}[]` — see
+ * `BlockfrostProvider.meshProvider().evaluateTx` in `chain/blockfrost.ts`
+ * for the shape). The result is what {@link computeMinTxFee} expects in
+ * `totalExUnits`.
+ */
+export function sumEvaluatorExUnits(
+  evaluatorOutput: ReadonlyArray<{
+    budget?: { mem?: number; steps?: number };
+  }>,
+): { mem: bigint; steps: bigint } {
+  let mem = 0n;
+  let steps = 0n;
+  for (const e of evaluatorOutput) {
+    const b = e.budget;
+    if (!b) continue;
+    if (typeof b.mem === "number") mem += BigInt(b.mem);
+    if (typeof b.steps === "number") steps += BigInt(b.steps);
+  }
+  return { mem, steps };
+}
