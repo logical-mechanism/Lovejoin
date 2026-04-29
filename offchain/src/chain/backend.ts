@@ -30,6 +30,8 @@ import {
   type Utxo,
   type UtxoRef,
 } from "./provider.js";
+import { BackendMeshProvider } from "./backend-mesh.js";
+import type { MeshFetcherSubmitter } from "./blockfrost.js";
 
 /** Subset of `fetch` we depend on. Tests inject a fake. */
 export type FetchFn = (
@@ -294,35 +296,31 @@ export class BackendChainProvider implements ChainProvider {
   }
 
   /**
-   * Mesh-compatible IFetcher + ISubmitter, used by `MeshTxBuilder`.
+   * Mesh-compatible IFetcher + ISubmitter + IEvaluator, used by
+   * `MeshTxBuilder`. Returns a `BackendMeshProvider` that hits the same
+   * backend endpoints we use for the SDK's ChainProvider methods —
+   * everything the tx-builder needs (UTxOs, protocol params, ex-units,
+   * submit) goes through our own stack.
    *
-   * Mesh's tx-build path needs concrete address-utxos / protocol-params
-   * shapes that match its `IFetcher` interface. Building a backend-
-   * native mesh provider would require implementing every IFetcher
-   * method against db-sync; for now we delegate to the fallback's mesh
-   * provider (typically the BlockfrostProvider's lazy sibling). Net
-   * effect:
-   *   - chain reads + tx submission go through our backend (this class).
-   *   - mesh tx-building (coin selection + ex-units) still goes
-   *     through Blockfrost as a temporary measure.
-   * Removing that last Blockfrost dep is the natural follow-up; the
-   * mesh-bridge helper is duck-typed on `meshProvider()` so a future
-   * backend-native implementation slots in here without API changes.
+   * Falls back to the configured Blockfrost provider's mesh sibling on
+   * any per-method error so a flaky backend doesn't block tx submission.
+   * Cached per provider instance — mesh's BlockfrostProvider is not
+   * cheap to instantiate (lazy libsodium import), so we don't want to
+   * pay the cost on every tx-build.
    */
-  async meshProvider(): Promise<unknown> {
-    if (!this.fallback) {
-      throw new Error(
-        "BackendChainProvider.meshProvider: no fallback configured; mesh tx-building requires either a Blockfrost fallback or a backend-native IFetcher (not yet implemented)",
-      );
-    }
-    const fb = this.fallback as { meshProvider?: () => Promise<unknown> };
-    if (typeof fb.meshProvider !== "function") {
-      throw new Error(
-        "BackendChainProvider.meshProvider: fallback provider exposes no meshProvider(); use BlockfrostProvider as the fallback",
-      );
-    }
-    return fb.meshProvider();
+  async meshProvider(): Promise<MeshFetcherSubmitter> {
+    if (this._mesh) return this._mesh;
+    const fbMesh = this.fallback
+      ? await getMeshFromProvider(this.fallback)
+      : null;
+    this._mesh = new BackendMeshProvider({
+      baseUrl: this.baseUrl,
+      fetchFn: this.fetchFn,
+      fallback: fbMesh,
+    });
+    return this._mesh;
   }
+  private _mesh: MeshFetcherSubmitter | null = null;
 
   /**
    * Run `primary`. If it throws AND a fallback is configured, log + run
@@ -421,4 +419,25 @@ async function readJson(res: { json(): Promise<unknown>; text(): Promise<string>
 
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+/**
+ * Pull a mesh-shaped sibling out of a fallback ChainProvider. Mirrors
+ * the duck-typing in `tx/mesh-bridge.ts` so a custom ChainProvider that
+ * exposes its own `meshProvider()` slots in here too. Returns null if
+ * the fallback can't be coerced — BackendMeshProvider treats that as
+ * "no fallback" and surfaces the primary error.
+ */
+async function getMeshFromProvider(
+  provider: ChainProvider,
+): Promise<MeshFetcherSubmitter | null> {
+  const maybe = provider as unknown as {
+    meshProvider?: () => Promise<MeshFetcherSubmitter>;
+  };
+  if (typeof maybe.meshProvider !== "function") return null;
+  try {
+    return await maybe.meshProvider();
+  } catch {
+    return null;
+  }
 }
