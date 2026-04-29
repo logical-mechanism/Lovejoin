@@ -12,7 +12,7 @@ import Fastify, {
 } from "fastify";
 
 import type { BackendConfig } from "../config.js";
-import type { DbSyncClient } from "../db/dbsync.js";
+import type { DbSyncClient, HistoryClient } from "../db/dbsync.js";
 import type { IndexerState } from "../indexer/state.js";
 import type { IndexerRuntime } from "../indexer/runtime.js";
 import type { OgmiosTxClient } from "../indexer/ogmios-tx.js";
@@ -22,16 +22,20 @@ export interface ApiServerDeps {
   runtime: IndexerRuntime | null;
   config: BackendConfig;
   /**
-   * Primary `/history/:address` source. When this throws or is null,
-   * the route falls through to `historyFallback`.
+   * Primary db-sync client. Drives `/history/:address`,
+   * `/utxos/:address`, `/tx/:hash`, `/tx/:hash/utxos`. When null those
+   * routes return 503 (or, for /history specifically, fall through to
+   * `historyFallback`).
    */
   dbsync: DbSyncClient | null;
   /**
    * Optional Blockfrost-backed fallback for `/history/:address` — used
-   * when db-sync is unavailable (initial sync, brief outage). Same wire
-   * shape as `dbsync`, just slower per request.
+   * when db-sync is unavailable (initial sync, brief outage). Only
+   * implements the history surface (HistoryClient), not the wider
+   * UTxO surface, because the rest of the routes have no graceful
+   * fallback from chain-state queries.
    */
-  historyFallback?: DbSyncClient | null;
+  historyFallback?: HistoryClient | null;
   /**
    * Mempool-side ogmios client used by `/submit` and `/evaluate`.
    * Optional — tests omit it; the routes 503 when absent so the wire
@@ -76,6 +80,8 @@ export async function buildServer(deps: ApiServerDeps): Promise<FastifyInstance>
   registerHistory(fastify, deps);
   registerSubmit(fastify, deps);
   registerEvaluate(fastify, deps);
+  registerAddressUtxos(fastify, deps);
+  registerTxQueries(fastify, deps);
 
   return fastify;
 }
@@ -375,6 +381,149 @@ function registerEvaluate(fastify: FastifyInstance, deps: ApiServerDeps): void {
       }
     },
   );
+}
+
+interface AddressParams {
+  address: string;
+}
+
+function registerAddressUtxos(fastify: FastifyInstance, deps: ApiServerDeps): void {
+  fastify.get(
+    "/utxos/:address",
+    async (
+      req: FastifyRequest<{ Params: AddressParams }>,
+      reply: FastifyReply,
+    ) => {
+      if (!deps.dbsync) {
+        reply.code(503);
+        return {
+          error: "dbsync_unavailable",
+          message: "DBSYNC_URL not configured",
+        };
+      }
+      const address = req.params.address;
+      if (typeof address !== "string" || address.length < 4 || address.length > 200) {
+        reply.code(400);
+        return { error: "bad_request", message: "address malformed" };
+      }
+      try {
+        const utxos = await deps.dbsync.addressUtxos(address);
+        return {
+          address,
+          tip: deps.state.tip,
+          utxos: utxos.map(serializeUtxo),
+        };
+      } catch (err) {
+        reply.code(502);
+        return { error: "dbsync_error", message: (err as Error).message };
+      }
+    },
+  );
+}
+
+interface TxHashParams {
+  txhash: string;
+}
+
+function registerTxQueries(fastify: FastifyInstance, deps: ApiServerDeps): void {
+  // Confirmation summary — used by SDK awaitConfirmation. Returns 404
+  // before the tx is on chain so callers can poll without a special
+  // "still pending" code path.
+  fastify.get(
+    "/tx/:txhash",
+    async (
+      req: FastifyRequest<{ Params: TxHashParams }>,
+      reply: FastifyReply,
+    ) => {
+      if (!deps.dbsync) {
+        reply.code(503);
+        return { error: "dbsync_unavailable", message: "DBSYNC_URL not configured" };
+      }
+      const txHash = req.params.txhash.toLowerCase();
+      if (!/^[0-9a-f]{64}$/.test(txHash)) {
+        reply.code(400);
+        return { error: "bad_request", message: "txhash must be 64 lowercase hex" };
+      }
+      try {
+        const summary = await deps.dbsync.txSummary(txHash);
+        if (!summary) {
+          reply.code(404);
+          return { error: "not_found", message: "tx not on chain (yet)" };
+        }
+        return summary;
+      } catch (err) {
+        reply.code(502);
+        return { error: "dbsync_error", message: (err as Error).message };
+      }
+    },
+  );
+
+  // UTxOs produced by a specific tx. Resolves SDK getUtxoByRef.
+  fastify.get(
+    "/tx/:txhash/utxos",
+    async (
+      req: FastifyRequest<{ Params: TxHashParams }>,
+      reply: FastifyReply,
+    ) => {
+      if (!deps.dbsync) {
+        reply.code(503);
+        return { error: "dbsync_unavailable", message: "DBSYNC_URL not configured" };
+      }
+      const txHash = req.params.txhash.toLowerCase();
+      if (!/^[0-9a-f]{64}$/.test(txHash)) {
+        reply.code(400);
+        return { error: "bad_request", message: "txhash must be 64 lowercase hex" };
+      }
+      try {
+        const utxos = await deps.dbsync.txUtxos(txHash);
+        if (utxos.length === 0) {
+          // Empty could mean "tx not on chain" OR "tx on chain but
+          // produced no outputs" (impossible in practice, but be
+          // defensive). 404 keeps the contract uniform with /tx/:hash.
+          reply.code(404);
+          return { error: "not_found" };
+        }
+        return { txHash, utxos: utxos.map(serializeUtxo) };
+      } catch (err) {
+        reply.code(502);
+        return { error: "dbsync_error", message: (err as Error).message };
+      }
+    },
+  );
+}
+
+/**
+ * Wire shape for a UTxO. Lovelace is a decimal string so the JSON
+ * serializer doesn't lose precision on values that fit a JS bigint
+ * but exceed Number.MAX_SAFE_INTEGER. Asset quantities follow the
+ * same convention.
+ */
+function serializeUtxo(u: import("../db/dbsync.js").DbSyncUtxo): {
+  txHash: string;
+  outputIndex: number;
+  address: string;
+  lovelace: string;
+  assets: Record<string, string>;
+  inlineDatum: string | null;
+  datumHash: string | null;
+  referenceScriptCbor: string | null;
+  referenceScriptHash: string | null;
+} {
+  const assets: Record<string, string> = {};
+  for (const [unit, qty] of Object.entries(u.assets)) {
+    assets[unit] = qty.toString();
+  }
+  return {
+    txHash: u.txHash,
+    outputIndex: u.outputIndex,
+    address: u.address,
+    lovelace: u.lovelace.toString(),
+    assets,
+    inlineDatum: u.inlineDatum,
+    datumHash: u.datumHash,
+    referenceScriptCbor: u.referenceScriptCbor,
+    referenceScriptHash: u.referenceScriptHash,
+  };
 }
 
 function parsePagination(q: PoolQuery): { cursor: number; limit: number } {
