@@ -534,10 +534,16 @@
   }
   .lj-hero__lede {
     margin-top: 1.5rem;
-    max-width: 38rem;
     font-size: 0.98rem;
     line-height: 1.55;
     color: var(--color-muted);
+    white-space: nowrap;
+  }
+  @media (max-width: 720px) {
+    .lj-hero__lede {
+      white-space: normal;
+      max-width: 38rem;
+    }
   }
   .lj-hero__cta {
     margin-top: 2rem;
@@ -899,6 +905,14 @@
     border-radius: var(--radius-xs);
     font-size: 0.84rem;
     color: var(--color-paper);
+  }
+  .lj-math code {
+    background: transparent;
+    border: none;
+    padding: 0;
+    border-radius: 0;
+    font-size: inherit;
+    color: inherit;
   }
   .lj-prose ul {
     margin-bottom: 1rem;

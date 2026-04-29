@@ -32,6 +32,7 @@ import {
 import { useAppState } from "../lib/store.js";
 import { Eyebrow } from "../components/ui/Eyebrow.js";
 import { Hash } from "../components/ui/Hash.js";
+import { Modal } from "../components/ui/Modal.js";
 import { StatusDot } from "../components/ui/StatusDot.js";
 import { Bip39FallbackPanel } from "../components/Bip39FallbackPanel.js";
 import { useToast } from "../components/Toaster.js";
@@ -120,6 +121,7 @@ function UnlockedVault() {
   const [selectedRefs, setSelectedRefs] = useState<Set<string>>(() => new Set());
   const [destination, setDestination] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [confirmOpen, setConfirmOpen] = useState(false);
 
   // Default-select the first owned box on initial load so single-box
   // users don't have to think about the new multi-select UI. Once the
@@ -178,10 +180,16 @@ function UnlockedVault() {
     validation.status === "ok" &&
     !submitting;
 
-  const onSubmit = async (e: React.FormEvent) => {
+  const onRequestSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    if (!canSubmit) return;
+    setConfirmOpen(true);
+  };
+
+  const onConfirmSubmit = async () => {
     if (!preconditionsOk || selectedBoxes.length === 0 || submitting) return;
     if (validation.status !== "ok") return;
+    setConfirmOpen(false);
     setSubmitting(true);
     try {
       const entries: BulkWithdrawEntry[] = selectedBoxes.map((b) => ({
@@ -279,7 +287,7 @@ function UnlockedVault() {
       ) : (
         <form
           className="mt-6 space-y-6"
-          onSubmit={(e) => void onSubmit(e)}
+          onSubmit={onRequestSubmit}
           aria-busy={submitting}
         >
           <fieldset disabled={submitting} className="contents">
@@ -371,7 +379,11 @@ function UnlockedVault() {
               )}
             </div>
 
-            <label className="lj-field">
+            <div className="mt-4 mb-6 border-t border-b border-rule py-6">
+              <p className="lj-eyebrow mb-3">
+                {t("withdraw.destination_section")}
+              </p>
+              <label className="lj-field">
               <span className="lj-field__label">
                 {t("withdraw.destination_label")}
               </span>
@@ -421,7 +433,8 @@ function UnlockedVault() {
                     {t("withdraw.dest_stealth")}
                   </p>
                 )}
-            </label>
+              </label>
+            </div>
 
             {selectedBoxes.length > 0 && (
               <WithdrawReview
@@ -469,6 +482,55 @@ function UnlockedVault() {
           <div className="lj-spinner" aria-label={t("withdraw.submitting")} />
         </div>
       )}
+
+      <Modal
+        open={confirmOpen}
+        onClose={() => setConfirmOpen(false)}
+        title={t("withdraw.confirm_title")}
+      >
+        <header className="mb-5">
+          <p className="lj-eyebrow">{t("withdraw.confirm_eyebrow")}</p>
+          <h2 className="mt-2 font-display text-2xl font-light tracking-tight text-paper">
+            {t("withdraw.confirm_title")}
+          </h2>
+          <p className="mt-2 text-sm text-muted">
+            {t("withdraw.confirm_lede")}
+          </p>
+        </header>
+        <dl className="lj-banner lj-banner--signal flex-col items-stretch gap-3">
+          <div>
+            <dt className="lj-eyebrow">{t("withdraw.confirm_summary_label")}</dt>
+            <dd className="lj-banner__detail mt-1">
+              {t("withdraw.selection_summary", {
+                count: selectedBoxes.length,
+                total: formatAda(totalLovelace),
+              })}
+            </dd>
+          </div>
+          <div>
+            <dt className="lj-eyebrow">{t("withdraw.destination_label")}</dt>
+            <dd className="mt-1 break-all font-mono text-xs text-paper">
+              {destination.trim() || "—"}
+            </dd>
+          </div>
+        </dl>
+        <footer className="mt-6 flex justify-end gap-2">
+          <button
+            type="button"
+            className="lj-btn lj-btn--quiet"
+            onClick={() => setConfirmOpen(false)}
+          >
+            {t("common.cancel")}
+          </button>
+          <button
+            type="button"
+            className="lj-btn lj-btn--primary"
+            onClick={() => void onConfirmSubmit()}
+          >
+            {t("withdraw.confirm_submit")}
+          </button>
+        </footer>
+      </Modal>
     </section>
   );
 }

@@ -9,7 +9,6 @@ import { useState } from "react";
 import { useTranslation } from "react-i18next";
 
 import { useAppState } from "../lib/store.js";
-import { Eyebrow } from "../components/ui/Eyebrow.js";
 import { WalletModal } from "../components/WalletModal.js";
 
 export function Home() {
@@ -21,8 +20,7 @@ export function Home() {
   return (
     <>
       <section className="lj-hero">
-        <Eyebrow>{t("home.eyebrow")}</Eyebrow>
-        <h1 className="lj-hero__title mt-4">
+        <h1 className="lj-hero__title">
           {t("home.headline_a")}
           <br />
           <em>{t("home.headline_b")}</em>

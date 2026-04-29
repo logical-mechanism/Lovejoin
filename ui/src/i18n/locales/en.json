@@ -63,18 +63,17 @@
     "protocol": "Protocol"
   },
   "home": {
-    "eyebrow": "Sigmajoin · BLS12-381 G1 · Plutus V3",
-    "headline_a": "Anonymise on chain.",
-    "headline_b": "Sign nothing on the way out.",
-    "lede": "A Cardano-native privacy mixer. Fixed-denomination boxes; N-way sigma-OR re-randomisation per Mix tx; Schnorr withdraw to a stealth destination. Linkage falls as (1/N)^k after k rounds.",
+    "headline_a": "Deposit in public.",
+    "headline_b": "Withdraw in private.",
+    "lede": "A Cardano-native privacy mixer with fixed-denomination boxes and N-way sigma-OR re-randomization.",
     "cta_primary": "Connect wallet",
     "cta_secondary": "Read the protocol",
     "pillar_one_title": "Deposit",
-    "pillar_one_copy": "Lock the fixed denomination into a fresh mix-box. Save your owner key in your wallet vault.",
+    "pillar_one_copy": "Lock the fixed denomination into a fresh mix-box.",
     "pillar_two_title": "Mix",
-    "pillar_two_copy": "Re-randomise N boxes in a single tx. Wallet-anonymous: the submitter has no input on the tx.",
+    "pillar_two_copy": "Re-randomise N boxes in a single tx.",
     "pillar_three_title": "Withdraw",
-    "pillar_three_copy": "Spend a Schnorr proof to a stealth address. The destination has no link to the deposit wallet."
+    "pillar_three_copy": "Spend a Schnorr proof to a stealth address."
   },
   "config": {
     "section_title": "Configuration",
@@ -99,7 +98,7 @@
   "wallet": {
     "modal_title": "Choose a wallet",
     "modal_eyebrow": "CIP-30",
-    "modal_lede": "Lovejoin signs through your existing Cardano wallet. Your wallet is only touched at deposit and withdraw — never on a Mix tx.",
+    "modal_lede": "Your wallet does three things: one signature to derive your vault, and signing each deposit and withdraw. It is never on a Mix tx.",
     "scanning": "Scanning installed wallets…",
     "no_wallets_title": "No wallet detected",
     "no_wallets": "Install Lace, Eternl, Nami, or Flint, then reload this page.",
@@ -114,7 +113,7 @@
   "pool": {
     "section_title": "Mix",
     "eyebrow": "Pool · pool-wide selection",
-    "lede": "Pick the mix width and submit a Mix tx. Anyone can mix — even users who never deposited. Each Mix tx re-randomises N boxes and pays the fee from a shared pool shard, so your wallet identity stays off the tx.",
+    "lede": "Anyone can submit a Mix tx — even if you never deposited. Each Mix re-randomises N pool boxes. Pick how the fee gets paid below: the shared fee shard keeps your wallet off the tx (default), or your wallet pays directly for a higher N at the cost of revealing its identity on the tx.",
     "size": "Pool size",
     "estimated_mixes_available": "Mixes available",
     "mix_n_random_boxes": "Mix {{n}} random boxes",
@@ -157,7 +156,12 @@
     "review_collateral_value": "Provided by the configured collateral service",
     "empty_title": "Pool is empty",
     "empty_hint": "No boxes have been deposited yet on this network. Make a deposit to seed the pool — once at least 2 boxes are live, anyone can mix.",
-    "empty_cta": "Make a deposit"
+    "empty_cta": "Make a deposit",
+    "confirm_eyebrow": "Final check",
+    "confirm_title": "Confirm Mix tx",
+    "confirm_lede_shard": "Lovejoin will pick N random boxes, request collateral, and submit the Mix tx. In shard mode you do not sign — once confirmed it goes through automatically.",
+    "confirm_lede_wallet": "Lovejoin will pick N random boxes, request collateral, and submit the Mix tx. Your wallet will be on the tx and pay the fee directly.",
+    "confirm_submit": "Confirm and submit"
   },
   "deposit": {
     "section_title": "Deposit",
@@ -217,10 +221,16 @@
     "clear_selection": "Clear",
     "selection_summary": "{{count}} box(es) selected — {{total}} ADA total to destination.",
     "no_box_selected": "Select at least one vault box above to continue.",
+    "destination_section": "Send to",
     "destination_label": "Destination address",
     "destination_placeholder": "addr_test1...",
     "submit": "Withdraw",
     "submitting": "Building withdraw…",
+    "confirm_eyebrow": "Final check",
+    "confirm_title": "Confirm withdraw",
+    "confirm_lede": "This will build and submit a withdraw tx. Verify the destination address — once submitted, the spend cannot be reversed.",
+    "confirm_summary_label": "Summary",
+    "confirm_submit": "Confirm and withdraw",
     "success": "Withdraw submitted. Tx {{txId}}",
     "error": "Withdraw failed: {{message}}",
     "seedelf_detected": "Stealth address detected — wallet identity will be hidden after withdraw.",
