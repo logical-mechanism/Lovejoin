@@ -1,15 +1,18 @@
-// Direct (no-backend) pool scan via the BlockfrostProvider.
+// Direct (no-backend) pool scan via the configured ChainProvider.
 //
-// Used by the Pool screen when `config.backendUrl` is empty — keeps the UI
-// useful for self-hosters who haven't stood up the M5 indexer. The trade-off
-// is one Blockfrost call per refresh; rate limits are fine at the alpha
+// Used by the Pool screen as the fallback path — when the self-hosted
+// backend is still syncing, unreachable, or unconfigured, we walk the
+// mix-box address with whichever provider the SDK has (the
+// BackendChainProvider's own Blockfrost fallback path, or a plain
+// BlockfrostProvider for Blockfrost-only deployments). The trade-off
+// is one provider call per refresh; rate limits are fine at the alpha
 // scale.
 //
 // Builds the mix-box bech32 address from the addresses bundle (no need to
 // pull mesh's CSL bindings here — the SDK exposes a pure-TS builder).
 
 import {
-  type BlockfrostProvider,
+  type ChainProvider,
   type LovejoinAddresses,
   buildScriptAddress,
   fetchPool,
@@ -23,7 +26,7 @@ export interface DirectPoolEntry {
 }
 
 export async function fetchPoolDirect(args: {
-  provider: BlockfrostProvider;
+  provider: ChainProvider;
   addresses: LovejoinAddresses;
 }): Promise<DirectPoolEntry[]> {
   const { provider, addresses } = args;

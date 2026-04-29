@@ -13,7 +13,12 @@
 // The production UI never surfaces a config form — every screen reads
 // `useAppState().config` and just works.
 
-import { BlockfrostProvider, type LovejoinAddresses } from "@lovejoin/sdk";
+import {
+  BackendChainProvider,
+  BlockfrostProvider,
+  type ChainProvider,
+  type LovejoinAddresses,
+} from "@lovejoin/sdk";
 
 export const NETWORKS = ["preprod", "preview", "mainnet"] as const;
 export type Network = (typeof NETWORKS)[number];
@@ -145,15 +150,32 @@ export function blockfrostBaseUrl(network: Network): string {
 }
 
 /**
- * Build a chain provider for the given runtime config. Returns null when
- * no project id has been baked or overridden — the UI surfaces a calm
- * "configuration missing" state rather than a thrown error.
+ * Build a chain provider for the given runtime config.
+ *
+ * When `backendUrl` is configured, returns a BackendChainProvider that
+ * leans on the self-hosted backend (db-sync + ogmios) for chain reads
+ * and tx submission, with a Blockfrost provider as the fallback for
+ * any single method that throws. When `backendUrl` is empty, returns a
+ * plain BlockfrostProvider (Blockfrost-only deployment).
+ *
+ * Returns null when neither a backend URL nor a Blockfrost project id
+ * is configured — the UI surfaces a calm "configuration missing" state
+ * rather than a thrown error.
  */
-export function makeProvider(cfg: RuntimeConfig): BlockfrostProvider | null {
-  if (!cfg.blockfrostProjectId.trim()) return null;
-  return new BlockfrostProvider({
-    baseUrl: blockfrostBaseUrl(cfg.network),
-    projectId: cfg.blockfrostProjectId.trim(),
+export function makeProvider(cfg: RuntimeConfig): ChainProvider | null {
+  const hasBackend = cfg.backendUrl.trim().length > 0;
+  const hasBlockfrost = cfg.blockfrostProjectId.trim().length > 0;
+  if (!hasBackend && !hasBlockfrost) return null;
+  const blockfrost = hasBlockfrost
+    ? new BlockfrostProvider({
+        baseUrl: blockfrostBaseUrl(cfg.network),
+        projectId: cfg.blockfrostProjectId.trim(),
+      })
+    : null;
+  if (!hasBackend) return blockfrost;
+  return new BackendChainProvider({
+    baseUrl: cfg.backendUrl.trim(),
+    fallback: blockfrost,
   });
 }
 
