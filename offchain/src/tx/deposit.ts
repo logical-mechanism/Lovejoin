@@ -32,7 +32,7 @@ import {
   WalletProvider,
 } from "./collateral.js";
 import { mergeExternalCollateralWitness } from "./witness-merge.js";
-import { getMeshProvider } from "./mesh-bridge.js";
+import { getMeshProtocolParams, getMeshProvider } from "./mesh-bridge.js";
 import {
   pickFeeShardOptional,
   replenishOutputLovelace,
@@ -492,10 +492,12 @@ export async function buildDepositTx(args: BuildDepositArgs): Promise<DepositRes
   // exec-unit budgets — without it MeshTxBuilder uses worst-case defaults
   // that inflate the fee 10x or worse.
   const meshProvider = await getMeshProvider(args.provider);
+  const meshParams = await getMeshProtocolParams(args.provider);
   const txBuilder = new MeshTxBuilder({
     fetcher: meshProvider as never,
     submitter: meshProvider as never,
     evaluator: meshProvider as never,
+    params: meshParams as never,
     verbose: false,
   });
 
@@ -895,10 +897,12 @@ export async function buildBulkDepositTx(
 
   const { MeshTxBuilder } = await import("@meshsdk/core");
   const meshProvider = await getMeshProvider(args.provider);
+  const meshParams = await getMeshProtocolParams(args.provider);
   const txBuilder = new MeshTxBuilder({
     fetcher: meshProvider as never,
     submitter: meshProvider as never,
     evaluator: meshProvider as never,
+    params: meshParams as never,
     verbose: false,
   });
 

@@ -16,6 +16,7 @@ import type { ChainProvider } from "../chain/provider.js";
 import {
   BlockfrostProvider,
   type MeshFetcherSubmitter,
+  type MeshProtocolParameters,
 } from "../chain/blockfrost.js";
 
 /**
@@ -40,4 +41,27 @@ export async function getMeshProvider(
     "Provider does not expose a mesh-compatible fetcher. Use BlockfrostProvider " +
       "or implement `meshProvider()` on your custom ChainProvider.",
   );
+}
+
+/**
+ * Fetch the on-chain protocol parameters and return them in mesh's shape,
+ * suitable for `new MeshTxBuilder({ params })`.
+ *
+ * mesh's `MeshTxBuilder` does NOT call `fetchProtocolParameters` itself —
+ * it always uses `DEFAULT_PROTOCOL_PARAMETERS` from `@meshsdk/common`
+ * unless you hand it real ones via the constructor. The mesh defaults
+ * include `minFeeRefScriptCostPerByte: 15` but with no live tx-size
+ * binding; passing real params is what makes mesh's fee math include
+ * the Conway reference-script-cost component.
+ *
+ * Combined with our override on `BlockfrostProvider.meshProvider()`'s
+ * `fetchProtocolParameters` (which patches the missing
+ * `minFeeRefScriptCostPerByte` field through from the raw Blockfrost
+ * response), this gives MeshTxBuilder accurate Conway-era fee math.
+ */
+export async function getMeshProtocolParams(
+  provider: ChainProvider,
+): Promise<MeshProtocolParameters> {
+  const mesh = await getMeshProvider(provider);
+  return mesh.fetchProtocolParameters();
 }

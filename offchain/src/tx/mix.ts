@@ -88,7 +88,7 @@ import {
 import { appendVkeyWitness } from "./witness-merge.js";
 import { encodeMixDatum, generateOwnerSecret as drawScalar } from "./deposit.js";
 import { pickRandomFeeShard } from "./fee.js";
-import { getMeshProvider } from "./mesh-bridge.js";
+import { getMeshProtocolParams, getMeshProvider } from "./mesh-bridge.js";
 import {
   fetchProtocolParams,
   type LovejoinAddresses,
@@ -845,6 +845,7 @@ export async function buildMixTx(args: BuildMixArgs): Promise<MixResult> {
   const meshCore = await import("@meshsdk/core");
   const { MeshTxBuilder } = meshCore;
   const meshProvider = await getMeshProvider(args.provider);
+  const meshParams = await getMeshProtocolParams(args.provider);
 
   // Evaluator wiring. The chain provider's `evaluateTx` populates real
   // exec-unit budgets into every redeemer during `complete()`. There is
@@ -997,6 +998,7 @@ export async function buildMixTx(args: BuildMixArgs): Promise<MixResult> {
     fetcher: meshProvider as never,
     submitter: meshProvider as never,
     evaluator: meshProvider as never,
+    params: meshParams as never,
     verbose: false,
   });
   populate(tx);

@@ -70,7 +70,7 @@ import { mergeExternalCollateralWitness } from "./witness-merge.js";
  * no longer a hand-tuned fallback.
  */
 const POPULATE_TIME_EXUNITS_PLACEHOLDER: ExUnits = { mem: 10_000, steps: 1_000_000 };
-import { getMeshProvider } from "./mesh-bridge.js";
+import { getMeshProtocolParams, getMeshProvider } from "./mesh-bridge.js";
 import {
   fetchProtocolParams,
   type LovejoinAddresses,
@@ -382,6 +382,7 @@ export async function buildWithdrawTx(args: BuildWithdrawArgs): Promise<Withdraw
   const { MeshTxBuilder } = meshCore;
   const cst = await import("@meshsdk/core-cst");
   const meshProvider = await getMeshProvider(args.provider);
+  const meshParams = await getMeshProtocolParams(args.provider);
 
   // Wallet handles only matter in wallet-fee mode. Don't query them
   // (or trigger CIP-30 RPCs) in box mode — the wallet-anonymity story
@@ -416,6 +417,7 @@ export async function buildWithdrawTx(args: BuildWithdrawArgs): Promise<Withdraw
     const tx = new MeshTxBuilder({
       fetcher: meshProvider as never,
       submitter: meshProvider as never,
+      params: meshParams as never,
       verbose: false,
     });
     tx
@@ -732,6 +734,7 @@ export async function buildBulkWithdrawTx(
   const { MeshTxBuilder } = meshCore;
   const cst = await import("@meshsdk/core-cst");
   const meshProvider = await getMeshProvider(args.provider);
+  const meshParams = await getMeshProtocolParams(args.provider);
 
   const walletUtxos =
     feePayer === "wallet" ? normalizeWalletUtxos(await args.wallet.getUtxos()) : [];
@@ -756,6 +759,7 @@ export async function buildBulkWithdrawTx(
     const tx = new MeshTxBuilder({
       fetcher: meshProvider as never,
       submitter: meshProvider as never,
+      params: meshParams as never,
       verbose: false,
     });
     tx.readOnlyTxInReference(referenceUtxoRef.txId, referenceUtxoRef.outputIndex);
