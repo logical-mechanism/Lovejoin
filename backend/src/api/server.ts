@@ -60,6 +60,13 @@ export async function buildServer(deps: ApiServerDeps): Promise<FastifyInstance>
     // replacer here keeps the wire format consistent with the spec
     // (lovelace as decimal strings).
     serializerOpts: { rounding: "ceil" },
+    // Bech32 base addresses on Cardano are ~104–119 chars (preprod stake
+    // base addresses go to 119), longer than Fastify's default 100-char
+    // param cap. Without bumping this, /utxos/:address and
+    // /history/:address silently 404 with the find-my-way fallback
+    // instead of calling our handler. 256 leaves room for any future
+    // address scheme without exposing a meaningful DoS surface.
+    maxParamLength: 256,
   });
   fastify.setReplySerializer((payload) =>
     JSON.stringify(payload, PRESERVE_BIGINT_REPLACER),
