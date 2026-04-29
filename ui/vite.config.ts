@@ -1,6 +1,6 @@
 import { createRequire } from "node:module";
 
-import { defineConfig } from "vite";
+import { defineConfig, loadEnv } from "vite";
 import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
 import wasm from "vite-plugin-wasm";
@@ -37,13 +37,36 @@ const libsodiumEsbuildShim = {
 // level). nodePolyfills covers the few node builtins mesh's deps reach for
 // in browser code (events, crypto, stream, util). All four plugins are dev
 // dependencies and only affect the bundler.
-export default defineConfig({
+export default defineConfig(({ mode }) => {
+  // Single-source the Blockfrost project id. The rest of the stack reads
+  // BLOCKFROST_PROJECT_ID_<NETWORK> (CLI, backend, integration tests,
+  // bootstrap scripts); Vite forces a `VITE_` prefix for client-exposed
+  // vars, which would otherwise mean a duplicate `VITE_BLOCKFROST_PROJECT_ID=…`
+  // line in .env. We read the suffixed form here at build time and
+  // expose it as `import.meta.env.VITE_BLOCKFROST_PROJECT_ID` via
+  // `define`. An explicit VITE_BLOCKFROST_PROJECT_ID still wins for
+  // people who really want a separate UI key.
+  const env = loadEnv(mode, "..", "");
+  const network = (env.VITE_NETWORK || "preprod").trim().toLowerCase();
+  const suffixed =
+    env[`BLOCKFROST_PROJECT_ID_${network.toUpperCase()}`]?.trim();
+  const explicit = env.VITE_BLOCKFROST_PROJECT_ID?.trim();
+  const blockfrostProjectId = explicit || suffixed || "";
+
+  return {
   // Read .env from the workspace root, not ui/. Keeps the project to a
   // single source of truth (workspace .env) for both UI runtime config
   // (VITE_*) and backend / CLI / Makefile config. Vite still only
   // exposes VITE_* keys to client code — the non-VITE entries in the
   // shared file are ignored by the bundler.
   envDir: "..",
+  define: {
+    // Inject the resolved Blockfrost project id under the canonical
+    // VITE_-prefixed name so the SDK / store can read it at runtime
+    // without needing a duplicate line in .env. JSON.stringify so the
+    // value lands as a string literal in the bundle.
+    "import.meta.env.VITE_BLOCKFROST_PROJECT_ID": JSON.stringify(blockfrostProjectId),
+  },
   plugins: [
     react(),
     tailwindcss(),
@@ -84,5 +107,6 @@ export default defineConfig({
       plugins: [libsodiumEsbuildShim as unknown as import("esbuild").Plugin],
     },
   },
+  };
 });
 

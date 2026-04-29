@@ -117,7 +117,15 @@ export function loadConfig(
   const host = env.HOST?.trim() || DEFAULTS.host;
   const ogmiosUrl = (env.OGMIOS_URL ?? "ws://localhost:1337").trim();
   const dbsyncUrl = env.DBSYNC_URL?.trim() || null;
-  const blockfrostProjectId = env.BLOCKFROST_PROJECT_ID?.trim() || null;
+  // Accept either the unsuffixed BLOCKFROST_PROJECT_ID or the
+  // network-suffixed form the SDK CLI already uses
+  // (BLOCKFROST_PROJECT_ID_PREPROD / _PREVIEW / _MAINNET). Backend reads
+  // the unsuffixed first so an explicit override wins; falls back to the
+  // SDK convention so a single .env doesn't need to duplicate the key.
+  const blockfrostProjectId =
+    env.BLOCKFROST_PROJECT_ID?.trim() ||
+    env[`BLOCKFROST_PROJECT_ID_${network.toUpperCase()}`]?.trim() ||
+    null;
   const blockfrostBaseUrl = env.BLOCKFROST_BASE_URL?.trim() || null;
   const corsOrigins = parseCorsOrigins(env.CORS_ORIGINS);
   const rateLimitPerMin = parseIntegerEnv(
