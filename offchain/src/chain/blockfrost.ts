@@ -68,7 +68,7 @@ const DEFAULT_POLL_INTERVAL_MS = 5_000;
  */
 export interface MeshFetcherSubmitter {
   fetchUTxOs(hash: string, index?: number): Promise<unknown>;
-  fetchProtocolParameters(epoch?: number): Promise<unknown>;
+  fetchProtocolParameters(epoch?: number): Promise<MeshProtocolParameters>;
   submitTx(tx: string): Promise<string>;
   /**
    * Mesh's `IEvaluator.evaluateTx` — script execution-unit budget.
@@ -77,6 +77,16 @@ export interface MeshFetcherSubmitter {
    */
   evaluateTx(cbor: string): Promise<unknown>;
 }
+
+/**
+ * The fields of mesh's `Protocol` shape we care about. Mesh's full type
+ * has ~25 fields; we only ever read / patch one (the Conway reference-
+ * script fee parameter), but `Record<string, unknown>` lets us return
+ * mesh's full object unchanged after augmenting it.
+ */
+export type MeshProtocolParameters = Record<string, unknown> & {
+  minFeeRefScriptCostPerByte?: number;
+};
 
 export class BlockfrostProvider implements ChainProvider {
   private readonly baseUrl: string;
@@ -132,6 +142,63 @@ export class BlockfrostProvider implements ChainProvider {
       this.projectId,
     ) as MeshFetcherSubmitter & {
       evaluateTx: (tx: string) => Promise<unknown>;
+      fetchProtocolParameters: (epoch?: number) => Promise<MeshProtocolParameters>;
+    };
+
+    // Mesh's BlockfrostProvider.fetchProtocolParameters strips
+    // `min_fee_ref_script_cost_per_byte` from the Blockfrost response — it
+    // never made it into mesh's `castProtocol6` mapping. Conway charges
+    // `total_ref_script_size × min_fee_ref_script_cost_per_byte` lovelace
+    // per tx that consumes reference scripts (currently 15 lovelace/byte
+    // on Preprod / mainnet). For a withdraw tx that pulls mix_box +
+    // mix_logic via `spendingTxInReference` / `withdrawalTxInReference`,
+    // that's ~3 KB × 15 ≈ 45 k lovelace mesh under-counts. Result:
+    // chain rejects with `FeeTooSmallUTxO`.
+    //
+    // Re-fetch the raw Blockfrost response and patch the field through.
+    // Same shape as the evaluateTx override above.
+    const originalFetchParams =
+      meshBf.fetchProtocolParameters.bind(meshBf);
+    const get = this.get.bind(this);
+    meshBf.fetchProtocolParameters = async (epoch?: number) => {
+      const params = await originalFetchParams(epoch);
+      const path = `/epochs/${epoch === undefined || Number.isNaN(epoch) ? "latest" : epoch}/parameters`;
+      const raw = (await get(path)) as
+        | Record<string, unknown>
+        | null;
+      // Blockfrost has shipped this field under both conventions across
+      // versions; accept either. Also tolerate stringified numbers.
+      const rawRefScriptCost =
+        raw?.["min_fee_ref_script_cost_per_byte"] ??
+        raw?.["minFeeRefScriptCostPerByte"];
+      const refScriptCost =
+        typeof rawRefScriptCost === "number"
+          ? rawRefScriptCost
+          : typeof rawRefScriptCost === "string"
+            ? Number.parseFloat(rawRefScriptCost)
+            : undefined;
+      if (typeof refScriptCost === "number" && refScriptCost > 0 && !Number.isNaN(refScriptCost)) {
+        params.minFeeRefScriptCostPerByte = refScriptCost;
+        // eslint-disable-next-line no-console
+        console.log(
+          `[lovejoin/params] patched minFeeRefScriptCostPerByte=${refScriptCost} ` +
+            `into mesh protocol params (mesh's caster drops this Conway field)`,
+        );
+      } else if (refScriptCost !== undefined) {
+        // eslint-disable-next-line no-console
+        console.warn(
+          `[lovejoin/params] Blockfrost returned min_fee_ref_script_cost_per_byte=` +
+            `${JSON.stringify(refScriptCost)}; expected a positive number — ` +
+            `tx fee may under-count Conway reference-script cost.`,
+        );
+      } else {
+        // eslint-disable-next-line no-console
+        console.warn(
+          `[lovejoin/params] Blockfrost did not return min_fee_ref_script_cost_per_byte; ` +
+            `mesh will fall back to its built-in default (likely 15 lovelace/byte).`,
+        );
+      }
+      return params;
     };
     // Mesh's BlockfrostProvider posts to /utils/txs/evaluate without a
     // `version` query param, which makes Blockfrost route the request
