@@ -188,9 +188,12 @@ function UnlockedVault() {
         mixBox: { ref: b.entry.ref, a: b.entry.a, b: b.entry.b },
         ownerSecret: b.secret,
       }));
+      // Empty config endpoint = let the SDK use its pinned host URL.
       const collateralProvider = new GivemeMyProvider({
-        endpoint: config.collateralProviderEndpoint,
         network: config.network,
+        ...(config.collateralProviderEndpoint
+          ? { endpoint: config.collateralProviderEndpoint }
+          : {}),
       });
       const result = await buildBulkWithdrawTx({
         network: config.network as "preprod" | "preview" | "mainnet",

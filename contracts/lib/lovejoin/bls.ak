@@ -24,9 +24,12 @@ pub const generator: G1Element = g1.generator
 
 /// Decode a 48-byte compressed G1 point. Aborts if the bytes are not a valid
 /// element of the prime-order subgroup (the builtin `uncompress` performs the
-/// subgroup check).
+/// subgroup check) or if the byte length is not 48 (the builtin's
+/// deserialiser only accepts exactly 48 bytes; wrong-length input fails the
+/// uncompress with a `BLST_BAD_ENCODING` error). Length is therefore enforced
+/// by the builtin; an explicit `bytearray.length` pre-check would be a
+/// belt-and-suspenders duplicate.
 pub fn point_from_bytes(bytes: ByteArray) -> G1Element {
-  expect bytearray.length(bytes) == g1_compressed_bytes
   builtin.bls12_381_g1_uncompress(bytes)
 }
 

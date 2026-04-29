@@ -108,9 +108,12 @@ export function Box() {
       // External collateral via giveme.my so a fresh wallet without a
       // 5-ADA collateral UTxO can still withdraw. Same endpoint Mix
       // already uses; toggling between the two providers stays cheap.
+      // Empty config endpoint = let the SDK use its pinned host URL.
       const collateralProvider = new GivemeMyProvider({
-        endpoint: config.collateralProviderEndpoint,
         network: config.network,
+        ...(config.collateralProviderEndpoint
+          ? { endpoint: config.collateralProviderEndpoint }
+          : {}),
       });
       const result = await buildWithdrawTx({
         network: config.network as "preprod" | "preview" | "mainnet",

@@ -72,11 +72,17 @@ pub fn precompute_statements(
   )
 }
 
-/// XOR two equal-length 32-byte arrays, produced via per-byte bitwise XOR using
-/// the integer-wide `xor_bytearray` builtin.
+/// XOR two equal-length 32-byte arrays via the integer-wide `xor_bytearray`
+/// builtin. The `False` padding flag aborts the builtin if the two inputs
+/// differ in length, so the right-side length is implicitly enforced.
+///
+/// The previous `expect bytearray.length(left) == 32` was redundant: in the
+/// XOR fold inside `verify_pre`, the seed is `zero32` (32 bytes) and
+/// `xor_bytearray(False, l32, r)` returns 32 bytes only when `r` is also 32
+/// (otherwise it aborts). By induction, `acc` is always 32 bytes, and a
+/// non-32-byte `br.c` is caught by the builtin on the first iteration. N²
+/// builtin pairs (length + ==) saved per Mix tx — see audit H3.
 fn xor32(left: ByteArray, right: ByteArray) -> ByteArray {
-  expect bytearray.length(left) == 32
-  expect bytearray.length(right) == 32
   builtin.xor_bytearray(False, left, right)
 }
 
@@ -97,7 +103,16 @@ pub fn verify(
   ctx: ByteArray,
 ) -> Bool {
   let n = list.length(statements)
-  verify_pre(a, b, precompute_statements(statements), proof, ctx, n)
+  expect n <= 255
+  let header_const_prefix = hash_mod.fs_hash_sigma_or_header_const_prefix(n)
+  verify_pre(
+    a,
+    b,
+    precompute_statements(statements),
+    proof,
+    ctx,
+    header_const_prefix,
+  )
 }
 
 /// Variant of `verify` that takes statements with their G1 points
@@ -108,24 +123,26 @@ pub fn verify(
 /// re-uncompresses down to N is the single biggest knob for raising
 /// the Mix tx's `max_n` ceiling.
 ///
-/// `n = list.length(statements)` is supplied by the caller. The Mix-tx
-/// validator already computes it once at the top of `validate_mix`, so
-/// passing it through saves one O(N) traversal per `verify_pre` call
-/// (= N² list-walk steps eliminated per tx).
+/// `header_const_prefix` is `DOMAIN || 0x03 || N(1 byte)` — constant
+/// across the N inputs of a single Mix tx. The caller (validate_mix)
+/// builds it once via `hash.fs_hash_sigma_or_header_const_prefix(n)`,
+/// having already enforced `2 <= n <= 255`. We just append the per-input
+/// (a, b). Saves 2 concats + 1 `from_int_big_endian` per call (= 2N+N
+/// per Mix tx).
 pub fn verify_pre(
   a: ByteArray,
   b: ByteArray,
   statements: List<DHTupleStatementPt>,
   proof: SigmaOrProof,
   ctx: ByteArray,
-  n: Int,
+  header_const_prefix: ByteArray,
 ) -> Bool {
-  // O(1) guards: at least two statements + the 1-byte N-prefix bound on
-  // the FS hash. Length parity between `statements` and `proof.branches`
-  // is enforced by `parallel_all`'s `_ -> False` arm below — no need to
-  // walk the lists for it.
+  // O(1) guard: at least two statements. Length parity between
+  // `statements` and `proof.branches` is enforced by `parallel_all`'s
+  // `_ -> False` arm below — no need to walk the lists for it. The
+  // 1-byte N-prefix bound (`n <= 255`) is enforced by the caller before
+  // building `header_const_prefix`.
   expect [_, _, ..] = statements
-  expect n <= 255
 
   // FS hash, walking the typed lists directly. The previous version
   // allocated two N-element wrapper-struct lists (SigmaOrStatementBranch,
@@ -134,7 +151,8 @@ pub fn verify_pre(
   // canonical wire layout — see hash.fs_hash_sigma_or for that layout
   // and encoding_parity_kat.test.ak for the byte-equal proof. Saves
   // 2N wrapper allocs per `verify_pre` call (= 2N² per Mix tx).
-  let header = hash_mod.fs_hash_sigma_or_header(a, b, n)
+  let header =
+    hash_mod.fs_hash_sigma_or_header_with_prefix(header_const_prefix, a, b)
   let with_branches =
     list.foldl(
       statements,

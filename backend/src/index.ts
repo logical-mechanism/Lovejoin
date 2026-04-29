@@ -19,7 +19,7 @@ import { IndexerRuntime } from "./indexer/runtime.js";
 import { IndexerState } from "./indexer/state.js";
 import { buildServer } from "./api/server.js";
 
-export const BACKEND_VERSION = "0.1.0";
+export const BACKEND_VERSION = "0.2.0";
 
 export type LovejoinBackendConfig = {
   ogmiosUrl: string;

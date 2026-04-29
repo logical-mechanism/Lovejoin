@@ -267,3 +267,90 @@ confirm.
    `fee-exhaustion`, `full-lifecycle`) ten consecutive times.
 5. Commit the new `artifacts/preprod/addresses.json`.
 
+## M4.6 — second optimisation pass (CPU squeeze for N=4)
+
+After M4.5's redeploy, live Preprod still showed N=4 overshooting the
+per-tx budget by ~37M CPU. M4.6 added a second wave of (smaller, more
+mechanical) optimisations on top of M4.5:
+
+1. **Cached `denom_value_bytes` in `validate_mix`** — every prefix output
+   is forced ada-only at exactly `denom_lovelace`, so
+   `serialise_data(output.value)` is byte-identical for all N. Compute it
+   once at the top of `validate_mix` and reuse N times in the FS preimage
+   accumulator. Saves N-1 `serialise_data` calls.
+2. **Hoisted FS-hash header prefix** — `domain_tag_v1 || 0x03 || N(1byte)`
+   is constant across the N inputs of one Mix tx. Built once via
+   `hash.fs_hash_sigma_or_header_const_prefix(n)`, threaded to
+   `verify_pre` via a new `header_const_prefix: ByteArray` parameter.
+   Saves `2 concats + 1 from_int_big_endian` per input.
+3. **`mixbox.decode_mix_datum_strict`** — output decode in
+   `do_decode_prefix` switched from the soft-fail
+   `try_decode_well_formed_data` + `expect Some(..)` pair to a hard-fail
+   typed cast that does the same length+distinctness checks without the
+   Option round-trip and without the redundant `is_constr` / `is_bytes`
+   `choose_data` dispatches. Inputs (in `collect_well_formed_mix_inputs`)
+   keep the soft-fail variant.
+4. **(skipped)** Pinning fee output to `self.outputs[0]` was attempted
+   but reverted — net cost +6M CPU in `mix_logic` for <1M saved in
+   `fee_contract`, and the convention conflicts with the wallet-fee-payer
+   mode (no fee shard exists in that mode).
+5. **Single-pass fee_contract input fold** — replaced the two separate
+   `list.count` walks (mix-script inputs + fee-script inputs) with one
+   `list.foldl` returning `(mix_count, fee_count)`. Saves one full
+   traversal of `self.inputs` plus N+1 closure invocations.
+6. **`expect_ada_only_lovelace` helper** in `lovejoin/value` — the old
+   `ada_only(value)` (one dict walk) plus `lovelace_of(value)` (a second
+   dict walk) collapsed into a single `assets.to_dict |> dict.to_pairs`
+   destructure that pattern-matches `[Pair(ada_policy, [Pair("", n)])]`.
+   Same security contract (rejects non-ada policies), one walk.
+7. **Drop redundant `bytearray.length == 48` in `bls.point_from_bytes`** —
+   `bls12_381_g1_uncompress` builtin already aborts on wrong-length input
+   (`BLST_BAD_ENCODING`); the explicit pre-check was a duplicate.
+8. **Drop one `bytearray.length == 32` in `xor32`** — `xor_bytearray(False, ..)`
+   asserts equal length, so we only need to check the first arg.
+9. **(skipped)** Replacing the `bls.scalar_from_bytes_mod` wrapper with a
+   direct `scalar.from_bytes` call from stdlib is a pure cleanup with
+   zero CPU effect (same UPLC). Left for a future cleanup PR.
+10. **(`scalar_from_bytes` redundant-mod, won't-fix in this branch)** —
+    `bls.scalar_from_bytes(bytes)` does `expect v < scalar_order` then
+    `scalar.from_int(v)` which internally does `v % field_prime`. After
+    the explicit bound check the mod is a no-op that still pays for
+    `mod_integer`. Cannot skip without forking `aiken/crypto/bitwise`
+    because `State<t>` is `pub opaque`. Two paths if the gap reopens
+    later: (a) an upstream stdlib PR exposing
+    `bitwise.from_int_unchecked(v) -> State<t>` (cleanest); (b) keep
+    raw `Int` alongside `State<Scalar>` in our scalar handling (lots of
+    code churn). Estimate: ~1–2M CPU per Mix tx at N=4 if recovered.
+11. **Single-walk `validate_mix` prologue** — collapsed
+    `list.take + list.drop + list.all (prefix at_script) + list.all (tail !at_script)`
+    plus the `do_decode_prefix` walk into one tail-recursive walker
+    `walk_outputs(self.outputs, n, ...)` that branches on a counter.
+    Eliminates one N-cell list allocation and three traversals.
+12. **(skipped)** Adding a `point_from_bytes_unchecked` variant — superseded
+    by item 7 (the existing `point_from_bytes` is now the unchecked
+    variant; the builtin's own length check is the only one).
+
+### Measured CPU vs main (the `mix_full_prologue_then_proof_fails_n*` benchmark)
+
+| N | Main (post-M4.5) | M4.6 | delta | delta % |
+|---|------------------|---------|-------|---------|
+| 2 |  475,922,780 |  453,564,761 |  −22,358,019 | −4.7% |
+| 3 |  676,013,646 |  641,340,427 |  −34,673,219 | −5.1% |
+| 4 |  879,613,038 |  829,424,619 |  −50,188,419 | −5.7% |
+| 6 | 1,287,745,756 | 1,209,726,937 |  −78,018,819 | −6.1% |
+| 8 | 1,693,904,222 | 1,591,255,003 | −102,649,219 | −6.1% |
+
+Mem also drops ~120K at N=4 (1,290,157 → 1,167,041).
+
+Per-Mix-tx the savings scale roughly linearly with N (Items 1, 6, 11 are
+all per-prefix-output wins). The N=4 reclaim is ~50M, comfortably
+covering the M4 deployment's ~37M overshoot with headroom for
+measurement variance.
+
+### Operator step (closes M4.6 exit criteria)
+
+Same as M4.5: re-bootstrap on Preprod, run
+`stress-tests/max-n-calibration.ts`, update
+`config/network.preprod.json`'s `max_n` to the empirical maximum, re-run
+the M4 integration suite ten consecutive times.
+

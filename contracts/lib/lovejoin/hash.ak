@@ -86,6 +86,32 @@ pub fn fs_hash_sigma_or_header(a: ByteArray, b: ByteArray, n: Int) -> ByteArray 
     |> bytearray.concat(b)
 }
 
+/// Build the constant prefix `DOMAIN || 0x03 || N(1 byte)` ONCE per Mix tx.
+/// `n` is constant across all N inputs of a single Mix tx, so this prefix
+/// can be reused for every per-input header. Callers must enforce
+/// `2 <= n <= 255` before calling (the 1-byte encoding overflows above 255).
+pub fn fs_hash_sigma_or_header_const_prefix(n: Int) -> ByteArray {
+  let n_byte = bytearray.from_int_big_endian(n, 1)
+  domain_tag_v1
+    |> bytearray.concat(statement_id_sigma_or_n)
+    |> bytearray.concat(n_byte)
+}
+
+/// Per-input sigma-OR header build using a pre-computed constant prefix
+/// from `fs_hash_sigma_or_header_const_prefix`. Just appends (a, b) — saves
+/// 2 concats and 1 `from_int_big_endian` call per input vs.
+/// `fs_hash_sigma_or_header`. Wire bytes are byte-identical for any
+/// (n, a, b) triple.
+pub fn fs_hash_sigma_or_header_with_prefix(
+  const_prefix: ByteArray,
+  a: ByteArray,
+  b: ByteArray,
+) -> ByteArray {
+  const_prefix
+    |> bytearray.concat(a)
+    |> bytearray.concat(b)
+}
+
 /// N-way sigma-OR Fiat-Shamir hash. `branches` and `commitments` MUST have the same
 /// length N (the verifier enforces this; see `lovejoin/sigma_or`).
 ///

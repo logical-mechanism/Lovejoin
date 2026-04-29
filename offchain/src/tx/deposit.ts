@@ -31,7 +31,8 @@ import {
   type CollateralProvider,
   WalletProvider,
 } from "./collateral.js";
-import { getMeshProvider } from "./mesh-bridge.js";
+import { mergeExternalCollateralWitness } from "./witness-merge.js";
+import { getMeshProtocolParams, getMeshProvider } from "./mesh-bridge.js";
 import {
   pickFeeShardOptional,
   replenishOutputLovelace,
@@ -468,15 +469,13 @@ export async function buildDepositTx(args: BuildDepositArgs): Promise<DepositRes
     ...(args.minRounds !== undefined ? { minRounds: args.minRounds } : {}),
   });
 
-  // Wallet collateral. Mix uses GivemeMyProvider per spec; deposit + withdraw
-  // use the wallet's own collateral. Either way the CollateralProvider
-  // interface returns the same shape.
+  // Wallet collateral. Deposit defaults to WalletProvider — the user's
+  // wallet is already in the tx, so wallet anonymity isn't a concern. Pass
+  // an explicit provider to route through giveme.my (e.g. for fresh wallets
+  // that don't have a 5-ADA collateral UTxO).
   const collateral = args.collateralProvider ?? new WalletProvider(args.wallet);
-  // Eight bytes is enough placeholder for a digest — deposit doesn't use the
-  // digest because WalletProvider ignores it. M4's Mix tx will compute a
-  // real one before calling.
-  const collateralProvision = await collateral.requestCollateral({
-    txBodyDigest: new Uint8Array(32),
+  const preparedCollateral = await collateral.prepareCollateral({
+    provider: args.provider,
     collateralAmountLovelace: 5_000_000n,
   });
 
@@ -493,12 +492,16 @@ export async function buildDepositTx(args: BuildDepositArgs): Promise<DepositRes
   // exec-unit budgets — without it MeshTxBuilder uses worst-case defaults
   // that inflate the fee 10x or worse.
   const meshProvider = await getMeshProvider(args.provider);
+  const meshParams = await getMeshProtocolParams(args.provider);
   const txBuilder = new MeshTxBuilder({
     fetcher: meshProvider as never,
     submitter: meshProvider as never,
     evaluator: meshProvider as never,
+    params: meshParams as never,
     verbose: false,
   });
+  // Trust evaluator-returned exec units exactly (mesh defaults to 1.1×).
+  txBuilder.txEvaluationMultiplier = 1;
 
   // Wallet inputs (mesh handles selection).
   const walletUtxos = normalizeWalletUtxos(await args.wallet.getUtxos());
@@ -559,8 +562,8 @@ export async function buildDepositTx(args: BuildDepositArgs): Promise<DepositRes
 
   tx.changeAddress(changeAddress).selectUtxosFrom(walletUtxos);
 
-  // Wallet collateral: mesh's API takes (txHash, idx, amount?, address?).
-  for (const utxo of collateralProvision.inputs) {
+  // Collateral input(s). mesh's API takes (txHash, idx, amount?, address?).
+  for (const utxo of preparedCollateral.inputs) {
     tx.txInCollateral(
       utxo.ref.txId,
       utxo.ref.outputIndex,
@@ -568,9 +571,15 @@ export async function buildDepositTx(args: BuildDepositArgs): Promise<DepositRes
       utxo.address,
     );
   }
+  if (preparedCollateral.requiredSignerPkhHex) {
+    tx.requiredSignerHash(preparedCollateral.requiredSignerPkhHex);
+  }
 
   const unsignedTx = await tx.complete();
-  const signedTx = await args.wallet.signTx(unsignedTx);
+  const walletSignedTx = await args.wallet.signTx(unsignedTx);
+  const signedTx = preparedCollateral.externallySigned
+    ? await mergeExternalCollateralWitness(collateral, walletSignedTx)
+    : walletSignedTx;
   const owner = deriveOwner(plan.ownerSecret, plan.a);
 
   if (args.signOnly) {
@@ -883,19 +892,23 @@ export async function buildBulkDepositTx(
   });
 
   const collateral = args.collateralProvider ?? new WalletProvider(args.wallet);
-  const collateralProvision = await collateral.requestCollateral({
-    txBodyDigest: new Uint8Array(32),
+  const preparedCollateral = await collateral.prepareCollateral({
+    provider: args.provider,
     collateralAmountLovelace: 5_000_000n,
   });
 
   const { MeshTxBuilder } = await import("@meshsdk/core");
   const meshProvider = await getMeshProvider(args.provider);
+  const meshParams = await getMeshProtocolParams(args.provider);
   const txBuilder = new MeshTxBuilder({
     fetcher: meshProvider as never,
     submitter: meshProvider as never,
     evaluator: meshProvider as never,
+    params: meshParams as never,
     verbose: false,
   });
+  // Trust evaluator-returned exec units exactly (mesh defaults to 1.1×).
+  txBuilder.txEvaluationMultiplier = 1;
 
   const walletUtxos = normalizeWalletUtxos(await args.wallet.getUtxos());
   const changeAddress = await args.wallet.getChangeAddress();
@@ -949,7 +962,7 @@ export async function buildBulkDepositTx(
   }
   txBuilder.changeAddress(changeAddress).selectUtxosFrom(walletUtxos);
 
-  for (const utxo of collateralProvision.inputs) {
+  for (const utxo of preparedCollateral.inputs) {
     txBuilder.txInCollateral(
       utxo.ref.txId,
       utxo.ref.outputIndex,
@@ -957,9 +970,15 @@ export async function buildBulkDepositTx(
       utxo.address,
     );
   }
+  if (preparedCollateral.requiredSignerPkhHex) {
+    txBuilder.requiredSignerHash(preparedCollateral.requiredSignerPkhHex);
+  }
 
   const unsignedTx = await txBuilder.complete();
-  const signedTx = await args.wallet.signTx(unsignedTx);
+  const walletSignedTx = await args.wallet.signTx(unsignedTx);
+  const signedTx = preparedCollateral.externallySigned
+    ? await mergeExternalCollateralWitness(collateral, walletSignedTx)
+    : walletSignedTx;
   const owners = plan.boxes.map((box) => deriveOwner(box.ownerSecret, box.a));
 
   if (args.signOnly) {

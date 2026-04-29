@@ -86,10 +86,18 @@ sdk-build:
 sdk-test:
 	$(PNPM) --filter @lovejoin/sdk test
 
-ui-dev:
+# Vite pre-bundles `@lovejoin/sdk` from offchain/dist/, which only exists
+# AFTER `tsc -p tsconfig.json` has run. Without `sdk-build` here, editing
+# offchain/src/ leaves the UI serving yesterday's bytes (the bug that
+# blocked the shard-mode real-fee fix from being visible at runtime).
+# Vite's pre-bundle cache also caches the resolved entry, so we wipe
+# `ui/node_modules/.vite` to force a re-pre-bundle on next dev-server
+# start.
+ui-dev: sdk-build
+	@rm -rf ui/node_modules/.vite
 	$(PNPM) --filter @lovejoin/ui run dev
 
-backend-dev:
+backend-dev: sdk-build
 	$(PNPM) --filter @lovejoin/backend run dev
 
 clean:
@@ -158,18 +166,34 @@ sync-ui-addresses:
 		echo "sync-ui-addresses: config/network.$(NETWORK).json not found"; \
 		exit 1; \
 	fi
-	@MAX_N=$$(jq -r '.max_n // empty' "config/network.$(NETWORK).json"); \
-	if [ -z "$$MAX_N" ]; then \
-		echo "sync-ui-addresses: config/network.$(NETWORK).json has no max_n; copying artifact unchanged"; \
-		cp "artifacts/$(NETWORK)/addresses.json" "ui/public/addresses.$(NETWORK).json"; \
+	@MAX_N_SHARD=$$(jq -r '.max_n_shard // empty' "config/network.$(NETWORK).json"); \
+	MAX_N_WALLET=$$(jq -r '.max_n_wallet // empty' "config/network.$(NETWORK).json"); \
+	if [ -z "$$MAX_N_SHARD" ] || [ -z "$$MAX_N_WALLET" ]; then \
+		echo "sync-ui-addresses: config/network.$(NETWORK).json must define both max_n_shard and max_n_wallet (shard mode caps Mix at the smaller value to fit per-tx CPU; wallet mode trades fee anonymity for a wider mix). Copying artifact unchanged."; \
+		cp "artifacts/$(NETWORK)/addresses.json" "ui/public/addresses.$(NETWORK).json.tmp"; \
 	else \
-		jq --argjson maxN "$$MAX_N" '.protocol.max_n = $$maxN' \
+		jq --argjson shard "$$MAX_N_SHARD" --argjson wallet "$$MAX_N_WALLET" \
+			'.protocol.max_n_shard = $$shard | .protocol.max_n_wallet = $$wallet' \
 			"artifacts/$(NETWORK)/addresses.json" \
-			> "ui/public/addresses.$(NETWORK).json.tmp" && \
-		mv "ui/public/addresses.$(NETWORK).json.tmp" "ui/public/addresses.$(NETWORK).json"; \
+			> "ui/public/addresses.$(NETWORK).json.tmp"; \
 	fi
+	@# Populate referenceScriptSizes from the on-disk .plutus files. mesh-csl
+	@# @1.8.14 doesn't compute Conway's reference-script-fee component, so the
+	@# SDK adds it manually via setFee — that correction needs the byte sizes.
+	@# Without this stamp, addresses.json has no sizes → correction is a
+	@# no-op → tx submission fails with FeeTooSmallUTxO.
+	@MIX_BOX=$$(jq -r '.cborHex' "artifacts/$(NETWORK)/mix_box.plutus" | awk '{print length($$0)/2}'); \
+	MIX_LOGIC=$$(jq -r '.cborHex' "artifacts/$(NETWORK)/mix_logic.plutus" | awk '{print length($$0)/2}'); \
+	FEE_CONTRACT=$$(jq -r '.cborHex' "artifacts/$(NETWORK)/fee_contract.plutus" | awk '{print length($$0)/2}'); \
+	jq --argjson mb "$$MIX_BOX" --argjson ml "$$MIX_LOGIC" --argjson fc "$$FEE_CONTRACT" \
+		'.referenceScriptSizes = { mix_box: $$mb, mix_logic: $$ml, fee_contract: $$fc }' \
+		"ui/public/addresses.$(NETWORK).json.tmp" \
+		> "ui/public/addresses.$(NETWORK).json" && \
+	rm "ui/public/addresses.$(NETWORK).json.tmp"
 	@echo "sync-ui-addresses: ui/public/addresses.$(NETWORK).json updated."
-	@jq -r '.protocol | "  denom=\(.denom_lovelace) max_fee=\(.max_fee_per_mix_lovelace) max_n=\(.max_n)"' \
+	@jq -r '.protocol | "  denom=\(.denom_lovelace) max_fee=\(.max_fee_per_mix_lovelace) max_n_shard=\(.max_n_shard) max_n_wallet=\(.max_n_wallet)"' \
+		"ui/public/addresses.$(NETWORK).json"
+	@jq -r '.referenceScriptSizes | "  ref-script bytes: mix_box=\(.mix_box) mix_logic=\(.mix_logic) fee_contract=\(.fee_contract)"' \
 		"ui/public/addresses.$(NETWORK).json"
 	@jq -r '"  ref UTxO=\(.referenceUtxoRef)"' "ui/public/addresses.$(NETWORK).json"
 
