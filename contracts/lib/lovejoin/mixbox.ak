@@ -57,6 +57,20 @@ pub fn try_decode_well_formed_optional(datum: Option<Data>) -> Option<MixDatum> 
   }
 }
 
+/// Hard-fail output decode for `validate_mix`'s prefix walk. Outputs MUST
+/// be well-formed mix-boxes (Mix tx invariant), so the soft-fail Option
+/// dance is dead overhead — we abort if the shape is wrong. Same protocol
+/// constraints as `try_decode_well_formed_data` (Constr 0, 48-byte fields,
+/// `a != b`); skips the manual `is_constr` / `is_bytes` `choose_data`
+/// dispatches by leaning on Aiken's typed cast.
+pub fn decode_mix_datum_strict(inline_data: Data) -> MixDatum {
+  expect mix_datum: MixDatum = inline_data
+  expect bytearray.length(mix_datum.a) == mix_datum_field_length
+  expect bytearray.length(mix_datum.b) == mix_datum_field_length
+  expect mix_datum.a != mix_datum.b
+  mix_datum
+}
+
 /// Manually traverse `Data` so that an unexpected shape returns `None`
 /// instead of aborting the script. Aiken's typed cast (`expect md: MixDatum
 /// = d`) hard-fails on any mismatch, which would defeat the hyperstructure

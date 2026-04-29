@@ -32,7 +32,7 @@ use lovejoin/fee.{
 use lovejoin/mixbox.{input_at_script}
 use lovejoin/reference.{read_reference_datum}
 use lovejoin/types.{FeeRedeemer, PayMixFee, ReferenceDatum, Replenish}
-use lovejoin/value.{ada_only}
+use lovejoin/value.{expect_ada_only_lovelace}
 
 // Flat params — one CBOR atom per `aiken blueprint apply` call.
 validator fee_contract(
@@ -82,28 +82,38 @@ fn validate_pay_mix_fee(
   own_input: Input,
   own_hash: ScriptHash,
 ) -> Bool {
-  let mix_input_count =
-    self.inputs
-      |> list.count(
-          fn(input) { input_at_script(input, reference_datum.mix_script_hash) },
-        )
+  // Single-pass fold replaces two separate `list.count` walks: count
+  // mix-script inputs (need >=2) and fee-script inputs (need ==1) in one
+  // pass over `self.inputs`. Saves N input-list walks per Mix tx.
+  let (mix_input_count, fee_input_count) =
+    list.foldl(
+      self.inputs,
+      (0, 0),
+      fn(input, acc) {
+        let (m, f) = acc
+        if input_at_script(input, reference_datum.mix_script_hash) {
+          (m + 1, f)
+        } else if input_at_fee(input, own_hash) {
+          (m, f + 1)
+        } else {
+          acc
+        }
+      },
+    )
   expect mix_input_count >= 2
-
-  let fee_input_count =
-    self.inputs |> list.count(fn(input) { input_at_fee(input, own_hash) })
   expect fee_input_count == 1
 
   let fee_outputs =
     self.outputs |> list.filter(fn(output) { output_at_fee(output, own_hash) })
   expect [fee_output] = fee_outputs
 
-  let fee_in_lovelace = assets.lovelace_of(own_input.output.value)
-  let fee_out_lovelace = assets.lovelace_of(fee_output.value)
+  // expect_ada_only_lovelace fuses the ada-only check + lovelace extract
+  // into a single dict walk (vs the old `ada_only` + `lovelace_of` pair).
+  let fee_in_lovelace = expect_ada_only_lovelace(own_input.output.value)
+  let fee_out_lovelace = expect_ada_only_lovelace(fee_output.value)
 
   and {
     is_unit_inline_datum(fee_output.datum),
-    ada_only(own_input.output.value),
-    ada_only(fee_output.value),
     fee_in_lovelace - fee_out_lovelace == self.fee,
     self.fee <= reference_datum.max_fee_per_mix_lovelace,
   }
@@ -126,12 +136,11 @@ fn validate_replenish(
     self.outputs |> list.filter(fn(output) { output_at_fee(output, own_hash) })
   expect [fee_output] = fee_outputs
 
+  let fee_in_lovelace = expect_ada_only_lovelace(own_input.output.value)
+  let fee_out_lovelace = expect_ada_only_lovelace(fee_output.value)
+
   and {
     is_unit_inline_datum(fee_output.datum),
-    ada_only(own_input.output.value),
-    ada_only(fee_output.value),
-    assets.lovelace_of(fee_output.value) > assets.lovelace_of(
-      own_input.output.value,
-    ),
+    fee_out_lovelace > fee_in_lovelace,
   }
 }

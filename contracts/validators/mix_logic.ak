@@ -27,15 +27,16 @@ use cardano/assets.{AssetName, PolicyId}
 use cardano/certificate.{Certificate, RegisterCredential}
 use cardano/transaction.{InlineDatum, Input, Output, Transaction}
 use lovejoin/bls
+use lovejoin/hash as hash_mod
 use lovejoin/mixbox.{
-  input_at_script, output_at_script, try_decode_well_formed_data,
+  decode_mix_datum_strict, input_at_script, output_at_script,
   try_decode_well_formed_inline,
 }
 use lovejoin/reference.{read_reference_datum}
 use lovejoin/schnorr
 use lovejoin/sigma_or.{DHTupleStatementPt, SigmaOrProof}
 use lovejoin/types.{Mix, MixDatum, MixLogicRedeemer, Owner, ReferenceDatum}
-use lovejoin/value.{ada_only}
+use lovejoin/value.{expect_ada_only_lovelace}
 
 // Flat params — one CBOR atom per `aiken blueprint apply` call.
 validator mix_logic(
@@ -135,26 +136,11 @@ fn validate_mix(
   expect n >= 2
   expect list.length(proofs) == n
 
-  // Cheap structural pre-checks first — the N mix outputs MUST occupy
-  // positions 0..N-1; later positions (fee shard, change, etc.) must NOT
-  // be at the mix script. Keeping these as `list.all` walks lets a
-  // wrong-at_script position fail fast without paying for the per-output
-  // decode + uncompress + serialise work below.
-  let prefix_outputs = list.take(self.outputs, n)
-  let tail_outputs = list.drop(self.outputs, n)
-  expect
-    list.all(
-      prefix_outputs,
-      fn(output) { output_at_script(output, reference_datum.mix_script_hash) },
-    )
-  expect
-    list.all(
-      tail_outputs,
-      fn(output) { !output_at_script(output, reference_datum.mix_script_hash) },
-    )
-
-  // Single tail-recursive walk over the prefix that subsumes FOUR previous
-  // traversals (and four intermediate N-element list allocations):
+  // Single-walk validate_mix prologue. Subsumes ALL prior traversals:
+  //   * list.take(self.outputs, n) — N walks + N-cell allocation.
+  //   * list.drop(self.outputs, n) — N walks past the prefix.
+  //   * list.all on prefix (`output_at_script`) — N walks.
+  //   * list.all on tail (`!output_at_script`) — T walks.
   //   * `list.map(check_and_decode_mix_output)` — datum decode + ada_only
   //     + denom check.
   //   * `compute_mix_ctx` datums fold — `serialise_data(output.datum)`.
@@ -166,8 +152,25 @@ fn validate_mix(
   // {2,3,4,6,8} (mix_logic.test.ak `mix_full_prologue_then_proof_fails_n*`)
   // exercise this whole region against the same byte-equal ctx that
   // `verify_pre` re-derives from `proof.branches`.
+  //
+  // Every prefix output is forced ada-only at exactly `denom_lovelace`,
+  // so `serialise_data(output.value)` produces byte-identical output for
+  // all N. We compute the cached denom-value bytes once and reuse them in
+  // the values fold — saves N-1 `serialise_data` calls per Mix tx.
+  // Byte-equivalence between `assets.from_lovelace(denom)` and a real
+  // Value at that lovelace amount is pinned by `value_serialise_parity.test.ak`.
+  let denom_value_bytes =
+    builtin.serialise_data(assets.from_lovelace(reference_datum.denom_lovelace))
   let (statements_rev, datums_bytes, values_bytes) =
-    decode_prefix_into_statements_and_ctx_bytes(prefix_outputs, reference_datum)
+    walk_outputs(
+      self.outputs,
+      n,
+      reference_datum,
+      denom_value_bytes,
+      [],
+      #"",
+      #"",
+    )
   let statements = list.reverse(statements_rev)
 
   let ctx =
@@ -179,67 +182,103 @@ fn validate_mix(
 
   // Per-input OR-proof verification. `proofs[i]` proves "input i's witness
   // re-randomized to one of the N outputs" — see
-  // docs/spec/02-cryptography.md §"N-way Sigma-OR". `n` is threaded through
-  // so `verify_pre` doesn't re-measure `list.length(statements)` per call.
+  // docs/spec/02-cryptography.md §"N-way Sigma-OR". `header_const_prefix`
+  // (= DOMAIN || 0x03 || N(1 byte)) is computed once and shared across all
+  // N inputs; only the per-input (a, b) gets appended in `verify_pre`.
+  // Saves N `from_int_big_endian` + 2N concats per Mix tx.
+  expect n <= 255
+  let header_const_prefix = hash_mod.fs_hash_sigma_or_header_const_prefix(n)
   pairs_match_and_all(
     mix_inputs,
     proofs,
     fn(mix_input, proof) {
-      sigma_or.verify_pre(mix_input.a, mix_input.b, statements, proof, ctx, n)
+      sigma_or.verify_pre(
+        mix_input.a,
+        mix_input.b,
+        statements,
+        proof,
+        ctx,
+        header_const_prefix,
+      )
     },
   )
 }
 
-/// Walk the N prefix outputs once; for each:
-///   * validate ada-only + canonical denom,
+/// Walk `self.outputs` once; for the first N elements (the mix-output
+/// prefix):
+///   * assert `output_at_script(output, mix_script_hash)`,
+///   * assert ada-only + canonical denom (one dict walk),
 ///   * decode the inline `MixDatum`,
 ///   * uncompress (a', b') into a `DHTupleStatementPt`,
-///   * accumulate `serialise_data(output.datum)` and
-///     `serialise_data(output.value)` into the FS-preimage byte strings.
+///   * accumulate `serialise_data(output.datum)` and the cached
+///     `denom_value_bytes` into the FS-preimage byte strings.
+/// For the remaining (tail) elements:
+///   * assert `!output_at_script(output, mix_script_hash)`.
+/// At end-of-list, assert we consumed exactly N prefix elements (i.e. that
+/// `self.outputs` had at least N entries — `prefix_remaining == 0`).
 ///
-/// `output_at_script` was already verified by the caller's `list.all`, so we
-/// pattern-match the inline data directly without re-checking the script
-/// credential. Statements are accumulated in REVERSE order (cheap cons);
-/// the caller `list.reverse`s once.
+/// Statements are accumulated in REVERSE order (cheap cons); the caller
+/// `list.reverse`s once.
+///
+/// `denom_value_bytes` is `serialise_data(assets.from_lovelace(denom))`
+/// computed once in `validate_mix`. Every prefix output is forced ada-only
+/// at exactly `denom_lovelace`, so its serialised value bytes are identical
+/// across all N — no need to call `serialise_data(output.value)` per step.
 ///
 /// Tuple return rather than a record — Aiken compiles tuples with less
 /// per-step overhead than a 3-field record literal in this hot path.
-fn decode_prefix_into_statements_and_ctx_bytes(
+fn walk_outputs(
   outputs: List<Output>,
+  prefix_remaining: Int,
   reference_datum: ReferenceDatum,
-) -> (List<DHTupleStatementPt>, ByteArray, ByteArray) {
-  do_decode_prefix(outputs, reference_datum, [], #"", #"")
-}
-
-fn do_decode_prefix(
-  outputs: List<Output>,
-  reference_datum: ReferenceDatum,
+  denom_value_bytes: ByteArray,
   stmts_rev: List<DHTupleStatementPt>,
   datums_acc: ByteArray,
   values_acc: ByteArray,
 ) -> (List<DHTupleStatementPt>, ByteArray, ByteArray) {
   when outputs is {
-    [] -> (stmts_rev, datums_acc, values_acc)
-    [output, ..rest] -> {
-      expect ada_only(output.value)
-      expect assets.lovelace_of(output.value) == reference_datum.denom_lovelace
-      expect InlineDatum(inline_data) = output.datum
-      expect Some(mix_datum) = try_decode_well_formed_data(inline_data)
-      let stmt =
-        DHTupleStatementPt {
-          ap: mix_datum.a,
-          bp: mix_datum.b,
-          ap_pt: bls.point_from_bytes(mix_datum.a),
-          bp_pt: bls.point_from_bytes(mix_datum.b),
-        }
-      do_decode_prefix(
-        rest,
-        reference_datum,
-        [stmt, ..stmts_rev],
-        datums_acc |> bytearray.concat(builtin.serialise_data(inline_data)),
-        values_acc |> bytearray.concat(builtin.serialise_data(output.value)),
-      )
+    [] -> {
+      // self.outputs must have had at least N elements (the prefix).
+      expect prefix_remaining == 0
+      (stmts_rev, datums_acc, values_acc)
     }
+    [output, ..rest] ->
+      if prefix_remaining > 0 {
+        // Prefix step: at_script + decode + accumulate.
+        expect output_at_script(output, reference_datum.mix_script_hash)
+        expect
+          expect_ada_only_lovelace(output.value) == reference_datum.denom_lovelace
+        expect InlineDatum(inline_data) = output.datum
+        let mix_datum = decode_mix_datum_strict(inline_data)
+        let stmt =
+          DHTupleStatementPt {
+            ap: mix_datum.a,
+            bp: mix_datum.b,
+            ap_pt: bls.point_from_bytes(mix_datum.a),
+            bp_pt: bls.point_from_bytes(mix_datum.b),
+          }
+        walk_outputs(
+          rest,
+          prefix_remaining - 1,
+          reference_datum,
+          denom_value_bytes,
+          [stmt, ..stmts_rev],
+          datums_acc |> bytearray.concat(builtin.serialise_data(inline_data)),
+          values_acc |> bytearray.concat(denom_value_bytes),
+        )
+      } else {
+        // Tail step: must NOT be at the mix script.
+        expect !output_at_script(output, reference_datum.mix_script_hash)
+        walk_outputs(
+          rest,
+          0,
+          reference_datum,
+          denom_value_bytes,
+          stmts_rev,
+          datums_acc,
+          values_acc,
+        )
+      }
   }
 }
 

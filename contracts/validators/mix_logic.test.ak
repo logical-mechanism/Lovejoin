@@ -382,7 +382,7 @@ test mix_rejects_native_asset_in_output() fail {
 
 test mix_rejects_a_eq_b_output_datum() fail {
   let inputs = build_mix_inputs_at_a(2)
-  // a == b on output datum → try_decode_well_formed_inline returns None → expect aborts.
+  // a == b on output datum → decode_mix_datum_strict aborts.
   let bad_out = mix_box_output(b48, b48, denom_lovelace)
   let good_out = mix_box_output(c48, b48, denom_lovelace)
   let tx =
