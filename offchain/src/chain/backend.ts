@@ -294,6 +294,37 @@ export class BackendChainProvider implements ChainProvider {
   }
 
   /**
+   * Mesh-compatible IFetcher + ISubmitter, used by `MeshTxBuilder`.
+   *
+   * Mesh's tx-build path needs concrete address-utxos / protocol-params
+   * shapes that match its `IFetcher` interface. Building a backend-
+   * native mesh provider would require implementing every IFetcher
+   * method against db-sync; for now we delegate to the fallback's mesh
+   * provider (typically the BlockfrostProvider's lazy sibling). Net
+   * effect:
+   *   - chain reads + tx submission go through our backend (this class).
+   *   - mesh tx-building (coin selection + ex-units) still goes
+   *     through Blockfrost as a temporary measure.
+   * Removing that last Blockfrost dep is the natural follow-up; the
+   * mesh-bridge helper is duck-typed on `meshProvider()` so a future
+   * backend-native implementation slots in here without API changes.
+   */
+  async meshProvider(): Promise<unknown> {
+    if (!this.fallback) {
+      throw new Error(
+        "BackendChainProvider.meshProvider: no fallback configured; mesh tx-building requires either a Blockfrost fallback or a backend-native IFetcher (not yet implemented)",
+      );
+    }
+    const fb = this.fallback as { meshProvider?: () => Promise<unknown> };
+    if (typeof fb.meshProvider !== "function") {
+      throw new Error(
+        "BackendChainProvider.meshProvider: fallback provider exposes no meshProvider(); use BlockfrostProvider as the fallback",
+      );
+    }
+    return fb.meshProvider();
+  }
+
+  /**
    * Run `primary`. If it throws AND a fallback is configured, log + run
    * the fallback. If no fallback, rethrow.
    */
