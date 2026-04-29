@@ -1,6 +1,6 @@
 {
   "name": "@lovejoin/sdk",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Lovejoin Sigmajoin SDK: prover, tx builder, CIP-30, collateral provider client.",
   "license": "MIT",
   "type": "module",

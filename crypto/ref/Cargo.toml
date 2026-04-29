@@ -1,6 +1,6 @@
 [package]
 name = "lovejoin-ref"
-version = "0.1.0"
+version = "0.2.0"
 edition = "2021"
 description = "Lovejoin reference cryptography implementation (blst). Verifies the canonical KAT vectors emitted by the TS SDK."
 license = "MIT"
