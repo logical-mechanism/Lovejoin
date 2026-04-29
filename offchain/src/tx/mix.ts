@@ -1043,12 +1043,25 @@ export async function buildMixTx(args: BuildMixArgs): Promise<MixResult> {
 }
 
 /**
- * Pick the default Mix collateral provider. Mix is wallet-anonymous by
- * design; we route through the pinned external host whenever one exists
- * for the network. `preview` has no pinned host today — we warn and
- * fall back to wallet-collateral so dev environments keep working.
+ * Pick the default Mix collateral provider.
+ *
+ * Rule: only fee-shard mode routes through the external host. In shard
+ * mode the protocol promises wallet-anonymous Mix submission, which means
+ * NO wallet input and NO wallet signature on the tx; that requires the
+ * collateral input to come from someone other than the user — giveme.my
+ * by default. In wallet-fee mode the wallet is already in the tx (paying
+ * the fee + supplying change), so wallet-collateral is the right call —
+ * routing through giveme.my would be a pointless extra HTTP round-trip.
+ *
+ * `preview` has no pinned host; shard mode falls back to wallet collateral
+ * with a warning so dev environments keep working but the operator knows
+ * Mix anonymity has degraded.
  */
 function defaultMixCollateralProvider(args: BuildMixArgs): CollateralProvider {
+  const feePayer = args.feePayer ?? "shard";
+  if (feePayer !== "shard") {
+    return new WalletProvider(args.wallet);
+  }
   try {
     return new GivemeMyProvider({ network: args.network });
   } catch (e) {

@@ -57,7 +57,6 @@ import type {
 } from "../chain/provider.js";
 import {
   type CollateralProvider,
-  GivemeMyProvider,
   WalletProvider,
 } from "./collateral.js";
 import { mergeExternalCollateralWitness } from "./witness-merge.js";
@@ -594,34 +593,27 @@ export async function buildWithdrawTx(args: BuildWithdrawArgs): Promise<Withdraw
 }
 
 /**
- * Default collateral provider for a Withdraw tx.
+ * Default collateral provider for a Withdraw tx — always WalletProvider.
  *
- *   * Box mode: prefer the pinned external host (giveme.my) so the
- *     wallet stays out of the tx entirely. Falls back to WalletProvider
- *     with a console warning when no host is pinned for the network
- *     (e.g. preview).
- *   * Wallet mode: keep WalletProvider so the wallet's existing
- *     collateral UTxO is used.
+ * Rule (per project policy): only the fee-shard Mix path routes through
+ * giveme.my. Withdraw doesn't use a fee shard at all — fee comes from
+ * the user's box (box mode) or wallet (wallet mode), and the user's
+ * wallet supplies + signs the collateral input either way. This means
+ * a withdraw always shows ONE signing prompt for the wallet's
+ * collateral input; the spend itself is auth'd by the Schnorr proof in
+ * the Owner-branch redeemer (no extra wallet vkey witness needed for
+ * the mix-box input).
+ *
+ * Callers can override with an explicit `collateralProvider:
+ * new GivemeMyProvider(...)` if they want the box-mode wallet-anonymous
+ * path back; not the default.
  */
 function defaultWithdrawCollateralProvider(
-  network: BuildWithdrawArgs["network"],
+  _network: BuildWithdrawArgs["network"],
   wallet: LovejoinWallet,
-  feePayer: WithdrawFeePayer,
+  _feePayer: WithdrawFeePayer,
 ): CollateralProvider {
-  if (feePayer === "wallet") {
-    return new WalletProvider(wallet);
-  }
-  try {
-    return new GivemeMyProvider({ network });
-  } catch (e) {
-    // eslint-disable-next-line no-console
-    console.warn(
-      `[lovejoin/withdraw] no pinned collateral host for "${network}" — falling back to ` +
-        `wallet collateral. Withdraw will trigger a wallet signTx popup. Original: ` +
-        `${e instanceof Error ? e.message : String(e)}`,
-    );
-    return new WalletProvider(wallet);
-  }
+  return new WalletProvider(wallet);
 }
 
 // ---------------------------------------------------------------------------

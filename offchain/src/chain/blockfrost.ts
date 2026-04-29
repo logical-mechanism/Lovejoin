@@ -305,6 +305,12 @@ export class BlockfrostProvider implements ChainProvider {
     // and let `fetch` send it; the browser UTF-8-encoded the string and
     // mangled the CBOR (Blockfrost rejected with "expected list len or
     // indef" on the first byte). Decode the hex to bytes here.
+    // eslint-disable-next-line no-console
+    console.log(
+      `[lovejoin/submit] POST ${this.baseUrl}/tx/submit (txCbor=${signedTxCborHex.length / 2} bytes)`,
+    );
+    // eslint-disable-next-line no-console
+    console.log(`[lovejoin/submit] signed tx hex: ${signedTxCborHex}`);
     const res = await this.fetchFn(`${this.baseUrl}/tx/submit`, {
       method: "POST",
       headers: {
@@ -313,8 +319,12 @@ export class BlockfrostProvider implements ChainProvider {
       },
       body: hexToBytes(signedTxCborHex),
     });
+    // eslint-disable-next-line no-console
+    console.log(`[lovejoin/submit] HTTP ${res.status} ${res.statusText}`);
     if (!res.ok) {
       const body = await res.text();
+      // eslint-disable-next-line no-console
+      console.error(`[lovejoin/submit] body:`, body);
       throw new Error(
         `BlockfrostProvider.submitTx failed (${res.status} ${res.statusText}): ${body}`,
       );
