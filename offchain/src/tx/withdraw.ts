@@ -59,6 +59,7 @@ import {
   type CollateralProvider,
   WalletProvider,
 } from "./collateral.js";
+import { mergeExternalCollateralWitness } from "./witness-merge.js";
 import { getMeshProvider } from "./mesh-bridge.js";
 import {
   fetchProtocolParams,
@@ -318,8 +319,8 @@ export async function buildWithdrawTx(args: BuildWithdrawArgs): Promise<Withdraw
   });
 
   const collateralProvider = args.collateralProvider ?? new WalletProvider(args.wallet);
-  const collateralProvision = await collateralProvider.requestCollateral({
-    txBodyDigest: new Uint8Array(32),
+  const preparedCollateral = await collateralProvider.prepareCollateral({
+    provider: args.provider,
     collateralAmountLovelace: 5_000_000n,
   });
 
@@ -424,13 +425,16 @@ export async function buildWithdrawTx(args: BuildWithdrawArgs): Promise<Withdraw
       ])
       .changeAddress(changeAddress)
       .selectUtxosFrom(walletUtxos);
-    for (const utxo of collateralProvision.inputs) {
+    for (const utxo of preparedCollateral.inputs) {
       tx.txInCollateral(
         utxo.ref.txId,
         utxo.ref.outputIndex,
         [{ unit: "lovelace", quantity: utxo.lovelace.toString() }],
         utxo.address,
       );
+    }
+    if (preparedCollateral.requiredSignerPkhHex) {
+      tx.requiredSignerHash(preparedCollateral.requiredSignerPkhHex);
     }
     return tx.complete();
   };
@@ -476,7 +480,10 @@ export async function buildWithdrawTx(args: BuildWithdrawArgs): Promise<Withdraw
     tightUnits.withdraw,
   );
 
-  const signedTx = await args.wallet.signTx(unsignedHexFinal);
+  const walletSignedTx = await args.wallet.signTx(unsignedHexFinal);
+  const signedTx = preparedCollateral.externallySigned
+    ? await mergeExternalCollateralWitness(collateralProvider, walletSignedTx)
+    : walletSignedTx;
   const owner = deriveOwner(args.ownerSecret);
 
   if (args.signOnly) {
@@ -615,8 +622,8 @@ export async function buildBulkWithdrawTx(
   const totalLovelace: Lovelace = params.denomLovelace * BigInt(n);
 
   const collateralProvider = args.collateralProvider ?? new WalletProvider(args.wallet);
-  const collateralProvision = await collateralProvider.requestCollateral({
-    txBodyDigest: new Uint8Array(32),
+  const preparedCollateral = await collateralProvider.prepareCollateral({
+    provider: args.provider,
     collateralAmountLovelace: 5_000_000n,
   });
 
@@ -680,13 +687,16 @@ export async function buildBulkWithdrawTx(
       ])
       .changeAddress(changeAddress)
       .selectUtxosFrom(walletUtxos);
-    for (const utxo of collateralProvision.inputs) {
+    for (const utxo of preparedCollateral.inputs) {
       tx.txInCollateral(
         utxo.ref.txId,
         utxo.ref.outputIndex,
         [{ unit: "lovelace", quantity: utxo.lovelace.toString() }],
         utxo.address,
       );
+    }
+    if (preparedCollateral.requiredSignerPkhHex) {
+      tx.requiredSignerHash(preparedCollateral.requiredSignerPkhHex);
     }
     return tx.complete();
   };
@@ -735,7 +745,10 @@ export async function buildBulkWithdrawTx(
     tightUnits.withdraw,
   );
 
-  const signedTx = await args.wallet.signTx(unsignedHexFinal);
+  const walletSignedTx = await args.wallet.signTx(unsignedHexFinal);
+  const signedTx = preparedCollateral.externallySigned
+    ? await mergeExternalCollateralWitness(collateralProvider, walletSignedTx)
+    : walletSignedTx;
   const owners = entries.map((e) => deriveOwner(e.ownerSecret, e.mixBox.a));
 
   if (args.signOnly) {

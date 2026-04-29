@@ -87,8 +87,10 @@ import type {
 } from "../chain/provider.js";
 import {
   type CollateralProvider,
+  GivemeMyProvider,
   WalletProvider,
 } from "./collateral.js";
+import { appendVkeyWitness } from "./witness-merge.js";
 import { encodeMixDatum, generateOwnerSecret as drawScalar } from "./deposit.js";
 import { pickRandomFeeShard } from "./fee.js";
 import { getMeshProvider } from "./mesh-bridge.js";
@@ -793,9 +795,14 @@ export interface BuildMixArgs {
    */
   feeShard?: Utxo;
   /**
-   * Collateral provider. Defaults to `WalletProvider(wallet)` for v1 —
-   * see file-header comment on the M5 two-step refactor that brings
-   * GivemeMyProvider into the Mix path properly.
+   * Collateral provider. Defaults to a `GivemeMyProvider` wired against the
+   * pinned host for `args.network` — Mix txs MUST be wallet-anonymous, and
+   * a wallet-supplied collateral leaks the submitter's identity onto the
+   * tx (the collateral input is observable on chain). Pass an explicit
+   * `WalletProvider(wallet)` only for local dev / debugging where the
+   * leak is acceptable. If the pinned host has no entry for the network
+   * (e.g. `preview`), we fall back to `WalletProvider(wallet)` with a
+   * console warning.
    */
   collateralProvider?: CollateralProvider;
   /**
@@ -872,25 +879,17 @@ export async function buildMixTx(args: BuildMixArgs): Promise<MixResult> {
     );
   }
 
-  // Collateral.
-  const collateralProvider = args.collateralProvider ?? new WalletProvider(args.wallet);
+  // Collateral. Default to GivemeMyProvider (wallet-anonymous Mix is the
+  // protocol's whole point; see BuildMixArgs.collateralProvider doc). Fall
+  // back to WalletProvider only when the network has no pinned host.
+  const collateralProvider = args.collateralProvider ?? defaultMixCollateralProvider(args);
   // Cardano's collateralPercent is 150 — required collateral covers
   // 1.5x the tx fee. We pin to 5_000_000 lovelace as a generous default
   // (max_fee is sub-1-ADA so 5 ADA is well over).
-  const collateralProvision = await collateralProvider.requestCollateral({
-    txBodyDigest: new Uint8Array(32), // not used by WalletProvider
+  const preparedCollateral = await collateralProvider.prepareCollateral({
+    provider: args.provider,
     collateralAmountLovelace: 5_000_000n,
   });
-  if (collateralProvision.externalWitness !== null) {
-    // For M4 we don't yet know how to merge an externally-supplied vkey
-    // witness without first computing the body hash and round-tripping
-    // through the provider. Bail loudly so the caller sees the limitation.
-    throw new Error(
-      "Mix tx: external collateral witness (e.g. GivemeMyProvider) requires the " +
-        "two-step CollateralProvider refactor (deferred to M5). Use WalletProvider " +
-        "for now or pass `collateralProvider: new WalletProvider(wallet)` explicitly.",
-    );
-  }
 
   const meshCore = await import("@meshsdk/core");
   const { MeshTxBuilder } = meshCore;
@@ -1024,14 +1023,23 @@ export async function buildMixTx(args: BuildMixArgs): Promise<MixResult> {
       tx.setFee(plan.txFeeLovelace.toString());
     }
 
-    // Collateral input + return.
-    for (const utxo of collateralProvision.inputs) {
+    // Collateral input + return. mesh derives `collateral_return` from the
+    // input's address when the input value exceeds the protocol-required
+    // collateral (= 1.5x fee), so we don't set it explicitly.
+    for (const utxo of preparedCollateral.inputs) {
       tx.txInCollateral(
         utxo.ref.txId,
         utxo.ref.outputIndex,
         [{ unit: "lovelace", quantity: utxo.lovelace.toString() }],
         utxo.address,
       );
+    }
+    // Required signer for an external host. The host's server-side
+    // validators reject any tx that doesn't list its pkh under
+    // required_signers — see Collateral-Provider's
+    // `api/validators/cbor.py::check_signers`.
+    if (preparedCollateral.requiredSignerPkhHex) {
+      tx.requiredSignerHash(preparedCollateral.requiredSignerPkhHex);
     }
 
     tx.changeAddress(changeAddress);
@@ -1078,13 +1086,53 @@ export async function buildMixTx(args: BuildMixArgs): Promise<MixResult> {
     );
     unsignedTxHex = await buildOnce(false);
   }
-  const signedTx = await args.wallet.signTx(unsignedTxHex, true);
+
+  // Witness path. With GivemeMyProvider (the default for Mix) the user's
+  // wallet does not sign at all — the host's vkey is the only signer the
+  // tx needs. With WalletProvider the wallet signs the collateral input
+  // through the normal CIP-30 path.
+  let signedTx: string;
+  if (preparedCollateral.externallySigned) {
+    const hostWitness = await collateralProvider.signTxBody(unsignedTxHex);
+    if (!hostWitness) {
+      throw new Error(
+        "Mix tx: collateral provider claimed externallySigned but signTxBody() returned null",
+      );
+    }
+    signedTx = await appendVkeyWitness(unsignedTxHex, hostWitness);
+    // eslint-disable-next-line no-console
+    console.log(
+      `[lovejoin/mix] external collateral witness merged from ${hostWitness.vkeyHex.slice(0, 8)}…`,
+    );
+  } else {
+    signedTx = await args.wallet.signTx(unsignedTxHex, true);
+  }
 
   if (args.signOnly) {
     return { signedTxHex: signedTx, txId: "", plan };
   }
   const txId = await args.provider.submitTx(signedTx);
   return { signedTxHex: signedTx, txId, plan };
+}
+
+/**
+ * Pick the default Mix collateral provider. Mix is wallet-anonymous by
+ * design; we route through the pinned external host whenever one exists
+ * for the network. `preview` has no pinned host today — we warn and
+ * fall back to wallet-collateral so dev environments keep working.
+ */
+function defaultMixCollateralProvider(args: BuildMixArgs): CollateralProvider {
+  try {
+    return new GivemeMyProvider({ network: args.network });
+  } catch (e) {
+    // eslint-disable-next-line no-console
+    console.warn(
+      `[lovejoin/mix] no pinned collateral host for "${args.network}" — falling back to ` +
+        `wallet collateral. Mix anonymity is degraded on this path. Original: ` +
+        `${e instanceof Error ? e.message : String(e)}`,
+    );
+    return new WalletProvider(args.wallet);
+  }
 }
 
 // ---------------------------------------------------------------------------

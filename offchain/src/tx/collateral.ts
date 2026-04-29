@@ -8,36 +8,48 @@
 // For deposit and withdraw the user's own wallet is already in the tx, so
 // using its collateral is fine. For Mix txs the submitter MUST NOT contribute
 // a wallet input (that's what makes Mix wallet-anonymous), so collateral has
-// to come from a third party — the canonical choice is giveme.my.
+// to come from a third party — the canonical choice is giveme.my, run by
+// Logical Mechanism out of
+// https://github.com/logical-mechanism/Collateral-Provider.
 //
-// This module defines a single `CollateralProvider` interface with two
-// implementations:
-//   * `WalletProvider` — uses the LovejoinWallet's own `getCollateral()`
-//     output. The wallet signs at tx-completion time as usual, so the
-//     returned `externalWitness` is null.
-//   * `GivemeMyProvider` — calls the giveme.my HTTP API to obtain a
-//     pre-signed collateral input + return + witness. The witness is
-//     attached directly to the tx body's witness set; the submitter
-//     never signs the collateral input themselves.
+// Two providers, one interface, two-step protocol:
 //
-// The Mix-tx-only "no wallet fallback" rule lives at the call site
-// (tx/mix.ts in M4): if the configured `CollateralProvider` is unreachable,
-// the SDK throws rather than silently switching to WalletProvider, because
-// that would defeat the wallet-anonymity property. Deposit and withdraw set
-// `provider = new WalletProvider(wallet)` explicitly, which is harmless
-// because the wallet is in the tx anyway.
+//   1.  `prepareCollateral()` — synchronous-ish discovery. Returns the
+//       collateral input(s), the return address, and (for an external host)
+//       the host's required-signer pkh. No network signing yet. Tx builders
+//       use the result to populate `txInCollateral` + `requiredSignerHash`
+//       so mesh's `complete()` can size the body and run the evaluator.
+//
+//   2.  `signTxBody(txCborHex)` — given the *completed* tx CBOR, return a
+//       vkey witness. WalletProvider returns null because the wallet's own
+//       signTx() flow already covers the collateral input. GivemeMyProvider
+//       POSTs the tx CBOR to the host and unpacks the response.
+//
+//       The caller merges the returned witness into the witness set
+//       (see `witness-merge.ts`) and submits.
+//
+// This is a deliberate clean break from the original M3-era one-shot
+// `requestCollateral()` interface. That shape encoded a body digest the
+// upstream service never asked for and returned a fully-decoded vkey + sig
+// pair before the body even existed — both wrong against the real wire
+// format. The two-step shape mirrors what the Python / bash sample clients
+// in the upstream repo actually do.
 
-import type { Lovelace, Utxo } from "../chain/provider.js";
+import type { ChainProvider, Lovelace, Utxo } from "../chain/provider.js";
+import {
+  getKnownCollateralHost,
+  lovejoinNetworkToCollateralNetwork,
+  type CollateralNetwork,
+  type KnownCollateralHost,
+} from "./known-collateral-hosts.js";
 
 import type { LovejoinWallet } from "../wallet/cip30.js";
 import { meshUtxoToLovejoin } from "../wallet/cip30.js";
 
 /**
- * One vkey witness — public key + 64-byte Ed25519 signature.
- *
- * We keep the shape lean rather than inheriting from a CSL/mesh type so the
- * collateral surface stays pure-data and serializable across the giveme.my
- * HTTP boundary.
+ * One vkey witness — public key + 64-byte Ed25519 signature. We keep the
+ * shape lean rather than inheriting from a CSL/mesh type so the collateral
+ * surface stays pure-data and can cross the giveme.my HTTP boundary.
  */
 export interface VkeyWitness {
   /** 32-byte Ed25519 public key, lowercase hex. */
@@ -47,52 +59,69 @@ export interface VkeyWitness {
 }
 
 /**
- * What a CollateralProvider hands back. Same shape regardless of who provides
- * the collateral — wallet or external service.
- *
- * `externalWitness` is null when the wallet that holds the inputs is the same
- * wallet that will sign the tx via `signTx()` (the WalletProvider case).
- * GivemeMyProvider returns a pre-signed witness here so the submitter doesn't
- * need to ask their wallet to sign someone else's inputs (which it couldn't
- * do anyway).
+ * Output of `prepareCollateral()`. Contains everything the tx builder needs
+ * to wire the collateral input + return + (optional) required-signer into
+ * mesh's MeshTxBuilder before the first `complete()` pass.
  */
-export interface CollateralProvision {
-  /** UTxOs the collateral comes from. Almost always exactly one. */
+export interface PreparedCollateral {
+  /**
+   * UTxOs to use as collateral. Almost always exactly one. mesh's
+   * `txInCollateral(txHash, idx, amount, address)` consumes each entry.
+   */
   inputs: Utxo[];
-  /** `sum(inputs.lovelace)` — the protocol-level "collateral total". */
+  /** `sum(inputs.lovelace)` — informational. */
   totalLovelace: Lovelace;
-  /** Where unspent collateral returns to if scripts succeed. Bech32. */
+  /**
+   * Bech32 address that unspent collateral returns to if all scripts pass.
+   * For WalletProvider this is the wallet's change address; for an external
+   * host it's the host's address (= the address attached to the host UTxO).
+   * mesh derives the collateral_return body field from this when the
+   * collateral input value exceeds the protocol-required collateral amount.
+   */
   returnAddress: string;
   /**
-   * Witness for `inputs`, or null if the tx-builder's wallet-signer covers
-   * it. Only GivemeMyProvider sets this.
+   * 28-byte pubkey-hash, lowercase hex, that MUST appear in
+   * `tx.required_signers`. Set by external hosts (their server-side
+   * validators reject any tx that doesn't list them as a required signer).
+   * Null for WalletProvider.
    */
-  externalWitness: VkeyWitness | null;
-}
-
-/**
- * Information the provider needs to size and authorize a collateral input.
- */
-export interface CollateralRequest {
+  requiredSignerPkhHex: string | null;
   /**
-   * 32-byte hash of the *body* of the to-be-built tx. For pre-signing
-   * collateral against giveme.my the body must be finalized first
-   * (everything except the witness set) and its hash submitted alongside
-   * the request.
-   *
-   * For WalletProvider this field is informational and unused.
+   * True iff `signTxBody()` MUST be called and the returned witness MUST be
+   * merged into the final witness set. False for WalletProvider — the
+   * wallet's signTx() flow already covers the collateral input.
    */
-  txBodyDigest: Uint8Array;
-  /**
-   * Minimum lovelace the provider needs to commit. Cardano's `collateralPercent`
-   * protocol parameter (currently 150) means this is `ceil(estimated_fee * 1.5)`.
-   * Tx builders compute this and pass it through.
-   */
-  collateralAmountLovelace: Lovelace;
+  externallySigned: boolean;
 }
 
 export interface CollateralProvider {
-  requestCollateral(args: CollateralRequest): Promise<CollateralProvision>;
+  prepareCollateral(args: PrepareCollateralArgs): Promise<PreparedCollateral>;
+  /**
+   * Returns the host's vkey witness over the supplied tx body.
+   *
+   * For WalletProvider this returns `null` — the wallet will sign the
+   * collateral input as part of its normal signTx() flow.
+   *
+   * For an external host this performs the network call and returns the
+   * unpacked vkey+sig. Callers attach it via `witness-merge.appendVkeyWitness`.
+   */
+  signTxBody(txCborHex: string): Promise<VkeyWitness | null>;
+}
+
+export interface PrepareCollateralArgs {
+  /**
+   * The chain provider — used by GivemeMyProvider to look up the host's
+   * collateral UTxO (we know its ref + idx from `known-collateral-hosts.ts`,
+   * but we need its current value + address). Optional for WalletProvider.
+   */
+  provider?: ChainProvider;
+  /**
+   * Minimum lovelace the collateral must commit. Cardano's `collateralPercent`
+   * (currently 150) means this is `ceil(estimated_fee * 1.5)`. Tx builders
+   * compute it; the provider uses it only as a lower bound assertion against
+   * the available UTxO.
+   */
+  collateralAmountLovelace: Lovelace;
 }
 
 // ---------------------------------------------------------------------------
@@ -105,9 +134,9 @@ export interface CollateralProvider {
  * the wallet sign it as part of the normal `signTx` flow. No external
  * witness, no extra HTTP round-trip.
  *
- * If `getCollateral()` returns nothing or insufficient lovelace, the
- * provider throws — most CIP-30 wallets expose a configurable collateral
- * UTxO and require the user to set it up; the error nudges them toward that.
+ * Mix txs MUST NOT use WalletProvider — that would leak the submitter's
+ * wallet identity into the tx and defeat the wallet-anonymity property. The
+ * Mix tx builder defaults to GivemeMyProvider for that reason.
  */
 export class WalletProvider implements CollateralProvider {
   constructor(
@@ -115,13 +144,13 @@ export class WalletProvider implements CollateralProvider {
     private readonly opts: { changeAddress?: string } = {},
   ) {}
 
-  async requestCollateral(args: CollateralRequest): Promise<CollateralProvision> {
+  async prepareCollateral(args: PrepareCollateralArgs): Promise<PreparedCollateral> {
     const candidates = await this.wallet.getCollateral();
     const meshUtxos = normalizeCollateralCandidates(candidates);
     if (meshUtxos.length === 0) {
       throw new Error(
         "WalletProvider: wallet exposes no collateral UTxOs. Most CIP-30 wallets " +
-        "require a dedicated collateral set in wallet settings — set one up and retry.",
+          "require a dedicated collateral set in wallet settings — set one up and retry.",
       );
     }
     const inputs = meshUtxos.map(meshUtxoToLovejoin);
@@ -129,7 +158,7 @@ export class WalletProvider implements CollateralProvider {
     if (totalLovelace < args.collateralAmountLovelace) {
       throw new Error(
         `WalletProvider: wallet collateral has ${totalLovelace} lovelace, need at least ` +
-        `${args.collateralAmountLovelace}. Top up the wallet's collateral UTxO.`,
+          `${args.collateralAmountLovelace}. Top up the wallet's collateral UTxO.`,
       );
     }
     const returnAddress = this.opts.changeAddress ?? (await this.wallet.getChangeAddress());
@@ -137,8 +166,13 @@ export class WalletProvider implements CollateralProvider {
       inputs,
       totalLovelace,
       returnAddress,
-      externalWitness: null,
+      requiredSignerPkhHex: null,
+      externallySigned: false,
     };
+  }
+
+  async signTxBody(_txCborHex: string): Promise<VkeyWitness | null> {
+    return null;
   }
 }
 
@@ -151,26 +185,19 @@ function normalizeCollateralCandidates(
   // CIP-30 native `getCollateral` returns hex strings (CBOR-encoded UTxO).
   // mesh's BrowserWallet pre-parses them into UTxO objects. We support both.
   if (typeof raw[0] === "string") {
-    // The CBOR hex variant is rare in practice (mesh's BrowserWallet always
-    // parses) and decoding it here would pull mesh's CSL bindings, which
-    // currently can't load under the test harness. Surface an actionable
-    // error and let the caller pre-decode in this case.
     throw new Error(
       "WalletProvider: wallet returned CBOR-hex collateral UTxOs. " +
-      "Wrap the wallet so getCollateral() yields parsed UTxO objects (mesh's BrowserWallet does this).",
+        "Wrap the wallet so getCollateral() yields parsed UTxO objects (mesh's BrowserWallet does this).",
     );
   }
   return raw as Array<Parameters<typeof meshUtxoToLovejoin>[0]>;
 }
 
 // ---------------------------------------------------------------------------
-// GivemeMyProvider — HTTP client for a giveme.my-shaped collateral service.
+// GivemeMyProvider — HTTP client for the Collateral-Provider service.
 // ---------------------------------------------------------------------------
 
-/**
- * Minimal `fetch` we depend on. Same pattern as BlockfrostProvider — keeps
- * the module testable without pulling node-fetch / undici.
- */
+/** Minimal `fetch` we depend on — same pattern as BlockfrostProvider. */
 export type CollateralFetchFn = (
   input: string,
   init?: { method?: string; headers?: Record<string, string>; body?: string },
@@ -183,155 +210,277 @@ export type CollateralFetchFn = (
 }>;
 
 export interface GivemeMyOptions {
-  /** Base URL of the service. Default: https://giveme.my */
-  endpoint?: string;
   /**
-   * Optional API key header. The public service is free + stateless; an
-   * operator running their own instance may require a key.
+   * The Lovejoin network discriminator. Maps internally to the upstream's
+   * collateral-provider network discriminator. `"preview"` has no pinned
+   * host — construction throws.
    */
-  apiKey?: string;
+  network: "preprod" | "preview" | "test" | "mainnet";
+  /**
+   * Override the default host. Defaults to the canonical giveme.my entry
+   * pinned in `known-collateral-hosts.ts`. Pass an explicit host when you
+   * run your own collateral provider — the test fixture in
+   * `known.hosts.json` (`testnet`) is one such case.
+   */
+  host?: KnownCollateralHost;
+  /**
+   * Override the host's HTTP endpoint. Defaults to `host.perNetwork[net].url`.
+   * Useful for pointing at a localhost dev server, or at the .onion endpoint
+   * if the caller is using a Tor proxy.
+   */
+  endpoint?: string;
   /** Optional injected fetch (defaults to globalThis.fetch). */
   fetchFn?: CollateralFetchFn;
-  /** Network to request collateral on — sent as part of the request. */
-  network: "preprod" | "preview" | "mainnet";
 }
 
-const GIVEME_MY_DEFAULT_ENDPOINT = "https://giveme.my";
-
 /**
- * Client for a giveme.my-style collateral provider service.
+ * Client for the Cardano Altruistic Collateral Provider service.
  *
- * The exact wire format is governed by the upstream service
- * (https://github.com/logical-mechanism/Collateral-Provider). The shape this
- * client expects is a single POST to `/collateral` with a JSON body of:
+ * Wire format (matches `scripts/py/query.py` + `scripts/bash/query.sh` in
+ * the upstream repo):
  *
- *   { "network": "preprod", "tx_body_digest": "<64-hex>", "amount_lovelace": "5000000" }
+ *   POST  <endpoint>
+ *   Content-Type: application/json
+ *   Body:
+ *     { "tx_body": "<full transaction CBOR hex>" }
  *
- * and a response of:
+ *   Response 200:
+ *     { "witness": "<cbor hex>" }   // hex-encoded `cbor([0, [vkey, sig]])`
  *
- *   {
- *     "input": { "tx_id": "<64-hex>", "output_index": 0, "address": "<bech32>",
- *                "lovelace": "5000000", "assets": {} },
- *     "return_address": "<bech32>",
- *     "witness": { "vkey": "<64-hex>", "signature": "<128-hex>" }
- *   }
+ *   Other status codes / `{error: ...}` payloads → throw.
  *
- * If the upstream API ends up using a different schema, this client gets
- * adjusted in a single place — the rest of the SDK only sees the
- * CollateralProvider interface.
+ * The "tx_body" name is misleading — the upstream server takes the FULL
+ * transaction (`[body, witness_set, valid, aux]`) and extracts `tx[0]` as
+ * the body. So callers must pass the completed mesh tx CBOR, not just the
+ * body bytes.
  *
- * Status: the wire format above is the SDK's *expected* schema. M3 only
- * exercises this client through unit tests against a mock fetch; M4's Mix
- * integration test will be the first time we hit a live giveme.my
- * deployment, which is when any schema mismatch surfaces.
+ * Trust model: the host signs over the canonical tx-body hash (after
+ * re-canonicalising the OrderedSet fields), so a malicious response can't
+ * forge a witness for a different tx. The worst a bad host can do is refuse
+ * to sign, breaking submission for that tx — the user's funds are not at
+ * risk.
  */
 export class GivemeMyProvider implements CollateralProvider {
+  private readonly host: KnownCollateralHost;
   private readonly endpoint: string;
   private readonly fetchFn: CollateralFetchFn;
-  private readonly apiKey: string | undefined;
-  private readonly network: GivemeMyOptions["network"];
+  private readonly collateralNetwork: CollateralNetwork;
 
   constructor(opts: GivemeMyOptions) {
-    this.endpoint = (opts.endpoint ?? GIVEME_MY_DEFAULT_ENDPOINT).replace(/\/$/, "");
+    const collateralNetwork = lovejoinNetworkToCollateralNetwork(opts.network);
+    if (!collateralNetwork) {
+      throw new Error(
+        `GivemeMyProvider: no pinned host for network "${opts.network}". ` +
+          `Provide an explicit host via opts.host, or use WalletProvider.`,
+      );
+    }
+    this.collateralNetwork = collateralNetwork;
+    const host = opts.host ?? getKnownCollateralHost(collateralNetwork);
+    if (!host) {
+      throw new Error(
+        `GivemeMyProvider: no pinned host for collateral-network "${collateralNetwork}". ` +
+          `Pass opts.host explicitly.`,
+      );
+    }
+    const perNet = host.perNetwork[collateralNetwork];
+    if (!perNet) {
+      throw new Error(
+        `GivemeMyProvider: host "${host.name}" does not serve collateral-network "${collateralNetwork}".`,
+      );
+    }
+    this.host = host;
+    this.endpoint = (opts.endpoint ?? perNet.url).replace(/\/+$/, "/");
     const injected = opts.fetchFn;
     const globalFetch = (globalThis as { fetch?: CollateralFetchFn }).fetch;
     if (!injected && !globalFetch) {
       throw new Error(
-        "GivemeMyProvider: no fetch implementation available. Pass `fetchFn` explicitly.",
+        "GivemeMyProvider: no fetch implementation available. Pass opts.fetchFn explicitly.",
       );
     }
-    // Browser `fetch` is internal-slot-bound to Window — calling it with
+    // Browser `fetch` is internal-slot-bound to Window — calling with
     // `this === GivemeMyProvider` throws "Illegal invocation". Bind to
     // globalThis when we picked up the global; pass injected mocks
     // through unmodified so test stubs see their intended `this`.
     this.fetchFn = injected ?? (globalFetch!.bind(globalThis) as CollateralFetchFn);
-    this.apiKey = opts.apiKey;
-    this.network = opts.network;
   }
 
-  async requestCollateral(args: CollateralRequest): Promise<CollateralProvision> {
-    const body = JSON.stringify({
-      network: this.network,
-      tx_body_digest: bytesToHex(args.txBodyDigest),
-      amount_lovelace: args.collateralAmountLovelace.toString(),
+  /**
+   * Resolve the host's collateral UTxO. We pin the (txId, idx) but the
+   * value + address change every time the host re-funds it, so we look the
+   * UTxO up via the supplied chain provider on every call. If the UTxO has
+   * been spent (the host hasn't refunded yet), we throw with an actionable
+   * message — Mix submission can't proceed without it.
+   */
+  async prepareCollateral(args: PrepareCollateralArgs): Promise<PreparedCollateral> {
+    if (!args.provider) {
+      throw new Error(
+        "GivemeMyProvider: prepareCollateral needs a ChainProvider to resolve " +
+          "the host UTxO's current value and address. Pass `provider`.",
+      );
+    }
+    const perNet = this.host.perNetwork[this.collateralNetwork];
+    if (!perNet) {
+      throw new Error(
+        `GivemeMyProvider: host "${this.host.name}" no longer serves ${this.collateralNetwork}`,
+      );
+    }
+    const utxo = await args.provider.getUtxoByRef({
+      txId: perNet.utxoTxId,
+      outputIndex: perNet.utxoOutputIndex,
     });
-    const headers: Record<string, string> = { "Content-Type": "application/json" };
-    if (this.apiKey) headers["Authorization"] = `Bearer ${this.apiKey}`;
+    if (!utxo) {
+      throw new Error(
+        `GivemeMyProvider: host "${this.host.name}" collateral UTxO ` +
+          `${perNet.utxoTxId}#${perNet.utxoOutputIndex} not found on chain. ` +
+          `The host may be out-of-band re-funding; retry shortly or fall back to WalletProvider.`,
+      );
+    }
+    if (utxo.lovelace < args.collateralAmountLovelace) {
+      throw new Error(
+        `GivemeMyProvider: host UTxO has ${utxo.lovelace} lovelace, need at least ` +
+          `${args.collateralAmountLovelace}. Pick a different host or wait for re-funding.`,
+      );
+    }
+    return {
+      inputs: [utxo],
+      totalLovelace: utxo.lovelace,
+      returnAddress: utxo.address,
+      requiredSignerPkhHex: this.host.pkhHex,
+      externallySigned: true,
+    };
+  }
 
-    const res = await this.fetchFn(`${this.endpoint}/collateral`, {
+  async signTxBody(txCborHex: string): Promise<VkeyWitness | null> {
+    if (!/^[0-9a-fA-F]+$/.test(txCborHex) || txCborHex.length < 2) {
+      throw new Error("GivemeMyProvider.signTxBody: txCborHex must be non-empty hex");
+    }
+    const body = JSON.stringify({ tx_body: txCborHex });
+    const res = await this.fetchFn(this.endpoint, {
       method: "POST",
-      headers,
+      headers: { "Content-Type": "application/json" },
       body,
     });
     if (!res.ok) {
       const errBody = await res.text();
       throw new Error(
-        `GivemeMyProvider: collateral request failed (${res.status} ${res.statusText}): ${errBody}`,
+        `GivemeMyProvider: collateral request failed (${res.status} ${res.statusText}): ${errBody.slice(0, 400)}`,
       );
     }
     const json = await res.json();
-    return parseGivemeMyResponse(json);
+    return parseGivemeMyWitnessResponse(json, this.host.publicKeyHex);
+  }
+
+  /** The pkh that callers must list under `required_signers`. */
+  get requiredSignerPkhHex(): string {
+    return this.host.pkhHex;
+  }
+
+  /** Underlying host record — for diagnostics / verification. */
+  get hostInfo(): KnownCollateralHost {
+    return this.host;
   }
 }
 
-function parseGivemeMyResponse(raw: unknown): CollateralProvision {
+/**
+ * Parse `{witness: "<hex>"}` where `<hex>` decodes (as CBOR) to the 2-element
+ * sequence `[0, [vkey_bytes, sig_bytes]]`.
+ *
+ * The leading `0` is the witness-set field key (`vkey_witnesses`); we don't
+ * use it — we know it's a vkey witness because that's the only thing this
+ * service emits.
+ *
+ * `expectedPublicKeyHex`: if supplied, we cross-check that the returned vkey
+ * matches the pinned public key. A mismatch means either the host rotated
+ * keys (rare) or someone is MITM'ing the response — fail loudly.
+ */
+export function parseGivemeMyWitnessResponse(
+  raw: unknown,
+  expectedPublicKeyHex?: string,
+): VkeyWitness {
   if (raw === null || typeof raw !== "object") {
     throw new Error(`GivemeMyProvider: response is not an object (${typeof raw})`);
   }
   const r = raw as Record<string, unknown>;
-  const inputObj = r.input;
-  if (inputObj === null || typeof inputObj !== "object") {
-    throw new Error("GivemeMyProvider: response.input missing or not an object");
+  const witnessField = r["witness"];
+  if (typeof witnessField !== "string" || witnessField.length === 0) {
+    const errField = JSON.stringify(r).slice(0, 300);
+    throw new Error(
+      `GivemeMyProvider: response missing/empty "witness" field. Body: ${errField}`,
+    );
   }
-  const i = inputObj as Record<string, unknown>;
-  const txId = String(i.tx_id ?? "").toLowerCase();
-  const outputIndex = Number(i.output_index ?? 0);
-  const address = String(i.address ?? "");
-  const lovelace = BigInt(String(i.lovelace ?? "0"));
-  const assetsRaw = i.assets;
-  const assets: Record<string, bigint> = {};
-  if (assetsRaw !== undefined && typeof assetsRaw === "object" && assetsRaw !== null) {
-    for (const [k, v] of Object.entries(assetsRaw as Record<string, unknown>)) {
-      assets[k] = BigInt(String(v));
-    }
+  const witnessBytes = hexToBytes(witnessField);
+  // Layout from upstream's `create_witness_cbor`:
+  //   cbor.dumps([0, [vkey_bytes, sig_bytes]])
+  // CBOR: 82 00 82 5820 <32 vkey> 5840 <64 sig>
+  //   = 2 (1) + 1 (1) + 2 (1) + 2 (1) + 32 + 2 (1) + 64 = 100 bytes
+  // (Server cbor2 may emit slightly different forms, so parse defensively.)
+  if (witnessBytes.length < 4 || witnessBytes[0] !== 0x82) {
+    throw new Error(
+      `GivemeMyProvider: witness payload not a 2-element CBOR array (first byte 0x${(witnessBytes[0] ?? 0).toString(16)})`,
+    );
+  }
+  // The first element is `int 0` — major type 0, value 0 → byte 0x00.
+  if (witnessBytes[1] !== 0x00) {
+    throw new Error(
+      `GivemeMyProvider: witness payload's first element is not int(0) (got 0x${(witnessBytes[1] ?? 0).toString(16)})`,
+    );
+  }
+  // Second element: a 2-element array [bytes(32), bytes(64)].
+  if (witnessBytes[2] !== 0x82) {
+    throw new Error(
+      `GivemeMyProvider: witness payload's second element is not a 2-element CBOR array`,
+    );
+  }
+  // bytes(32) header: 0x58 0x20
+  if (witnessBytes[3] !== 0x58 || witnessBytes[4] !== 0x20) {
+    throw new Error(
+      `GivemeMyProvider: vkey field is not a 32-byte CBOR byte string`,
+    );
+  }
+  if (witnessBytes.length < 5 + 32 + 2 + 64) {
+    throw new Error(
+      `GivemeMyProvider: witness payload too short (got ${witnessBytes.length} bytes)`,
+    );
+  }
+  const vkeyBytes = witnessBytes.subarray(5, 5 + 32);
+  // bytes(64) header: 0x58 0x40
+  if (witnessBytes[5 + 32] !== 0x58 || witnessBytes[5 + 32 + 1] !== 0x40) {
+    throw new Error(
+      `GivemeMyProvider: signature field is not a 64-byte CBOR byte string`,
+    );
+  }
+  const sigBytes = witnessBytes.subarray(5 + 32 + 2, 5 + 32 + 2 + 64);
+
+  const vkeyHex = bytesToHex(vkeyBytes);
+  const signatureHex = bytesToHex(sigBytes);
+
+  if (expectedPublicKeyHex && vkeyHex !== expectedPublicKeyHex.toLowerCase()) {
+    throw new Error(
+      `GivemeMyProvider: response vkey ${vkeyHex} does not match pinned public key ` +
+        `${expectedPublicKeyHex.toLowerCase()}. Refusing to use a key the host hasn't ` +
+        `published — bump known-collateral-hosts.ts after independently verifying the rotation.`,
+    );
   }
 
-  const returnAddress = String(r.return_address ?? "");
-  const witnessRaw = r.witness;
-  if (witnessRaw === null || typeof witnessRaw !== "object") {
-    throw new Error("GivemeMyProvider: response.witness missing or not an object");
-  }
-  const w = witnessRaw as Record<string, unknown>;
-  const witness: VkeyWitness = {
-    vkeyHex: String(w.vkey ?? "").toLowerCase(),
-    signatureHex: String(w.signature ?? "").toLowerCase(),
-  };
-  if (!/^[0-9a-f]{64}$/.test(witness.vkeyHex)) {
-    throw new Error("GivemeMyProvider: response.witness.vkey is not 32-byte hex");
-  }
-  if (!/^[0-9a-f]{128}$/.test(witness.signatureHex)) {
-    throw new Error("GivemeMyProvider: response.witness.signature is not 64-byte hex");
-  }
-
-  const input: Utxo = {
-    ref: { txId, outputIndex },
-    address,
-    lovelace,
-    assets,
-    inlineDatum: null,
-    referenceScript: null,
-  };
-
-  return {
-    inputs: [input],
-    totalLovelace: lovelace,
-    returnAddress,
-    externalWitness: witness,
-  };
+  return { vkeyHex, signatureHex };
 }
 
 function bytesToHex(b: Uint8Array): string {
   let s = "";
   for (const x of b) s += x.toString(16).padStart(2, "0");
   return s;
+}
+
+function hexToBytes(hex: string): Uint8Array {
+  const cleaned = hex.startsWith("0x") || hex.startsWith("0X") ? hex.slice(2) : hex;
+  if (cleaned.length % 2 !== 0) {
+    throw new Error("hex string must have even length");
+  }
+  const out = new Uint8Array(cleaned.length / 2);
+  for (let i = 0; i < out.length; i++) {
+    const v = Number.parseInt(cleaned.slice(i * 2, i * 2 + 2), 16);
+    if (!Number.isFinite(v)) throw new Error(`bad hex byte at offset ${i * 2}`);
+    out[i] = v;
+  }
+  return out;
 }
