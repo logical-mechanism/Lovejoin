@@ -112,6 +112,11 @@ export interface LovejoinAddresses {
   /// Validators only inspect `payment_credential`, so the stake side
   /// changes nothing on-chain.
   dappStakeKeyHashHex?: Hex28;
+  /// Optional. Chain point at-or-just-before the bootstrap tx, used by
+  /// the self-hosted backend's chainsync to skip ahead from genesis.
+  /// SDK doesn't read it directly; the field is mirrored here so the
+  /// addresses.json schema stays the single source of truth.
+  bootstrapStartPoint?: { slot: number; blockHash: Hex32 };
 }
 
 /// Convert a "<txid>#<index>" string into our typed UtxoRef.

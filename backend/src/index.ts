@@ -17,6 +17,7 @@ import {
 } from "./db/blockfrost-history.js";
 import { IndexerRuntime } from "./indexer/runtime.js";
 import { IndexerState } from "./indexer/state.js";
+import { OgmiosTxClient } from "./indexer/ogmios-tx.js";
 import { buildServer } from "./api/server.js";
 
 export const BACKEND_VERSION = "0.2.0";
@@ -51,10 +52,33 @@ export async function main(): Promise<void> {
       })
     : null;
 
+  // Skip-ahead intersection: a fresh backend starts walking from the
+  // bootstrap tx's slot rather than chain origin. Without this, every
+  // restart replays the full chain from genesis (≈3 years on preprod)
+  // before any protocol-relevant block exists. See config.ts
+  // resolveBootstrapStartPoint() for precedence.
+  const startPoints = config.bootstrapStartPoint
+    ? [
+        {
+          slot: config.bootstrapStartPoint.slot,
+          id: config.bootstrapStartPoint.blockHash,
+        } as const,
+      ]
+    : ["origin" as const];
+
   const runtime = new IndexerRuntime(state, {
     ogmiosUrl: config.ogmiosUrl,
     filter,
+    startPoints,
     logger: simpleLogger(),
+  });
+
+  // Tx-submission ogmios client lives on its own WebSocket so chainsync
+  // (which is parked on `nextBlock` waiting for the next block) doesn't
+  // block tx submit/eval and vice versa. Lazily connects on first use.
+  const ogmiosTx = new OgmiosTxClient({
+    url: config.ogmiosUrl,
+    onOpen: (url) => console.log(`[ogmios-tx] connected at ${url}`),
   });
 
   const server = await buildServer({
@@ -63,6 +87,7 @@ export async function main(): Promise<void> {
     config,
     dbsync,
     historyFallback,
+    ogmiosTx,
   });
 
   // Start chainsync first so requests at /health can already see "tip not yet"
@@ -81,7 +106,7 @@ export async function main(): Promise<void> {
 
   for (const sig of ["SIGINT", "SIGTERM"] as const) {
     process.on(sig, () => {
-      void shutdown(server, runtime, dbsync);
+      void shutdown(server, runtime, dbsync, ogmiosTx);
     });
   }
 }
@@ -90,9 +115,15 @@ async function shutdown(
   server: Awaited<ReturnType<typeof buildServer>>,
   runtime: IndexerRuntime,
   dbsync: PostgresDbSyncClient | null,
+  ogmiosTx: OgmiosTxClient | null,
 ): Promise<void> {
   try {
     await runtime.stop();
+  } catch {
+    /* ignore */
+  }
+  try {
+    ogmiosTx?.close();
   } catch {
     /* ignore */
   }

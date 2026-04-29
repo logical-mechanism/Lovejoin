@@ -15,7 +15,7 @@
 // `ping`/`close` are token implementations so this slots into the same
 // `DbSyncClient` interface the route already consumes.
 
-import type { AddressTxHistoryEntry, DbSyncClient } from "./dbsync.js";
+import type { AddressTxHistoryEntry, HistoryClient } from "./dbsync.js";
 
 /** Subset of `fetch` we depend on. Lets tests inject a mock cleanly. */
 export type FetchFn = (
@@ -57,7 +57,7 @@ interface TxUtxosResponse {
   }>;
 }
 
-export class BlockfrostHistoryClient implements DbSyncClient {
+export class BlockfrostHistoryClient implements HistoryClient {
   private readonly baseUrl: string;
   private readonly projectId: string;
   private readonly fetchFn: FetchFn;

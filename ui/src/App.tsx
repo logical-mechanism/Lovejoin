@@ -7,6 +7,7 @@
 
 import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 
+import { BackendStatusProvider } from "./components/BackendStatus.js";
 import { CollateralStatusProvider } from "./components/CollateralProviderStatus.js";
 import { ToasterProvider } from "./components/Toaster.js";
 import { Box } from "./routes/Box.js";
@@ -23,22 +24,24 @@ export function App() {
     <AppStateProvider>
       <ToasterProvider>
         <CollateralStatusBridge>
-          <BrowserRouter>
-            <Routes>
-              <Route element={<Layout />}>
-                <Route index element={<Home />} />
-                <Route path="deposit" element={<Deposit />} />
-                <Route path="pool" element={<Pool />} />
-                <Route path="vault" element={<Vault />} />
-                <Route path="vault/:txid/:idx" element={<Box />} />
-                {/* /withdraw was a parallel multi-select flow that
-                 * duplicated the Vault list. Folded into Vault; keep
-                 * a redirect so external links + bookmarks still land. */}
-                <Route path="withdraw" element={<Navigate to="/vault" replace />} />
-                <Route path="protocol" element={<Protocol />} />
-              </Route>
-            </Routes>
-          </BrowserRouter>
+          <BackendStatusBridge>
+            <BrowserRouter>
+              <Routes>
+                <Route element={<Layout />}>
+                  <Route index element={<Home />} />
+                  <Route path="deposit" element={<Deposit />} />
+                  <Route path="pool" element={<Pool />} />
+                  <Route path="vault" element={<Vault />} />
+                  <Route path="vault/:txid/:idx" element={<Box />} />
+                  {/* /withdraw was a parallel multi-select flow that
+                   * duplicated the Vault list. Folded into Vault; keep
+                   * a redirect so external links + bookmarks still land. */}
+                  <Route path="withdraw" element={<Navigate to="/vault" replace />} />
+                  <Route path="protocol" element={<Protocol />} />
+                </Route>
+              </Routes>
+            </BrowserRouter>
+          </BackendStatusBridge>
         </CollateralStatusBridge>
       </ToasterProvider>
     </AppStateProvider>
@@ -57,5 +60,19 @@ function CollateralStatusBridge({ children }: { children: React.ReactNode }) {
     <CollateralStatusProvider endpoint={config.collateralProviderEndpoint || null}>
       {children}
     </CollateralStatusProvider>
+  );
+}
+
+/**
+ * Sibling bridge for the self-hosted backend (db-sync + ogmios indexer).
+ * Polls `/health` every 15s so the footer badge can show whether we're
+ * actually leaning on our own stack or silently falling back to Blockfrost.
+ */
+function BackendStatusBridge({ children }: { children: React.ReactNode }) {
+  const { config } = useAppState();
+  return (
+    <BackendStatusProvider backendUrl={config.backendUrl || null}>
+      {children}
+    </BackendStatusProvider>
   );
 }

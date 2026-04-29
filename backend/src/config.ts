@@ -41,6 +41,14 @@ export interface LovejoinAddresses {
   feeShardUtxos: string[];
   /** Optional dApp stake-key hash for base-address derivation. */
   dappStakeKeyHashHex?: Hex28;
+  /**
+   * Optional chain point at-or-just-before the protocol's bootstrap tx.
+   * The indexer uses this as its chainsync intersection so a fresh
+   * backend doesn't re-walk the entire chain. Stamped by
+   * `infra/bootstrap/stamp-start-point.sh` after `02-mint-and-lock.sh`
+   * lands. Override with `BOOTSTRAP_START_SLOT` + `BOOTSTRAP_START_BLOCKHASH`.
+   */
+  bootstrapStartPoint?: { slot: number; blockHash: Hex32 };
 }
 
 /** Resolved runtime configuration. */
@@ -78,6 +86,15 @@ export interface BackendConfig {
     feeContractAddress: string;
     referenceHolderAddress: string;
   };
+  /**
+   * Resolved chainsync intersection point, in priority order:
+   *   1. `BOOTSTRAP_START_SLOT` + `BOOTSTRAP_START_BLOCKHASH` env vars
+   *   2. `addresses.bootstrapStartPoint` (stamped post-bootstrap)
+   *   3. null → indexer falls back to `["origin"]`
+   * Skipping ahead past genesis is the difference between the indexer
+   * being usable in minutes vs. days.
+   */
+  bootstrapStartPoint: { slot: number; blockHash: Hex32 } | null;
 }
 
 const DEFAULTS = {
@@ -100,7 +117,15 @@ export function loadConfig(
   const host = env.HOST?.trim() || DEFAULTS.host;
   const ogmiosUrl = (env.OGMIOS_URL ?? "ws://localhost:1337").trim();
   const dbsyncUrl = env.DBSYNC_URL?.trim() || null;
-  const blockfrostProjectId = env.BLOCKFROST_PROJECT_ID?.trim() || null;
+  // Accept either the unsuffixed BLOCKFROST_PROJECT_ID or the
+  // network-suffixed form the SDK CLI already uses
+  // (BLOCKFROST_PROJECT_ID_PREPROD / _PREVIEW / _MAINNET). Backend reads
+  // the unsuffixed first so an explicit override wins; falls back to the
+  // SDK convention so a single .env doesn't need to duplicate the key.
+  const blockfrostProjectId =
+    env.BLOCKFROST_PROJECT_ID?.trim() ||
+    env[`BLOCKFROST_PROJECT_ID_${network.toUpperCase()}`]?.trim() ||
+    null;
   const blockfrostBaseUrl = env.BLOCKFROST_BASE_URL?.trim() || null;
   const corsOrigins = parseCorsOrigins(env.CORS_ORIGINS);
   const rateLimitPerMin = parseIntegerEnv(
@@ -111,6 +136,7 @@ export function loadConfig(
 
   const addressesPath = env.ADDRESSES_PATH ?? defaultAddressesPath(network);
   const addresses = loadAddresses(addressesPath);
+  const bootstrapStartPoint = resolveBootstrapStartPoint(env, addresses);
 
   const networkId: 0 | 1 = network === "mainnet" ? 1 : 0;
   const stakeKey = addresses.dappStakeKeyHashHex ?? null;
@@ -139,7 +165,38 @@ export function loadConfig(
     rateLimitPerMin,
     addresses,
     derived,
+    bootstrapStartPoint,
   };
+}
+
+function resolveBootstrapStartPoint(
+  env: NodeJS.ProcessEnv,
+  addresses: LovejoinAddresses,
+): { slot: number; blockHash: Hex32 } | null {
+  const slotRaw = env.BOOTSTRAP_START_SLOT?.trim();
+  const hashRaw = env.BOOTSTRAP_START_BLOCKHASH?.trim();
+  // Either both env vars or neither — treating only one as set is almost
+  // always a config typo and silently falling back is worse than yelling.
+  if ((slotRaw && !hashRaw) || (!slotRaw && hashRaw)) {
+    throw new Error(
+      "BOOTSTRAP_START_SLOT and BOOTSTRAP_START_BLOCKHASH must be set together",
+    );
+  }
+  if (slotRaw && hashRaw) {
+    const slot = Number(slotRaw);
+    if (!Number.isInteger(slot) || slot < 0) {
+      throw new Error(
+        `BOOTSTRAP_START_SLOT must be a non-negative integer, got ${JSON.stringify(slotRaw)}`,
+      );
+    }
+    if (!/^[0-9a-f]{64}$/.test(hashRaw)) {
+      throw new Error(
+        `BOOTSTRAP_START_BLOCKHASH must be 64-char lowercase hex, got ${JSON.stringify(hashRaw)}`,
+      );
+    }
+    return { slot, blockHash: hashRaw };
+  }
+  return addresses.bootstrapStartPoint ?? null;
 }
 
 /** Parse + validate addresses.json. Exported for tests. */
@@ -184,6 +241,21 @@ export function validateAddresses(
   }
   if (!parsed.protocol || typeof parsed.protocol !== "object") {
     errs.push("protocol must be an object");
+  }
+  if (parsed.bootstrapStartPoint !== undefined) {
+    const sp = parsed.bootstrapStartPoint;
+    if (
+      typeof sp !== "object" ||
+      sp === null ||
+      typeof sp.slot !== "number" ||
+      sp.slot < 0 ||
+      typeof sp.blockHash !== "string" ||
+      !/^[0-9a-f]{64}$/.test(sp.blockHash)
+    ) {
+      errs.push(
+        `bootstrapStartPoint must be { slot:number, blockHash:64-hex } (got ${JSON.stringify(sp)})`,
+      );
+    }
   }
   if (errs.length > 0) {
     throw new Error(

@@ -37,7 +37,7 @@ import {
   pointFromBytes,
   scalarToBytes,
   GENERATOR_COMPRESSED,
-  type BlockfrostProvider,
+  type ChainProvider,
   type LovejoinAddresses,
   type PoolEntry,
   type Scalar,
@@ -104,7 +104,7 @@ export interface VaultScanResult {
  */
 export async function scanPool(args: {
   seed: Uint8Array;
-  provider: BlockfrostProvider;
+  provider: ChainProvider;
   addresses: LovejoinAddresses;
   maxIndex?: number;
   /** Minimum gap of misses past the last hit before we stop scanning. */

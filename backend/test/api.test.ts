@@ -376,3 +376,119 @@ describe("API: /history fallback to Blockfrost", () => {
     await noBackendsServer.close();
   });
 });
+
+describe("API: /submit + /evaluate", () => {
+  it("/submit relays cbor to ogmios and returns the txid", async () => {
+    const stub = {
+      submitTransaction: async (cbor: string) => {
+        expect(cbor).toBe("84a4");
+        return "ab".repeat(32);
+      },
+      evaluateTransaction: async () => [],
+      close: () => {},
+    };
+    const s = await buildServer({
+      state,
+      runtime: null,
+      config: CONFIG,
+      dbsync: null,
+      ogmiosTx: stub as never,
+    });
+    const res = await s.inject({
+      method: "POST",
+      url: "/submit",
+      payload: { cbor: "84a4" },
+    });
+    expect(res.statusCode).toBe(200);
+    expect(res.json()).toEqual({ txHash: "ab".repeat(32) });
+    await s.close();
+  });
+
+  it("/submit returns 400 with the ogmios error message when ogmios rejects", async () => {
+    const stub = {
+      submitTransaction: async () => {
+        throw new Error("ogmios JSON-RPC error 3122: ScriptExecutionFailure");
+      },
+      evaluateTransaction: async () => [],
+      close: () => {},
+    };
+    const s = await buildServer({
+      state,
+      runtime: null,
+      config: CONFIG,
+      dbsync: null,
+      ogmiosTx: stub as never,
+    });
+    const res = await s.inject({
+      method: "POST",
+      url: "/submit",
+      payload: { cbor: "deadbeef" },
+    });
+    expect(res.statusCode).toBe(400);
+    expect(res.json().error).toBe("submit_failed");
+    expect(res.json().message).toContain("ScriptExecutionFailure");
+    await s.close();
+  });
+
+  it("/submit returns 400 on malformed cbor", async () => {
+    const stub = {
+      submitTransaction: async () => "00".repeat(32),
+      evaluateTransaction: async () => [],
+      close: () => {},
+    };
+    const s = await buildServer({
+      state,
+      runtime: null,
+      config: CONFIG,
+      dbsync: null,
+      ogmiosTx: stub as never,
+    });
+    const res = await s.inject({
+      method: "POST",
+      url: "/submit",
+      payload: { cbor: "not-hex" },
+    });
+    expect(res.statusCode).toBe(400);
+    expect(res.json().error).toBe("bad_request");
+    await s.close();
+  });
+
+  it("/evaluate passes through the redeemer-budget array verbatim", async () => {
+    const budgets = [
+      { validator: { purpose: "spend", index: 0 }, budget: { memory: 1234, cpu: 56789 } },
+    ];
+    const stub = {
+      submitTransaction: async () => "00".repeat(32),
+      evaluateTransaction: async (cbor: string) => {
+        expect(cbor).toBe("84a4");
+        return budgets;
+      },
+      close: () => {},
+    };
+    const s = await buildServer({
+      state,
+      runtime: null,
+      config: CONFIG,
+      dbsync: null,
+      ogmiosTx: stub as never,
+    });
+    const res = await s.inject({
+      method: "POST",
+      url: "/evaluate",
+      payload: { cbor: "84a4" },
+    });
+    expect(res.statusCode).toBe(200);
+    expect(res.json()).toEqual({ redeemers: budgets });
+    await s.close();
+  });
+
+  it("/submit returns 503 when no ogmiosTx is configured", async () => {
+    const res = await server.inject({
+      method: "POST",
+      url: "/submit",
+      payload: { cbor: "84a4" },
+    });
+    expect(res.statusCode).toBe(503);
+    expect(res.json().error).toBe("submit_unavailable");
+  });
+});

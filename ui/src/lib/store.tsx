@@ -4,8 +4,10 @@
 //   * `config` — runtime config (network, Blockfrost key, backend URL,
 //     collateral provider endpoint). Baked at build time from Vite env vars
 //     (see lib/sdk.ts); developers can override via `?advanced=1`.
-//   * `provider` — BlockfrostProvider built from `config`. Memoized so
-//     screens don't see a new instance on every render.
+//   * `provider` — ChainProvider built from `config`. Backend-backed
+//     when `backendUrl` is set (with Blockfrost as fallback); plain
+//     Blockfrost otherwise. Memoized so screens don't see a new
+//     instance on every render.
 //   * `addresses` — bootstrap output (addresses.<network>.json) loaded
 //     async at mount.
 //   * `wallet` — connected CIP-30 BrowserWallet handle + change address.
@@ -28,7 +30,7 @@ import {
   type ReactNode,
 } from "react";
 import type { BrowserWallet } from "@meshsdk/core";
-import type { LovejoinAddresses, BlockfrostProvider } from "@lovejoin/sdk";
+import type { LovejoinAddresses, ChainProvider } from "@lovejoin/sdk";
 
 import {
   loadAddresses,
@@ -51,7 +53,7 @@ export interface AppState {
   config: RuntimeConfig;
   setConfig: (next: RuntimeConfig) => void;
 
-  provider: BlockfrostProvider | null;
+  provider: ChainProvider | null;
   providerError: string | null;
 
   addresses: LovejoinAddresses | null;
@@ -127,7 +129,7 @@ export function AppStateProvider({ children, testOverrides }: AppStateProviderPr
     setConfigState(next);
   }, []);
 
-  const provider = useMemo<BlockfrostProvider | null>(
+  const provider = useMemo<ChainProvider | null>(
     () => makeProvider(config),
     [config],
   );

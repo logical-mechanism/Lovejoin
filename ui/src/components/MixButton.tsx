@@ -14,8 +14,8 @@ import { useTranslation } from "react-i18next";
 import type { BrowserWallet } from "@meshsdk/core";
 import {
   buildMixTx,
+  type ChainProvider,
   type LovejoinAddresses,
-  type BlockfrostProvider,
   type MixFeePayer,
   type MixInput,
   type Utxo,
@@ -32,7 +32,7 @@ const COOLDOWN_MS = 5000;
 
 export interface MixButtonProps {
   network: Network;
-  provider: BlockfrostProvider;
+  provider: ChainProvider;
   addresses: LovejoinAddresses;
   wallet: BrowserWallet;
   /** Pool of boxes to pick from (already filtered to mix-script address). */
@@ -77,6 +77,14 @@ export function MixButton({
 
   const onRequestSubmit = () => {
     if (disabled) return;
+    // Wallet-fee mode: the wallet's signTx prompt IS the confirmation
+    // — showing a modal first is a redundant click. Shard-fee mode has
+    // no signing prompt (the tx is submitter-anonymous), so the modal
+    // is still the only surface where the user actually confirms.
+    if (feePayer === "wallet") {
+      void onConfirmSubmit();
+      return;
+    }
     setConfirmOpen(true);
   };
 

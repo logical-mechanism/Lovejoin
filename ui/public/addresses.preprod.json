@@ -29,5 +29,9 @@
     "mix_box": 632,
     "mix_logic": 3019,
     "fee_contract": 2143
+  },
+  "bootstrapStartPoint": {
+    "slot": 121762947,
+    "blockHash": "7bde49fdf622bcdcea957611de9859f2bf8d3c752a3b26a4920e95fbbdd20b1f"
   }
 }

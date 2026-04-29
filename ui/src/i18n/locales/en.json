@@ -261,6 +261,17 @@
     "unknown": "Collateral provider unknown",
     "banner_down": "The collateral provider is unreachable. Mix submission is disabled until it recovers."
   },
+  "provider": {
+    "badge_synced": "indexer",
+    "badge_syncing": "indexer syncing",
+    "badge_syncing_lag": "indexer syncing · {{lag}} behind",
+    "badge_down": "indexer offline",
+    "badge_blockfrost": "blockfrost",
+    "tooltip_synced": "Self-hosted indexer is caught up to chain tip. Pool data comes from your own stack.",
+    "tooltip_syncing": "Self-hosted indexer is reachable but lagging chain tip. Falling back to Blockfrost until caught up.",
+    "tooltip_down": "Self-hosted indexer is configured but unreachable. Falling back to Blockfrost.",
+    "tooltip_blockfrost": "No backend URL configured. All chain queries go through Blockfrost."
+  },
   "protocol": {
     "eyebrow": "Sigmajoin · BLS12-381 · Plutus V3",
     "title": "Protocol",
