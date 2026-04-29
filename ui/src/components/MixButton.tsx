@@ -77,6 +77,14 @@ export function MixButton({
 
   const onRequestSubmit = () => {
     if (disabled) return;
+    // Wallet-fee mode: the wallet's signTx prompt IS the confirmation
+    // — showing a modal first is a redundant click. Shard-fee mode has
+    // no signing prompt (the tx is submitter-anonymous), so the modal
+    // is still the only surface where the user actually confirms.
+    if (feePayer === "wallet") {
+      void onConfirmSubmit();
+      return;
+    }
     setConfirmOpen(true);
   };
 
