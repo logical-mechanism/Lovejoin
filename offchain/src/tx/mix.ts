@@ -1065,12 +1065,16 @@ export async function buildMixTx(args: BuildMixArgs): Promise<MixResult> {
   let unsignedTxHex: string;
   try {
     unsignedTxHex = await buildOnce(true);
+    // eslint-disable-next-line no-console
+    console.log(
+      `[lovejoin/mix] build with evaluator: SUCCESS — refined exUnits are in the final tx body`,
+    );
   } catch (evalErr) {
     const errMsg = evalErr instanceof Error ? evalErr.message : String(evalErr);
     // eslint-disable-next-line no-console
     console.warn(
-      `Mix evaluator failed; retrying with populate-time exUnits estimates. ` +
-        `Original error: ${errMsg.slice(0, 200)}`,
+      `[lovejoin/mix] build with evaluator: FAILED — falling back to populate-time exUnits ` +
+        `estimates from mixExUnitsEstimate(N). Original error: ${errMsg.slice(0, 400)}`,
     );
     unsignedTxHex = await buildOnce(false);
   }
