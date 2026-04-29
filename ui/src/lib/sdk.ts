@@ -19,7 +19,11 @@ export const NETWORKS = ["preprod", "preview", "mainnet"] as const;
 export type Network = (typeof NETWORKS)[number];
 
 const STORAGE_KEY = "lovejoin.config.v1";
-const DEFAULT_COLLATERAL_PROVIDER_ENDPOINT = "https://giveme.my";
+// Empty string = "defer to the SDK's pinned host". The SDK ships its own
+// canonical full-path URL per network in `known-collateral-hosts.ts`; the
+// UI override is for advanced-mode users pointing at a localhost dev
+// instance, a `.onion` mirror, or a custom collateral-provider host.
+const DEFAULT_COLLATERAL_PROVIDER_ENDPOINT = "";
 
 // Default backend URL — points at the dev-mode `make backend-dev` target
 // (Fastify on :3001) so `pnpm dev` + `make backend-dev` "just works"

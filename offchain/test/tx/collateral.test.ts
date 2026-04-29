@@ -305,6 +305,60 @@ describe("tx/collateral — GivemeMyProvider", () => {
     await provider.signTxBody("deadbeef");
     expect(captured).toBe("http://localhost:8080/preprod/collateral/");
   });
+
+  it("appends /{network}/collateral/ when the override is a base URL", async () => {
+    let captured: string | null = null;
+    const provider = new GivemeMyProvider({
+      network: "preprod",
+      endpoint: "https://giveme.my",
+      fetchFn: fakeFetch((url) => {
+        captured = url;
+        return { status: 200, body: { witness: witnessCborHex(HOST_PUBKEY, "ab".repeat(64)) } };
+      }),
+    });
+    await provider.signTxBody("deadbeef");
+    expect(captured).toBe("https://giveme.my/preprod/collateral/");
+  });
+
+  it("normalises trailing slashes on a full-path override", async () => {
+    let captured: string | null = null;
+    const provider = new GivemeMyProvider({
+      network: "preprod",
+      endpoint: "http://localhost:8080/preprod/collateral", // no trailing slash
+      fetchFn: fakeFetch((url) => {
+        captured = url;
+        return { status: 200, body: { witness: witnessCborHex(HOST_PUBKEY, "ab".repeat(64)) } };
+      }),
+    });
+    await provider.signTxBody("deadbeef");
+    expect(captured).toBe("http://localhost:8080/preprod/collateral/");
+  });
+
+  it("treats empty / whitespace endpoint override as 'no override'", async () => {
+    let captured: string | null = null;
+    const provider = new GivemeMyProvider({
+      network: "preprod",
+      endpoint: "   ",
+      fetchFn: fakeFetch((url) => {
+        captured = url;
+        return { status: 200, body: { witness: witnessCborHex(HOST_PUBKEY, "ab".repeat(64)) } };
+      }),
+    });
+    await provider.signTxBody("deadbeef");
+    expect(captured).toBe("https://www.giveme.my/preprod/collateral/");
+  });
+
+  it("surfaces a clear error when the endpoint returns HTML (homepage)", async () => {
+    const provider = new GivemeMyProvider({
+      network: "preprod",
+      endpoint: "https://giveme.my", // resolved → /preprod/collateral/, but stub returns HTML anyway
+      fetchFn: fakeFetch(() => ({
+        status: 200,
+        body: "<!DOCTYPE html><html><head><title>giveme.my</title></head>...",
+      })),
+    });
+    await expect(provider.signTxBody("deadbeef")).rejects.toThrow(/HTML, not JSON/);
+  });
 });
 
 describe("tx/collateral — parseGivemeMyWitnessResponse", () => {

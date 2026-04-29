@@ -527,6 +527,12 @@ export async function buildWithdrawTx(args: BuildWithdrawArgs): Promise<Withdraw
     tightUnits.withdraw,
   );
 
+  // eslint-disable-next-line no-console
+  console.log(
+    `[lovejoin/withdraw] unsigned tx CBOR (${unsignedHexFinal.length / 2} bytes, feePayer=${feePayer}): ` +
+      `${unsignedHexFinal}`,
+  );
+
   // Witness path. If the collateral provider is externally-signed
   // (GivemeMyProvider), we always need to merge its witness. The wallet
   // only signs when there's something IT can witness — i.e. when wallet
@@ -851,6 +857,12 @@ export async function buildBulkWithdrawTx(
     proof3,
     (i) => tightUnits.spends[i]!,
     tightUnits.withdraw,
+  );
+
+  // eslint-disable-next-line no-console
+  console.log(
+    `[lovejoin/withdraw-bulk] unsigned tx CBOR (${unsignedHexFinal.length / 2} bytes, ` +
+      `n=${n}, feePayer=${feePayer}): ${unsignedHexFinal}`,
   );
 
   // Witness path — same logic as single withdraw. Box + external collateral

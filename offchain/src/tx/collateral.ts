@@ -225,8 +225,17 @@ export interface GivemeMyOptions {
   host?: KnownCollateralHost;
   /**
    * Override the host's HTTP endpoint. Defaults to `host.perNetwork[net].url`.
-   * Useful for pointing at a localhost dev server, or at the .onion endpoint
-   * if the caller is using a Tor proxy.
+   *
+   * Two valid shapes:
+   *   * Full path including `/{network}/collateral/` — used as-is. Example:
+   *     `https://www.giveme.my/preprod/collateral/`.
+   *   * Base URL — `/{network}/collateral/` is appended automatically.
+   *     Example: `https://giveme.my` becomes
+   *     `https://giveme.my/preprod/collateral/`.
+   *
+   * Empty string is treated as "no override" — same as omitting the field.
+   * Useful for pointing at a localhost dev server, the `.onion` endpoint
+   * (when behind a Tor proxy), or a Logical-Mechanism mirror.
    */
   endpoint?: string;
   /** Optional injected fetch (defaults to globalThis.fetch). */
@@ -289,7 +298,7 @@ export class GivemeMyProvider implements CollateralProvider {
       );
     }
     this.host = host;
-    this.endpoint = (opts.endpoint ?? perNet.url).replace(/\/+$/, "/");
+    this.endpoint = resolveEndpoint(opts.endpoint, perNet.url, collateralNetwork);
     const injected = opts.fetchFn;
     const globalFetch = (globalThis as { fetch?: CollateralFetchFn }).fetch;
     if (!injected && !globalFetch) {
@@ -355,18 +364,48 @@ export class GivemeMyProvider implements CollateralProvider {
       throw new Error("GivemeMyProvider.signTxBody: txCborHex must be non-empty hex");
     }
     const body = JSON.stringify({ tx_body: txCborHex });
+    // eslint-disable-next-line no-console
+    console.log(
+      `[lovejoin/collateral] POST ${this.endpoint} ` +
+        `(host=${this.host.name}, txCbor=${txCborHex.length / 2} bytes)`,
+    );
     const res = await this.fetchFn(this.endpoint, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body,
     });
+    // eslint-disable-next-line no-console
+    console.log(`[lovejoin/collateral] HTTP ${res.status} ${res.statusText}`);
+
+    // Read body once as text. Detecting HTML up-front lets us emit a
+    // pointed error when the override sent us to a homepage instead of
+    // the API endpoint — which is the most common configuration mistake
+    // (e.g. https://giveme.my vs https://www.giveme.my/preprod/collateral/).
+    const rawText = await res.text();
+    const looksHtml = /^\s*<(?:!doctype|html|head|body)/i.test(rawText);
     if (!res.ok) {
-      const errBody = await res.text();
       throw new Error(
-        `GivemeMyProvider: collateral request failed (${res.status} ${res.statusText}): ${errBody.slice(0, 400)}`,
+        `GivemeMyProvider: ${this.endpoint} returned HTTP ${res.status} ${res.statusText}. ` +
+          `Body (first 400 bytes): ${rawText.slice(0, 400)}`,
       );
     }
-    const json = await res.json();
+    if (looksHtml) {
+      throw new Error(
+        `GivemeMyProvider: ${this.endpoint} returned HTML, not JSON — almost certainly a wrong endpoint. ` +
+          `Expected a path ending in /{network}/collateral/. ` +
+          `Body (first 200 bytes): ${rawText.slice(0, 200)}`,
+      );
+    }
+    let json: unknown;
+    try {
+      json = JSON.parse(rawText);
+    } catch (parseErr) {
+      throw new Error(
+        `GivemeMyProvider: ${this.endpoint} returned non-JSON. ` +
+          `Original parse error: ${parseErr instanceof Error ? parseErr.message : String(parseErr)}. ` +
+          `Body (first 400 bytes): ${rawText.slice(0, 400)}`,
+      );
+    }
     return parseGivemeMyWitnessResponse(json, this.host.publicKeyHex);
   }
 
@@ -463,6 +502,35 @@ export function parseGivemeMyWitnessResponse(
   }
 
   return { vkeyHex, signatureHex };
+}
+
+/**
+ * Decide the final URL we POST to.
+ *
+ *   * No override → the host's pinned full URL.
+ *   * Override containing "/collateral" anywhere in the path → use as-is
+ *     (we trust the caller knows the full URL); trailing slash normalised.
+ *   * Override that's only a base URL → append `/{network}/collateral/`.
+ *   * Empty / whitespace override → treated as no override.
+ *
+ * The whole reason this is messier than a `??` fallback is that the
+ * upstream service expects exactly `/{network}/collateral/` — a base-URL
+ * POST hits the homepage and gets HTML back, which is the failure mode
+ * that motivated this helper.
+ */
+function resolveEndpoint(
+  override: string | undefined,
+  pinnedUrl: string,
+  network: CollateralNetwork,
+): string {
+  const trimmed = (override ?? "").trim();
+  if (!trimmed) return pinnedUrl.replace(/\/+$/, "/");
+  if (/\/collateral\/?$/i.test(trimmed)) {
+    // Already a full path — just normalise the trailing slash.
+    return trimmed.replace(/\/+$/, "") + "/";
+  }
+  // Treat as base URL; append `/{network}/collateral/`.
+  return trimmed.replace(/\/+$/, "") + `/${network}/collateral/`;
 }
 
 function bytesToHex(b: Uint8Array): string {
