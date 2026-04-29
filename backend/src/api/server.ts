@@ -15,6 +15,7 @@ import type { BackendConfig } from "../config.js";
 import type { DbSyncClient } from "../db/dbsync.js";
 import type { IndexerState } from "../indexer/state.js";
 import type { IndexerRuntime } from "../indexer/runtime.js";
+import type { OgmiosTxClient } from "../indexer/ogmios-tx.js";
 
 export interface ApiServerDeps {
   state: IndexerState;
@@ -31,6 +32,12 @@ export interface ApiServerDeps {
    * shape as `dbsync`, just slower per request.
    */
   historyFallback?: DbSyncClient | null;
+  /**
+   * Mempool-side ogmios client used by `/submit` and `/evaluate`.
+   * Optional — tests omit it; the routes 503 when absent so the wire
+   * surface still exists and clients see a meaningful error.
+   */
+  ogmiosTx?: OgmiosTxClient | null;
   /** When set, used as the "now" for `lagSeconds`; tests pin it. */
   nowMs?: () => number;
 }
@@ -67,6 +74,8 @@ export async function buildServer(deps: ApiServerDeps): Promise<FastifyInstance>
   registerBox(fastify, deps);
   registerFee(fastify, deps);
   registerHistory(fastify, deps);
+  registerSubmit(fastify, deps);
+  registerEvaluate(fastify, deps);
 
   return fastify;
 }
@@ -297,6 +306,73 @@ function registerHistory(fastify: FastifyInstance, deps: ApiServerDeps): void {
           lovelaceReceived: h.lovelaceReceived,
         })),
       };
+    },
+  );
+}
+
+interface SubmitBody {
+  cbor?: string;
+}
+
+function registerSubmit(fastify: FastifyInstance, deps: ApiServerDeps): void {
+  fastify.post(
+    "/submit",
+    async (
+      req: FastifyRequest<{ Body: SubmitBody }>,
+      reply: FastifyReply,
+    ) => {
+      if (!deps.ogmiosTx) {
+        reply.code(503);
+        return { error: "submit_unavailable", message: "ogmios tx client not configured" };
+      }
+      const cbor = (req.body?.cbor ?? "").trim();
+      if (!/^[0-9a-fA-F]+$/.test(cbor) || cbor.length === 0 || cbor.length % 2 !== 0) {
+        reply.code(400);
+        return { error: "bad_request", message: "body.cbor must be a non-empty even-length hex string" };
+      }
+      try {
+        const txHash = await deps.ogmiosTx.submitTransaction(cbor);
+        return { txHash };
+      } catch (err) {
+        // Bubble the ogmios error verbatim — the SDK + UI already know
+        // how to render ledger rejection messages, and translating
+        // here would lose detail.
+        reply.code(400);
+        return {
+          error: "submit_failed",
+          message: (err as Error).message,
+        };
+      }
+    },
+  );
+}
+
+function registerEvaluate(fastify: FastifyInstance, deps: ApiServerDeps): void {
+  fastify.post(
+    "/evaluate",
+    async (
+      req: FastifyRequest<{ Body: SubmitBody }>,
+      reply: FastifyReply,
+    ) => {
+      if (!deps.ogmiosTx) {
+        reply.code(503);
+        return { error: "evaluate_unavailable", message: "ogmios tx client not configured" };
+      }
+      const cbor = (req.body?.cbor ?? "").trim();
+      if (!/^[0-9a-fA-F]+$/.test(cbor) || cbor.length === 0 || cbor.length % 2 !== 0) {
+        reply.code(400);
+        return { error: "bad_request", message: "body.cbor must be a non-empty even-length hex string" };
+      }
+      try {
+        const budgets = await deps.ogmiosTx.evaluateTransaction(cbor);
+        return { redeemers: budgets };
+      } catch (err) {
+        reply.code(400);
+        return {
+          error: "evaluate_failed",
+          message: (err as Error).message,
+        };
+      }
     },
   );
 }
