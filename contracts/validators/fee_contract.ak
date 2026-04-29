@@ -56,15 +56,15 @@ validator fee_contract(
       let reference_datum =
         read_reference_datum(self, reference_nft_policy, reference_nft_name)
 
-      expect Some(own_input) =
-        list.find(self.inputs, fn(input) { input.output_reference == utxo })
-      expect Script(own_hash) = own_input.output.address.payment_credential
-      expect own_hash == reference_datum.fee_script_hash
-
       when redeemer is {
-        PayMixFee ->
-          validate_pay_mix_fee(reference_datum, self, own_input, own_hash)
-        Replenish -> validate_replenish(self, own_input, own_hash)
+        PayMixFee -> validate_pay_mix_fee(reference_datum, self, utxo)
+        Replenish -> {
+          expect Some(own_input) =
+            list.find(self.inputs, fn(input) { input.output_reference == utxo })
+          expect Script(own_hash) = own_input.output.address.payment_credential
+          expect own_hash == reference_datum.fee_script_hash
+          validate_replenish(self, own_input, own_hash)
+        }
       }
     }
   }
@@ -89,8 +89,7 @@ validator fee_contract(
 fn validate_pay_mix_fee(
   reference_datum: ReferenceDatum,
   self: Transaction,
-  own_input: Input,
-  own_hash: ScriptHash,
+  utxo: OutputReference,
 ) -> Bool {
   // Rule 1 — the mix_logic withdraw must use the Mix redeemer. We look up
   // the redeemer by `Withdraw(Script(mix_logic_script_hash))` in
@@ -98,6 +97,9 @@ fn validate_pay_mix_fee(
   // to MixLogicRedeemer. If the cast hard-fails (Owner-shape data) the
   // whole script aborts, which is the right "fee_contract rejects this tx"
   // semantics.
+  //
+  // Hoisted ABOVE the input fold so Owner-redeemer attacker txs (F-1 drain)
+  // reject without paying for an `self.inputs` traversal.
   expect Some(mix_logic_redeemer_data) =
     pairs.get_first(
       self.redeemers,
@@ -106,24 +108,40 @@ fn validate_pay_mix_fee(
   expect mix_logic_redeemer: MixLogicRedeemer = mix_logic_redeemer_data
   expect Mix { .. } = mix_logic_redeemer
 
-  // Single-pass fold replaces two separate `list.count` walks: count
-  // mix-script inputs (need >=2) and fee-script inputs (need ==1) in one
-  // pass over `self.inputs`. Saves N input-list walks per Mix tx.
-  let (mix_input_count, fee_input_count) =
+  let own_hash = reference_datum.fee_script_hash
+
+  // Single-pass fold over `self.inputs`. Subsumes:
+  //   * the prior `list.find(own_input)` in the spend handler,
+  //   * the `expect Script(own_hash) = own_input.output.address.payment_credential`
+  //     defense-in-depth check,
+  //   * the mix-script input count (need >= 2),
+  //   * the fee-script input count (need == 1, including own_input).
+  // Saves one full traversal of `self.inputs` per Mix tx.
+  let (mix_input_count, fee_input_count, maybe_own_lovelace) =
     list.foldl(
       self.inputs,
-      (0, 0),
+      (0, 0, None),
       fn(input, acc) {
-        let (m, f) = acc
-        if input_at_script(input, reference_datum.mix_script_hash) {
-          (m + 1, f)
+        let (m, f, own) = acc
+        if input.output_reference == utxo {
+          // own_input. Cardano routes the spend here only because the
+          // input's credential is fee_script_hash; the cross-check below
+          // protects against a parameter mismatch (e.g. wrong reference
+          // NFT for this script's compiled hash).
+          expect Script(h) = input.output.address.payment_credential
+          expect h == own_hash
+          let own_lovelace = expect_ada_only_lovelace(input.output.value)
+          (m, f + 1, Some(own_lovelace))
+        } else if input_at_script(input, reference_datum.mix_script_hash) {
+          (m + 1, f, own)
         } else if input_at_fee(input, own_hash) {
-          (m, f + 1)
+          (m, f + 1, own)
         } else {
           acc
         }
       },
     )
+  expect Some(fee_in_lovelace) = maybe_own_lovelace
   expect mix_input_count >= 2
   expect fee_input_count == 1
 
@@ -133,7 +151,6 @@ fn validate_pay_mix_fee(
 
   // expect_ada_only_lovelace fuses the ada-only check + lovelace extract
   // into a single dict walk (vs the old `ada_only` + `lovelace_of` pair).
-  let fee_in_lovelace = expect_ada_only_lovelace(own_input.output.value)
   let fee_out_lovelace = expect_ada_only_lovelace(fee_output.value)
 
   and {
