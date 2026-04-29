@@ -28,6 +28,7 @@ import { Link } from "react-router-dom";
 import type { MixFeePayer } from "@lovejoin/sdk";
 
 import { MixButton } from "../components/MixButton.js";
+import { useBackendStatus } from "../components/BackendStatus.js";
 import {
   CollateralProviderBanner,
   CollateralProviderPill,
@@ -45,6 +46,7 @@ export function Pool() {
   const toast = useToast();
   const { config, provider, addresses, wallet } = useAppState();
   const collateral = useCollateralStatus();
+  const backend = useBackendStatus();
   const [poolEntries, setPoolEntries] = useState<DirectPoolEntry[]>([]);
   const [poolError, setPoolError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -62,6 +64,11 @@ export function Pool() {
   const [feePayer, setFeePayer] = useState<MixFeePayer>("shard");
   const n = feePayer === "shard" ? maxNShard : maxNWallet;
 
+  // The badge probe lives in App-level context; pull the status into a
+  // primitive so the pool refresh effect re-fires when it flips and
+  // doesn't spuriously re-fire on every probe tick.
+  const backendStatus = backend?.status ?? null;
+
   useEffect(() => {
     if (!provider || !addresses) return;
     let cancelled = false;
@@ -69,25 +76,32 @@ export function Pool() {
     const refresh = async () => {
       if (firstRun) setLoading(true);
       try {
-        // Try the backend first when configured. Fall through to
-        // Blockfrost if the backend is unreachable (null) OR if it
-        // returns an empty pool — during initial sync the backend's
-        // in-memory state is empty even though the chain has live boxes,
-        // and we don't want Mix to silently show zero. Blockfrost is
-        // authoritative either way; using the backend is a perf
-        // optimisation, not a correctness gate.
+        // Provider preference: when the self-hosted backend is reachable
+        // AND its indexer is caught up to chain tip, treat it as
+        // authoritative — even an empty result is a real "no boxes".
+        // Fall back to Blockfrost only when the backend is unreachable,
+        // still syncing, or unconfigured. We're leaning on our own
+        // stack; Blockfrost is the safety net, not the default.
         let entries: DirectPoolEntry[] | null = null;
-        if (config.backendUrl) {
+        const useBackend =
+          !!config.backendUrl &&
+          (backendStatus === "synced" || backendStatus === "syncing");
+        if (useBackend) {
           try {
             const client = new BackendClient(config.backendUrl);
             const page = await client.pool({ limit: 500 });
             if (cancelled) return;
-            if (page && page.boxes.length > 0) {
-              entries = page.boxes.map((b) => ({
+            if (page) {
+              const fromBackend = page.boxes.map((b) => ({
                 ref: { txId: b.txHash.toLowerCase(), outputIndex: b.outputIndex },
                 a: hexToBytes(b.a),
                 b: hexToBytes(b.b),
               }));
+              // Trust an empty-but-synced backend; otherwise (syncing
+              // and empty), keep `entries` null so we fall through.
+              if (backendStatus === "synced" || fromBackend.length > 0) {
+                entries = fromBackend;
+              }
             }
           } catch {
             // Backend threw — let Blockfrost cover.
@@ -114,7 +128,7 @@ export function Pool() {
       cancelled = true;
       window.clearInterval(id);
     };
-  }, [provider, addresses, config.backendUrl]);
+  }, [provider, addresses, config.backendUrl, backendStatus]);
 
   // Status branches for the action area. Render priority:
   //   error > loading > empty > ready

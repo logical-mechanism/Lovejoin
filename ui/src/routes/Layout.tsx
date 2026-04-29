@@ -15,6 +15,7 @@ import { useTranslation } from "react-i18next";
 
 import { Header } from "../components/Header.js";
 import { AdvancedPanel } from "../components/AdvancedPanel.js";
+import { ProviderBadge } from "../components/BackendStatus.js";
 import { useAppState } from "../lib/store.js";
 import { isAdvancedMode } from "../lib/sdk.js";
 
@@ -52,6 +53,8 @@ export function Layout() {
         <span className="lj-footer__net">{config.network}</span>
         <span className="lj-footer__sep">·</span>
         <span className="lj-footer__warn">{t("app.preprod_banner")}</span>
+        <span className="lj-footer__sep">·</span>
+        <ProviderBadge />
       </footer>
     </div>
   );
