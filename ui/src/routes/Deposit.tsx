@@ -10,7 +10,6 @@
 // persist them — `findOwnedBoxes` re-derives ownership on every unlock.
 
 import { useState } from "react";
-import { Link } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 
 import { buildBulkDepositTx } from "@lovejoin/sdk";
@@ -30,8 +29,11 @@ export function Deposit() {
     addresses,
     wallet,
     vault,
+    vaultBusy,
+    vaultError,
     nextDepositIndex,
     rescan,
+    unlockWithWallet,
   } = useAppState();
   const [rounds, setRounds] = useState<number>(30);
   const [count, setCount] = useState<number>(1);
@@ -62,10 +64,22 @@ export function Deposit() {
         </header>
         <p className="text-sm text-muted">{t("deposit.preconditions_missing")}</p>
         <div className="mt-6">
-          <Link to="/vault" className="lj-btn lj-btn--primary">
-            {t("vault.unlock_with_wallet")}
-          </Link>
+          <button
+            type="button"
+            className="lj-btn lj-btn--primary"
+            disabled={!wallet || vaultBusy}
+            onClick={() => void unlockWithWallet()}
+          >
+            {vaultBusy ? t("vault.unlocking") : t("vault.unlock_with_wallet")}
+          </button>
         </div>
+        {vaultError && (
+          <div className="lj-banner lj-banner--coral mt-4">
+            <span className="lj-banner__title">
+              {t("vault.unlock_failed", { message: vaultError })}
+            </span>
+          </div>
+        )}
       </section>
     );
   }

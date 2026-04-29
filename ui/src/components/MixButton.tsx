@@ -26,6 +26,7 @@ import {
   useCollateralStatus,
   useRefreshCollateralStatus,
 } from "./CollateralProviderStatus.js";
+import { Modal } from "./ui/Modal.js";
 
 const COOLDOWN_MS = 5000;
 
@@ -57,6 +58,7 @@ export function MixButton({
   const { t } = useTranslation();
   const [submitting, setSubmitting] = useState(false);
   const [cooldown, setCooldown] = useState(0);
+  const [confirmOpen, setConfirmOpen] = useState(false);
   const cooldownTimer = useRef<number | null>(null);
   const collateral = useCollateralStatus();
   const refreshCollateral = useRefreshCollateralStatus();
@@ -73,8 +75,14 @@ export function MixButton({
   const enoughBoxes = poolEntries.length >= n && n >= 2;
   const disabled = submitting || cooldown > 0 || !collateralOk || !enoughBoxes;
 
-  const onClick = async () => {
+  const onRequestSubmit = () => {
     if (disabled) return;
+    setConfirmOpen(true);
+  };
+
+  const onConfirmSubmit = async () => {
+    if (disabled) return;
+    setConfirmOpen(false);
     setSubmitting(true);
     try {
       const inputs = pickRandomBoxes(poolEntries, n).map<MixInput>((e) => {
@@ -124,7 +132,7 @@ export function MixButton({
     <div className="flex flex-col gap-2">
       <button
         type="button"
-        onClick={() => void onClick()}
+        onClick={onRequestSubmit}
         disabled={disabled}
         className="lj-btn lj-btn--primary lj-btn--lg"
       >
@@ -142,6 +150,62 @@ export function MixButton({
           {t("pool.mix_disabled_pool", { have: poolEntries.length, need: n })}
         </p>
       )}
+
+      <Modal
+        open={confirmOpen}
+        onClose={() => setConfirmOpen(false)}
+        title={t("pool.confirm_title")}
+      >
+        <header className="mb-5">
+          <p className="lj-eyebrow">{t("pool.confirm_eyebrow")}</p>
+          <h2 className="mt-2 font-display text-2xl font-light tracking-tight text-paper">
+            {t("pool.confirm_title")}
+          </h2>
+          <p className="mt-2 text-sm text-muted">
+            {feePayer === "shard"
+              ? t("pool.confirm_lede_shard")
+              : t("pool.confirm_lede_wallet")}
+          </p>
+        </header>
+        <dl className="lj-banner lj-banner--signal flex-col items-stretch gap-3">
+          <div className="flex justify-between gap-4">
+            <dt className="lj-eyebrow">{t("pool.review_width")}</dt>
+            <dd className="font-mono text-sm text-paper" data-num>
+              {n}
+            </dd>
+          </div>
+          <div className="flex justify-between gap-4">
+            <dt className="lj-eyebrow">{t("pool.review_fee_path")}</dt>
+            <dd className="text-sm text-paper">
+              {feePayer === "shard"
+                ? t("pool.review_fee_path_shard")
+                : t("pool.review_fee_path_wallet")}
+            </dd>
+          </div>
+          <div className="flex justify-between gap-4">
+            <dt className="lj-eyebrow">{t("pool.review_collateral")}</dt>
+            <dd className="text-sm text-muted">
+              {t("pool.review_collateral_value")}
+            </dd>
+          </div>
+        </dl>
+        <footer className="mt-6 flex justify-end gap-2">
+          <button
+            type="button"
+            className="lj-btn lj-btn--quiet"
+            onClick={() => setConfirmOpen(false)}
+          >
+            {t("common.cancel")}
+          </button>
+          <button
+            type="button"
+            className="lj-btn lj-btn--primary"
+            onClick={() => void onConfirmSubmit()}
+          >
+            {t("pool.confirm_submit")}
+          </button>
+        </footer>
+      </Modal>
     </div>
   );
 }

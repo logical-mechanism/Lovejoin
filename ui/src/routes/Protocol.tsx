@@ -51,11 +51,13 @@ export function Protocol() {
       <h2>{t("protocol.deposit_h")}</h2>
       <p>
         A deposit picks a fresh randomness <code>d</code> and locks the
-        fixed denomination at the mix-box script with the inline datum:
+        fixed denomination at the mix-box script with the inline datum
+        — two 48-byte compressed G1 points, with <code>b</code> acting
+        as your ownership mark:
       </p>
       <pre className="lj-math">
-        <code>{`a = [d]·G            // 48-byte compressed G1 point
-b = [x·d]·G          // 48-byte compressed G1 point — your "ownership" mark`}</code>
+        <code>{`a = [d] · G
+b = [x · d] · G`}</code>
       </pre>
       <p>
         Anyone watching the chain sees <code>(a, b)</code> but learns
@@ -71,15 +73,15 @@ b = [x·d]·G          // 48-byte compressed G1 point — your "ownership" mark`
         <em> permuted re-randomisation</em>:
       </p>
       <pre className="lj-math">
-        <code>{`for each input  i ∈ 0..N:
+        <code>{`for each input i ∈ 0..N:
     a'_i = [y_π(i)] · a_π(i)
     b'_i = [y_π(i)] · b_π(i)`}</code>
       </pre>
       <p>
         where <code>π</code> is a permutation of <code>0..N</code>. The
-        crucial property: if <code>b_i = [x_i]·a_i</code> on input, then
-        <code>{" "}b'_i = [x_π(i)] · a'_i</code> on output — ownership
-        survives the re-randomisation, but the pairing
+        crucial property: if <code>b_i = [x_i] · a_i</code> on input,
+        then <code>{" "}b'_i = [x_π(i)] · a'_i</code> on output —
+        ownership survives the re-randomisation, but the pairing
         <em> input → output</em> is hidden.
       </p>
       <p>
@@ -112,13 +114,14 @@ b = [x·d]·G          // 48-byte compressed G1 point — your "ownership" mark`
       <p>
         To leave the pool you spend the mix-box at the
         <code>{" "}mix_box</code> script's owner branch with a Schnorr proof
-        of <code>b = [x]·a</code> bound to <code>tx.outputs</code>:
+        of <code>b = [x] · a</code> bound to <code>tx.outputs</code>.
+        The prover picks a uniform <code>k ∈ Z_r</code> and computes:
       </p>
       <pre className="lj-math">
-        <code>{`commit:    t = [k]·a                  // k uniform in Z_r
+        <code>{`commit:    t = [k] · a
 challenge: c = blake2b(a ‖ b ‖ t ‖ outputs ‖ scriptHash)
-response:  s = k + c·x  (mod r)
-verify:    [s]·a ?= t + [c]·b`}</code>
+response:  s = k + c · x   mod r
+verify:    [s] · a ≟ t + [c] · b`}</code>
       </pre>
       <p>
         Output substitution invalidates the challenge, so the validator
