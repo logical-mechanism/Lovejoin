@@ -72,13 +72,17 @@ pub fn precompute_statements(
   )
 }
 
-/// XOR two equal-length 32-byte arrays, produced via per-byte bitwise XOR using
-/// the integer-wide `xor_bytearray` builtin. The `False` padding flag asserts
-/// the two inputs have equal length (otherwise the builtin aborts), so we
-/// only need ONE explicit length check — the equality enforcement covers the
-/// other side.
+/// XOR two equal-length 32-byte arrays via the integer-wide `xor_bytearray`
+/// builtin. The `False` padding flag aborts the builtin if the two inputs
+/// differ in length, so the right-side length is implicitly enforced.
+///
+/// The previous `expect bytearray.length(left) == 32` was redundant: in the
+/// XOR fold inside `verify_pre`, the seed is `zero32` (32 bytes) and
+/// `xor_bytearray(False, l32, r)` returns 32 bytes only when `r` is also 32
+/// (otherwise it aborts). By induction, `acc` is always 32 bytes, and a
+/// non-32-byte `br.c` is caught by the builtin on the first iteration. N²
+/// builtin pairs (length + ==) saved per Mix tx — see audit H3.
 fn xor32(left: ByteArray, right: ByteArray) -> ByteArray {
-  expect bytearray.length(left) == 32
   builtin.xor_bytearray(False, left, right)
 }
 
