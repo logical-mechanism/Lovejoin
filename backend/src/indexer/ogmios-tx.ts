@@ -19,6 +19,12 @@
 // (see offchain/src/tx/mesh-bridge.ts), so the backend stays a thin
 // passthrough.
 
+// Pull WebSocket from `ws` rather than the global. Node 22 ships a
+// global WebSocket, but the backend deliberately uses `ws` (the same
+// dep the chainsync client uses; see indexer/ogmios.ts) so the runtime
+// is consistent across Node versions and so tests can swap a fake.
+import WebSocket from "ws";
+
 export interface OgmiosTxClientConfig {
   url: string;
   socketFactory?: (url: string) => OgmiosTxSocket;
