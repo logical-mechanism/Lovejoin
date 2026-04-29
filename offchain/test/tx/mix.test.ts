@@ -24,7 +24,6 @@ import {
   computeMixCtx,
   encodeAdaOnlyValueCbor,
   encodeMixRedeemer,
-  mixExUnitsEstimate,
   serialiseMixDatumCanonical,
   type MixInput,
   type MixPlan,
@@ -597,58 +596,6 @@ describe("tx/mix — sigma-OR cross-verification", () => {
         ctx,
       );
       expect(ok).toBe(true);
-    }
-  });
-});
-
-describe("tx/mix — mixExUnitsEstimate", () => {
-  // Preprod fee schedule (matches docs/perf.md §"Estimated max_fee_per_mix
-  // headroom"); used to verify the estimates fit under the 2-ADA cap.
-  const PRICE_STEP = 7.21e-5; // lovelace per CPU step
-  const PRICE_MEM = 0.0577; // lovelace per mem byte
-  const MAX_FEE_PER_MIX_LOVELACE = 2_000_000;
-
-  function totalExecFee(plan: ReturnType<typeof mixExUnitsEstimate>, n: number): number {
-    // shard mode: N × mix_box + 1 × mix_logic + 1 × fee_contract
-    const totalMem =
-      n * plan.mixBox.mem + plan.mixLogic.mem + plan.feeContract.mem;
-    const totalSteps =
-      n * plan.mixBox.steps + plan.mixLogic.steps + plan.feeContract.steps;
-    return Math.ceil(totalMem * PRICE_MEM + totalSteps * PRICE_STEP);
-  }
-
-  it("rejects N < 2 and non-integer N", () => {
-    expect(() => mixExUnitsEstimate(1)).toThrow(/n must be/);
-    expect(() => mixExUnitsEstimate(0)).toThrow(/n must be/);
-    expect(() => mixExUnitsEstimate(2.5)).toThrow(/n must be/);
-  });
-
-  it("scales mix_logic as ~N²", () => {
-    const e2 = mixExUnitsEstimate(2);
-    const e4 = mixExUnitsEstimate(4);
-    // 4× quadratic scaling: e4 mix_logic should be roughly 4× e2's
-    // beyond the constant base term.
-    expect(e4.mixLogic.steps).toBeGreaterThan(3 * e2.mixLogic.steps);
-    expect(e4.mixLogic.mem).toBeGreaterThan(3 * e2.mixLogic.mem);
-  });
-
-  it("keeps mix_box and fee_contract constant in N", () => {
-    const e2 = mixExUnitsEstimate(2);
-    const e6 = mixExUnitsEstimate(6);
-    expect(e6.mixBox).toEqual(e2.mixBox);
-    expect(e6.feeContract).toEqual(e2.feeContract);
-  });
-
-  it("stays under max_fee_per_mix_lovelace at N up to 4", () => {
-    // The deployed Preprod cap is 2 ADA; our estimates need to keep
-    // mesh's pre-eval min_fee under that. Size fee adds ~500K-1M, so
-    // we want exec_fee well under 1 ADA at the practical max-N (4).
-    for (const n of [2, 3, 4]) {
-      const plan = mixExUnitsEstimate(n);
-      const execFee = totalExecFee(plan, n);
-      expect(execFee).toBeLessThan(MAX_FEE_PER_MIX_LOVELACE);
-      // Leave headroom for the size-fee component.
-      expect(execFee).toBeLessThan(1_000_000);
     }
   });
 });

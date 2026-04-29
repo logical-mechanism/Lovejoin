@@ -57,9 +57,19 @@ import type {
 } from "../chain/provider.js";
 import {
   type CollateralProvider,
+  GivemeMyProvider,
   WalletProvider,
 } from "./collateral.js";
 import { mergeExternalCollateralWitness } from "./witness-merge.js";
+
+/**
+ * Tiny populate-time exec-unit placeholder. The chain provider's evaluator
+ * overwrites this with real values during `complete()`. Sized small enough
+ * that the placeholder min_fee never blocks the build before the evaluator
+ * runs. If the evaluator is missing or errors, the build throws — there is
+ * no longer a hand-tuned fallback.
+ */
+const POPULATE_TIME_EXUNITS_PLACEHOLDER: ExUnits = { mem: 10_000, steps: 1_000_000 };
 import { getMeshProvider } from "./mesh-bridge.js";
 import {
   fetchProtocolParams,
@@ -279,6 +289,25 @@ export function generateOwnerSchnorrProof(args: {
 // buildWithdrawTx — drives mesh
 // ---------------------------------------------------------------------------
 
+/**
+ * How the Withdraw tx pays its on-chain fee.
+ *
+ *   * `"box"` — the canonical, wallet-anonymous path. The mix-box's own
+ *     denom_lovelace funds the tx; mesh sends `denom − fee` to the
+ *     destination via change-address routing (no explicit destination
+ *     output). Combined with `GivemeMyProvider` collateral, the user's
+ *     CIP-30 wallet contributes nothing — no wallet input, no
+ *     `signTx` popup. The Schnorr proof in the redeemer is the only
+ *     authorisation; the user already proved control by deriving the
+ *     secret from their wallet's `signData` round.
+ *   * `"wallet"` — legacy / hardware-wallet-review path. Wallet pays
+ *     fee + provides change, destination receives the full
+ *     `denom_lovelace` exactly. Wallet's `signTx` runs as usual so a
+ *     Ledger / Trezor / Eternl popup shows the user the destination
+ *     and amount.
+ */
+export type WithdrawFeePayer = "box" | "wallet";
+
 export interface BuildWithdrawArgs {
   network: "preprod" | "preview" | "test" | "mainnet";
   ownerSecret: Scalar;
@@ -288,6 +317,8 @@ export interface BuildWithdrawArgs {
   provider: ChainProvider;
   addresses: LovejoinAddresses;
   collateralProvider?: CollateralProvider;
+  /** See {@link WithdrawFeePayer}. Default: `"box"`. */
+  feePayer?: WithdrawFeePayer;
   signOnly?: boolean;
 }
 
@@ -307,6 +338,7 @@ export interface WithdrawResult {
  */
 export async function buildWithdrawTx(args: BuildWithdrawArgs): Promise<WithdrawResult> {
   const networkId = networkIdFor(args.network);
+  const feePayer: WithdrawFeePayer = args.feePayer ?? "box";
 
   const { params } = await fetchProtocolParams(args.addresses, args.provider);
   const plan = planWithdrawTx({
@@ -318,7 +350,8 @@ export async function buildWithdrawTx(args: BuildWithdrawArgs): Promise<Withdraw
     networkId,
   });
 
-  const collateralProvider = args.collateralProvider ?? new WalletProvider(args.wallet);
+  const collateralProvider =
+    args.collateralProvider ?? defaultWithdrawCollateralProvider(args.network, args.wallet, feePayer);
   const preparedCollateral = await collateralProvider.prepareCollateral({
     provider: args.provider,
     collateralAmountLovelace: 5_000_000n,
@@ -348,32 +381,32 @@ export async function buildWithdrawTx(args: BuildWithdrawArgs): Promise<Withdraw
   const meshCore = await import("@meshsdk/core");
   const { MeshTxBuilder } = meshCore;
   const cst = await import("@meshsdk/core-cst");
-
-  const walletUtxos = normalizeWalletUtxos(await args.wallet.getUtxos());
-  const changeAddress = await args.wallet.getChangeAddress();
   const meshProvider = await getMeshProvider(args.provider);
 
-  // The two-pass Schnorr build has a chicken-and-egg with mesh's
-  // evaluator (placeholder proof fails the validator → no exec units), so
-  // we drive the build manually:
+  // Wallet handles only matter in wallet-fee mode. Don't query them
+  // (or trigger CIP-30 RPCs) in box mode — the wallet-anonymity story
+  // breaks if the SDK touches the wallet for a Mix-shaped tx.
+  const walletUtxos =
+    feePayer === "wallet" ? normalizeWalletUtxos(await args.wallet.getUtxos()) : [];
+  const walletChangeAddress =
+    feePayer === "wallet" ? await args.wallet.getChangeAddress() : null;
+
+  // The two-pass-into-six-build dance handles the chicken-and-egg between
+  // Schnorr proof bytes and tx outputs:
   //
-  //   1.  Build with placeholder proof + default upper-bound exec units.
-  //       Outputs depend only on (redeemer size, exec units, fee), and
-  //       the placeholder is the same size as the real Schnorr proof.
-  //   2.  Compute proof_1 against pass-1 outputs.
-  //   3.  Build with proof_1 + default exec units → call evaluator.
-  //       Validator runs successfully, evaluator returns tight exec units.
-  //   4.  Build with proof_1 + tight exec units → outputs change because
-  //       the fee shrinks (smaller redeemer-cost component) → bigger
-  //       change. Proof_1 no longer matches.
-  //   5.  Compute proof_3 against pass-3 outputs.
-  //   6.  Build with proof_3 + tight exec units → outputs match pass 3
-  //       (same redeemer size, same exec units, same fee). Sign + submit.
+  //   1. Build with placeholder proof + tiny placeholder exec units.
+  //   2. Compute proof_1 against pass-1's outputs.
+  //   3. Build with proof_1 + placeholder exec units → call evaluator.
+  //      Validator passes (real proof), evaluator returns tight exec units.
+  //   4. Build with proof_1 + tight exec units → outputs shift because
+  //      the fee component shifts (placeholder vs real exec). proof_1 no
+  //      longer binds these outputs.
+  //   5. Compute proof_3 against pass-4's outputs.
+  //   6. Build with proof_3 + tight exec units → outputs identical to
+  //      pass 4 (same redeemer size, same exec units, same fee).
   //
-  // 4 builds + 1 evaluation. Schnorr proofs are constant-time, so the
-  // exec units don't depend on the proof bytes — we can pin them
-  // confidently across passes 4-6.
-  const DEFAULT_EX_UNITS: ExUnits = { mem: 7_000_000, steps: 3_000_000_000 };
+  // Schnorr proofs are constant-size and constant-time, so once we have
+  // the tight exec units they hold across passes 4–6.
   const placeholderRedeemer = PLACEHOLDER_OWNER_REDEEMER_CBOR_HEX;
   const buildOnce = (
     redeemerCborHex: string,
@@ -418,13 +451,23 @@ export async function buildWithdrawTx(args: BuildWithdrawArgs): Promise<Withdraw
         plan.mixLogicRefScriptUtxoRef.outputIndex,
         sizeStr(args.addresses.referenceScriptSizes?.mix_logic),
         params.mixLogicScriptHash,
-      )
-      // Output 0: destination.
-      .txOut(plan.destinationAddressBech32, [
-        { unit: "lovelace", quantity: plan.destinationLovelace.toString() },
-      ])
-      .changeAddress(changeAddress)
-      .selectUtxosFrom(walletUtxos);
+      );
+    if (feePayer === "box") {
+      // Box mode: no explicit destination output. mesh balances
+      //   inputs (= denom_lovelace) − fee  →  one change output to destination.
+      // The Schnorr ctx hashes that single output, binding the destination
+      // amount and address.
+      tx.changeAddress(plan.destinationAddressBech32).selectUtxosFrom([]);
+    } else {
+      // Wallet mode: explicit destination at full denom; wallet pays fee
+      // and absorbs change.
+      tx
+        .txOut(plan.destinationAddressBech32, [
+          { unit: "lovelace", quantity: plan.destinationLovelace.toString() },
+        ])
+        .changeAddress(walletChangeAddress!)
+        .selectUtxosFrom(walletUtxos);
+    }
     for (const utxo of preparedCollateral.inputs) {
       tx.txInCollateral(
         utxo.ref.txId,
@@ -454,18 +497,22 @@ export async function buildWithdrawTx(args: BuildWithdrawArgs): Promise<Withdraw
     return encodeOwnerRedeemer({ proofs: [{ t: proof.t, z: proof.z }] });
   };
 
-  // 1: placeholder + default exec units.
+  // 1: placeholder + tiny placeholder exec units.
   const txPlaceholder = await buildOnce(
     placeholderRedeemer,
-    DEFAULT_EX_UNITS,
-    DEFAULT_EX_UNITS,
+    POPULATE_TIME_EXUNITS_PLACEHOLDER,
+    POPULATE_TIME_EXUNITS_PLACEHOLDER,
   );
   // 2: proof against placeholder outputs.
   const proof1 = computeProofForOutputs(txPlaceholder);
-  // 3: proof_1 + default exec units → real evaluation.
-  const txForEval = await buildOnce(proof1, DEFAULT_EX_UNITS, DEFAULT_EX_UNITS);
+  // 3: proof_1 + placeholder exec units → real evaluation.
+  const txForEval = await buildOnce(
+    proof1,
+    POPULATE_TIME_EXUNITS_PLACEHOLDER,
+    POPULATE_TIME_EXUNITS_PLACEHOLDER,
+  );
   const tightUnits = await evaluateExUnits(meshProvider, txForEval);
-  // 4: proof_1 + tight exec units → outputs shift (fee shrinks).
+  // 4: proof_1 + tight exec units → outputs shift to match the real fee.
   const txTightOutputs = await buildOnce(
     proof1,
     tightUnits.spend,
@@ -480,10 +527,22 @@ export async function buildWithdrawTx(args: BuildWithdrawArgs): Promise<Withdraw
     tightUnits.withdraw,
   );
 
-  const walletSignedTx = await args.wallet.signTx(unsignedHexFinal);
+  // Witness path. If the collateral provider is externally-signed
+  // (GivemeMyProvider), we always need to merge its witness. The wallet
+  // only signs when there's something IT can witness — i.e. when wallet
+  // collateral is in use, OR (in wallet mode) when wallet inputs are
+  // funding the fee. Box mode + external collateral = zero wallet sig
+  // (the user already proved control by deriving the Schnorr secret
+  // from their wallet's signData round; the proof in the redeemer is
+  // the binding signature).
+  const walletMustSign =
+    !preparedCollateral.externallySigned || feePayer === "wallet";
+  const tx1 = walletMustSign
+    ? await args.wallet.signTx(unsignedHexFinal, true)
+    : unsignedHexFinal;
   const signedTx = preparedCollateral.externallySigned
-    ? await mergeExternalCollateralWitness(collateralProvider, walletSignedTx)
-    : walletSignedTx;
+    ? await mergeExternalCollateralWitness(collateralProvider, tx1)
+    : tx1;
   const owner = deriveOwner(args.ownerSecret);
 
   if (args.signOnly) {
@@ -491,6 +550,37 @@ export async function buildWithdrawTx(args: BuildWithdrawArgs): Promise<Withdraw
   }
   const txId = await args.provider.submitTx(signedTx);
   return { signedTxHex: signedTx, txId, owner };
+}
+
+/**
+ * Default collateral provider for a Withdraw tx.
+ *
+ *   * Box mode: prefer the pinned external host (giveme.my) so the
+ *     wallet stays out of the tx entirely. Falls back to WalletProvider
+ *     with a console warning when no host is pinned for the network
+ *     (e.g. preview).
+ *   * Wallet mode: keep WalletProvider so the wallet's existing
+ *     collateral UTxO is used.
+ */
+function defaultWithdrawCollateralProvider(
+  network: BuildWithdrawArgs["network"],
+  wallet: LovejoinWallet,
+  feePayer: WithdrawFeePayer,
+): CollateralProvider {
+  if (feePayer === "wallet") {
+    return new WalletProvider(wallet);
+  }
+  try {
+    return new GivemeMyProvider({ network });
+  } catch (e) {
+    // eslint-disable-next-line no-console
+    console.warn(
+      `[lovejoin/withdraw] no pinned collateral host for "${network}" — falling back to ` +
+        `wallet collateral. Withdraw will trigger a wallet signTx popup. Original: ` +
+        `${e instanceof Error ? e.message : String(e)}`,
+    );
+    return new WalletProvider(wallet);
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -511,12 +601,15 @@ export interface BuildBulkWithdrawArgs {
   network: "preprod" | "preview" | "test" | "mainnet";
   /** N ≥ 1 mix-boxes to spend in a single tx, each with its owner secret. */
   entries: ReadonlyArray<BulkWithdrawEntry>;
-  /** Single destination address that receives `N × denom_lovelace`. */
+  /** Single destination address that receives `N × denom − fee` (box mode)
+   *  or `N × denom` (wallet mode). */
   destinationAddressBech32: string;
   wallet: LovejoinWallet;
   provider: ChainProvider;
   addresses: LovejoinAddresses;
   collateralProvider?: CollateralProvider;
+  /** See {@link WithdrawFeePayer}. Default: `"box"`. */
+  feePayer?: WithdrawFeePayer;
   signOnly?: boolean;
 }
 
@@ -620,8 +713,10 @@ export async function buildBulkWithdrawTx(
     args.addresses.referenceScriptUtxos.mix_box,
   );
   const totalLovelace: Lovelace = params.denomLovelace * BigInt(n);
+  const feePayer: WithdrawFeePayer = args.feePayer ?? "box";
 
-  const collateralProvider = args.collateralProvider ?? new WalletProvider(args.wallet);
+  const collateralProvider =
+    args.collateralProvider ?? defaultWithdrawCollateralProvider(args.network, args.wallet, feePayer);
   const preparedCollateral = await collateralProvider.prepareCollateral({
     provider: args.provider,
     collateralAmountLovelace: 5_000_000n,
@@ -630,18 +725,20 @@ export async function buildBulkWithdrawTx(
   const meshCore = await import("@meshsdk/core");
   const { MeshTxBuilder } = meshCore;
   const cst = await import("@meshsdk/core-cst");
-
-  const walletUtxos = normalizeWalletUtxos(await args.wallet.getUtxos());
-  const changeAddress = await args.wallet.getChangeAddress();
   const meshProvider = await getMeshProvider(args.provider);
 
+  const walletUtxos =
+    feePayer === "wallet" ? normalizeWalletUtxos(await args.wallet.getUtxos()) : [];
+  const walletChangeAddress =
+    feePayer === "wallet" ? await args.wallet.getChangeAddress() : null;
+
   // Same two-pass-into-six-build dance as single-input withdraw — see
-  // `buildWithdrawTx` for the rationale. The only differences here are:
+  // `buildWithdrawTx` for the rationale. Differences here:
   //   * N spend-script inputs (each gets its own SPEND redeemer; mesh's
   //     evaluator returns one tight unit per spend redeemer)
-  //   * single combined destination output of `N × denom`
+  //   * box mode: change-to-destination = (N × denom) − fee
+  //   * wallet mode: explicit destination output of `N × denom`
   //   * placeholder/real owner redeemer carries N proofs
-  const DEFAULT_EX_UNITS: ExUnits = { mem: 7_000_000, steps: 3_000_000_000 };
   const placeholderRedeemer = placeholderOwnerRedeemerCborHex(n);
 
   type TightUnits = { spends: ExUnits[]; withdraw: ExUnits };
@@ -680,13 +777,20 @@ export async function buildBulkWithdrawTx(
         mixLogicRefScriptUtxoRef.outputIndex,
         sizeStr(args.addresses.referenceScriptSizes?.mix_logic),
         params.mixLogicScriptHash,
-      )
-      // Output 0: combined destination.
-      .txOut(args.destinationAddressBech32, [
-        { unit: "lovelace", quantity: totalLovelace.toString() },
-      ])
-      .changeAddress(changeAddress)
-      .selectUtxosFrom(walletUtxos);
+      );
+    if (feePayer === "box") {
+      // Box mode: no explicit destination output — mesh balances the N
+      // mix-box inputs minus the fee into a single change output at the
+      // destination. The Schnorr proofs hash that single output.
+      tx.changeAddress(args.destinationAddressBech32).selectUtxosFrom([]);
+    } else {
+      tx
+        .txOut(args.destinationAddressBech32, [
+          { unit: "lovelace", quantity: totalLovelace.toString() },
+        ])
+        .changeAddress(walletChangeAddress!)
+        .selectUtxosFrom(walletUtxos);
+    }
     for (const utxo of preparedCollateral.inputs) {
       tx.txInCollateral(
         utxo.ref.txId,
@@ -719,21 +823,25 @@ export async function buildBulkWithdrawTx(
     return encodeOwnerRedeemer({ proofs });
   };
 
-  // Pass 1: placeholder + default exec units.
+  // Pass 1: placeholder + tiny placeholder exec units.
   const txPlaceholder = await buildOnce(
     placeholderRedeemer,
-    () => DEFAULT_EX_UNITS,
-    DEFAULT_EX_UNITS,
+    () => POPULATE_TIME_EXUNITS_PLACEHOLDER,
+    POPULATE_TIME_EXUNITS_PLACEHOLDER,
   );
   // Pass 2: real proofs against placeholder outputs.
   const proof1 = computeRedeemerForOutputs(txPlaceholder);
-  // Pass 3: proof_1 + default exec units → run evaluator.
-  const txForEval = await buildOnce(proof1, () => DEFAULT_EX_UNITS, DEFAULT_EX_UNITS);
+  // Pass 3: proof_1 + placeholder exec units → run evaluator.
+  const txForEval = await buildOnce(
+    proof1,
+    () => POPULATE_TIME_EXUNITS_PLACEHOLDER,
+    POPULATE_TIME_EXUNITS_PLACEHOLDER,
+  );
   const tightUnits = await evaluateBulkExUnits(meshProvider, txForEval, n);
-  // Pass 4: proof_1 + tight units → outputs shift (fee shrinks).
+  // Pass 4: proof_1 + tight units → outputs shift to match real fee.
   const txTightOutputs = await buildOnce(
     proof1,
-    (i) => tightUnits.spends[i] ?? DEFAULT_EX_UNITS,
+    (i) => tightUnits.spends[i]!,
     tightUnits.withdraw,
   );
   // Pass 5: proofs against the new outputs.
@@ -741,14 +849,21 @@ export async function buildBulkWithdrawTx(
   // Pass 6: final tx.
   const unsignedHexFinal = await buildOnce(
     proof3,
-    (i) => tightUnits.spends[i] ?? DEFAULT_EX_UNITS,
+    (i) => tightUnits.spends[i]!,
     tightUnits.withdraw,
   );
 
-  const walletSignedTx = await args.wallet.signTx(unsignedHexFinal);
+  // Witness path — same logic as single withdraw. Box + external collateral
+  // = no wallet sign at all; otherwise wallet signs and external (if any)
+  // is merged on top.
+  const walletMustSign =
+    !preparedCollateral.externallySigned || feePayer === "wallet";
+  const tx1 = walletMustSign
+    ? await args.wallet.signTx(unsignedHexFinal, true)
+    : unsignedHexFinal;
   const signedTx = preparedCollateral.externallySigned
-    ? await mergeExternalCollateralWitness(collateralProvider, walletSignedTx)
-    : walletSignedTx;
+    ? await mergeExternalCollateralWitness(collateralProvider, tx1)
+    : tx1;
   const owners = entries.map((e) => deriveOwner(e.ownerSecret, e.mixBox.a));
 
   if (args.signOnly) {
