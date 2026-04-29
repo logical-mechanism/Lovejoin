@@ -6,27 +6,22 @@
     "fee_shard_target": 10,
     "max_n": 6
   },
-  "referenceNftPolicy": "42f5853c1a7dd3e4749cfecd414253e0d14a9c130d8af8e0bb5d1ec7",
+  "referenceNftPolicy": "fc5de619ab0a1ec45f4dfcfc57f3e7e4f8a4b2596f18b354cc17333b",
   "referenceNftAssetName": "6c6f76656a6f696e",
-  "referenceUtxoRef": "39a91ec1b3bd7762e7afc093ba45a0622a757f141922ba2195d00c91d0dae236#0",
-  "referenceHolderScriptHash": "9f6575e2e1be84709fc842ea751d428a6c1f95cc77b653b93fc1937c",
-  "mixLogicScriptHash": "4cd2a4bd2199bf7c534b09fad4559b0632bbeb45c27513d0a2d4cc99",
-  "mixBoxScriptHash": "b4f0c01e8deaa56d0c2560f1a0ddc9ceb6052a7daddff0a6780a6713",
-  "feeScriptHash": "4323eba23befede3a2806aafa88ab66fd32b4080961451072325b34f",
+  "referenceUtxoRef": "6a42da7f6cfbd5f7daa23d031aac4b44e93f953669248b9cd7781347a296fe5c#0",
+  "referenceHolderScriptHash": "cc664ac3a200dfc4587c85940bd54c887a800851fbfdb545a45d0187",
+  "mixLogicScriptHash": "ebfd633af2d483762bb217b17d4f527713c487e9f496e4763c17f234",
+  "mixBoxScriptHash": "9c50ce8ab2816ce5e2d6789e2918cd5a4abe0b18b6fda979a4efb9c5",
+  "feeScriptHash": "f27c0202e7e2c7a62ce476acd28b9497669e3a8ab7c94658382c6c03",
   "feeShardUtxos": [
-    "a64faa13ad8d0ddfdf1fa982561871bb7254e58296b466b4395dd47f12a5ed42#0"
+    "bb6bab8f24ed457c2cb3488f1d714e3c35c9812d5421064e831e88354927566d#0"
   ],
   "referenceScriptUtxos": {
-    "mix_box": "1fce3ddc81526486b153e047620e71b1d572ddab367da45893b3fe48204b03c0#0",
-    "mix_logic": "3dd9a87cf8d8a720427d8d2661394a65dea2d634e3ba628f172cbc9194f7bdd8#0",
-    "fee_contract": "9c852f6cff7969c8235e7786dc628b4c333daff1c7614800f8557ad0a4a4c2a3#0"
-  },
-  "referenceScriptSizes": {
-    "mix_box": 521,
-    "mix_logic": 3049,
-    "fee_contract": 1531
+    "mix_box": "9b6bd243b41520447af2b51815bc0e8e123e9baeb8ff81c91478af13243687e2#0",
+    "mix_logic": "bfef1be624a5d15bd4065102449e02a0350dce0b365f12d3e26c4cb9b6da4997#0",
+    "fee_contract": "1a63a3f5c932752df8d63b2c936fe89a93ccbbfb07a454920a520401811ed6fa#0"
   },
   "dappStakeKeyHashHex": "1e3105f23f2ac91b3fb4c35fa4fe301421028e356e114944e902005b",
-  "stage1ChangeUtxo": "9c852f6cff7969c8235e7786dc628b4c333daff1c7614800f8557ad0a4a4c2a3#1",
-  "mixLogicRegisterTx": "0fa104d4644333b48cf9e1b15a65c61c20f666a8805bfe4201bacfae9b991917"
+  "stage1ChangeUtxo": "1a63a3f5c932752df8d63b2c936fe89a93ccbbfb07a454920a520401811ed6fa#1",
+  "mixLogicRegisterTx": "6256cd77589e73ea5ff454f3177fae8a48b1d98fcd994406916cb519b20159e9"
 }
