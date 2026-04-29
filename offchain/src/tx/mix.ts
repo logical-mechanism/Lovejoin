@@ -1088,6 +1088,14 @@ export async function buildMixTx(args: BuildMixArgs): Promise<MixResult> {
     // Cardano's actual minimum fee. Re-build with that fee pinned so the
     // shard pays only what the chain will actually charge — instead of
     // over-paying max_fee_per_mix_lovelace every tx.
+    //
+    // Mix shard tx witness shape: zero wallet vkey witnesses (the whole
+    // point of shard mode is wallet-anonymous submission) + one external
+    // host vkey witness (collateral signer + required_signer_hash, both
+    // satisfied by the giveme.my host's single key). mesh-csl's min-fee
+    // check counts those expected witnesses against tx size; pass the
+    // count through so our number lines up with mesh's check.
+    const expectedVkeyWitnesses = 1;
     const evalRaw = await meshProvider.evaluateTx(unsignedTxHex);
     if (Array.isArray(evalRaw)) {
       const totalExUnits = sumEvaluatorExUnits(
@@ -1098,6 +1106,7 @@ export async function buildMixTx(args: BuildMixArgs): Promise<MixResult> {
         txCborHex: unsignedTxHex,
         totalExUnits,
         refScriptBytes: refScriptSize,
+        expectedVkeyWitnesses,
         params: {
           minFeeA: realParams.minFeeA,
           minFeeB: realParams.minFeeB,
@@ -1118,7 +1127,11 @@ export async function buildMixTx(args: BuildMixArgs): Promise<MixResult> {
           `feeOut=${plan.feeShardInput.lovelace - capped}`,
       );
       if (capped !== plan.txFeeLovelace) {
-        unsignedTxHex = await buildOnce(capped);
+        unsignedTxHex = await buildWithFeeBumpRetry(
+          buildOnce,
+          capped,
+          plan.txFeeLovelace,
+        );
       }
     } else {
       // eslint-disable-next-line no-console
@@ -1208,6 +1221,44 @@ function defaultMixCollateralProvider(args: BuildMixArgs): CollateralProvider {
 // ---------------------------------------------------------------------------
 // Local utilities
 // ---------------------------------------------------------------------------
+
+/// Run `buildOnce(fee)` and, if mesh-csl rejects with
+/// `Fee is less than the minimum fee. Min fee: X, Fee: Y`, retry with
+/// `X` (capped at `feeCeiling`). Defends against any residual gap in
+/// `computeMinTxFee`'s witness/utxo padding vs mesh-csl's internal
+/// min-fee number — instead of playing exact-match games with mesh's
+/// padding constants, we just take what it tells us. Up to 3 bumps;
+/// each strict-increase guarantees we converge or hit the ceiling.
+async function buildWithFeeBumpRetry(
+  buildOnce: (feeOverride?: bigint) => Promise<string>,
+  initialFee: bigint,
+  feeCeiling: bigint,
+  attempts = 3,
+): Promise<string> {
+  let fee = initialFee;
+  let lastErr: unknown;
+  for (let i = 0; i < attempts; i++) {
+    try {
+      return await buildOnce(fee);
+    } catch (e) {
+      lastErr = e;
+      const msg = e instanceof Error ? e.message : String(e);
+      const match = msg.match(/Min fee:\s*(\d+)/);
+      if (!match) throw e;
+      const reportedMin = BigInt(match[1] ?? "0");
+      if (reportedMin <= fee) throw e;
+      const next = reportedMin > feeCeiling ? feeCeiling : reportedMin;
+      // eslint-disable-next-line no-console
+      console.warn(
+        `[lovejoin/mix] mesh-csl reported Min fee=${reportedMin} > our fee=${fee}; ` +
+          `retrying with setFee(${next}) (cap=${feeCeiling})`,
+      );
+      if (next === fee) throw e;
+      fee = next;
+    }
+  }
+  throw lastErr ?? new Error("buildWithFeeBumpRetry: exhausted retries");
+}
 
 /// Sum the byte sizes of every reference script attached to a Mix tx.
 /// Conway's reference-script fee (`min_fee_ref_script_cost_per_byte`)

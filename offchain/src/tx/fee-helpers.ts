@@ -66,13 +66,33 @@ export function computeRefScriptFee(
 }
 
 /**
+ * Approximate CBOR-encoded size of a single vkey witness (the chain
+ * pad-fills required signers + wallet/collateral signatures with this
+ * shape):
+ *
+ *   VkeyWitness = [bytes(32), bytes(64)]
+ *                = 1 (array header) + 2 (bytes(32) header) + 32 + 2 + 64
+ *                = 101 bytes
+ *
+ * mesh-csl's min-fee path counts these against `tx_size` even when the
+ * unsigned tx hasn't yet had the witnesses appended. We mirror that so
+ * `computeMinTxFee` matches mesh-csl's own min-fee number.
+ */
+export const VKEY_WITNESS_BYTES_APPROX = 101;
+
+/**
  * Compute Cardano's minimum required tx fee from the four components
  * the chain checks at submission time:
  *
- *   * size_fee = a * txSize + b               (a, b from network params)
+ *   * size_fee = a * (txSize + expectedVkeyWitnesses * 101) + b
  *   * step_fee = ceil(steps * priceStep)
  *   * mem_fee  = ceil(mem * priceMem)
  *   * ref_script_fee (Conway tier formula — see {@link computeRefScriptFee}).
+ *
+ * `expectedVkeyWitnesses` covers required signers + collateral signers
+ * + wallet-input signers that the unsigned-tx CBOR doesn't carry yet
+ * but the chain (and mesh-csl's own min-fee check) will charge for.
+ * Passing 0 means "the tx is already fully witnessed in `txCborHex`."
  *
  * Use this when the SDK has to set a tx fee MANUALLY rather than letting
  * mesh's auto-fee path handle it. The two cases in Lovejoin are:
@@ -94,6 +114,7 @@ export function computeMinTxFee(args: {
   txCborHex: string;
   totalExUnits: { mem: bigint; steps: bigint };
   refScriptBytes: number;
+  expectedVkeyWitnesses?: number;
   params: {
     minFeeA: number;
     minFeeB: number;
@@ -102,7 +123,10 @@ export function computeMinTxFee(args: {
     minFeeRefScriptCostPerByte: number;
   };
 }): bigint {
-  const txSize = BigInt(args.txCborHex.length / 2);
+  const witnessPad = BigInt(
+    (args.expectedVkeyWitnesses ?? 0) * VKEY_WITNESS_BYTES_APPROX,
+  );
+  const txSize = BigInt(args.txCborHex.length / 2) + witnessPad;
   const sizeFee =
     BigInt(args.params.minFeeA) * txSize + BigInt(args.params.minFeeB);
   const stepFee = BigInt(
