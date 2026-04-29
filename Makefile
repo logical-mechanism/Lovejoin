@@ -86,10 +86,18 @@ sdk-build:
 sdk-test:
 	$(PNPM) --filter @lovejoin/sdk test
 
-ui-dev:
+# Vite pre-bundles `@lovejoin/sdk` from offchain/dist/, which only exists
+# AFTER `tsc -p tsconfig.json` has run. Without `sdk-build` here, editing
+# offchain/src/ leaves the UI serving yesterday's bytes (the bug that
+# blocked the shard-mode real-fee fix from being visible at runtime).
+# Vite's pre-bundle cache also caches the resolved entry, so we wipe
+# `ui/node_modules/.vite` to force a re-pre-bundle on next dev-server
+# start.
+ui-dev: sdk-build
+	@rm -rf ui/node_modules/.vite
 	$(PNPM) --filter @lovejoin/ui run dev
 
-backend-dev:
+backend-dev: sdk-build
 	$(PNPM) --filter @lovejoin/backend run dev
 
 clean:
