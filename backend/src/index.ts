@@ -51,9 +51,24 @@ export async function main(): Promise<void> {
       })
     : null;
 
+  // Skip-ahead intersection: a fresh backend starts walking from the
+  // bootstrap tx's slot rather than chain origin. Without this, every
+  // restart replays the full chain from genesis (≈3 years on preprod)
+  // before any protocol-relevant block exists. See config.ts
+  // resolveBootstrapStartPoint() for precedence.
+  const startPoints = config.bootstrapStartPoint
+    ? [
+        {
+          slot: config.bootstrapStartPoint.slot,
+          id: config.bootstrapStartPoint.blockHash,
+        } as const,
+      ]
+    : ["origin" as const];
+
   const runtime = new IndexerRuntime(state, {
     ogmiosUrl: config.ogmiosUrl,
     filter,
+    startPoints,
     logger: simpleLogger(),
   });
 
