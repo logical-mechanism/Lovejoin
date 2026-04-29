@@ -71,9 +71,10 @@ function routeTitleKey(pathname: string): string {
   if (pathname === "/" || pathname === "") return "page_title.home";
   if (pathname.startsWith("/deposit")) return "page_title.deposit";
   if (pathname.startsWith("/pool")) return "page_title.pool";
-  if (pathname.startsWith("/withdraw")) return "page_title.withdraw";
   if (pathname.startsWith("/protocol")) return "page_title.protocol";
   if (pathname.startsWith("/vault/")) return "page_title.box";
   if (pathname.startsWith("/vault")) return "page_title.vault";
+  // /withdraw redirects to /vault but is briefly hit during the redirect.
+  if (pathname.startsWith("/withdraw")) return "page_title.vault";
   return "page_title.app";
 }

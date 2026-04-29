@@ -49,8 +49,24 @@ export interface BackendConfig {
   port: number;
   host: string;
   ogmiosUrl: string;
-  /** Optional — db-sync is only required for `/history/:address`. */
+  /**
+   * Optional — db-sync is the primary `/history/:address` source. If both
+   * `dbsyncUrl` and `blockfrostProjectId` are set, db-sync is preferred and
+   * Blockfrost is the fallback when db-sync errors. If only one is set
+   * the route uses it directly; if neither, `/history` returns 503.
+   */
   dbsyncUrl: string | null;
+  /**
+   * Optional Blockfrost project id. When set, `/history/:address` falls
+   * back to Blockfrost while db-sync is unavailable (initial sync, brief
+   * outage). Same env var convention as the SDK.
+   */
+  blockfrostProjectId: string | null;
+  /**
+   * Optional Blockfrost base URL override. Defaults to the public
+   * Blockfrost endpoint for `network` when `blockfrostProjectId` is set.
+   */
+  blockfrostBaseUrl: string | null;
   /** Origin allowlist for CORS, or `*` to allow all. */
   corsOrigins: string[] | "*";
   /** Per-IP rate limit, requests per minute. */
@@ -84,6 +100,8 @@ export function loadConfig(
   const host = env.HOST?.trim() || DEFAULTS.host;
   const ogmiosUrl = (env.OGMIOS_URL ?? "ws://localhost:1337").trim();
   const dbsyncUrl = env.DBSYNC_URL?.trim() || null;
+  const blockfrostProjectId = env.BLOCKFROST_PROJECT_ID?.trim() || null;
+  const blockfrostBaseUrl = env.BLOCKFROST_BASE_URL?.trim() || null;
   const corsOrigins = parseCorsOrigins(env.CORS_ORIGINS);
   const rateLimitPerMin = parseIntegerEnv(
     env.RATE_LIMIT_PER_MIN,
@@ -98,7 +116,10 @@ export function loadConfig(
   const stakeKey = addresses.dappStakeKeyHashHex ?? null;
   const derived = {
     mixBoxAddress: buildScriptAddress(addresses.mixBoxScriptHash, networkId, stakeKey),
-    feeContractAddress: buildScriptAddress(addresses.feeScriptHash, networkId, stakeKey),
+    // Fee shards live at the enterprise (unstaked) script address — the
+    // bootstrap funded them there, so the indexer + API must look up the
+    // unstaked address regardless of the dApp stake key.
+    feeContractAddress: buildScriptAddress(addresses.feeScriptHash, networkId, null),
     referenceHolderAddress: buildScriptAddress(
       addresses.referenceHolderScriptHash,
       networkId,
@@ -112,6 +133,8 @@ export function loadConfig(
     host,
     ogmiosUrl,
     dbsyncUrl,
+    blockfrostProjectId,
+    blockfrostBaseUrl,
     corsOrigins,
     rateLimitPerMin,
     addresses,

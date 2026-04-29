@@ -36,6 +36,23 @@
 // `max_fee_per_mix` down to the empirical minimum is M4's stress-test
 // deliverable.
 //
+// Per-redeemer exec-unit estimates (see `mixExUnitsEstimate` below): mesh's
+// default `DEFAULT_REDEEMER_BUDGET = {mem: 7M, steps: 3G}` is the
+// per-tx upper bound, NOT a per-redeemer realistic value. With 4 redeemers
+// in a shard-mode Mix at N=2 (2× mix_box stub + 1× mix_logic + 1×
+// fee_contract), the placeholder min_fee comes out to ~2.74 ADA — which
+// blows the on-chain `max_fee_per_mix_lovelace` cap of 2 ADA. Mesh
+// rejects the build BEFORE the evaluator runs (the evaluator would
+// otherwise refine these to the real values), surfacing as
+// `Min fee 2743184, Fee 2000000`. The fix is to pass populate-time
+// `exUnits` that already reflect the real validator costs scaled by N;
+// mesh's first serialize pass then yields a min_fee under the cap, the
+// setFee check passes, and the evaluator (when it works) refines the
+// budgets downward into the final tx body. Numbers anchored to
+// docs/perf.md (V3 cost-model estimates for the sigma-OR verifier);
+// safety margin baked in so estimates exceed real usage and the
+// chain-side validator runs comfortably within the claimed budget.
+//
 // Collateral: per spec §"Collateral provider", Mix txs require an external
 // provider so the submitter's wallet doesn't show up as the collateral
 // signer (which would defeat anonymity). The CollateralProvider passed in
@@ -202,6 +219,66 @@ export interface MixPlan {
   txFeeLovelace: Lovelace | null;
   /** N (== inputs.length == outputs.length == proofs.length). */
   n: number;
+}
+
+// ---------------------------------------------------------------------------
+// Per-redeemer exec-unit estimates
+// ---------------------------------------------------------------------------
+
+/** mesh's `Budget` shape, redeclared locally so we don't import the type. */
+export interface MixRedeemerExUnits {
+  mem: number;
+  steps: number;
+}
+
+/** All exec-unit budgets we attach to a single Mix tx's redeemers. */
+export interface MixExUnitsPlan {
+  /** mix_box's spend redeemer (one per input). The validator is a stub
+   *  that returns true — this is just enough for the script wrapper
+   *  overhead. */
+  mixBox: MixRedeemerExUnits;
+  /** mix_logic's withdrawal redeemer — the heavy sigma-OR verifier. Cost
+   *  scales as ~N² (each of the N inputs runs an N-branch sigma-OR
+   *  verify against the same N output statements). */
+  mixLogic: MixRedeemerExUnits;
+  /** fee_contract's spend redeemer (only emitted in shard mode). Cheap
+   *  arithmetic check (`fee_in - fee_out == tx.fee` and
+   *  `tx.fee ≤ max_fee_per_mix`). */
+  feeContract: MixRedeemerExUnits;
+}
+
+/**
+ * Realistic per-redeemer exec-unit estimates for a Mix tx at width N.
+ *
+ * Anchored to `docs/perf.md` (V3 cost-model estimates for the sigma-OR
+ * verifier). The numbers carry a generous safety margin so they bound
+ * real on-chain usage (the chain rejects a tx that exceeds the claimed
+ * budget) while staying small enough that mesh's pre-evaluation
+ * min_fee check stays under `max_fee_per_mix_lovelace`. When a working
+ * evaluator is wired in, mesh refines these downward into the final tx
+ * body — the values returned here only matter for the FIRST serialize
+ * pass inside `MeshTxBuilder.complete()`.
+ *
+ * @param n Mix width (`2 ≤ n ≤ max_n`).
+ */
+export function mixExUnitsEstimate(n: number): MixExUnitsPlan {
+  if (!Number.isInteger(n) || n < 2) {
+    throw new Error(`mixExUnitsEstimate: n must be an integer ≥ 2, got ${n}`);
+  }
+  return {
+    // Stub validator (always-true). Pad to absorb script-wrapper +
+    // datum-decoding overhead; doesn't scale with N.
+    mixBox: { mem: 50_000, steps: 10_000_000 },
+    // sigma-OR verifier dominates total exec. Roughly: per-tx CPU ~
+    // 0.15B × N² + 0.1B; per-tx mem ~ 0.35M × N² + 0.5M. Verified
+    // against perf.md's per-N table; ~25% margin baked in.
+    mixLogic: {
+      mem: 500_000 + 350_000 * n * n,
+      steps: 100_000_000 + 150_000_000 * n * n,
+    },
+    // Cheap balance check. Constant in N; the redeemer itself is `()`.
+    feeContract: { mem: 250_000, steps: 70_000_000 },
+  };
 }
 
 // ---------------------------------------------------------------------------
@@ -567,10 +644,14 @@ export function planMixTx(args: PlanMixArgs): MixPlan {
     args.networkId,
     args.addresses.dappStakeKeyHashHex ?? null,
   );
+  // Fee shards live at the enterprise (unstaked) script address — the
+  // bootstrap funded them there. Mix-box outputs keep the dApp stake key
+  // (single-stake-credential discoverability for the indexer); fee
+  // outputs do not, because that's where the on-chain UTxOs already are.
   const feeAddress = buildScriptAddress(
     args.addresses.feeScriptHash,
     args.networkId,
-    args.addresses.dappStakeKeyHashHex ?? null,
+    null,
   );
 
   const feePayer: MixFeePayer = args.feePayer ?? "shard";
@@ -763,7 +844,7 @@ export async function buildMixTx(args: BuildMixArgs): Promise<MixResult> {
       feeScriptAddressBech32: buildScriptAddress(
         args.addresses.feeScriptHash,
         networkId,
-        args.addresses.dappStakeKeyHashHex ?? null,
+        null,
       ),
     }));
   }
@@ -815,34 +896,21 @@ export async function buildMixTx(args: BuildMixArgs): Promise<MixResult> {
   const { MeshTxBuilder } = meshCore;
   const meshProvider = await getMeshProvider(args.provider);
 
-  // Evaluator selection — see `assembleTx` below. The build flow
-  // tries with Blockfrost's evaluator first (gives tight exec units
-  // when it works); on failure it retries without the evaluator,
-  // letting mesh fall back to its default upper-bound budgets
-  // (mem 7M, cpu 3G per redeemer).
-  //
-  // Why we need the fallback: Blockfrost's `utils/txs/evaluate`
-  // endpoint empirically fails for Mix txs with
-  // `EvaluationFailure: ScriptFailures: {}` (empty failure map),
-  // while accepting the same txs on /tx/submit and while the
-  // Withdraw path through the same endpoint works. The single
-  // difference between Mix and Withdraw is `xor_bytearray`
-  // (Conway builtin 77, used by sigma_or.ak's per-branch challenge
-  // XOR). Our best theory is that Blockfrost's hosted evaluator is
-  // on a Plutus-V3 stack that doesn't yet know the bitwise
-  // builtins, even though chain submission supports them. Local
-  // Aiken simulation of the same tx body confirms the validators
-  // pass with exec units well under mainnet limits.
-  //
-  // The fallback path in shard mode will likely fail downstream on
-  // the on-chain `tx.fee ≤ max_fee_per_mix_lovelace` rule — upper
-  // bounds force a fee that exceeds the cap. That's expected;
-  // shard mode needs a working evaluator OR a higher cap (the
-  // re-bootstrap path).
+  // Evaluator selection. The build flow tries Blockfrost's evaluator
+  // first — when it works, mesh refines the populate-time `exUnits`
+  // estimates (see `mixExUnitsEstimate(N)`) down to the real values,
+  // tightening the on-chain claimed budgets. When it fails (Blockfrost
+  // empirically returns `EvaluationFailure: ScriptFailures: {}` /
+  // empty result for Mix txs that exercise `xor_bytearray` /
+  // Conway builtin 77 in sigma_or.ak), we retry without the evaluator
+  // and let the populate-time estimates ride straight into the final
+  // tx body. The estimates are conservative (≥ real usage with margin)
+  // and small enough to fit under `max_fee_per_mix_lovelace`, so both
+  // shard and wallet mode succeed regardless of evaluator status.
   //
   // Do NOT swap to mesh's OfflineEvaluator (`@meshsdk/core-csl`).
-  // Its bundled UPLC machine also predates Conway's bitwise
-  // builtins and aborts with "Default Function not found - 77".
+  // Its bundled UPLC machine also predates Conway's bitwise builtins
+  // and aborts with "Default Function not found - 77".
 
   // Pre-resolve everything mesh's complete() will need from outside the
   // builder, so the build-and-complete attempt below can run twice
@@ -852,6 +920,13 @@ export async function buildMixTx(args: BuildMixArgs): Promise<MixResult> {
     feePayer === "wallet"
       ? normalizeWalletUtxos(await args.wallet.getUtxos())
       : [];
+
+  // Per-redeemer exec-unit estimates that bypass mesh's
+  // `DEFAULT_REDEEMER_BUDGET = {mem: 7M, steps: 3G}` placeholder. See the
+  // file-header note on fee handling for why the default is unusable in
+  // shard mode (4 redeemers × default would put min_fee above the 2 ADA
+  // cap before the evaluator gets a chance to refine).
+  const exUnits = mixExUnitsEstimate(plan.n);
 
   const populate = (tx: InstanceType<typeof MeshTxBuilder>) => {
     tx.readOnlyTxInReference(
@@ -872,7 +947,7 @@ export async function buildMixTx(args: BuildMixArgs): Promise<MixResult> {
         )
         .txInInlineDatumPresent()
         // mix_box's spend redeemer is irrelevant data — it doesn't dispatch.
-        .txInRedeemerValue("d87980", "CBOR")
+        .txInRedeemerValue("d87980", "CBOR", exUnits.mixBox)
         .spendingTxInReference(
           plan.mixBoxRefScriptUtxoRef.txId,
           plan.mixBoxRefScriptUtxoRef.outputIndex,
@@ -901,7 +976,7 @@ export async function buildMixTx(args: BuildMixArgs): Promise<MixResult> {
           plan.feeShardOutput.addressBech32,
         )
         .txInInlineDatumPresent()
-        .txInRedeemerValue(plan.payMixFeeRedeemerCborHex, "CBOR")
+        .txInRedeemerValue(plan.payMixFeeRedeemerCborHex, "CBOR", exUnits.feeContract)
         .spendingTxInReference(
           plan.feeContractRefScriptUtxoRef.txId,
           plan.feeContractRefScriptUtxoRef.outputIndex,
@@ -913,7 +988,7 @@ export async function buildMixTx(args: BuildMixArgs): Promise<MixResult> {
     // mix_logic withdraw-zero with the Mix redeemer.
     tx.withdrawalPlutusScriptV3()
       .withdrawal(plan.mixLogicRewardAddressBech32, "0")
-      .withdrawalRedeemerValue(plan.mixRedeemerCborHex, "CBOR")
+      .withdrawalRedeemerValue(plan.mixRedeemerCborHex, "CBOR", exUnits.mixLogic)
       .withdrawalTxInReference(
         plan.mixLogicRefScriptUtxoRef.txId,
         plan.mixLogicRefScriptUtxoRef.outputIndex,
@@ -981,32 +1056,25 @@ export async function buildMixTx(args: BuildMixArgs): Promise<MixResult> {
 
   // First attempt with the evaluator wired in. On failure (e.g.
   // Blockfrost's evaluator gap on V3 bitwise builtins), fall back to
-  // mesh's default upper-bound exec units. The retry path always
-  // works in wallet mode (the wallet absorbs the inflated fee); in
-  // shard mode it'll usually fail downstream on `tx.fee ≤
-  // max_fee_per_mix_lovelace` because upper bounds force a fee that
-  // overshoots the cap. That's expected — surface the original
-  // evaluator error so the user sees both signals.
+  // the populate-time `exUnits` estimates from `mixExUnitsEstimate(N)`.
+  // Those estimates are tight enough to keep min_fee under
+  // `max_fee_per_mix_lovelace`, so even shard mode succeeds without a
+  // working evaluator — the redeemers just claim the estimated budgets,
+  // and chain-side validation runs against them. The estimates carry a
+  // safety margin so chain exec stays within the claimed budget.
   let unsignedTxHex: string;
   try {
     unsignedTxHex = await buildOnce(true);
+    // eslint-disable-next-line no-console
+    console.log(
+      `[lovejoin/mix] build with evaluator: SUCCESS — refined exUnits are in the final tx body`,
+    );
   } catch (evalErr) {
     const errMsg = evalErr instanceof Error ? evalErr.message : String(evalErr);
-    if (plan.feePayer === "shard") {
-      throw new Error(
-        `Mix tx evaluator failed in shard mode (${errMsg.slice(0, 200)}). ` +
-          `Shard mode pins fee at exactly max_fee_per_mix_lovelace, so it ` +
-          `needs working exec-unit evaluation. Try feePayer: 'wallet' to ` +
-          `bypass the cap, or move to a different ChainProvider whose ` +
-          `evaluator supports the V3 bitwise builtins.`,
-      );
-    }
-    // wallet mode — the inflated fee is acceptable; retry without
-    // the evaluator and use mesh's default upper-bound budgets.
     // eslint-disable-next-line no-console
     console.warn(
-      `Mix evaluator failed; retrying with upper-bound exec units. ` +
-        `Original error: ${errMsg.slice(0, 200)}`,
+      `[lovejoin/mix] build with evaluator: FAILED — falling back to populate-time exUnits ` +
+        `estimates from mixExUnitsEstimate(N). Original error: ${errMsg.slice(0, 400)}`,
     );
     unsignedTxHex = await buildOnce(false);
   }

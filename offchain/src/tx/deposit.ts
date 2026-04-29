@@ -33,7 +33,7 @@ import {
 } from "./collateral.js";
 import { getMeshProvider } from "./mesh-bridge.js";
 import {
-  pickRandomFeeShard,
+  pickFeeShardOptional,
   replenishOutputLovelace,
 } from "./fee.js";
 import {
@@ -71,21 +71,31 @@ export interface DepositPlan {
     /** Plutus-Data CBOR hex of `MixDatum { a, b }` (Constr 0 [a, b]). */
     inlineDatumHex: string;
   };
-  /** Replenished fee shard output (position 1 in the tx). */
+  /**
+   * Replenished fee shard output (position 1 in the tx). `null` when the
+   * deposit runs without a fee-shard input (no shards on chain) — the tx
+   * is then mix-box-only and mesh balances against the wallet alone.
+   */
   feeShardOutput: {
     addressBech32: string;
     lovelace: Lovelace;
     /** Plutus-Data CBOR hex of `()` (Constr 0 []). */
     inlineDatumHex: string;
-  };
-  /** The fee shard being consumed. */
-  feeShardInput: Utxo;
-  /** Plutus-Data CBOR hex of the `Replenish` redeemer (Constr 1 []). */
-  replenishRedeemerHex: string;
+  } | null;
+  /** The fee shard being consumed, or `null` when running shard-less. */
+  feeShardInput: Utxo | null;
+  /**
+   * Plutus-Data CBOR hex of the `Replenish` redeemer (Constr 1 []).
+   * `null` when running shard-less.
+   */
+  replenishRedeemerHex: string | null;
   /** Reference UTxO (read-only via tx.reference_inputs). */
   referenceUtxoRef: UtxoRef;
-  /** CIP-33 reference-script UTxO for the fee_contract validator. */
-  feeContractRefScriptUtxoRef: UtxoRef;
+  /**
+   * CIP-33 reference-script UTxO for the fee_contract validator. `null`
+   * when running shard-less (no fee_contract spend in the tx).
+   */
+  feeContractRefScriptUtxoRef: UtxoRef | null;
 }
 
 /** Owner secret + a label for the SDK to surface to the UI / CLI. */
@@ -273,8 +283,13 @@ export interface PlanDepositArgs {
   params: ProtocolParams;
   /** Bootstrap addresses.json — provides script hashes + reference UTxO. */
   addresses: LovejoinAddresses;
-  /** Fee shard the SDK has chosen to consume. */
-  feeShard: Utxo;
+  /**
+   * Fee shard the SDK has chosen to consume. Pass `null` (or omit) to build
+   * a shard-less deposit — only the mix-box output is emitted, and mesh
+   * balances against the wallet's own UTxOs. The on-chain fee_contract is
+   * never invoked.
+   */
+  feeShard?: Utxo | null;
   /** Network discriminator for bech32 address construction. */
   networkId: LovejoinNetworkId;
   /** Optional minimum rounds (for UI parity); throws if `rounds` is below. */
@@ -317,11 +332,42 @@ export function planDepositTx(args: PlanDepositArgs): DepositPlan {
     args.networkId,
     args.addresses.dappStakeKeyHashHex ?? null,
   );
+  // Fee shards live at the enterprise (unstaked) script address — the
+  // bootstrap funded them there. Don't add the dApp stake key here or we'd
+  // be looking up an empty address.
   const feeAddress = buildScriptAddress(
     args.addresses.feeScriptHash,
     args.networkId,
-    args.addresses.dappStakeKeyHashHex ?? null,
+    null,
   );
+
+  // Shard-less deposit: emit only the mix-box. The fee_contract is not
+  // invoked at all — mesh balances the lovelace against the wallet.
+  if (!args.feeShard) {
+    if (!Number.isInteger(args.rounds) || args.rounds <= 0) {
+      throw new Error(`rounds must be a positive integer, got ${args.rounds}`);
+    }
+    if (args.minRounds !== undefined && args.rounds < args.minRounds) {
+      throw new Error(
+        `rounds=${args.rounds} below minRounds=${args.minRounds}; UI should reject`,
+      );
+    }
+    return {
+      ownerSecret,
+      a,
+      b,
+      mixBoxOutput: {
+        addressBech32: mixBoxAddress,
+        lovelace: args.params.denomLovelace,
+        inlineDatumHex: encodeMixDatum({ a, b }),
+      },
+      feeShardOutput: null,
+      feeShardInput: null,
+      replenishRedeemerHex: null,
+      referenceUtxoRef: parseUtxoRef(args.addresses.referenceUtxoRef),
+      feeContractRefScriptUtxoRef: null,
+    };
+  }
 
   const replenishedLovelace = replenishOutputLovelace({
     shard: args.feeShard,
@@ -370,8 +416,13 @@ export interface BuildDepositArgs {
   provider: ChainProvider;
   /** Bootstrap addresses.json content. */
   addresses: LovejoinAddresses;
-  /** Optional pre-picked fee shard (otherwise the SDK picks uniformly). */
-  feeShard?: Utxo;
+  /**
+   * Optional pre-picked fee shard (otherwise the SDK picks uniformly). Pass
+   * `null` to force a shard-less deposit even when shards exist; pass
+   * `undefined` (or omit) to let the SDK pick one — and silently fall back
+   * to shard-less when none are available on chain.
+   */
+  feeShard?: Utxo | null;
   /** Optional collateral provider. Default: WalletProvider(wallet). */
   collateralProvider?: CollateralProvider;
   /**
@@ -384,8 +435,10 @@ export interface BuildDepositArgs {
 /**
  * Build, sign, and (optionally) submit a Deposit tx on Cardano.
  *
- * Output ordering is fixed: position 0 is the new mix-box, position 1 is
- * the replenished fee shard. mesh handles fee + change.
+ * Output ordering is fixed: position 0 is the new mix-box; position 1 (if
+ * any) is the replenished fee shard. mesh handles fee + change. When the
+ * caller passes `feeShard: null` or no fee shards exist on chain, the tx
+ * is mix-box-only — the fee_contract is not invoked.
  */
 export async function buildDepositTx(args: BuildDepositArgs): Promise<DepositResult> {
   const networkId = networkIdFor(args.network);
@@ -394,12 +447,16 @@ export async function buildDepositTx(args: BuildDepositArgs): Promise<DepositRes
   const feeAddress = buildScriptAddress(
     args.addresses.feeScriptHash,
     networkId,
-    args.addresses.dappStakeKeyHashHex ?? null,
+    null,
   );
-  const feeShard = args.feeShard ?? (await pickRandomFeeShard({
-    provider: args.provider,
-    feeScriptAddressBech32: feeAddress,
-  }));
+  // `undefined` → auto-pick (or null when no shards on chain); `null`
+  // → explicit shard-less; a `Utxo` → explicit shard.
+  const feeShard = args.feeShard !== undefined
+    ? args.feeShard
+    : await pickFeeShardOptional({
+        provider: args.provider,
+        feeScriptAddressBech32: feeAddress,
+      });
 
   const plan = planDepositTx({
     ...(args.ownerSecret !== undefined ? { ownerSecret: args.ownerSecret } : {}),
@@ -447,43 +504,60 @@ export async function buildDepositTx(args: BuildDepositArgs): Promise<DepositRes
   const walletUtxos = normalizeWalletUtxos(await args.wallet.getUtxos());
   const changeAddress = await args.wallet.getChangeAddress();
 
-  // Build the tx body.
-  const tx = txBuilder
-    // Reference UTxO read by mix_logic / fee_contract for ProtocolParams.
-    .readOnlyTxInReference(plan.referenceUtxoRef.txId, plan.referenceUtxoRef.outputIndex)
-    // Spend the fee shard with Replenish.
-    .spendingPlutusScriptV3()
-    .txIn(
-      plan.feeShardInput.ref.txId,
-      plan.feeShardInput.ref.outputIndex,
-      [{ unit: "lovelace", quantity: plan.feeShardInput.lovelace.toString() }],
-      plan.feeShardOutput.addressBech32,
-    )
-    .txInInlineDatumPresent()
-    .txInRedeemerValue(plan.replenishRedeemerHex, "CBOR")
-    .spendingTxInReference(
-      plan.feeContractRefScriptUtxoRef.txId,
-      plan.feeContractRefScriptUtxoRef.outputIndex,
-      // mesh's `(txHash, txIndex, scriptSize?, scriptHash?)`. Pass both
-      // explicitly: the hash because without it mesh derived an empty
-      // bytestring downstream and CSL bailed on "expected hash length 28
-      // but got Len(0)"; the size because mesh uses it for the
-      // size-based fee component.
-      args.addresses.referenceScriptSizes?.fee_contract?.toString(),
-      args.addresses.feeScriptHash,
-    )
-    // Output 0: new mix-box.
+  // Build the tx body. Reference UTxO is always read; fee-shard spend is
+  // only added when the plan included a shard (otherwise the deposit is
+  // mix-box-only and the fee_contract isn't invoked).
+  const tx = txBuilder.readOnlyTxInReference(
+    plan.referenceUtxoRef.txId,
+    plan.referenceUtxoRef.outputIndex,
+  );
+
+  if (
+    plan.feeShardInput &&
+    plan.feeShardOutput &&
+    plan.replenishRedeemerHex &&
+    plan.feeContractRefScriptUtxoRef
+  ) {
+    tx
+      .spendingPlutusScriptV3()
+      .txIn(
+        plan.feeShardInput.ref.txId,
+        plan.feeShardInput.ref.outputIndex,
+        [{ unit: "lovelace", quantity: plan.feeShardInput.lovelace.toString() }],
+        plan.feeShardOutput.addressBech32,
+      )
+      .txInInlineDatumPresent()
+      .txInRedeemerValue(plan.replenishRedeemerHex, "CBOR")
+      .spendingTxInReference(
+        plan.feeContractRefScriptUtxoRef.txId,
+        plan.feeContractRefScriptUtxoRef.outputIndex,
+        // mesh's `(txHash, txIndex, scriptSize?, scriptHash?)`. Pass both
+        // explicitly: the hash because without it mesh derived an empty
+        // bytestring downstream and CSL bailed on "expected hash length 28
+        // but got Len(0)"; the size because mesh uses it for the
+        // size-based fee component.
+        args.addresses.referenceScriptSizes?.fee_contract?.toString(),
+        args.addresses.feeScriptHash,
+      );
+  }
+
+  // Output 0: new mix-box.
+  tx
     .txOut(plan.mixBoxOutput.addressBech32, [
       { unit: "lovelace", quantity: plan.mixBoxOutput.lovelace.toString() },
     ])
-    .txOutInlineDatumValue(plan.mixBoxOutput.inlineDatumHex, "CBOR")
-    // Output 1: replenished fee shard.
-    .txOut(plan.feeShardOutput.addressBech32, [
-      { unit: "lovelace", quantity: plan.feeShardOutput.lovelace.toString() },
-    ])
-    .txOutInlineDatumValue(plan.feeShardOutput.inlineDatumHex, "CBOR")
-    .changeAddress(changeAddress)
-    .selectUtxosFrom(walletUtxos);
+    .txOutInlineDatumValue(plan.mixBoxOutput.inlineDatumHex, "CBOR");
+
+  // Output 1 (only when replenishing): the topped-up fee shard.
+  if (plan.feeShardOutput) {
+    tx
+      .txOut(plan.feeShardOutput.addressBech32, [
+        { unit: "lovelace", quantity: plan.feeShardOutput.lovelace.toString() },
+      ])
+      .txOutInlineDatumValue(plan.feeShardOutput.inlineDatumHex, "CBOR");
+  }
+
+  tx.changeAddress(changeAddress).selectUtxosFrom(walletUtxos);
 
   // Wallet collateral: mesh's API takes (txHash, idx, amount?, address?).
   for (const utxo of collateralProvision.inputs) {
@@ -570,7 +644,9 @@ export interface BulkDepositBoxPlan {
 
 /**
  * Plan for a bulk-deposit tx. N mix-box outputs at positions 0..N-1, then
- * the replenished fee shard at position N. mesh handles fee + change after.
+ * (when replenishing) the replenished fee shard at position N. mesh handles
+ * fee + change after. With no fee shard supplied the tx is mix-boxes-only
+ * and the fee_contract is not invoked.
  */
 export interface BulkDepositPlan {
   boxes: BulkDepositBoxPlan[];
@@ -578,11 +654,11 @@ export interface BulkDepositPlan {
     addressBech32: string;
     lovelace: Lovelace;
     inlineDatumHex: string;
-  };
-  feeShardInput: Utxo;
-  replenishRedeemerHex: string;
+  } | null;
+  feeShardInput: Utxo | null;
+  replenishRedeemerHex: string | null;
   referenceUtxoRef: UtxoRef;
-  feeContractRefScriptUtxoRef: UtxoRef;
+  feeContractRefScriptUtxoRef: UtxoRef | null;
 }
 
 export interface PlanBulkDepositArgs {
@@ -607,7 +683,12 @@ export interface PlanBulkDepositArgs {
   rounds: number;
   params: ProtocolParams;
   addresses: LovejoinAddresses;
-  feeShard: Utxo;
+  /**
+   * Fee shard to consume + replenish. Pass `null` (or omit) to build a
+   * shard-less bulk deposit — the tx then emits N mix-boxes only and
+   * mesh balances against the wallet alone.
+   */
+  feeShard?: Utxo | null;
   networkId: LovejoinNetworkId;
   minRounds?: number;
 }
@@ -635,10 +716,12 @@ export function planBulkDepositTx(args: PlanBulkDepositArgs): BulkDepositPlan {
     args.networkId,
     args.addresses.dappStakeKeyHashHex ?? null,
   );
+  // Fee shards live at the enterprise (unstaked) script address — see
+  // planDepositTx for the rationale.
   const feeAddress = buildScriptAddress(
     args.addresses.feeScriptHash,
     args.networkId,
-    args.addresses.dappStakeKeyHashHex ?? null,
+    null,
   );
 
   const seenDatums = new Set<string>();
@@ -685,12 +768,6 @@ export function planBulkDepositTx(args: PlanBulkDepositArgs): BulkDepositPlan {
     });
   }
 
-  // Total replenishment: sum across all new boxes. Each box logically
-  // funds `rounds` mixes worth of fees; the on-chain rule is just
-  // `fee_out > fee_in`, so any positive contribution would satisfy it,
-  // but we keep the convention that bulk depositors top up the same
-  // per-box share they would have for N single deposits.
-  const perBoxContribution = BigInt(args.rounds) * args.params.maxFeePerMixLovelace;
   if (!Number.isInteger(args.rounds) || args.rounds <= 0) {
     throw new Error(`rounds must be a positive integer, got ${args.rounds}`);
   }
@@ -699,6 +776,25 @@ export function planBulkDepositTx(args: PlanBulkDepositArgs): BulkDepositPlan {
       `rounds=${args.rounds} below minRounds=${args.minRounds}; UI should reject`,
     );
   }
+
+  // Shard-less bulk deposit: emit only the N mix-boxes.
+  if (!args.feeShard) {
+    return {
+      boxes,
+      feeShardOutput: null,
+      feeShardInput: null,
+      replenishRedeemerHex: null,
+      referenceUtxoRef: parseUtxoRef(args.addresses.referenceUtxoRef),
+      feeContractRefScriptUtxoRef: null,
+    };
+  }
+
+  // Total replenishment: sum across all new boxes. Each box logically
+  // funds `rounds` mixes worth of fees; the on-chain rule is just
+  // `fee_out > fee_in`, so any positive contribution would satisfy it,
+  // but we keep the convention that bulk depositors top up the same
+  // per-box share they would have for N single deposits.
+  const perBoxContribution = BigInt(args.rounds) * args.params.maxFeePerMixLovelace;
   const replenishedLovelace: Lovelace =
     args.feeShard.lovelace + perBoxContribution * BigInt(n);
 
@@ -726,7 +822,12 @@ export interface BuildBulkDepositArgs {
   wallet: LovejoinWallet;
   provider: ChainProvider;
   addresses: LovejoinAddresses;
-  feeShard?: Utxo;
+  /**
+   * Optional pre-picked fee shard. Pass `null` to force a shard-less bulk
+   * deposit; pass `undefined` (or omit) to let the SDK pick — and silently
+   * fall back to shard-less when no shards exist on chain.
+   */
+  feeShard?: Utxo | null;
   collateralProvider?: CollateralProvider;
   signOnly?: boolean;
 }
@@ -760,12 +861,16 @@ export async function buildBulkDepositTx(
   const feeAddress = buildScriptAddress(
     args.addresses.feeScriptHash,
     networkId,
-    args.addresses.dappStakeKeyHashHex ?? null,
+    null,
   );
-  const feeShard = args.feeShard ?? (await pickRandomFeeShard({
-    provider: args.provider,
-    feeScriptAddressBech32: feeAddress,
-  }));
+  // `undefined` → auto-pick (or null when no shards on chain); `null`
+  // → explicit shard-less; a `Utxo` → explicit shard.
+  const feeShard = args.feeShard !== undefined
+    ? args.feeShard
+    : await pickFeeShardOptional({
+        provider: args.provider,
+        feeScriptAddressBech32: feeAddress,
+      });
 
   const plan = planBulkDepositTx({
     ownerSecrets: args.ownerSecrets,
@@ -795,24 +900,36 @@ export async function buildBulkDepositTx(
   const walletUtxos = normalizeWalletUtxos(await args.wallet.getUtxos());
   const changeAddress = await args.wallet.getChangeAddress();
 
-  // Reference UTxO + fee shard spend (Replenish).
-  txBuilder
-    .readOnlyTxInReference(plan.referenceUtxoRef.txId, plan.referenceUtxoRef.outputIndex)
-    .spendingPlutusScriptV3()
-    .txIn(
-      plan.feeShardInput.ref.txId,
-      plan.feeShardInput.ref.outputIndex,
-      [{ unit: "lovelace", quantity: plan.feeShardInput.lovelace.toString() }],
-      plan.feeShardOutput.addressBech32,
-    )
-    .txInInlineDatumPresent()
-    .txInRedeemerValue(plan.replenishRedeemerHex, "CBOR")
-    .spendingTxInReference(
-      plan.feeContractRefScriptUtxoRef.txId,
-      plan.feeContractRefScriptUtxoRef.outputIndex,
-      args.addresses.referenceScriptSizes?.fee_contract?.toString(),
-      args.addresses.feeScriptHash,
-    );
+  // Reference UTxO is always read; the fee-shard spend is only added when
+  // the plan included a shard (otherwise the bulk deposit is mix-boxes-only
+  // and the fee_contract isn't invoked).
+  txBuilder.readOnlyTxInReference(
+    plan.referenceUtxoRef.txId,
+    plan.referenceUtxoRef.outputIndex,
+  );
+  if (
+    plan.feeShardInput &&
+    plan.feeShardOutput &&
+    plan.replenishRedeemerHex &&
+    plan.feeContractRefScriptUtxoRef
+  ) {
+    txBuilder
+      .spendingPlutusScriptV3()
+      .txIn(
+        plan.feeShardInput.ref.txId,
+        plan.feeShardInput.ref.outputIndex,
+        [{ unit: "lovelace", quantity: plan.feeShardInput.lovelace.toString() }],
+        plan.feeShardOutput.addressBech32,
+      )
+      .txInInlineDatumPresent()
+      .txInRedeemerValue(plan.replenishRedeemerHex, "CBOR")
+      .spendingTxInReference(
+        plan.feeContractRefScriptUtxoRef.txId,
+        plan.feeContractRefScriptUtxoRef.outputIndex,
+        args.addresses.referenceScriptSizes?.fee_contract?.toString(),
+        args.addresses.feeScriptHash,
+      );
+  }
 
   // N mix-box outputs at positions 0..N-1.
   for (const box of plan.boxes) {
@@ -822,14 +939,15 @@ export async function buildBulkDepositTx(
       ])
       .txOutInlineDatumValue(box.output.inlineDatumHex, "CBOR");
   }
-  // Position N: replenished fee shard.
-  txBuilder
-    .txOut(plan.feeShardOutput.addressBech32, [
-      { unit: "lovelace", quantity: plan.feeShardOutput.lovelace.toString() },
-    ])
-    .txOutInlineDatumValue(plan.feeShardOutput.inlineDatumHex, "CBOR")
-    .changeAddress(changeAddress)
-    .selectUtxosFrom(walletUtxos);
+  // Position N (only when replenishing): the topped-up fee shard.
+  if (plan.feeShardOutput) {
+    txBuilder
+      .txOut(plan.feeShardOutput.addressBech32, [
+        { unit: "lovelace", quantity: plan.feeShardOutput.lovelace.toString() },
+      ])
+      .txOutInlineDatumValue(plan.feeShardOutput.inlineDatumHex, "CBOR");
+  }
+  txBuilder.changeAddress(changeAddress).selectUtxosFrom(walletUtxos);
 
   for (const utxo of collateralProvision.inputs) {
     txBuilder.txInCollateral(

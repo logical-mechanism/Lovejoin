@@ -149,25 +149,43 @@ export class BlockfrostProvider implements ChainProvider {
     const projectId = this.projectId;
     const fetchFn = this.fetchFn;
     meshBf.evaluateTx = async (tx: string) => {
-      const res = await fetchFn(
-        `${baseUrl}/utils/txs/evaluate?version=6`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/cbor",
-            project_id: projectId,
-          },
-          body: tx,
-        },
+      // eslint-disable-next-line no-console
+      console.log(
+        `[lovejoin/evaluator] POST ${baseUrl}/utils/txs/evaluate?version=6 (txHex ${tx.length / 2} bytes)`,
       );
-      const body = (await res.json()) as {
+      let body: {
         result?: Array<{
           validator: { index: number; purpose: string };
           budget: { memory: number; cpu: number };
         }>;
         error?: { code: number; message: string; data?: unknown };
       };
+      try {
+        const res = await fetchFn(
+          `${baseUrl}/utils/txs/evaluate?version=6`,
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/cbor",
+              project_id: projectId,
+            },
+            body: tx,
+          },
+        );
+        // eslint-disable-next-line no-console
+        console.log(`[lovejoin/evaluator] HTTP ${res.status} ${res.statusText}`);
+        body = (await res.json()) as typeof body;
+      } catch (networkErr) {
+        // eslint-disable-next-line no-console
+        console.error(`[lovejoin/evaluator] network error:`, networkErr);
+        throw networkErr;
+      }
       if (body.error) {
+        // eslint-disable-next-line no-console
+        console.error(
+          `[lovejoin/evaluator] BLOCKFROST RETURNED ERROR — populate-time exUnits will ride into the final tx:`,
+          body.error,
+        );
         throw new Error(
           `Blockfrost ogmios v6 evaluator rejected the tx: ` +
             `${body.error.message} ` +
@@ -175,10 +193,25 @@ export class BlockfrostProvider implements ChainProvider {
         );
       }
       if (!body.result) {
+        // eslint-disable-next-line no-console
+        console.error(
+          `[lovejoin/evaluator] BLOCKFROST RETURNED NO RESULT — populate-time exUnits will ride:`,
+          body,
+        );
         throw new Error(
           `Blockfrost ogmios v6 evaluator returned no result: ${JSON.stringify(body).slice(0, 300)}`,
         );
       }
+      // eslint-disable-next-line no-console
+      console.log(
+        `[lovejoin/evaluator] BLOCKFROST RETURNED ${body.result.length} redeemer budget(s):`,
+        body.result.map((e) => ({
+          purpose: e.validator.purpose,
+          index: e.validator.index,
+          mem: e.budget.memory,
+          cpu: e.budget.cpu,
+        })),
+      );
       // v6 purposes:    spend | mint | publish | withdraw | vote | propose
       // mesh's Action.tag: SPEND | MINT | CERT  | REWARD   | VOTE | PROPOSE
       const purposeMap: Record<string, string> = {

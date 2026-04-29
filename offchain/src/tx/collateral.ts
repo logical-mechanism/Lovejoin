@@ -233,13 +233,18 @@ export class GivemeMyProvider implements CollateralProvider {
 
   constructor(opts: GivemeMyOptions) {
     this.endpoint = (opts.endpoint ?? GIVEME_MY_DEFAULT_ENDPOINT).replace(/\/$/, "");
-    const f = opts.fetchFn ?? (globalThis as { fetch?: CollateralFetchFn }).fetch;
-    if (!f) {
+    const injected = opts.fetchFn;
+    const globalFetch = (globalThis as { fetch?: CollateralFetchFn }).fetch;
+    if (!injected && !globalFetch) {
       throw new Error(
         "GivemeMyProvider: no fetch implementation available. Pass `fetchFn` explicitly.",
       );
     }
-    this.fetchFn = f;
+    // Browser `fetch` is internal-slot-bound to Window — calling it with
+    // `this === GivemeMyProvider` throws "Illegal invocation". Bind to
+    // globalThis when we picked up the global; pass injected mocks
+    // through unmodified so test stubs see their intended `this`.
+    this.fetchFn = injected ?? (globalFetch!.bind(globalThis) as CollateralFetchFn);
     this.apiKey = opts.apiKey;
     this.network = opts.network;
   }

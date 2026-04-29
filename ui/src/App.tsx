@@ -5,7 +5,7 @@
 // `useAppState`. The collateral-provider status is hoisted to App-level so
 // the polling fires once and every screen reads from the same context.
 
-import { BrowserRouter, Route, Routes } from "react-router-dom";
+import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 
 import { CollateralStatusProvider } from "./components/CollateralProviderStatus.js";
 import { ToasterProvider } from "./components/Toaster.js";
@@ -16,7 +16,6 @@ import { Layout } from "./routes/Layout.js";
 import { Pool } from "./routes/Pool.js";
 import { Protocol } from "./routes/Protocol.js";
 import { Vault } from "./routes/Vault.js";
-import { Withdraw } from "./routes/Withdraw.js";
 import { AppStateProvider, useAppState } from "./lib/store.js";
 
 export function App() {
@@ -32,7 +31,10 @@ export function App() {
                 <Route path="pool" element={<Pool />} />
                 <Route path="vault" element={<Vault />} />
                 <Route path="vault/:txid/:idx" element={<Box />} />
-                <Route path="withdraw" element={<Withdraw />} />
+                {/* /withdraw was a parallel multi-select flow that
+                 * duplicated the Vault list. Folded into Vault; keep
+                 * a redirect so external links + bookmarks still land. */}
+                <Route path="withdraw" element={<Navigate to="/vault" replace />} />
                 <Route path="protocol" element={<Protocol />} />
               </Route>
             </Routes>

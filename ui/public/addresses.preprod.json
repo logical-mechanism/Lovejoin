@@ -6,27 +6,22 @@
     "fee_shard_target": 10,
     "max_n": 6
   },
-  "dappStakeKeyHashHex": "1e3105f23f2ac91b3fb4c35fa4fe301421028e356e114944e902005b",
-  "referenceNftPolicy": "310d0d4ff25e73a4a0442eac873e68810e11c824aa0e858acc56f1df",
+  "referenceNftPolicy": "42f5853c1a7dd3e4749cfecd414253e0d14a9c130d8af8e0bb5d1ec7",
   "referenceNftAssetName": "6c6f76656a6f696e",
-  "referenceUtxoRef": "b809b4e363067886174b57fd04101eb2e59f654220b6c11530c77b75f25ec945#0",
-  "referenceHolderScriptHash": "b58b5869a956266f5a55265829963064cabfeac4dab3c28f46dbc1cc",
-  "mixLogicScriptHash": "ca2d95fe9fe368e8ad1c89e2009a5ad292ff016e353144ea0ef829ff",
-  "mixBoxScriptHash": "ba176a7604f3e062a7ed315780801495ed0ffb0191c6f8e7d88362e2",
-  "feeScriptHash": "5efd8fdd7e4d35b04de427337220dcb30352136d739055b305dd2d66",
+  "referenceUtxoRef": "39a91ec1b3bd7762e7afc093ba45a0622a757f141922ba2195d00c91d0dae236#0",
+  "referenceHolderScriptHash": "9f6575e2e1be84709fc842ea751d428a6c1f95cc77b653b93fc1937c",
+  "mixLogicScriptHash": "4cd2a4bd2199bf7c534b09fad4559b0632bbeb45c27513d0a2d4cc99",
+  "mixBoxScriptHash": "b4f0c01e8deaa56d0c2560f1a0ddc9ceb6052a7daddff0a6780a6713",
+  "feeScriptHash": "4323eba23befede3a2806aafa88ab66fd32b4080961451072325b34f",
   "feeShardUtxos": [
-    "34a117d9699e8537529aa093943cdeda6f525fd167a74e6f1bd9229ef805a080#0"
+    "a64faa13ad8d0ddfdf1fa982561871bb7254e58296b466b4395dd47f12a5ed42#0"
   ],
   "referenceScriptUtxos": {
-    "mix_box": "b51692abb805409936944691abd324f2dcdd025749b9094dbd49939588c7e27f#0",
-    "mix_logic": "d65e2a074a45c6f24b42fe60924d8e35cb26412985d98480a4e96b5b89a2a727#0",
-    "fee_contract": "5d9a9e2c26aeffcddb0d0f6e4cc07b62df546a8615bd5bd2aca673561e3600b6#0"
+    "mix_box": "1fce3ddc81526486b153e047620e71b1d572ddab367da45893b3fe48204b03c0#0",
+    "mix_logic": "3dd9a87cf8d8a720427d8d2661394a65dea2d634e3ba628f172cbc9194f7bdd8#0",
+    "fee_contract": "9c852f6cff7969c8235e7786dc628b4c333daff1c7614800f8557ad0a4a4c2a3#0"
   },
-  "referenceScriptSizes": {
-    "mix_box": 521,
-    "mix_logic": 3026,
-    "fee_contract": 1528
-  },
-  "stage1ChangeUtxo": "5d9a9e2c26aeffcddb0d0f6e4cc07b62df546a8615bd5bd2aca673561e3600b6#1",
-  "mixLogicRegisterTx": "cd072f189b979e21ea28d3461cc17ed51e0012d7cc4008ddad10248e99926a30"
+  "dappStakeKeyHashHex": "1e3105f23f2ac91b3fb4c35fa4fe301421028e356e114944e902005b",
+  "stage1ChangeUtxo": "9c852f6cff7969c8235e7786dc628b4c333daff1c7614800f8557ad0a4a4c2a3#1",
+  "mixLogicRegisterTx": "0fa104d4644333b48cf9e1b15a65c61c20f666a8805bfe4201bacfae9b991917"
 }

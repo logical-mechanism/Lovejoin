@@ -11,6 +11,10 @@
 
 import { loadConfig } from "./config.js";
 import { PostgresDbSyncClient } from "./db/dbsync.js";
+import {
+  BlockfrostHistoryClient,
+  defaultBlockfrostBaseUrl,
+} from "./db/blockfrost-history.js";
 import { IndexerRuntime } from "./indexer/runtime.js";
 import { IndexerState } from "./indexer/state.js";
 import { buildServer } from "./api/server.js";
@@ -39,6 +43,13 @@ export async function main(): Promise<void> {
   const dbsync = config.dbsyncUrl
     ? new PostgresDbSyncClient(config.dbsyncUrl)
     : null;
+  const historyFallback = config.blockfrostProjectId
+    ? new BlockfrostHistoryClient({
+        baseUrl:
+          config.blockfrostBaseUrl ?? defaultBlockfrostBaseUrl(config.network),
+        projectId: config.blockfrostProjectId,
+      })
+    : null;
 
   const runtime = new IndexerRuntime(state, {
     ogmiosUrl: config.ogmiosUrl,
@@ -46,7 +57,13 @@ export async function main(): Promise<void> {
     logger: simpleLogger(),
   });
 
-  const server = await buildServer({ state, runtime, config, dbsync });
+  const server = await buildServer({
+    state,
+    runtime,
+    config,
+    dbsync,
+    historyFallback,
+  });
 
   // Start chainsync first so requests at /health can already see "tip not yet"
   // rather than racing the connection.
