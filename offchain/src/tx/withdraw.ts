@@ -72,6 +72,10 @@ import { mergeExternalCollateralWitness } from "./witness-merge.js";
 const POPULATE_TIME_EXUNITS_PLACEHOLDER: ExUnits = { mem: 10_000, steps: 1_000_000 };
 import { getMeshProtocolParams, getMeshProvider } from "./mesh-bridge.js";
 import {
+  computeRefScriptFee,
+  extractFeeFromTxCbor,
+} from "./fee-helpers.js";
+import {
   fetchProtocolParams,
   type LovejoinAddresses,
   type ProtocolParams,
@@ -413,6 +417,7 @@ export async function buildWithdrawTx(args: BuildWithdrawArgs): Promise<Withdraw
     redeemerCborHex: string,
     spendExUnits: ExUnits,
     withdrawExUnits: ExUnits,
+    feeOverride?: bigint,
   ): Promise<string> => {
     const tx = new MeshTxBuilder({
       fetcher: meshProvider as never,
@@ -420,6 +425,12 @@ export async function buildWithdrawTx(args: BuildWithdrawArgs): Promise<Withdraw
       params: meshParams as never,
       verbose: false,
     });
+    if (feeOverride !== undefined) {
+      // Pin the total tx fee. We use this to add the Conway
+      // reference-script fee component that mesh-csl never computes
+      // (`set_ref_script_coins_per_byte` is unwired in mesh @1.8.14).
+      tx.setFee(feeOverride.toString());
+    }
     tx
       .readOnlyTxInReference(plan.referenceUtxoRef.txId, plan.referenceUtxoRef.outputIndex)
       // Mix-box spend: pass-through under the withdraw-zero credential.
@@ -514,19 +525,41 @@ export async function buildWithdrawTx(args: BuildWithdrawArgs): Promise<Withdraw
     POPULATE_TIME_EXUNITS_PLACEHOLDER,
   );
   const tightUnits = await evaluateExUnits(meshProvider, txForEval);
-  // 4: proof_1 + tight exec units → outputs shift to match the real fee.
-  const txTightOutputs = await buildOnce(
+  // 4: proof_1 + tight exec units → mesh's auto-computed fee, but
+  // missing the Conway reference-script-fee component (mesh-csl bug).
+  const txTightAutoFee = await buildOnce(
     proof1,
     tightUnits.spend,
     tightUnits.withdraw,
   );
-  // 5: re-compute proof against the new outputs.
-  const proof3 = computeProofForOutputs(txTightOutputs);
-  // 6: final tx — proof_3 + tight exec units → outputs match step 4.
+  // 5: read mesh's fee, add the missing Conway ref-script-fee, set total.
+  const meshFee = extractFeeFromTxCbor(txTightAutoFee, cst);
+  const refScriptSize = computeWithdrawRefScriptBytes(args.addresses);
+  const refScriptCostPerByte = Number(
+    meshParams.minFeeRefScriptCostPerByte ?? 15,
+  );
+  const refScriptFee = computeRefScriptFee(refScriptSize, refScriptCostPerByte);
+  const correctFee = meshFee + refScriptFee;
+  // eslint-disable-next-line no-console
+  console.log(
+    `[lovejoin/withdraw] fee correction: mesh=${meshFee} + ref-script(` +
+      `${refScriptSize}b × ${refScriptCostPerByte}/b)=${refScriptFee} → setFee(${correctFee})`,
+  );
+  // 6: proof_1 + tight exec units + pinned fee → outputs shrink by refScriptFee.
+  const txCorrected = await buildOnce(
+    proof1,
+    tightUnits.spend,
+    tightUnits.withdraw,
+    correctFee,
+  );
+  // 7: re-compute proof against the new outputs.
+  const proof3 = computeProofForOutputs(txCorrected);
+  // 8: final tx — proof_3 + tight exec units + pinned fee → outputs match step 6.
   const unsignedHexFinal = await buildOnce(
     proof3,
     tightUnits.spend,
     tightUnits.withdraw,
+    correctFee,
   );
 
   // eslint-disable-next-line no-console
@@ -755,6 +788,7 @@ export async function buildBulkWithdrawTx(
     redeemerCborHex: string,
     spendUnitsForInput: (i: number) => ExUnits,
     withdrawExUnits: ExUnits,
+    feeOverride?: bigint,
   ): Promise<string> => {
     const tx = new MeshTxBuilder({
       fetcher: meshProvider as never,
@@ -762,6 +796,9 @@ export async function buildBulkWithdrawTx(
       params: meshParams as never,
       verbose: false,
     });
+    if (feeOverride !== undefined) {
+      tx.setFee(feeOverride.toString());
+    }
     tx.readOnlyTxInReference(referenceUtxoRef.txId, referenceUtxoRef.outputIndex);
     mixBoxUtxos.forEach((u, i) => {
       tx
@@ -848,19 +885,40 @@ export async function buildBulkWithdrawTx(
     POPULATE_TIME_EXUNITS_PLACEHOLDER,
   );
   const tightUnits = await evaluateBulkExUnits(meshProvider, txForEval, n);
-  // Pass 4: proof_1 + tight units → outputs shift to match real fee.
-  const txTightOutputs = await buildOnce(
+  // Pass 4: proof_1 + tight units → mesh's auto-fee (missing ref-script).
+  const txTightAutoFee = await buildOnce(
     proof1,
     (i) => tightUnits.spends[i]!,
     tightUnits.withdraw,
   );
-  // Pass 5: proofs against the new outputs.
-  const proof3 = computeRedeemerForOutputs(txTightOutputs);
-  // Pass 6: final tx.
+  // Pass 5: read mesh's fee, add Conway ref-script fee, set total.
+  const meshFee = extractFeeFromTxCbor(txTightAutoFee, cst);
+  const refScriptSize = computeWithdrawRefScriptBytes(args.addresses);
+  const refScriptCostPerByte = Number(
+    meshParams.minFeeRefScriptCostPerByte ?? 15,
+  );
+  const refScriptFee = computeRefScriptFee(refScriptSize, refScriptCostPerByte);
+  const correctFee = meshFee + refScriptFee;
+  // eslint-disable-next-line no-console
+  console.log(
+    `[lovejoin/withdraw-bulk] fee correction: mesh=${meshFee} + ref-script(` +
+      `${refScriptSize}b × ${refScriptCostPerByte}/b)=${refScriptFee} → setFee(${correctFee})`,
+  );
+  // Pass 6: proof_1 + tight units + pinned fee → outputs shrink by refScriptFee.
+  const txCorrected = await buildOnce(
+    proof1,
+    (i) => tightUnits.spends[i]!,
+    tightUnits.withdraw,
+    correctFee,
+  );
+  // Pass 7: proofs against the new outputs.
+  const proof3 = computeRedeemerForOutputs(txCorrected);
+  // Pass 8: final tx.
   const unsignedHexFinal = await buildOnce(
     proof3,
     (i) => tightUnits.spends[i]!,
     tightUnits.withdraw,
+    correctFee,
   );
 
   // eslint-disable-next-line no-console
@@ -1249,6 +1307,22 @@ function hexToBytes(hex: string): Uint8Array {
  * mesh resolves it from the on-chain UTxO at the cost of an extra
  * Blockfrost call.
  */
+/**
+ * Total bytes of unique reference scripts a withdraw tx consumes
+ * (mix_box for each input — but counted once, since the chain dedupes —
+ * plus mix_logic for the withdraw-zero leg). Returns 0 if the addresses
+ * file is missing the sizes; the caller treats 0 as "skip the
+ * Conway ref-script-fee correction."
+ *
+ * The protocol reference UTxO is read via `readOnlyTxInReference` and
+ * carries no script — it doesn't enter this sum.
+ */
+function computeWithdrawRefScriptBytes(addresses: LovejoinAddresses): number {
+  const mixBox = addresses.referenceScriptSizes?.mix_box ?? 0;
+  const mixLogic = addresses.referenceScriptSizes?.mix_logic ?? 0;
+  return mixBox + mixLogic;
+}
+
 function sizeStr(n: number | undefined): string | undefined {
   return typeof n === "number" ? n.toString() : undefined;
 }
