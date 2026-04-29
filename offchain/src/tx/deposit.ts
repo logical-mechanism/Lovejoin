@@ -500,6 +500,8 @@ export async function buildDepositTx(args: BuildDepositArgs): Promise<DepositRes
     params: meshParams as never,
     verbose: false,
   });
+  // Trust evaluator-returned exec units exactly (mesh defaults to 1.1×).
+  txBuilder.txEvaluationMultiplier = 1;
 
   // Wallet inputs (mesh handles selection).
   const walletUtxos = normalizeWalletUtxos(await args.wallet.getUtxos());
@@ -905,6 +907,8 @@ export async function buildBulkDepositTx(
     params: meshParams as never,
     verbose: false,
   });
+  // Trust evaluator-returned exec units exactly (mesh defaults to 1.1×).
+  txBuilder.txEvaluationMultiplier = 1;
 
   const walletUtxos = normalizeWalletUtxos(await args.wallet.getUtxos());
   const changeAddress = await args.wallet.getChangeAddress();

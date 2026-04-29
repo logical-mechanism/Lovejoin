@@ -424,6 +424,8 @@ export async function buildWithdrawTx(args: BuildWithdrawArgs): Promise<Withdraw
       params: meshParams as never,
       verbose: false,
     });
+    // Trust evaluator-returned exec units exactly; no 1.1× safety buffer.
+    tx.txEvaluationMultiplier = 1;
     if (feeOverride !== undefined) {
       // Pin the total tx fee. We use this to add the Conway
       // reference-script fee component that mesh-csl never computes
@@ -442,7 +444,9 @@ export async function buildWithdrawTx(args: BuildWithdrawArgs): Promise<Withdraw
         mixBoxUtxo.address,
       )
       .txInInlineDatumPresent()
-      .txInRedeemerValue("d87980", "CBOR", spendExUnits) // Constr 0 [] — spend redeemer is unused
+      // Spread to defeat mesh's cross-redeemer exUnits-aliasing bug —
+      // see mix.ts comment on POPULATE_TIME_EXUNITS_PLACEHOLDER.
+      .txInRedeemerValue("d87980", "CBOR", { ...spendExUnits }) // Constr 0 [] — spend redeemer is unused
       .spendingTxInReference(
         plan.mixBoxRefScriptUtxoRef.txId,
         plan.mixBoxRefScriptUtxoRef.outputIndex,
@@ -457,7 +461,7 @@ export async function buildWithdrawTx(args: BuildWithdrawArgs): Promise<Withdraw
       // actually runs the Owner branch.
       .withdrawalPlutusScriptV3()
       .withdrawal(plan.mixLogicRewardAddressBech32, "0")
-      .withdrawalRedeemerValue(redeemerCborHex, "CBOR", withdrawExUnits)
+      .withdrawalRedeemerValue(redeemerCborHex, "CBOR", { ...withdrawExUnits })
       .withdrawalTxInReference(
         plan.mixLogicRefScriptUtxoRef.txId,
         plan.mixLogicRefScriptUtxoRef.outputIndex,
@@ -788,6 +792,7 @@ export async function buildBulkWithdrawTx(
       params: meshParams as never,
       verbose: false,
     });
+    tx.txEvaluationMultiplier = 1;
     if (feeOverride !== undefined) {
       tx.setFee(feeOverride.toString());
     }
@@ -799,7 +804,7 @@ export async function buildBulkWithdrawTx(
           { unit: "lovelace", quantity: u.lovelace.toString() },
         ], u.address)
         .txInInlineDatumPresent()
-        .txInRedeemerValue("d87980", "CBOR", spendUnitsForInput(i))
+        .txInRedeemerValue("d87980", "CBOR", { ...spendUnitsForInput(i) })
         .spendingTxInReference(
           mixBoxRefScriptUtxoRef.txId,
           mixBoxRefScriptUtxoRef.outputIndex,
@@ -810,7 +815,7 @@ export async function buildBulkWithdrawTx(
     tx
       .withdrawalPlutusScriptV3()
       .withdrawal(mixLogicRewardAddressBech32, "0")
-      .withdrawalRedeemerValue(redeemerCborHex, "CBOR", withdrawExUnits)
+      .withdrawalRedeemerValue(redeemerCborHex, "CBOR", { ...withdrawExUnits })
       .withdrawalTxInReference(
         mixLogicRefScriptUtxoRef.txId,
         mixLogicRefScriptUtxoRef.outputIndex,

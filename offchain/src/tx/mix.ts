@@ -223,14 +223,19 @@ export interface MixPlan {
 // ---------------------------------------------------------------------------
 
 /**
- * Tiny placeholder that we attach to every redeemer at populate-time. The
+ * Tiny placeholder we attach to every redeemer at populate-time. The
  * mesh evaluator overwrites it with chain-real values during `complete()`.
- * The only requirement is "small enough that populate-time min_fee stays
- * under any cap"; the actual numbers don't reach the chain because the
- * evaluator refines them.
  *
- * If the evaluator is unwired or fails, `complete()` throws — the SDK no
- * longer ships a tx with hand-written estimates.
+ * IMPORTANT: spread `{...POPULATE_TIME_EXUNITS_PLACEHOLDER}` at every
+ * call site. mesh's `castBuilderDataToRedeemer` stores the exUnits
+ * object reference as-is (no copy); passing the same object to multiple
+ * `txInRedeemerValue` / `withdrawalRedeemerValue` calls in one build
+ * makes them all alias the same instance, and `updateRedeemer`'s
+ * mutations to `redeemer.exUnits.mem/.steps` then leak across redeemers
+ * — the LAST evaluator-returned budget wins for every redeemer.
+ * Confirmed against mesh @1.8.14:
+ *   `node_modules/.../@meshsdk/transaction/dist/index.js:1458` (storage)
+ *   `node_modules/.../@meshsdk/transaction/dist/index.js:1474` (mutation).
  */
 const POPULATE_TIME_EXUNITS_PLACEHOLDER = { mem: 10_000, steps: 1_000_000 };
 
@@ -889,7 +894,7 @@ export async function buildMixTx(args: BuildMixArgs): Promise<MixResult> {
         )
         .txInInlineDatumPresent()
         // mix_box's spend redeemer is irrelevant data — it doesn't dispatch.
-        .txInRedeemerValue("d87980", "CBOR", exUnits)
+        .txInRedeemerValue("d87980", "CBOR", { ...exUnits })
         .spendingTxInReference(
           plan.mixBoxRefScriptUtxoRef.txId,
           plan.mixBoxRefScriptUtxoRef.outputIndex,
@@ -918,7 +923,7 @@ export async function buildMixTx(args: BuildMixArgs): Promise<MixResult> {
           plan.feeShardOutput.addressBech32,
         )
         .txInInlineDatumPresent()
-        .txInRedeemerValue(plan.payMixFeeRedeemerCborHex, "CBOR", exUnits)
+        .txInRedeemerValue(plan.payMixFeeRedeemerCborHex, "CBOR", { ...exUnits })
         .spendingTxInReference(
           plan.feeContractRefScriptUtxoRef.txId,
           plan.feeContractRefScriptUtxoRef.outputIndex,
@@ -930,7 +935,7 @@ export async function buildMixTx(args: BuildMixArgs): Promise<MixResult> {
     // mix_logic withdraw-zero with the Mix redeemer.
     tx.withdrawalPlutusScriptV3()
       .withdrawal(plan.mixLogicRewardAddressBech32, "0")
-      .withdrawalRedeemerValue(plan.mixRedeemerCborHex, "CBOR", exUnits)
+      .withdrawalRedeemerValue(plan.mixRedeemerCborHex, "CBOR", { ...exUnits })
       .withdrawalTxInReference(
         plan.mixLogicRefScriptUtxoRef.txId,
         plan.mixLogicRefScriptUtxoRef.outputIndex,
@@ -1001,6 +1006,10 @@ export async function buildMixTx(args: BuildMixArgs): Promise<MixResult> {
     params: meshParams as never,
     verbose: false,
   });
+  // mesh's default 1.1× safety buffer pushes evaluator-real budgets
+  // further over the chain's per-tx exec cap at high N. We trust the
+  // evaluator's numbers exactly — they're the chain's own values.
+  tx.txEvaluationMultiplier = 1;
   populate(tx);
   let unsignedTxHex: string;
   try {
