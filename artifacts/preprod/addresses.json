@@ -19,8 +19,5 @@
     "mix_box": "1fce3ddc81526486b153e047620e71b1d572ddab367da45893b3fe48204b03c0#0",
     "mix_logic": "3dd9a87cf8d8a720427d8d2661394a65dea2d634e3ba628f172cbc9194f7bdd8#0",
     "fee_contract": "9c852f6cff7969c8235e7786dc628b4c333daff1c7614800f8557ad0a4a4c2a3#0"
-  },
-  "dappStakeKeyHashHex": "1e3105f23f2ac91b3fb4c35fa4fe301421028e356e114944e902005b",
-  "stage1ChangeUtxo": "9c852f6cff7969c8235e7786dc628b4c333daff1c7614800f8557ad0a4a4c2a3#1",
-  "mixLogicRegisterTx": "0fa104d4644333b48cf9e1b15a65c61c20f666a8805bfe4201bacfae9b991917"
+  }
 }
