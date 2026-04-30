@@ -343,6 +343,20 @@ export class IndexerState {
     return this.referenceRef;
   }
 
+  /**
+   * Union of every UTxO key (`${txId}#${index}`) the protocol cares
+   * about: live mix-boxes + live fee shards. The mempool poller uses
+   * this to drop input refs that aren't relevant to Lovejoin (~99% of
+   * mempool traffic on a busy chain). Callers shouldn't mutate the
+   * returned set; it's a fresh snapshot each call.
+   */
+  protocolRelevantUtxoKeys(): Set<UtxoKey> {
+    const keys = new Set<UtxoKey>();
+    for (const k of this.pool.keys()) keys.add(k);
+    for (const k of this.feeShards.keys()) keys.add(k);
+    return keys;
+  }
+
   alarm(): string | null {
     return this.referenceAlarm;
   }

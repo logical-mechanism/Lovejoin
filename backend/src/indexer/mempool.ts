@@ -22,6 +22,17 @@ export interface MempoolPollerConfig {
   client: OgmiosTxClient;
   /** Interval between snapshots, in ms. Default 2000. */
   intervalMs?: number;
+  /**
+   * Optional relevance filter. When set, the poller drops every
+   * mempool input ref that isn't in the returned set. Typical wiring
+   * is `() => indexerState.protocolRelevantUtxoKeys()` so we only
+   * track refs that point at live Lovejoin UTxOs (mix-boxes and fee
+   * shards). On a busy chain this drops ~99% of mempool traffic.
+   *
+   * Without it, every mempool input ref is stored — fine for testing
+   * or small environments, wasteful at scale.
+   */
+  relevantRefs?: () => ReadonlySet<InputRefKey>;
   logger: MempoolLogger;
 }
 
@@ -113,6 +124,11 @@ export class MempoolPoller {
   private async poll(): Promise<void> {
     const slot = await this.config.client.acquireMempool();
     const inputs = new Set<InputRefKey>();
+    // Snapshot the relevance filter once per poll. Re-querying it
+    // inside the inner loop would be safe (it's an O(1) Set view) but
+    // chaining the call chain through `tx.inputs.length × txCount`
+    // calls is needless work on busy chains.
+    const relevant = this.config.relevantRefs?.();
     let txCount = 0;
     try {
       while (true) {
@@ -120,7 +136,9 @@ export class MempoolPoller {
         if (!tx) break;
         txCount += 1;
         for (const inp of tx.inputs) {
-          inputs.add(inputRefKey(inp.transaction.id, inp.index));
+          const key = inputRefKey(inp.transaction.id, inp.index);
+          if (relevant && !relevant.has(key)) continue;
+          inputs.add(key);
         }
       }
     } finally {

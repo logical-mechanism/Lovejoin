@@ -92,6 +92,10 @@ export async function main(): Promise<void> {
   });
   const mempoolPoller = new MempoolPoller({
     client: ogmiosMempool,
+    // Filter mempool refs to ones we actually care about (live mix-boxes
+    // + live fee shards). On a busy chain this drops ~99% of mempool
+    // traffic and keeps `/mempool/inputs` payloads tiny.
+    relevantRefs: () => state.protocolRelevantUtxoKeys(),
     logger: {
       info: (msg) => console.log(`[mempool] ${msg}`),
       warn: (msg) => console.warn(`[mempool] ${msg}`),
