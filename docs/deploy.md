@@ -198,18 +198,21 @@ to CF and proxies traffic back through that outbound connection. So:
 
 #### Cloudflare Access policy + service token
 
-In the Cloudflare Zero Trust dashboard:
+In the Cloudflare Zero Trust dashboard. **Order matters** — create
+the service token first; CF won't let you save an Access policy with
+an empty include rule, and the policy's service-token dropdown is
+only populated by tokens that already exist.
 
-1. **Access → Applications → Add an Application → Self-hosted.**
-   Application domain: `ogmios-preprod.yourdomain.com`. Add an Access
-   policy that includes "Service Auth" and an "Include" rule of
-   "Service Token".
-2. **Repeat for `dbsync-preprod.yourdomain.com`.**
-3. **Access → Service Auth → Service Tokens → Create Service Token.**
-   Name it `lovejoin-backend`; CF gives you a Client ID and a Client
-   Secret. **Save the secret on the spot — it won't be shown again.**
-4. Back in each application's policy, "Include" the service token
-   you just created so it satisfies the rule.
+1. **Access → Service Auth → Service Tokens → Create Service Token.**
+   Name it `lovejoin-backend`; pick a duration (1 year is fine — you
+   can rotate later). CF gives you a Client ID and a Client Secret.
+   **Copy the secret immediately — CF only shows it once.**
+2. **Access → Applications → Add an Application → Self-hosted.**
+   Application domain: `ogmios-preprod.yourdomain.com`. On the policy
+   page: action `Service Auth`, **Include → Service Token →
+   `lovejoin-backend`** (the token you just created shows up in the
+   dropdown). Save.
+3. **Repeat step 2 for `dbsync-preprod.yourdomain.com`.**
 
 Network-wise: every request that reaches `cloudflared` for those
 hostnames must present `CF-Access-Client-Id` + `CF-Access-Client-Secret`
