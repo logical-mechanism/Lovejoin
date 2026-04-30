@@ -259,9 +259,14 @@ export function Pool() {
 
           {showReady && (
             <div className="flex flex-wrap items-end gap-6">
-              {!wallet ? (
-                <p className="text-sm text-whisper">{t("pool.connect_to_mix")}</p>
-              ) : provider && addresses ? (
+              {provider && addresses ? (
+                // Shard-mode submission is wallet-anonymous: no wallet
+                // input, no signature, collateral signed by giveme.my.
+                // The button is reachable even with no wallet connected
+                // — anyone can contribute mix txs to the public pool,
+                // which improves linkage probability for everyone.
+                // Wallet-mode still requires a wallet; MixButton's own
+                // disabled calc handles that case with an inline hint.
                 <MixButton
                   network={config.network}
                   provider={provider}

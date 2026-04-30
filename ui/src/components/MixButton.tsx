@@ -8,6 +8,15 @@
 // Hard-disabled when the collateral provider is unreachable (Privacy UX
 // rule 8). Cooldown of 5 s after each click prevents accidental
 // double-submission while a tx is in flight.
+//
+// Wallet handling: shard-mode submission is wallet-anonymous by design —
+// no wallet input, no wallet signature, collateral signed by giveme.my.
+// The button is therefore reachable WITHOUT a connected wallet on the
+// shard path: anyone can submit mix txs to the public pool, which
+// improves linkage probability for everyone. Wallet-mode still requires
+// a wallet (the wallet pays the fee + signs); the button disables
+// itself with an inline hint when that combination is selected without
+// a wallet present.
 
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -34,7 +43,12 @@ export interface MixButtonProps {
   network: Network;
   provider: ChainProvider;
   addresses: LovejoinAddresses;
-  wallet: BrowserWallet;
+  /**
+   * Connected CIP-30 wallet, or null. Shard-mode submission works with
+   * either; wallet-mode requires a non-null wallet (it pays the fee +
+   * signs the tx).
+   */
+  wallet: BrowserWallet | null;
   /** Pool of boxes to pick from (already filtered to mix-script address). */
   poolEntries: ReadonlyArray<{ ref: { txId: string; outputIndex: number }; a: Uint8Array; b: Uint8Array }>;
   n: number;
@@ -80,7 +94,16 @@ export function MixButton({
 
   const collateralOk = collateral?.status === "online";
   const enoughBoxes = poolEntries.length >= n && n >= 2;
-  const disabled = submitting || cooldown > 0 || !collateralOk || !enoughBoxes;
+  // Wallet-mode pays the fee from a wallet UTxO and needs a wallet
+  // signature; without a connected wallet there's no path to build
+  // that tx. Shard-mode has no such constraint.
+  const walletModeNeedsWallet = feePayer === "wallet" && !wallet;
+  const disabled =
+    submitting ||
+    cooldown > 0 ||
+    !collateralOk ||
+    !enoughBoxes ||
+    walletModeNeedsWallet;
 
   const onRequestSubmit = () => {
     if (disabled) return;
@@ -115,7 +138,12 @@ export function MixButton({
       const result = await buildMixTx({
         network: network as "preprod" | "preview" | "mainnet",
         inputs,
-        wallet,
+        // SDK accepts `wallet?` and validates per-mode internally —
+        // shard mode + giveme.my succeeds with `undefined`, wallet
+        // mode throws if it isn't here. The disabled calc above
+        // already gates the wallet-mode-without-wallet case, so this
+        // null→undefined coercion only ever runs for shard mode.
+        ...(wallet ? { wallet } : {}),
         provider,
         addresses,
         feePayer,
@@ -168,6 +196,11 @@ export function MixButton({
       {collateralOk && !enoughBoxes && (
         <p className="text-xs text-whisper">
           {t("pool.mix_disabled_pool", { have: poolEntries.length, need: n })}
+        </p>
+      )}
+      {collateralOk && enoughBoxes && walletModeNeedsWallet && (
+        <p className="text-xs text-whisper">
+          {t("pool.mix_disabled_wallet_needed")}
         </p>
       )}
 

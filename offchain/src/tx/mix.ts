@@ -736,11 +736,29 @@ export interface BuildMixArgs {
    */
   inputs: ReadonlyArray<MixInput>;
   /**
-   * Wallet — required for collateral signing when using WalletProvider.
-   * Mesh's signTx is invoked at the end; the wallet provides the vkey
-   * witness for the collateral input.
+   * Wallet — optional for the canonical shard-mode + external-collateral
+   * path. The protocol's whole point is that a Mix tx in that mode has
+   * NO wallet input and NO wallet signature: collateral comes from the
+   * external host (giveme.my), the host signs the only required vkey
+   * witness, and the fee-shard pays via PayMixFee. With those two
+   * conditions met, the wallet is not part of the witness set or the
+   * UTxO set; the SDK only needs `getChangeAddress()` to satisfy mesh's
+   * builder, and that's substituted from the collateral input's address
+   * when no wallet is supplied (no change is ever emitted because
+   * `selectUtxosFrom([])` runs in shard mode).
+   *
+   * REQUIRED for:
+   *   * `feePayer === "wallet"` — the wallet pays the tx fee, so it
+   *     must contribute a UTxO and sign.
+   *   * `WalletProvider` collateral — the wallet's vkey is the witness.
+   *     This is also the fallback when no pinned external host exists
+   *     (e.g. `preview`), so passing a wallet is the safe default.
+   *
+   * Surfaced as required → optional in this signature; runtime checks
+   * inside `buildMixTx` enforce the actual constraints and throw with
+   * an explicit message if the path can't proceed without a wallet.
    */
-  wallet: LovejoinWallet;
+  wallet?: LovejoinWallet;
   provider: ChainProvider;
   addresses: LovejoinAddresses;
   /**
@@ -798,11 +816,24 @@ export interface MixResult {
  * using the default WalletProvider). No regular wallet input contributes
  * to the tx — fees come from the fee shard, mix-box values come from the
  * spent boxes themselves.
+ *
+ * Wallet-less submission is supported on the canonical shard + external-
+ * collateral path. Wallet-mode and wallet-collateral fallbacks throw with
+ * an explicit message if a wallet wasn't supplied.
  */
 export async function buildMixTx(args: BuildMixArgs): Promise<MixResult> {
   const networkId = networkIdFor(args.network);
   const { params } = await fetchProtocolParams(args.addresses, args.provider);
   const feePayer: MixFeePayer = args.feePayer ?? "shard";
+
+  // Up-front guard for the wallet-mode case so the caller gets a clean
+  // error before we burn cycles on a Mesh build pass that would die at
+  // selectUtxosFrom() with an obscure stack.
+  if (feePayer === "wallet" && !args.wallet) {
+    throw new Error(
+      "Mix tx: wallet-fee mode requires a connected wallet (the wallet pays the tx fee + signs). Pass `args.wallet` or switch `feePayer` to \"shard\".",
+    );
+  }
 
   // Resolve the fee shard. Shard mode picks one if not supplied; wallet
   // mode skips this entirely (no shard input on the tx).
@@ -869,9 +900,19 @@ export async function buildMixTx(args: BuildMixArgs): Promise<MixResult> {
   // bundled UPLC machine predates Conway's bitwise builtins and aborts
   // with "Default Function not found - 77".
 
-  const changeAddress = await args.wallet.getChangeAddress();
+  // Mesh requires a change address even when no change will ever be
+  // emitted (shard mode runs `selectUtxosFrom([])`, so the builder won't
+  // touch any UTxO that could produce change). When a wallet is present
+  // we use its change address as before; when it isn't, we fall back to
+  // the collateral input's address — guaranteed to exist on this tx and
+  // always a valid bech32. In the (impossible-on-shard-mode) event mesh
+  // emits change anyway, it lands back at the collateral provider rather
+  // than vanishing.
+  const changeAddress = args.wallet
+    ? await args.wallet.getChangeAddress()
+    : preparedCollateral.inputs[0]!.address;
   const walletUtxos =
-    feePayer === "wallet"
+    feePayer === "wallet" && args.wallet
       ? normalizeWalletUtxos(await args.wallet.getUtxos())
       : [];
 
@@ -1160,7 +1201,9 @@ export async function buildMixTx(args: BuildMixArgs): Promise<MixResult> {
   // Witness path. With GivemeMyProvider (the default for Mix) the user's
   // wallet does not sign at all — the host's vkey is the only signer the
   // tx needs. With WalletProvider the wallet signs the collateral input
-  // through the normal CIP-30 path.
+  // through the normal CIP-30 path; absence of a wallet on that branch
+  // is a programming error since defaultMixCollateralProvider() only
+  // returns WalletProvider when args.wallet is set.
   let signedTx: string;
   if (preparedCollateral.externallySigned) {
     const hostWitness = await collateralProvider.signTxBody(unsignedTxHex);
@@ -1175,6 +1218,11 @@ export async function buildMixTx(args: BuildMixArgs): Promise<MixResult> {
       `[lovejoin/mix] external collateral witness merged from ${hostWitness.vkeyHex.slice(0, 8)}…`,
     );
   } else {
+    if (!args.wallet) {
+      throw new Error(
+        "Mix tx: the chosen collateral provider needs a wallet signature, but no wallet was supplied. Use GivemeMyProvider (default for shard mode on networks with a pinned host) for wallet-anonymous submission.",
+      );
+    }
     signedTx = await args.wallet.signTx(unsignedTxHex, true);
   }
 
@@ -1203,11 +1251,21 @@ export async function buildMixTx(args: BuildMixArgs): Promise<MixResult> {
 function defaultMixCollateralProvider(args: BuildMixArgs): CollateralProvider {
   const feePayer = args.feePayer ?? "shard";
   if (feePayer !== "shard") {
-    return new WalletProvider(args.wallet);
+    // wallet-mode: the up-front guard in buildMixTx already required
+    // args.wallet, so the non-null assertion is safe here.
+    return new WalletProvider(args.wallet!);
   }
   try {
     return new GivemeMyProvider({ network: args.network });
   } catch (e) {
+    // No pinned host (typically `preview`). Without a wallet there's
+    // also no fallback — surface a clean error instead of crashing
+    // inside `WalletProvider(undefined)`.
+    if (!args.wallet) {
+      throw new Error(
+        `Mix tx: no pinned collateral host for "${args.network}" and no wallet supplied. Pass an explicit collateralProvider, or connect a wallet so we can fall back to WalletProvider. Original: ${e instanceof Error ? e.message : String(e)}`,
+      );
+    }
     // eslint-disable-next-line no-console
     console.warn(
       `[lovejoin/mix] no pinned collateral host for "${args.network}" — falling back to ` +
