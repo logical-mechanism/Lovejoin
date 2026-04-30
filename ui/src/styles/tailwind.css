@@ -202,6 +202,40 @@
     background: var(--color-signal);
   }
 
+  /* Language picker — sits between nav and wallet pill, styled to read
+     as a quiet metadata control rather than a CTA. */
+  .lj-lang { display: inline-flex; align-items: center; }
+  .lj-lang__select {
+    appearance: none;
+    background: transparent;
+    border: 1px solid var(--color-rule);
+    border-radius: var(--radius-sm);
+    color: var(--color-muted);
+    font-family: var(--font-mono);
+    font-size: 0.74rem;
+    letter-spacing: 0.06em;
+    padding: 0.4rem 1.6rem 0.4rem 0.6rem;
+    cursor: pointer;
+    background-image: linear-gradient(45deg, transparent 50%, var(--color-muted) 50%),
+                      linear-gradient(135deg, var(--color-muted) 50%, transparent 50%);
+    background-position: calc(100% - 0.7rem) 50%, calc(100% - 0.45rem) 50%;
+    background-size: 0.25rem 0.25rem, 0.25rem 0.25rem;
+    background-repeat: no-repeat;
+    transition: border-color 120ms ease, color 120ms ease;
+  }
+  .lj-lang__select:hover {
+    border-color: var(--color-rule-strong);
+    color: var(--color-paper);
+  }
+  .lj-lang__select:focus-visible {
+    outline: 1px solid var(--color-signal);
+    outline-offset: 2px;
+  }
+  .lj-lang__select option {
+    background: var(--color-ink);
+    color: var(--color-paper);
+  }
+
   .lj-eyebrow {
     display: block;
     font-size: 0.68rem;

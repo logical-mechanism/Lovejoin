@@ -69,6 +69,10 @@
     "vault": "Vault",
     "protocol": "Protocol"
   },
+  "language": {
+    "label": "Language",
+    "aria_label": "Change language"
+  },
   "home": {
     "headline_a": "Deposit in public.",
     "headline_b": "Withdraw in private.",
