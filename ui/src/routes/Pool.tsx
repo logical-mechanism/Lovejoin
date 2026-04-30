@@ -50,6 +50,10 @@ export function Pool() {
   const [poolEntries, setPoolEntries] = useState<DirectPoolEntry[]>([]);
   const [poolError, setPoolError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  // Bubbled up from <MixButton> so we can darken the whole card while
+  // build+sign+submit is in flight (5–10 s). The button alone is too
+  // small a feedback target for that wait.
+  const [mixSubmitting, setMixSubmitting] = useState(false);
 
   // N is fixed by the selected fee mode — no half-width mixes. Shard mode
   // adds a fee_contract.spend invocation (~187M CPU at Conway prices) which
@@ -145,7 +149,10 @@ export function Pool() {
         <CollateralProviderBanner status={collateral.status} />
       )}
 
-      <section className="lj-card">
+      <section
+        className={`lj-card lj-overlay ${mixSubmitting ? "lj-overlay--busy" : ""}`}
+        aria-busy={mixSubmitting}
+      >
         <header className="lj-card__head">
           <div>
             <Eyebrow>{t("pool.eyebrow")}</Eyebrow>
@@ -263,6 +270,7 @@ export function Pool() {
                   poolEntries={poolEntries}
                   n={n}
                   feePayer={feePayer}
+                  onSubmittingChange={setMixSubmitting}
                   onSubmitted={(txId) =>
                     toast.push({
                       tone: "success",
@@ -297,6 +305,12 @@ export function Pool() {
             </div>
           )}
         </div>
+
+        {mixSubmitting && (
+          <div className="lj-overlay__indicator">
+            <div className="lj-spinner" aria-label={t("pool.mix_submitting")} />
+          </div>
+        )}
       </section>
     </>
   );

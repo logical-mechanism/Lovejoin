@@ -92,26 +92,41 @@ export function WalletModal({ open, onClose, onConnected }: WalletModalProps) {
 
       {wallets !== null && wallets.length > 0 && (
         <ul className="flex flex-col divide-y divide-rule">
-          {wallets.map((w) => (
-            <li key={w.id}>
-              <button
-                type="button"
-                onClick={() => onPick(w)}
-                disabled={busyId !== null}
-                className="flex w-full items-center gap-3 px-1 py-3 text-left transition-colors hover:bg-surface disabled:opacity-50"
-              >
-                {w.icon ? (
-                  <img src={w.icon} alt="" className="h-7 w-7 rounded" />
-                ) : (
-                  <span className="h-7 w-7 rounded bg-rise" />
-                )}
-                <span className="flex-1 capitalize">{w.name || w.id}</span>
-                <span className="text-xs text-whisper">
-                  {busyId === w.id ? t("wallet.connecting") : "→"}
-                </span>
-              </button>
-            </li>
-          ))}
+          {wallets.map((w) => {
+            const isConnecting = busyId === w.id;
+            const isOtherBusy = busyId !== null && !isConnecting;
+            return (
+              <li key={w.id}>
+                <button
+                  type="button"
+                  onClick={() => onPick(w)}
+                  disabled={busyId !== null}
+                  aria-busy={isConnecting}
+                  className={`flex w-full items-center gap-3 px-1 py-3 text-left transition-colors hover:bg-surface disabled:cursor-not-allowed ${
+                    isOtherBusy ? "opacity-40" : ""
+                  }`}
+                >
+                  {w.icon ? (
+                    <img src={w.icon} alt="" className="h-7 w-7 rounded" />
+                  ) : (
+                    <span className="h-7 w-7 rounded bg-rise" />
+                  )}
+                  <span className="flex-1 capitalize">{w.name || w.id}</span>
+                  {isConnecting ? (
+                    <span className="flex items-center gap-2 text-xs text-paper">
+                      <span
+                        className="lj-spinner lj-spinner--sm"
+                        aria-hidden="true"
+                      />
+                      {t("wallet.connecting")}
+                    </span>
+                  ) : (
+                    <span className="text-xs text-whisper">→</span>
+                  )}
+                </button>
+              </li>
+            );
+          })}
         </ul>
       )}
 
@@ -122,7 +137,12 @@ export function WalletModal({ open, onClose, onConnected }: WalletModalProps) {
       )}
 
       <footer className="mt-6 flex justify-end">
-        <button type="button" onClick={onClose} className="lj-btn lj-btn--quiet">
+        <button
+          type="button"
+          onClick={onClose}
+          disabled={busyId !== null}
+          className="lj-btn lj-btn--quiet"
+        >
           {t("common.cancel")}
         </button>
       </footer>

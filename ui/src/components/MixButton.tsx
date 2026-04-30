@@ -42,6 +42,12 @@ export interface MixButtonProps {
   feePayer: MixFeePayer;
   onSubmitted: (txId: string) => void;
   onError: (message: string) => void;
+  /**
+   * Bubbled to the parent so it can wrap its section in a busy overlay
+   * the moment the user confirms — the build/sign/submit takes 5–10 s
+   * and the button alone is too small a feedback target for that wait.
+   */
+  onSubmittingChange?: (submitting: boolean) => void;
 }
 
 export function MixButton({
@@ -54,6 +60,7 @@ export function MixButton({
   feePayer,
   onSubmitted,
   onError,
+  onSubmittingChange,
 }: MixButtonProps) {
   const { t } = useTranslation();
   const [submitting, setSubmitting] = useState(false);
@@ -92,6 +99,7 @@ export function MixButton({
     if (disabled) return;
     setConfirmOpen(false);
     setSubmitting(true);
+    onSubmittingChange?.(true);
     try {
       const inputs = pickRandomBoxes(poolEntries, n).map<MixInput>((e) => {
         const utxo: Utxo = {
@@ -119,6 +127,7 @@ export function MixButton({
       refreshCollateral();
     } finally {
       setSubmitting(false);
+      onSubmittingChange?.(false);
     }
   };
 
@@ -144,6 +153,9 @@ export function MixButton({
         disabled={disabled}
         className="lj-btn lj-btn--primary lj-btn--lg"
       >
+        {submitting && (
+          <span className="lj-spinner lj-spinner--sm" aria-hidden="true" />
+        )}
         {submitting
           ? t("pool.mix_submitting")
           : cooldown > 0
