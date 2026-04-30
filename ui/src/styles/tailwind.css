@@ -24,8 +24,13 @@
   --color-rule: #2a2a30;
   --color-rule-strong: #44444c;
   --color-paper: #f1efe9;
-  --color-muted: #a8a4a0;
-  --color-whisper: #5e5c58;
+  /* Bumped one notch lighter — the prior values landed at ~6.7:1
+   * contrast against surface, technically WCAG-passing but visibly
+   * blending into the dark ground on consumer monitors. The muted /
+   * whisper spread is preserved so the title → body → caption hierarchy
+   * still reads, just at a higher absolute baseline. */
+  --color-muted: #bcb8b3;
+  --color-whisper: #78756f;
 
   /* No chromatic accent. The signal IS paper — high-contrast monochrome
    * is the differentiator now that every "modern dapp" reaches for the
