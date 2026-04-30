@@ -110,6 +110,34 @@
     display: grid;
     grid-template-rows: auto 1fr auto;
   }
+  /* Skip-to-main link. Off-screen until focused; on focus, slides into
+   * the top-left as a high-contrast paper-on-ink pill. The link is the
+   * first focusable element in the document so keyboard users get past
+   * the sticky header + nav with one Tab. WCAG 2.4.1. */
+  .lj-skip-link {
+    position: absolute;
+    top: 0;
+    left: 0;
+    transform: translateY(-120%);
+    z-index: 50;
+    padding: 0.6rem 0.9rem;
+    background: var(--color-paper);
+    color: var(--color-ink);
+    font-family: var(--font-mono);
+    font-size: 0.78rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    text-decoration: none;
+    border: 1px solid var(--color-paper);
+    border-radius: var(--radius-sm);
+    transition: transform 120ms ease;
+  }
+  .lj-skip-link:focus,
+  .lj-skip-link:focus-visible {
+    transform: translateY(0.5rem) translateX(0.5rem);
+    outline: 2px solid var(--color-amber);
+    outline-offset: 2px;
+  }
   .lj-main {
     width: 100%;
     max-width: 60rem;
@@ -118,6 +146,14 @@
     display: flex;
     flex-direction: column;
     gap: 2rem;
+  }
+  /* Programmatic focus on <main> after skip-link click leaves a visible
+   * outline by default; we don't want it to look like the page is
+   * "selected." The tabIndex=-1 makes it focusable; this rule keeps the
+   * focus invisible. AT still receives the focus event correctly. */
+  .lj-main:focus,
+  .lj-main:focus-visible {
+    outline: none;
   }
   .lj-footer {
     border-top: 1px solid var(--color-rule);
@@ -191,6 +227,11 @@
     transition: color 120ms ease;
   }
   .lj-nav a:hover { color: var(--color-paper); }
+  .lj-nav a:focus-visible {
+    outline: 2px solid var(--color-signal);
+    outline-offset: 4px;
+    color: var(--color-paper);
+  }
   .lj-nav a[aria-current="page"] { color: var(--color-paper); }
   .lj-nav a[aria-current="page"]::after {
     content: "";
@@ -200,6 +241,10 @@
     bottom: -2px;
     height: 1px;
     background: var(--color-signal);
+  }
+  .lj-brand:focus-visible {
+    outline: 2px solid var(--color-signal);
+    outline-offset: 4px;
   }
 
   /* Language picker — sits between nav and wallet pill, styled to read
@@ -547,6 +592,11 @@
     transition: border-color 120ms ease;
   }
   .lj-wallet-pill:hover { border-color: var(--color-paper); }
+  .lj-wallet-pill:focus-visible {
+    outline: 2px solid var(--color-signal);
+    outline-offset: 2px;
+    border-color: var(--color-paper);
+  }
   .lj-wallet-pill__addr { color: var(--color-muted); font-size: 0.74rem; }
   .lj-wallet-pill__icon {
     width: 16px; height: 16px;
@@ -612,6 +662,11 @@
     .lj-pillar { border-left: none; }
   }
   .lj-pillar:hover { background: var(--color-surface); }
+  .lj-pillar:focus-visible {
+    outline: 2px solid var(--color-signal);
+    outline-offset: -2px;
+    background: var(--color-surface);
+  }
   .lj-pillar__numeral {
     font-family: var(--font-mono);
     font-size: 0.78rem;
@@ -660,6 +715,15 @@
     cursor: grab;
   }
   .lj-slider:active::-webkit-slider-thumb { cursor: grabbing; }
+  .lj-slider:focus-visible::-webkit-slider-thumb {
+    outline: 2px solid var(--color-amber);
+    outline-offset: 2px;
+  }
+  .lj-slider:focus-visible::-moz-range-thumb {
+    outline: 2px solid var(--color-amber);
+    outline-offset: 2px;
+  }
+  .lj-slider:focus { outline: none; }
 
   .lj-meter { display: flex; gap: 3px; margin-top: 0.4rem; }
   .lj-meter__seg { flex: 1; height: 4px; background: var(--color-rule); border-radius: 0; }
@@ -688,6 +752,16 @@
     vertical-align: middle;
   }
   .lj-table tr:hover td { background: color-mix(in oklab, var(--color-surface) 70%, transparent); }
+  /* Row focus (when a checkbox inside the row receives focus, browsers
+   * don't propagate :focus-within unless we ask). Highlight the row so
+   * keyboard users can see which row their checkbox belongs to. */
+  .lj-table tr:focus-within td {
+    background: color-mix(in oklab, var(--color-surface) 50%, transparent);
+  }
+  .lj-table input[type="checkbox"]:focus-visible {
+    outline: 2px solid var(--color-signal);
+    outline-offset: 2px;
+  }
   .lj-table td.lj-table__num,
   .lj-table th.lj-table__num {
     font-family: var(--font-mono);
@@ -727,6 +801,12 @@
     box-shadow: inset 0 -1px 0 var(--color-paper);
   }
   .lj-toggle button:hover:not([aria-pressed="true"]) { color: var(--color-paper); }
+  .lj-toggle button:focus-visible {
+    outline: 2px solid var(--color-signal);
+    outline-offset: -2px;
+    color: var(--color-paper);
+    z-index: 1;
+  }
 
   .lj-empty {
     text-align: center;
@@ -773,6 +853,11 @@
   .lj-hash--copy:hover {
     color: var(--color-paper);
     border-bottom-color: var(--color-rule-strong);
+  }
+  .lj-hash--copy:focus-visible {
+    outline: 2px solid var(--color-signal);
+    outline-offset: 2px;
+    color: var(--color-paper);
   }
 
   /* ---------------------------------------------------------------- Toaster */
@@ -839,6 +924,16 @@
     width: fit-content;
   }
   .lj-toast__link:hover { border-bottom-color: var(--color-amber); }
+  .lj-toast__link:focus-visible {
+    outline: 2px solid var(--color-amber);
+    outline-offset: 2px;
+    border-bottom-color: var(--color-amber);
+  }
+  .lj-toast__close:focus-visible {
+    outline: 2px solid var(--color-paper);
+    outline-offset: 2px;
+    color: var(--color-paper);
+  }
   .lj-toast__close {
     appearance: none;
     background: transparent;

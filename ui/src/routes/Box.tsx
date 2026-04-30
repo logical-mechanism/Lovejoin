@@ -213,11 +213,12 @@ export function Box() {
             aria-busy={submitting}
           >
             <fieldset disabled={submitting} className="space-y-6 contents">
-              <label className="lj-field">
-                <span className="lj-field__label">
+              <div className="lj-field">
+                <label className="lj-field__label" htmlFor="box-destination">
                   {t("withdraw.destination_label")}
-                </span>
+                </label>
                 <input
+                  id="box-destination"
                   type="text"
                   value={destination}
                   onChange={(e) => setDestination(e.target.value)}
@@ -234,36 +235,39 @@ export function Box() {
                     validation.status === "invalid" ||
                     validation.status === "wrong-network"
                   }
+                  aria-describedby="box-destination-help"
                 />
-                {validation.status === "invalid" && (
-                  <p className="lj-field__error" role="alert">
-                    {t("withdraw.dest_invalid")}
-                  </p>
-                )}
-                {validation.status === "wrong-network" && (
-                  <p className="lj-field__warn" role="alert">
-                    {t("withdraw.dest_wrong_network", {
-                      addressNet:
-                        validation.addressNetwork === "testnet"
-                          ? t("withdraw.net_testnet")
-                          : t("withdraw.net_mainnet"),
-                      expected: config.network,
-                    })}
-                  </p>
-                )}
-                {validation.status === "ok" &&
-                  validation.kind.kind === "regular-key" && (
-                    <p className="lj-field__hint">
-                      {t("withdraw.dest_regular_key")}
+                <div id="box-destination-help">
+                  {validation.status === "invalid" && (
+                    <p className="lj-field__error" role="alert">
+                      {t("withdraw.dest_invalid")}
                     </p>
                   )}
-                {validation.status === "ok" &&
-                  validation.kind.kind === "stealth" && (
-                    <p className="lj-field__hint">
-                      {t("withdraw.dest_stealth")}
+                  {validation.status === "wrong-network" && (
+                    <p className="lj-field__warn" role="alert">
+                      {t("withdraw.dest_wrong_network", {
+                        addressNet:
+                          validation.addressNetwork === "testnet"
+                            ? t("withdraw.net_testnet")
+                            : t("withdraw.net_mainnet"),
+                        expected: config.network,
+                      })}
                     </p>
                   )}
-              </label>
+                  {validation.status === "ok" &&
+                    validation.kind.kind === "regular-key" && (
+                      <p className="lj-field__hint">
+                        {t("withdraw.dest_regular_key")}
+                      </p>
+                    )}
+                  {validation.status === "ok" &&
+                    validation.kind.kind === "stealth" && (
+                      <p className="lj-field__hint">
+                        {t("withdraw.dest_stealth")}
+                      </p>
+                    )}
+                </div>
+              </div>
 
               <WithdrawReview
                 lovelace={box.entry.utxo.lovelace}

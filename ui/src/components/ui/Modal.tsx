@@ -8,8 +8,14 @@
 // overflow:hidden ancestors), and traps focus inside the dialog while
 // open — Tab cycles forward through descendants, Shift+Tab backwards,
 // and the previously-focused element gets focus back on close.
+//
+// A11y posture: role="dialog" + aria-modal="true" + aria-labelledby
+// pointing at a visually-hidden title node (so AT speaks a stable
+// title even when the visible header markup is custom per modal). The
+// surrounding #root tree is marked inert while the modal is open so
+// AT and Tab both treat the rest of the document as unreachable.
 
-import { useEffect, useRef } from "react";
+import { useEffect, useId, useRef } from "react";
 import { createPortal } from "react-dom";
 
 export interface ModalProps {
@@ -35,6 +41,7 @@ const FOCUSABLE_SELECTOR = [
 export function Modal({ open, onClose, title, className, children }: ModalProps) {
   const dialogRef = useRef<HTMLDivElement | null>(null);
   const restoreRef = useRef<HTMLElement | null>(null);
+  const titleId = useId();
 
   useEffect(() => {
     if (!open) return;
@@ -92,10 +99,33 @@ export function Modal({ open, onClose, title, className, children }: ModalProps)
     const prev = document.body.style.overflow;
     document.body.style.overflow = "hidden";
 
+    // Inert the rest of the document so AT + sequential focus skip
+    // everything outside the dialog. The modal is portalled into
+    // document.body, so we mark every direct child of <body> as inert
+    // *except* the backdrop wrapper (which holds this dialog). On
+    // close we revert. Browsers without inert support gracefully
+    // ignore the attribute; the focus trap above still keeps Tab inside.
+    const dialogEl = dialogRef.current;
+    const backdropEl = dialogEl?.parentElement ?? null;
+    const inertedSiblings: HTMLElement[] = [];
+    if (backdropEl) {
+      for (const child of Array.from(document.body.children)) {
+        if (!(child instanceof HTMLElement)) continue;
+        if (child === backdropEl) continue;
+        if (!child.hasAttribute("inert")) {
+          child.setAttribute("inert", "");
+          inertedSiblings.push(child);
+        }
+      }
+    }
+
     return () => {
       window.cancelAnimationFrame(raf);
       window.removeEventListener("keydown", onKey);
       document.body.style.overflow = prev;
+      for (const el of inertedSiblings) {
+        el.removeAttribute("inert");
+      }
       // Hand focus back to whatever opened us. Guard the .focus() call;
       // the original element may have been removed from the DOM during
       // the modal's lifetime.
@@ -120,10 +150,14 @@ export function Modal({ open, onClose, title, className, children }: ModalProps)
         ref={dialogRef}
         role="dialog"
         aria-modal="true"
-        aria-label={title}
+        aria-labelledby={titleId}
         tabIndex={-1}
         className={`lj-modal ${className ?? ""}`.trim()}
       >
+        {/* Visually-hidden title node referenced by aria-labelledby. We
+         * still let consumers render a custom visible header inside; the
+         * sr-only copy keeps the accessible name stable regardless. */}
+        <span id={titleId} className="sr-only">{title}</span>
         {children}
       </div>
     </div>,

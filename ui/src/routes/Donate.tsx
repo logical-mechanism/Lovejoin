@@ -209,10 +209,13 @@ export function Donate() {
         <div className="mt-6">
           <Eyebrow>{t("donate.shards_title")}</Eyebrow>
           <table className="lj-table mt-3">
+            <caption className="sr-only">{t("donate.shards_caption")}</caption>
             <thead>
               <tr>
-                <th>{t("donate.shard_ref")}</th>
-                <th className="lj-table__num">{t("donate.shard_balance")}</th>
+                <th scope="col">{t("donate.shard_ref")}</th>
+                <th scope="col" className="lj-table__num">
+                  {t("donate.shard_balance")}
+                </th>
               </tr>
             </thead>
             <tbody>
@@ -237,10 +240,14 @@ export function Donate() {
         aria-busy={submitting}
       >
         <fieldset disabled={submitting} className="contents">
-          <label className="lj-field">
-            <span className="lj-field__label">{t("donate.amount_label")}</span>
+          <div className="lj-field">
+            <label className="lj-field__label" htmlFor="donate-amount">
+              {t("donate.amount_label")}
+            </label>
             <input
+              id="donate-amount"
               type="number"
+              inputMode="decimal"
               min={MIN_AMOUNT_ADA}
               max={MAX_AMOUNT_ADA}
               step="any"
@@ -254,9 +261,12 @@ export function Donate() {
                 }
               }}
               className="lj-input max-w-[10rem]"
+              aria-describedby="donate-amount-help"
             />
-            <span className="lj-field__hint">{t("donate.amount_help")}</span>
-          </label>
+            <span id="donate-amount-help" className="lj-field__hint">
+              {t("donate.amount_help")}
+            </span>
+          </div>
 
           <div className="lj-banner lj-banner--signal">
             <span className="lj-eyebrow">{t("donate.tx_preview_title")}</span>
