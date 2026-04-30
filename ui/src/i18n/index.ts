@@ -22,9 +22,8 @@ const resources: Record<string, { translation: Record<string, unknown> }> = {
 };
 for (const [path, mod] of Object.entries(localeModules)) {
   const match = /\/([a-z]{2})\.json$/.exec(path);
-  if (!match) continue;
-  const code = match[1];
-  if (!isSupportedLang(code)) continue;
+  const code = match?.[1];
+  if (!code || !isSupportedLang(code)) continue;
   if (code === "en") continue;
   resources[code] = { translation: mod.default };
 }
