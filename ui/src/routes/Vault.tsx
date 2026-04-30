@@ -26,6 +26,7 @@ import { useTranslation } from "react-i18next";
 import {
   GivemeMyProvider,
   buildBulkWithdrawTx,
+  isInputCollisionError,
   type BulkWithdrawEntry,
 } from "@lovejoin/sdk";
 
@@ -281,6 +282,7 @@ function UnlockedVault() {
         collateralProvider,
         retry: {
           maxAttempts: 3,
+          delayBetweenAttemptsMs: 2_000,
           onRetry: (info) => setRetryAttempt(info.attempt),
         },
       });
@@ -306,10 +308,11 @@ function UnlockedVault() {
       setDestination("");
       window.setTimeout(() => void rescan(), 12_000);
     } catch (err) {
+      const busy = isInputCollisionError(err);
       toast.push({
         tone: "error",
-        title: t("toast.withdraw_failed"),
-        detail: (err as Error).message,
+        title: busy ? t("tx.busy_title") : t("toast.withdraw_failed"),
+        detail: busy ? t("tx.busy_detail") : (err as Error).message,
       });
     } finally {
       setSubmitting(false);

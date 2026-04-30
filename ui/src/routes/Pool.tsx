@@ -27,7 +27,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Link } from "react-router-dom";
-import type { MixFeePayer } from "@lovejoin/sdk";
+import { isInputCollisionError, type MixFeePayer } from "@lovejoin/sdk";
 
 import { MixButton } from "../components/MixButton.js";
 import { useBackendStatus } from "../components/BackendStatus.js";
@@ -309,13 +309,14 @@ export function Pool() {
                       network: config.network,
                     })
                   }
-                  onError={(msg) =>
+                  onError={(msg) => {
+                    const busy = isInputCollisionError(msg);
                     toast.push({
                       tone: "error",
-                      title: t("toast.mix_failed"),
-                      detail: friendlyErrorMessage(msg, t),
-                    })
-                  }
+                      title: busy ? t("tx.busy_title") : t("toast.mix_failed"),
+                      detail: busy ? t("tx.busy_detail") : friendlyErrorMessage(msg, t),
+                    });
+                  }}
                 />
               ) : null}
               <span className="text-xs text-whisper">

@@ -39,7 +39,9 @@
     "dismiss": "Dismiss"
   },
   "tx": {
-    "retrying_collision": "A targeted UTxO was just consumed. Retrying with a fresh pick (attempt {{attempt}})…"
+    "retrying_collision": "A targeted UTxO was just consumed. Retrying with a fresh pick (attempt {{attempt}})…",
+    "busy_title": "Try again in a moment",
+    "busy_detail": "The protocol is currently busy: every targeted UTxO was consumed by another transaction. Wait a few seconds and submit again."
   },
   "errors": {
     "network": "Network error. Check your connection and try again.",

@@ -111,6 +111,18 @@ export interface BuildDonateArgs {
   addresses: LovejoinAddresses;
   /** Optional pre-picked fee shard. Default: pick uniformly at random. */
   feeShard?: Utxo;
+  /**
+   * Optional UTxO refs to exclude when picking a fee shard. Reserved
+   * for mempool-aware shard selection: a future backend follow-up can
+   * expose the set of refs that are already inputs to in-flight txs,
+   * and the SDK skips them. Without this, the SDK picks uniformly
+   * across all live shards regardless of mempool state.
+   *
+   * No UI surface populates this today; staged so the backend wiring
+   * is the only thing left to add when we lift it from a hint to a
+   * real check.
+   */
+  excludeFeeShardRefs?: ReadonlyArray<UtxoRef>;
   /** Optional collateral provider. Default: WalletProvider(wallet). */
   collateralProvider?: CollateralProvider;
   /** If true, sign but don't submit. Default: false. */
@@ -186,6 +198,9 @@ export async function buildDonateTx(args: BuildDonateArgs): Promise<DonateResult
         : await pickRandomFeeShard({
             provider: args.provider,
             feeScriptAddressBech32: feeAddress,
+            ...(args.excludeFeeShardRefs && args.excludeFeeShardRefs.length > 0
+              ? { excludeRefs: args.excludeFeeShardRefs }
+              : {}),
           });
 
     const plan = planDonateTx({

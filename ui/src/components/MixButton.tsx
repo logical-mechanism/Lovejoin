@@ -51,9 +51,11 @@ import {
   type Utxo,
 } from "@lovejoin/sdk";
 
+import { BackendClient } from "../lib/backend.js";
 import { formatAda } from "../lib/format.js";
 import type { Network } from "../lib/sdk.js";
 import { useAppState } from "../lib/store.js";
+import { useBackendStatus } from "./BackendStatus.js";
 import {
   useCollateralStatus,
   useRefreshCollateralStatus,
@@ -103,8 +105,9 @@ export function MixButton({
   onSubmittingChange,
 }: MixButtonProps) {
   const { t } = useTranslation();
-  const { ownedBoxes, markTxPending, walletLovelace, refreshWalletBalance } =
+  const { config, ownedBoxes, markTxPending, walletLovelace, refreshWalletBalance } =
     useAppState();
+  const backend = useBackendStatus();
   const [submitting, setSubmitting] = useState(false);
   const [retryAttempt, setRetryAttempt] = useState<number | null>(null);
   const [cooldown, setCooldown] = useState(0);
@@ -172,12 +175,56 @@ export function MixButton({
     setRetryAttempt(null);
     onSubmittingChange?.(true);
     try {
+      // Best-effort mempool snapshot. We use it for two filters:
+      //   1. Pool-box exclusion: drop any box that's already an input to
+      //      an in-flight tx (someone else's Mix consuming the same box).
+      //   2. Fee-shard exclusion: forwarded to the SDK so pickRandomFeeShard
+      //      avoids in-flight shards (passed as excludeFeeShardRefs).
+      // Backend-only feature; on Blockfrost-only deploys this stays empty
+      // and the retry path absorbs collisions.
+      const useBackend =
+        !!config.backendUrl &&
+        (backend?.status === "synced" || backend?.status === "syncing");
+      let mempoolRefs = new Set<string>();
+      if (useBackend) {
+        try {
+          const client = new BackendClient(config.backendUrl);
+          const snap = await client.mempoolInputs();
+          if (snap) {
+            for (const r of snap.inputs) {
+              mempoolRefs.add(`${r.txHash.toLowerCase()}#${r.outputIndex}`);
+            }
+          }
+        } catch {
+          /* mempool fetch failed; fall through to retry-only */
+        }
+      }
+      const poolForPicking =
+        mempoolRefs.size > 0
+          ? poolEntries.filter((e) => !mempoolRefs.has(refKey(e.ref)))
+          : poolEntries;
+      // If filtering left too few boxes for the chosen N, fall back to
+      // the full pool. The retry path will catch the resulting collision
+      // if it happens; better than refusing to mix at all.
+      const effectivePool =
+        poolForPicking.length >= n ? poolForPicking : poolEntries;
       const picked = pickMixInputs({
-        pool: poolEntries,
+        pool: effectivePool,
         n,
         feePayer,
         ownedRefs: ownedRefSet,
       });
+      const excludeFeeShardRefs =
+        feePayer === "shard" && mempoolRefs.size > 0
+          ? Array.from(mempoolRefs).flatMap((key) => {
+              const hash = key.indexOf("#");
+              if (hash <= 0) return [];
+              const idx = Number(key.slice(hash + 1));
+              return Number.isInteger(idx) && idx >= 0
+                ? [{ txId: key.slice(0, hash), outputIndex: idx }]
+                : [];
+            })
+          : undefined;
       const inputs = picked.map<MixInput>((e) => {
         const utxo: Utxo = {
           ref: e.ref,
@@ -201,8 +248,10 @@ export function MixButton({
         provider,
         addresses,
         feePayer,
+        ...(excludeFeeShardRefs ? { excludeFeeShardRefs } : {}),
         retry: {
           maxAttempts: 3,
+          delayBetweenAttemptsMs: 2_000,
           onRetry: (info) => setRetryAttempt(info.attempt),
         },
       });

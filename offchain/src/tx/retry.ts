@@ -74,6 +74,14 @@ export interface RetryOptions {
    */
   maxAttempts?: number;
   /**
+   * Delay between attempts in ms. Default: 0 (immediate retry). The UI
+   * typically passes ~2000 so retries straddle a Cardano block boundary
+   * (~20s blocks; most mempool txs land within one block, freeing
+   * shards that were transiently in flight). The delay only fires on
+   * a collision retry, not on success or non-collision errors.
+   */
+  delayBetweenAttemptsMs?: number;
+  /**
    * Optional callback invoked just before each retry attempt. The UI
    * uses this to surface "retrying with a fresh shard..." feedback so
    * the user understands why their wallet is prompting again.
@@ -93,6 +101,7 @@ export async function withInputCollisionRetry<T>(
   options?: RetryOptions,
 ): Promise<T> {
   const maxAttempts = Math.max(1, options?.maxAttempts ?? 1);
+  const delayMs = Math.max(0, options?.delayBetweenAttemptsMs ?? 0);
   let lastErr: unknown;
   for (let attempt = 1; attempt <= maxAttempts; attempt++) {
     try {
@@ -104,6 +113,9 @@ export async function withInputCollisionRetry<T>(
         attempt: attempt + 1,
         error: err instanceof Error ? err : new Error(String(err)),
       });
+      if (delayMs > 0) {
+        await new Promise((resolve) => setTimeout(resolve, delayMs));
+      }
     }
   }
   // Unreachable: the loop either returns or throws on the last iteration.

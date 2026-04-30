@@ -116,4 +116,33 @@ describe("tx/retry withInputCollisionRetry", () => {
     );
     expect(seen).toEqual([1, 2, 3]);
   });
+
+  it("waits delayBetweenAttemptsMs between collision retries", async () => {
+    let calls = 0;
+    const t0 = Date.now();
+    await withInputCollisionRetry(
+      async () => {
+        calls += 1;
+        if (calls < 3) throw new Error("BadInputsUTxO");
+        return null;
+      },
+      { maxAttempts: 5, delayBetweenAttemptsMs: 30 },
+    );
+    const elapsed = Date.now() - t0;
+    // Two retries × 30 ms = 60 ms minimum. Allow generous slack for
+    // CI scheduler jitter; we just want to know the delay actually
+    // ran (not a regression to no-delay).
+    expect(elapsed).toBeGreaterThanOrEqual(50);
+    expect(calls).toBe(3);
+  });
+
+  it("does not delay on success or non-collision errors", async () => {
+    const t0 = Date.now();
+    const ok = await withInputCollisionRetry(
+      async () => "fast",
+      { maxAttempts: 3, delayBetweenAttemptsMs: 100 },
+    );
+    expect(ok).toBe("fast");
+    expect(Date.now() - t0).toBeLessThan(50);
+  });
 });

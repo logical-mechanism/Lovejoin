@@ -22,6 +22,7 @@ import { Link, useNavigate, useParams } from "react-router-dom";
 import {
   GivemeMyProvider,
   buildWithdrawTx,
+  isInputCollisionError,
   type MixBoxRef,
 } from "@lovejoin/sdk";
 
@@ -128,6 +129,7 @@ export function Box() {
         collateralProvider,
         retry: {
           maxAttempts: 3,
+          delayBetweenAttemptsMs: 2_000,
           onRetry: (info) => setRetryAttempt(info.attempt),
         },
       });
@@ -143,10 +145,11 @@ export function Box() {
       window.setTimeout(() => void rescan(), 12_000);
       navigate("/vault");
     } catch (err) {
+      const busy = isInputCollisionError(err);
       toast.push({
         tone: "error",
-        title: t("toast.withdraw_failed"),
-        detail: (err as Error).message,
+        title: busy ? t("tx.busy_title") : t("toast.withdraw_failed"),
+        detail: busy ? t("tx.busy_detail") : (err as Error).message,
       });
     } finally {
       setSubmitting(false);

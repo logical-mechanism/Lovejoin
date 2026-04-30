@@ -57,6 +57,24 @@ export interface FeeSnapshot {
   estimatedMixesAvailable: number;
 }
 
+export interface MempoolInputRef {
+  txHash: string;
+  outputIndex: number;
+}
+
+export interface MempoolInputsSnapshot {
+  /** Slot the snapshot was acquired at; 0 before first poll. */
+  slot: number;
+  /** Acquisition time in epoch ms; 0 means "no snapshot yet". */
+  acquiredAtMs: number;
+  /** How old the snapshot is at request time, in ms. */
+  ageMs: number;
+  /** How many txs were in the mempool at acquisition time. */
+  txCount: number;
+  /** Union of every input ref consumed by every mempool tx. */
+  inputs: MempoolInputRef[];
+}
+
 export class BackendClient {
   constructor(private readonly baseUrl: string) {
     if (!/^https?:\/\//.test(baseUrl)) {
@@ -84,6 +102,17 @@ export class BackendClient {
 
   async fee(signal?: AbortSignal): Promise<FeeSnapshot | null> {
     return this.getJson<FeeSnapshot>("/fee", signal);
+  }
+
+  /**
+   * Fetch the current mempool input set. Used for mempool-aware fee-shard
+   * picking so a donate or mix doesn't grab a shard that's already an
+   * input to an in-flight tx. Returns null on error or unreachable
+   * backend; callers treat null the same as "no mempool data, fall
+   * through to retry-only behaviour."
+   */
+  async mempoolInputs(signal?: AbortSignal): Promise<MempoolInputsSnapshot | null> {
+    return this.getJson<MempoolInputsSnapshot>("/mempool/inputs", signal);
   }
 
   private async getJson<T>(path: string, signal?: AbortSignal): Promise<T | null> {

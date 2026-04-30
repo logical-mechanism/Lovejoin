@@ -45,6 +45,19 @@ export interface RedeemerBudget {
   budget: { memory: number; cpu: number };
 }
 
+/**
+ * Subset of the ogmios v6 transaction shape that we read for mempool
+ * acquisition. Ogmios returns much more (datums, redeemers, signatures,
+ * outputs, etc.) but the only field we care about is `inputs`.
+ */
+export interface MempoolTransaction {
+  id: string;
+  inputs: Array<{
+    transaction: { id: string };
+    index: number;
+  }>;
+}
+
 export class OgmiosTxClient {
   private socket: OgmiosTxSocket | null = null;
   private connected: Promise<void> | null = null;
@@ -148,6 +161,48 @@ export class OgmiosTxClient {
    */
   async protocolParameters(): Promise<unknown> {
     return this.request("queryLedgerState/protocolParameters", {});
+  }
+
+  // ---------------------------------------------------------------
+  // Mempool acquisition (Ogmios v6 mempool protocol).
+  //
+  // Pattern: acquireMempool → loop nextTransaction → releaseMempool.
+  // The acquired snapshot is pinned to a slot and won't shift mid-walk
+  // even if new txs arrive. We pass `fields: "all"` so the response
+  // includes input refs (otherwise nextTransaction returns just a txid).
+  //
+  // Mempool visibility is the cardano-node's view: every tx propagated
+  // through the network's mempool gossip, regardless of which submission
+  // endpoint produced it. So a Blockfrost user's tx that consumes a fee
+  // shard shows up here too with sub-second propagation lag in practice.
+  //
+  // We piggyback on the existing tx WebSocket; it's idle between submits
+  // and mempool acquisition is mutually exclusive with submitTransaction
+  // anyway (one in-flight ogmios request at a time).
+
+  /** Acquire a mempool snapshot. Returns the slot of the snapshot. */
+  async acquireMempool(): Promise<number> {
+    const result = (await this.request("acquireMempool", {})) as {
+      slot?: number;
+    };
+    return typeof result?.slot === "number" ? result.slot : 0;
+  }
+
+  /**
+   * Pull the next transaction in the acquired snapshot. Returns the raw
+   * ogmios `transaction` object (with `inputs: [{transaction:{id},index}]`)
+   * or `null` when the snapshot is exhausted.
+   */
+  async nextMempoolTransaction(): Promise<MempoolTransaction | null> {
+    const result = (await this.request("nextTransaction", {
+      fields: "all",
+    })) as { transaction?: MempoolTransaction | null };
+    return result?.transaction ?? null;
+  }
+
+  /** Release the acquired snapshot. Best-effort; ogmios doesn't fail. */
+  async releaseMempool(): Promise<void> {
+    await this.request("releaseMempool", {});
   }
 
   // ---------------------------------------------------------------

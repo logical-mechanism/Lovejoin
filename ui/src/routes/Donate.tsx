@@ -13,7 +13,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 
-import { buildDonateTx } from "@lovejoin/sdk";
+import { buildDonateTx, isInputCollisionError } from "@lovejoin/sdk";
 
 import { useAppState } from "../lib/store.js";
 import { Eyebrow } from "../components/ui/Eyebrow.js";
@@ -121,14 +121,35 @@ export function Donate() {
     setSubmitting(true);
     setRetryAttempt(null);
     try {
+      // Best-effort mempool snapshot so we don't pick a shard that's
+      // already an input to an in-flight tx. Backend-only feature; on
+      // Blockfrost-only deploys this stays null and the retry path
+      // absorbs collisions instead.
+      let excludeFeeShardRefs: Array<{ txId: string; outputIndex: number }> | undefined;
+      if (useBackend) {
+        try {
+          const client = new BackendClient(config.backendUrl);
+          const snap = await client.mempoolInputs();
+          if (snap && snap.inputs.length > 0) {
+            excludeFeeShardRefs = snap.inputs.map((r) => ({
+              txId: r.txHash,
+              outputIndex: r.outputIndex,
+            }));
+          }
+        } catch {
+          /* mempool fetch failed; fall through to retry-only */
+        }
+      }
       const result = await buildDonateTx({
         network: config.network as "preprod" | "preview" | "mainnet",
         donationLovelace,
         wallet,
         provider,
         addresses,
+        ...(excludeFeeShardRefs ? { excludeFeeShardRefs } : {}),
         retry: {
           maxAttempts: 3,
+          delayBetweenAttemptsMs: 2_000,
           onRetry: (info) => setRetryAttempt(info.attempt),
         },
       });
@@ -148,10 +169,11 @@ export function Donate() {
         }, 12_000);
       }
     } catch (err) {
+      const busy = isInputCollisionError(err);
       toast.push({
         tone: "error",
-        title: t("toast.donate_failed"),
-        detail: (err as Error).message,
+        title: busy ? t("tx.busy_title") : t("toast.donate_failed"),
+        ...(busy ? { detail: t("tx.busy_detail") } : { detail: (err as Error).message }),
       });
     } finally {
       setSubmitting(false);

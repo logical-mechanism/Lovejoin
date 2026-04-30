@@ -776,6 +776,16 @@ export interface BuildMixArgs {
    */
   feeShard?: Utxo;
   /**
+   * Optional UTxO refs to exclude when picking a fee shard. The UI
+   * passes the set of refs that are currently inputs to in-flight
+   * mempool txs (sourced from the backend's `/mempool/inputs` route);
+   * the SDK skips them when picking. Ignored in wallet mode (no fee
+   * shard picked) and when `feeShard` is supplied. With backend-less
+   * Blockfrost deploys this stays empty and the retry path absorbs
+   * collisions instead.
+   */
+  excludeFeeShardRefs?: ReadonlyArray<UtxoRef>;
+  /**
    * Collateral provider. Defaults to a `GivemeMyProvider` wired against the
    * pinned host for `args.network` — Mix txs MUST be wallet-anonymous, and
    * a wallet-supplied collateral leaks the submitter's identity onto the
@@ -868,6 +878,9 @@ export async function buildMixTx(args: BuildMixArgs): Promise<MixResult> {
             networkId,
             null,
           ),
+          ...(args.excludeFeeShardRefs && args.excludeFeeShardRefs.length > 0
+            ? { excludeRefs: args.excludeFeeShardRefs }
+            : {}),
         }));
   }
 

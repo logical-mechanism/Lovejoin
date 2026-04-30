@@ -279,6 +279,56 @@ describe("API: /fee", () => {
   });
 });
 
+describe("API: /mempool/inputs", () => {
+  it("returns an empty snapshot when no poller is wired", async () => {
+    const res = await server.inject({ method: "GET", url: "/mempool/inputs" });
+    expect(res.statusCode).toBe(200);
+    const body = res.json();
+    expect(body.acquiredAtMs).toBe(0);
+    expect(body.txCount).toBe(0);
+    expect(body.inputs).toEqual([]);
+  });
+
+  it("surfaces the snapshot when a poller is wired", async () => {
+    const stubPoller = {
+      snapshot: () => ({
+        slot: 12345,
+        acquiredAtMs: 100_000,
+        inputs: new Set([
+          `${"aa".repeat(32)}#0`,
+          `${"bb".repeat(32)}#3`,
+        ]),
+        txCount: 2,
+      }),
+    };
+    const local = await buildServer({
+      state,
+      runtime: null,
+      config: CONFIG,
+      dbsync: new StubDbSyncClient({}),
+      mempoolPoller: stubPoller as never,
+      nowMs: () => 102_500,
+    });
+    try {
+      const res = await local.inject({ method: "GET", url: "/mempool/inputs" });
+      expect(res.statusCode).toBe(200);
+      const body = res.json();
+      expect(body.slot).toBe(12345);
+      expect(body.acquiredAtMs).toBe(100_000);
+      expect(body.ageMs).toBe(2500);
+      expect(body.txCount).toBe(2);
+      expect(body.inputs).toHaveLength(2);
+      const refs = body.inputs.map((r: { txHash: string; outputIndex: number }) =>
+        `${r.txHash}#${r.outputIndex}`,
+      );
+      expect(refs).toContain(`${"aa".repeat(32)}#0`);
+      expect(refs).toContain(`${"bb".repeat(32)}#3`);
+    } finally {
+      await local.close();
+    }
+  });
+});
+
 describe("API: /history/:address", () => {
   it("returns the stub history with source=dbsync", async () => {
     const res = await server.inject({
