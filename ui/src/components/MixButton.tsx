@@ -17,8 +17,29 @@
 // a wallet (the wallet pays the fee + signs); the button disables
 // itself with an inline hint when that combination is selected without
 // a wallet present.
+//
+// Box-selection strategy (see pickMixInputs):
+//   * Shard mode → uniform random over the whole pool. The whole point
+//     of the shared path is "truly random" — submitter anonymity is
+//     wasted if the on-chain shape of the inputs leaks who picked.
+//   * Wallet mode + locked vault / no owned boxes / no owned in pool →
+//     uniform random. We can't bias toward unknown owned boxes.
+//   * Wallet mode + small pool (< POOL_BIAS_THRESHOLD) + at least one
+//     owned box visible in the pool → force-include exactly one of the
+//     submitter's own boxes, fill the rest from non-owned. The wallet's
+//     pkh is already on the tx (it pays the fee), so an observer can
+//     correlate submitter→inputs anyway; the privacy floor isn't moved
+//     by force-inclusion. What it DOES buy is real progress for the
+//     fee they're spending — an early-pool user paying for wallet-mode
+//     wants to actively advance their own box's anonymity.
+//   * Wallet mode + healthy pool (≥ POOL_BIAS_THRESHOLD) → uniform
+//     random. In a healthy pool the natural-random hit rate on owned
+//     boxes is high enough that biasing is unnecessary, and "wallet-fee
+//     mix tx ALWAYS includes one of submitter's boxes" would leak a
+//     correlatable pattern across many txs — which random selection
+//     in a populated pool naturally avoids.
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { BrowserWallet } from "@meshsdk/core";
 import {
@@ -31,11 +52,15 @@ import {
 } from "@lovejoin/sdk";
 
 import type { Network } from "../lib/sdk.js";
+import { useAppState } from "../lib/store.js";
 import {
   useCollateralStatus,
   useRefreshCollateralStatus,
 } from "./CollateralProviderStatus.js";
 import { Modal } from "./ui/Modal.js";
+
+/** Pool-size cutoff for wallet-mode owned-box biasing. See header comment. */
+const POOL_BIAS_THRESHOLD = 8;
 
 const COOLDOWN_MS = 5000;
 
@@ -77,12 +102,23 @@ export function MixButton({
   onSubmittingChange,
 }: MixButtonProps) {
   const { t } = useTranslation();
+  const { ownedBoxes } = useAppState();
   const [submitting, setSubmitting] = useState(false);
   const [cooldown, setCooldown] = useState(0);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const cooldownTimer = useRef<number | null>(null);
   const collateral = useCollateralStatus();
   const refreshCollateral = useRefreshCollateralStatus();
+
+  // Set of owned box refs for the wallet-mode bias strategy. Empty when
+  // the vault is locked, when the user has no boxes, or when nothing
+  // they own is currently in the pool — pickMixInputs falls back to
+  // pure random in any of those cases. Memoized on `ownedBoxes` so it
+  // doesn't churn each render of the Pool screen.
+  const ownedRefSet = useMemo(
+    () => new Set(ownedBoxes.map((b) => refKey(b.entry.ref))),
+    [ownedBoxes],
+  );
 
   useEffect(() => {
     return () => {
@@ -124,7 +160,12 @@ export function MixButton({
     setSubmitting(true);
     onSubmittingChange?.(true);
     try {
-      const inputs = pickRandomBoxes(poolEntries, n).map<MixInput>((e) => {
+      const inputs = pickMixInputs({
+        pool: poolEntries,
+        n,
+        feePayer,
+        ownedRefs: ownedRefSet,
+      }).map<MixInput>((e) => {
         const utxo: Utxo = {
           ref: e.ref,
           address: "",
@@ -261,6 +302,66 @@ export function MixButton({
       </Modal>
     </div>
   );
+}
+
+/** Stable Set key for a UTxO ref. Lowercase tx-hash to match indexer canon. */
+function refKey(ref: { txId: string; outputIndex: number }): string {
+  return `${ref.txId.toLowerCase()}#${ref.outputIndex}`;
+}
+
+/**
+ * Mix-input picker with the shard / wallet / owned-bias strategy spelled
+ * out in the file header. Pure function — exported for unit tests so we
+ * can pin every branch (random, biased, biased-fallback).
+ *
+ * Returns an array of length `n`. Caller is responsible for ensuring
+ * `pool.length >= n` (the MixButton's `enoughBoxes` gate enforces it).
+ *
+ * Branch table:
+ *   shard mode                              → uniform random
+ *   wallet mode + owned set empty           → uniform random
+ *   wallet mode + nothing owned in pool     → uniform random
+ *   wallet mode + pool ≥ POOL_BIAS_THRESHOLD → uniform random
+ *   wallet mode + small pool + owned in pool:
+ *     - if non-owned has ≥ n-1 entries → 1 random owned + (n-1) random non-owned
+ *     - else (owned dominates the pool) → uniform random over the whole pool
+ */
+export function pickMixInputs<T extends { ref: { txId: string; outputIndex: number } }>(
+  args: {
+    pool: ReadonlyArray<T>;
+    n: number;
+    feePayer: MixFeePayer;
+    ownedRefs: ReadonlySet<string>;
+  },
+): T[] {
+  const { pool, n, feePayer, ownedRefs } = args;
+
+  const useBias =
+    feePayer === "wallet" &&
+    ownedRefs.size > 0 &&
+    pool.length < POOL_BIAS_THRESHOLD;
+
+  if (!useBias) {
+    return pickRandomBoxes(pool, n);
+  }
+
+  const ownedInPool = pool.filter((e) => ownedRefs.has(refKey(e.ref)));
+  if (ownedInPool.length === 0) {
+    // Vault unlocked but none of the user's boxes are currently in the
+    // pool — no bias possible, fall back to uniform random.
+    return pickRandomBoxes(pool, n);
+  }
+
+  const notOwned = pool.filter((e) => !ownedRefs.has(refKey(e.ref)));
+  if (notOwned.length < n - 1) {
+    // The user owns most or all of the small pool — fall back to uniform
+    // random. Forcing a 1-owned + (n-1)-non-owned shape isn't possible.
+    return pickRandomBoxes(pool, n);
+  }
+
+  const ownedPick = ownedInPool[Math.floor(Math.random() * ownedInPool.length)]!;
+  const others = pickRandomBoxes(notOwned, n - 1);
+  return [ownedPick, ...others];
 }
 
 function pickRandomBoxes<T>(items: ReadonlyArray<T>, n: number): T[] {
