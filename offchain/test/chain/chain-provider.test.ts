@@ -255,17 +255,13 @@ describe("BlockfrostProvider", () => {
 
   it("awaitConfirmation rejects after timeoutMs", async () => {
     const txId = "00".repeat(32);
+    // Use a single MockResponseBody (not an array) so the mock returns
+    // the same 404 for every poll iteration — this test only cares
+    // that the timeout fires with the right message, not how many
+    // polls happened. A finite array was racy on fast CI runners,
+    // which could squeeze in one more poll than the array's length.
     const responses = new Map<string, MockResponseBody | MockResponseBody[]>([
-      [
-        `${BASE}/txs/${txId}`,
-        [
-          { status: 404, text: "" },
-          { status: 404, text: "" },
-          { status: 404, text: "" },
-          { status: 404, text: "" },
-          { status: 404, text: "" },
-        ],
-      ],
+      [`${BASE}/txs/${txId}`, { status: 404, text: "" }],
     ]);
     const { provider: p } = provider(responses);
     await expect(p.awaitConfirmation(txId, 5)).rejects.toThrow(/not seen/);
