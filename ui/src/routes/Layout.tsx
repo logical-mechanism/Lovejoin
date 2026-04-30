@@ -73,6 +73,7 @@ export function Layout() {
 function routeTitleKey(pathname: string): string {
   if (pathname === "/" || pathname === "") return "page_title.home";
   if (pathname.startsWith("/deposit")) return "page_title.deposit";
+  if (pathname.startsWith("/donate")) return "page_title.donate";
   if (pathname.startsWith("/pool")) return "page_title.pool";
   if (pathname.startsWith("/protocol")) return "page_title.protocol";
   if (pathname.startsWith("/vault/")) return "page_title.box";

@@ -40,6 +40,7 @@ export function Header() {
           <NavLink to="/deposit">{t("nav.deposit")}</NavLink>
           <NavLink to="/pool">{t("nav.pool")}</NavLink>
           <NavLink to="/vault">{t("nav.vault")}</NavLink>
+          <NavLink to="/donate">{t("nav.donate")}</NavLink>
           <NavLink to="/protocol">{t("nav.protocol")}</NavLink>
         </nav>
 

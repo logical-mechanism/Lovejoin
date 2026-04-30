@@ -16,6 +16,7 @@ import type { DbSyncClient, HistoryClient } from "../db/dbsync.js";
 import type { IndexerState } from "../indexer/state.js";
 import type { IndexerRuntime } from "../indexer/runtime.js";
 import type { OgmiosTxClient } from "../indexer/ogmios-tx.js";
+import type { MempoolPoller } from "../indexer/mempool.js";
 
 export interface ApiServerDeps {
   state: IndexerState;
@@ -42,6 +43,12 @@ export interface ApiServerDeps {
    * surface still exists and clients see a meaningful error.
    */
   ogmiosTx?: OgmiosTxClient | null;
+  /**
+   * Mempool poller backing `/mempool/inputs`. Optional — when absent
+   * the route returns an empty snapshot so clients can keep working
+   * without mempool-aware picking.
+   */
+  mempoolPoller?: MempoolPoller | null;
   /** When set, used as the "now" for `lagSeconds`; tests pin it. */
   nowMs?: () => number;
 }
@@ -85,6 +92,7 @@ export async function buildServer(deps: ApiServerDeps): Promise<FastifyInstance>
   registerPool(fastify, deps);
   registerBox(fastify, deps);
   registerFee(fastify, deps);
+  registerMempool(fastify, deps);
   registerHistory(fastify, deps);
   registerSubmit(fastify, deps);
   registerEvaluate(fastify, deps);
@@ -278,6 +286,47 @@ function registerFee(fastify: FastifyInstance, deps: ApiServerDeps): void {
       })),
       maxFeePerMix: BigInt(deps.config.addresses.protocol.max_fee_per_mix_lovelace),
       estimatedMixesAvailable: snap.estimatedMixesAvailable,
+    };
+  });
+}
+
+/**
+ * `/mempool/inputs` — the union of every input ref in the cardano-node's
+ * current mempool. UI clients pass these as `excludeRefs` when picking a
+ * fee shard or pool box, eliminating most BadInputsUTxO collisions.
+ *
+ * Returns an empty snapshot when the poller is absent (tests, or
+ * misconfigured deploy) or when the first poll hasn't completed yet
+ * (`acquiredAtMs === 0`). Clients treat the empty case as "fall through
+ * to the retry path."
+ */
+function registerMempool(fastify: FastifyInstance, deps: ApiServerDeps): void {
+  fastify.get("/mempool/inputs", async () => {
+    const snap = deps.mempoolPoller?.snapshot() ?? null;
+    if (!snap) {
+      return {
+        slot: 0,
+        acquiredAtMs: 0,
+        ageMs: 0,
+        txCount: 0,
+        inputs: [] as Array<{ txHash: string; outputIndex: number }>,
+      };
+    }
+    const now = (deps.nowMs ?? Date.now)();
+    const inputs: Array<{ txHash: string; outputIndex: number }> = [];
+    for (const key of snap.inputs) {
+      const hash = key.indexOf("#");
+      if (hash <= 0) continue;
+      const outputIndex = Number(key.slice(hash + 1));
+      if (!Number.isInteger(outputIndex) || outputIndex < 0) continue;
+      inputs.push({ txHash: key.slice(0, hash), outputIndex });
+    }
+    return {
+      slot: snap.slot,
+      acquiredAtMs: snap.acquiredAtMs,
+      ageMs: snap.acquiredAtMs > 0 ? Math.max(0, now - snap.acquiredAtMs) : 0,
+      txCount: snap.txCount,
+      inputs,
     };
   });
 }

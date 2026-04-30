@@ -13,6 +13,7 @@ import { ErrorBoundary } from "./components/ErrorBoundary.js";
 import { ToasterProvider } from "./components/Toaster.js";
 import { Box } from "./routes/Box.js";
 import { Deposit } from "./routes/Deposit.js";
+import { Donate } from "./routes/Donate.js";
 import { Home } from "./routes/Home.js";
 import { Layout } from "./routes/Layout.js";
 import { Pool } from "./routes/Pool.js";
@@ -39,6 +40,7 @@ export function App() {
                   <Route element={<Layout />}>
                     <Route index element={<Home />} />
                     <Route path="deposit" element={<Deposit />} />
+                    <Route path="donate" element={<Donate />} />
                     <Route path="pool" element={<Pool />} />
                     <Route path="vault" element={<Vault />} />
                     <Route path="vault/:txid/:idx" element={<Box />} />

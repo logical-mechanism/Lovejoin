@@ -94,6 +94,7 @@ import {
   sumEvaluatorExUnits,
 } from "./fee-helpers.js";
 import { pickRandomFeeShard } from "./fee.js";
+import { type RetryOptions, withInputCollisionRetry } from "./retry.js";
 import { getMeshProtocolParams, getMeshProvider } from "./mesh-bridge.js";
 import {
   fetchProtocolParams,
@@ -775,6 +776,16 @@ export interface BuildMixArgs {
    */
   feeShard?: Utxo;
   /**
+   * Optional UTxO refs to exclude when picking a fee shard. The UI
+   * passes the set of refs that are currently inputs to in-flight
+   * mempool txs (sourced from the backend's `/mempool/inputs` route);
+   * the SDK skips them when picking. Ignored in wallet mode (no fee
+   * shard picked) and when `feeShard` is supplied. With backend-less
+   * Blockfrost deploys this stays empty and the retry path absorbs
+   * collisions instead.
+   */
+  excludeFeeShardRefs?: ReadonlyArray<UtxoRef>;
+  /**
    * Collateral provider. Defaults to a `GivemeMyProvider` wired against the
    * pinned host for `args.network` — Mix txs MUST be wallet-anonymous, and
    * a wallet-supplied collateral leaks the submitter's identity onto the
@@ -793,6 +804,19 @@ export interface BuildMixArgs {
   txFeeLovelace?: Lovelace;
   /** If true, sign but don't submit. Default: false. */
   signOnly?: boolean;
+  /**
+   * Retry on input collisions. Useful for shard mode under heavy mix
+   * activity: if the picked fee shard was consumed by another tx
+   * between build and submit, the SDK transparently re-picks a fresh
+   * shard and rebuilds. In wallet mode this still costs an extra
+   * signature per retry; in shard mode the retry is silent (no wallet).
+   * Pool-box collisions aren't auto-fixed (the caller owns input
+   * selection), so the retry will exhaust attempts and surface the
+   * original error in that case.
+   *
+   * Default: no retry (1 attempt). UI typically passes `{ maxAttempts: 3 }`.
+   */
+  retry?: RetryOptions;
   /**
    * Optional reproducibility hooks for tests. None of these affect the
    * plan structure — they just pin the random choices.
@@ -835,18 +859,29 @@ export async function buildMixTx(args: BuildMixArgs): Promise<MixResult> {
     );
   }
 
+  // Build + sign + submit, with retry on fee-shard collision. Attempts
+  // 2+ ignore `args.feeShard` and pick a fresh shard from chain (reusing
+  // the caller's pre-pick on retry would just re-trigger the same
+  // BadInputsUTxO). Pool-box collisions aren't auto-fixed; the retry
+  // would build the same tx and fail again, exhausting maxAttempts.
+  return withInputCollisionRetry(async (attempt) => {
   // Resolve the fee shard. Shard mode picks one if not supplied; wallet
   // mode skips this entirely (no shard input on the tx).
   let feeShard: Utxo | undefined;
   if (feePayer === "shard") {
-    feeShard = args.feeShard ?? (await pickRandomFeeShard({
-      provider: args.provider,
-      feeScriptAddressBech32: buildScriptAddress(
-        args.addresses.feeScriptHash,
-        networkId,
-        null,
-      ),
-    }));
+    feeShard = (attempt === 1 && args.feeShard)
+      ? args.feeShard
+      : (await pickRandomFeeShard({
+          provider: args.provider,
+          feeScriptAddressBech32: buildScriptAddress(
+            args.addresses.feeScriptHash,
+            networkId,
+            null,
+          ),
+          ...(args.excludeFeeShardRefs && args.excludeFeeShardRefs.length > 0
+            ? { excludeRefs: args.excludeFeeShardRefs }
+            : {}),
+        }));
   }
 
   const plan = planMixTx({
@@ -1231,6 +1266,7 @@ export async function buildMixTx(args: BuildMixArgs): Promise<MixResult> {
   }
   const txId = await args.provider.submitTx(signedTx);
   return { signedTxHex: signedTx, txId, plan };
+  }, args.retry);
 }
 
 /**

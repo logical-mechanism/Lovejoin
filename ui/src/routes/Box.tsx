@@ -22,6 +22,7 @@ import { Link, useNavigate, useParams } from "react-router-dom";
 import {
   GivemeMyProvider,
   buildWithdrawTx,
+  isInputCollisionError,
   type MixBoxRef,
 } from "@lovejoin/sdk";
 
@@ -49,6 +50,7 @@ export function Box() {
   } = useAppState();
   const [destination, setDestination] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [retryAttempt, setRetryAttempt] = useState<number | null>(null);
 
   const outputIndex = idx !== undefined ? Number.parseInt(idx, 10) : NaN;
   const box = useMemo(
@@ -99,6 +101,7 @@ export function Box() {
     if (!provider || !addresses || !wallet || submitting) return;
     if (validation.status !== "ok") return;
     setSubmitting(true);
+    setRetryAttempt(null);
     try {
       const mixBox: MixBoxRef = {
         ref: box.entry.ref,
@@ -124,6 +127,11 @@ export function Box() {
         provider,
         addresses,
         collateralProvider,
+        retry: {
+          maxAttempts: 3,
+          delayBetweenAttemptsMs: 2_000,
+          onRetry: (info) => setRetryAttempt(info.attempt),
+        },
       });
       toast.push({
         tone: "success",
@@ -137,13 +145,15 @@ export function Box() {
       window.setTimeout(() => void rescan(), 12_000);
       navigate("/vault");
     } catch (err) {
+      const busy = isInputCollisionError(err);
       toast.push({
         tone: "error",
-        title: t("toast.withdraw_failed"),
-        detail: (err as Error).message,
+        title: busy ? t("tx.busy_title") : t("toast.withdraw_failed"),
+        detail: busy ? t("tx.busy_detail") : (err as Error).message,
       });
     } finally {
       setSubmitting(false);
+      setRetryAttempt(null);
     }
   };
 
@@ -279,6 +289,11 @@ export function Box() {
                   )}
                   {submitting ? t("withdraw.submitting") : t("withdraw.submit")}
                 </button>
+                {retryAttempt !== null && (
+                  <p className="mt-3 text-xs text-amber">
+                    {t("tx.retrying_collision", { attempt: retryAttempt })}
+                  </p>
+                )}
               </div>
             </fieldset>
           </form>

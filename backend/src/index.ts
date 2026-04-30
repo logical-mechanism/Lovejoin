@@ -17,6 +17,7 @@ import {
 } from "./db/blockfrost-history.js";
 import { IndexerRuntime } from "./indexer/runtime.js";
 import { IndexerState } from "./indexer/state.js";
+import { MempoolPoller } from "./indexer/mempool.js";
 import { OgmiosTxClient } from "./indexer/ogmios-tx.js";
 import { buildServer } from "./api/server.js";
 
@@ -81,6 +82,26 @@ export async function main(): Promise<void> {
     onOpen: (url) => console.log(`[ogmios-tx] connected at ${url}`),
   });
 
+  // Dedicated socket for the mempool poller. Separate from `ogmiosTx`
+  // because acquireMempool pins state on the connection and we don't
+  // want it interleaving with submit/eval calls. Same physical ogmios
+  // server; two cheap WebSockets is the standard pattern.
+  const ogmiosMempool = new OgmiosTxClient({
+    url: config.ogmiosUrl,
+    onOpen: (url) => console.log(`[ogmios-mempool] connected at ${url}`),
+  });
+  const mempoolPoller = new MempoolPoller({
+    client: ogmiosMempool,
+    // Filter mempool refs to ones we actually care about (live mix-boxes
+    // + live fee shards). On a busy chain this drops ~99% of mempool
+    // traffic and keeps `/mempool/inputs` payloads tiny.
+    relevantRefs: () => state.protocolRelevantUtxoKeys(),
+    logger: {
+      info: (msg) => console.log(`[mempool] ${msg}`),
+      warn: (msg) => console.warn(`[mempool] ${msg}`),
+    },
+  });
+
   const server = await buildServer({
     state,
     runtime,
@@ -88,6 +109,7 @@ export async function main(): Promise<void> {
     dbsync,
     historyFallback,
     ogmiosTx,
+    mempoolPoller,
   });
 
   // Start chainsync first so requests at /health can already see "tip not yet"
@@ -98,6 +120,12 @@ export async function main(): Promise<void> {
     server.log?.error?.(`ogmios start failed: ${(err as Error).message}`);
   }
 
+  // Mempool poller starts independently. If ogmios is unreachable the
+  // poller logs and silently retries on the next interval; the poll
+  // failure surfaces in /mempool/inputs as `acquiredAtMs: 0` so clients
+  // know to fall back to retry-only behaviour.
+  mempoolPoller.start();
+
   await server.listen({ port: config.port, host: config.host });
   // eslint-disable-next-line no-console
   console.log(
@@ -106,7 +134,7 @@ export async function main(): Promise<void> {
 
   for (const sig of ["SIGINT", "SIGTERM"] as const) {
     process.on(sig, () => {
-      void shutdown(server, runtime, dbsync, ogmiosTx);
+      void shutdown(server, runtime, dbsync, ogmiosTx, ogmiosMempool, mempoolPoller);
     });
   }
 }
@@ -116,6 +144,8 @@ async function shutdown(
   runtime: IndexerRuntime,
   dbsync: PostgresDbSyncClient | null,
   ogmiosTx: OgmiosTxClient | null,
+  ogmiosMempool: OgmiosTxClient | null,
+  mempoolPoller: MempoolPoller | null,
 ): Promise<void> {
   try {
     await runtime.stop();
@@ -123,7 +153,17 @@ async function shutdown(
     /* ignore */
   }
   try {
+    await mempoolPoller?.stop();
+  } catch {
+    /* ignore */
+  }
+  try {
     ogmiosTx?.close();
+  } catch {
+    /* ignore */
+  }
+  try {
+    ogmiosMempool?.close();
   } catch {
     /* ignore */
   }

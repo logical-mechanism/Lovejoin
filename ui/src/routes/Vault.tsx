@@ -26,6 +26,7 @@ import { useTranslation } from "react-i18next";
 import {
   GivemeMyProvider,
   buildBulkWithdrawTx,
+  isInputCollisionError,
   type BulkWithdrawEntry,
 } from "@lovejoin/sdk";
 
@@ -131,6 +132,7 @@ function UnlockedVault() {
   const [selectedRefs, setSelectedRefs] = useState<Set<string>>(() => new Set());
   const [destination, setDestination] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [retryAttempt, setRetryAttempt] = useState<number | null>(null);
   const [confirmOpen, setConfirmOpen] = useState(false);
   // Track rescan-in-flight locally so the "Scan again" button can
   // disable + show a spinner. The initial unlock-time scan is already
@@ -257,6 +259,7 @@ function UnlockedVault() {
     if (validation.status !== "ok") return;
     setConfirmOpen(false);
     setSubmitting(true);
+    setRetryAttempt(null);
     try {
       const entries: BulkWithdrawEntry[] = selectedBoxes.map((b) => ({
         mixBox: { ref: b.entry.ref, a: b.entry.a, b: b.entry.b },
@@ -277,6 +280,11 @@ function UnlockedVault() {
         provider: provider!,
         addresses: addresses!,
         collateralProvider,
+        retry: {
+          maxAttempts: 3,
+          delayBetweenAttemptsMs: 2_000,
+          onRetry: (info) => setRetryAttempt(info.attempt),
+        },
       });
       toast.push({
         tone: "success",
@@ -300,13 +308,15 @@ function UnlockedVault() {
       setDestination("");
       window.setTimeout(() => void rescan(), 12_000);
     } catch (err) {
+      const busy = isInputCollisionError(err);
       toast.push({
         tone: "error",
-        title: t("toast.withdraw_failed"),
-        detail: (err as Error).message,
+        title: busy ? t("tx.busy_title") : t("toast.withdraw_failed"),
+        detail: busy ? t("tx.busy_detail") : (err as Error).message,
       });
     } finally {
       setSubmitting(false);
+      setRetryAttempt(null);
       void refreshWalletBalance();
     }
   };
@@ -588,6 +598,11 @@ function UnlockedVault() {
                     have: formatAda(walletLovelace),
                     need: formatAda(withdrawRequiredLovelace),
                   })}
+                </p>
+              )}
+              {retryAttempt !== null && (
+                <p className="mt-3 text-xs text-amber">
+                  {t("tx.retrying_collision", { attempt: retryAttempt })}
                 </p>
               )}
             </div>
