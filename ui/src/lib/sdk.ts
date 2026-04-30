@@ -16,6 +16,8 @@
 import {
   BackendChainProvider,
   BlockfrostProvider,
+  getKnownCollateralHost,
+  lovejoinNetworkToCollateralNetwork,
   type ChainProvider,
   type LovejoinAddresses,
 } from "@lovejoin/sdk";
@@ -24,11 +26,20 @@ export const NETWORKS = ["preprod", "preview", "mainnet"] as const;
 export type Network = (typeof NETWORKS)[number];
 
 const STORAGE_KEY = "lovejoin.config.v1";
-// Empty string = "defer to the SDK's pinned host". The SDK ships its own
-// canonical full-path URL per network in `known-collateral-hosts.ts`; the
-// UI override is for advanced-mode users pointing at a localhost dev
-// instance, a `.onion` mirror, or a custom collateral-provider host.
-const DEFAULT_COLLATERAL_PROVIDER_ENDPOINT = "";
+
+/**
+ * Returns the SDK's canonical clearnet collateral URL for `network`, or
+ * "" if the upstream doesn't index that network ("preview" today). The
+ * URL is the source of truth shared with the SDK's `GivemeMyProvider`
+ * default — keeping them in sync prevents the "probe says unknown but
+ * signing works" mismatch that bit the alpha deploy.
+ */
+function defaultCollateralEndpoint(network: Network): string {
+  const cn = lovejoinNetworkToCollateralNetwork(network);
+  if (!cn) return "";
+  const host = getKnownCollateralHost(cn);
+  return host?.perNetwork[cn]?.url ?? "";
+}
 
 // Default backend URL — points at the dev-mode `make backend-dev` target
 // (Fastify on :3001) so `pnpm dev` + `make backend-dev` "just works"
@@ -62,13 +73,20 @@ export function envDefaults(): RuntimeConfig {
   const rawBackend = import.meta.env.VITE_BACKEND_URL;
   const backendUrl =
     rawBackend === undefined ? DEFAULT_BACKEND_URL : rawBackend.trim();
+  const network = envNetwork();
+  // VITE_COLLATERAL_ENDPOINT semantics:
+  //   - undefined / ""  → use the SDK's pinned host for this network
+  //                       (matches what GivemeMyProvider does internally,
+  //                       so the reachability probe and the signing
+  //                       path don't diverge).
+  //   - any value       → operator override (advanced mode, .onion, dev
+  //                       instance, etc.).
+  const rawCollateral = (import.meta.env.VITE_COLLATERAL_ENDPOINT ?? "").trim();
   return {
-    network: envNetwork(),
+    network,
     blockfrostProjectId: (import.meta.env.VITE_BLOCKFROST_PROJECT_ID ?? "").trim(),
     backendUrl,
-    collateralProviderEndpoint:
-      (import.meta.env.VITE_COLLATERAL_ENDPOINT ?? "").trim() ||
-      DEFAULT_COLLATERAL_PROVIDER_ENDPOINT,
+    collateralProviderEndpoint: rawCollateral || defaultCollateralEndpoint(network),
   };
 }
 
