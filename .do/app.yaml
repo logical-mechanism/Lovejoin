@@ -98,19 +98,25 @@ services:
         value: ${APP_URL}
 
       # External Cardano infrastructure — DO can't run a node, so point
-      # at a managed Ogmios endpoint (Demeter, DRI, or self-hosted on a
-      # Droplet). Set as SECRET because the URL typically embeds a
-      # token. Required.
+      # at a managed Ogmios endpoint (Demeter, DRI, or self-hosted via
+      # Cloudflare Tunnel — see docs/deploy.md §"Connecting App Platform
+      # to home-hosted infrastructure"). Set as SECRET because the URL
+      # often embeds a token. Required.
+      #
+      # Placeholder is intentional — set the real value in the DO
+      # dashboard after the first deploy. DO preserves dashboard-set
+      # SECRET values across `doctl apps update --spec` calls. See
+      # docs/deploy.md §"Secrets handling".
       - key: OGMIOS_URL
         scope: RUN_TIME
         type: SECRET
-        # Set in the DO dashboard or via `doctl apps update`. Format:
-        # wss://ogmios.example/your-token.
         value: EDIT_ME
 
       # Optional: db-sync postgres. When set, /history/:address +
       # /utxos/:address + /tx/:hash become available. When unset the
-      # routes 503 and /history falls back to Blockfrost (below).
+      # routes 503 and /history falls back to Blockfrost (below); the
+      # SDK + UI fall back to BlockfrostProvider for /utxos + /tx, so
+      # the user-facing flow keeps working.
       - key: DBSYNC_URL
         scope: RUN_TIME
         type: SECRET

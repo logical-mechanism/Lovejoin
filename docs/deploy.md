@@ -49,13 +49,163 @@ external infrastructure for chain access:
 
 | Service | Required? | Used for | Suggested provider |
 | --- | --- | --- | --- |
-| Ogmios (WebSocket) | **yes** | Chainsync (indexer), tx submission, tx evaluation | [Demeter](https://demeter.run/), [DRI](https://dri.io/), or self-hosted on a Droplet |
+| Ogmios (WebSocket) | **yes** | Chainsync (indexer), tx submission, tx evaluation | [Demeter](https://demeter.run/), [DRI](https://dri.io/), self-hosted via Cloudflare Tunnel |
 | db-sync (Postgres) | optional | `/history/:address`, `/utxos/:address`, `/tx/:hash` | [Demeter](https://demeter.run/) postgres extension, or your own |
 | Blockfrost (HTTPS) | optional | Fallback for `/history` when db-sync is down or absent | [blockfrost.io](https://blockfrost.io/) (free tier covers Preprod) |
 
 Without Ogmios the backend won't start (the indexer needs chainsync).
 Without db-sync the address-keyed routes 503 — set
-`BLOCKFROST_PROJECT_ID_<NETWORK>` to keep `/history` working.
+`BLOCKFROST_PROJECT_ID_<NETWORK>` to keep `/history` working; the SDK
++ UI fall back to `BlockfrostProvider` for `/utxos` + `/tx`-style
+queries.
+
+## Connecting App Platform to home-hosted infrastructure
+
+DO App Platform's outbound IP is **not stable** on the basic plan —
+your service shares a NAT pool whose addresses rotate, so a UFW
+allowlist on a home server has no fixed target to whitelist. The
+options, ordered by what we use:
+
+### 1. Cloudflare Tunnel (recommended, free)
+
+`cloudflared` runs on the home box and dials *outbound* to Cloudflare;
+Cloudflare exposes `ogmios.yourdomain` as a public hostname. No
+inbound port at home, no DDNS, no allowlist, TLS handled by CF. The
+tradeoff is a hard split between protocols:
+
+| Protocol | Works via CF Tunnel public hostname? | Notes |
+| --- | --- | --- |
+| Ogmios (HTTP/WS) | **yes** | `service: http://localhost:1337`; CF forwards `Upgrade: websocket` cleanly. |
+| Postgres (raw TCP) | **no** | Public hostnames are HTTP/HTTPS/WS only. TCP routes need `cloudflared access tcp` on the *consuming* side, which App Platform basic can't run as a sidecar. |
+
+So the alpha shape is **Ogmios via CF Tunnel + db-sync skipped**
+(Blockfrost fallback covers `/history`; the rest of the
+db-sync-backed routes 503 and the SDK falls through to direct
+Blockfrost queries). Add db-sync back later via one of the heavier
+options below.
+
+#### One-time home setup
+
+```bash
+# 1. Install on the home server (Linux example; see CF docs for other OSes)
+sudo apt install cloudflared
+
+# 2. Authenticate against your CF zone
+cloudflared tunnel login           # opens browser, picks the zone
+
+# 3. Create a named tunnel
+cloudflared tunnel create lovejoin-preprod
+
+# 4. Route a hostname to it
+cloudflared tunnel route dns lovejoin-preprod ogmios-preprod.yourdomain.com
+
+# 5. Configure ingress
+cat > ~/.cloudflared/config.yml <<'YAML'
+tunnel: <UUID-from-step-3>
+credentials-file: /home/<you>/.cloudflared/<UUID>.json
+ingress:
+  - hostname: ogmios-preprod.yourdomain.com
+    service: http://localhost:1337
+  - service: http_status:404
+YAML
+
+# 6. Run as a systemd service
+sudo cloudflared service install
+sudo systemctl enable --now cloudflared
+
+# 7. Verify from anywhere on the internet
+curl -I https://ogmios-preprod.yourdomain.com/health
+```
+
+Then in App Platform, set `OGMIOS_URL=wss://ogmios-preprod.yourdomain.com`
+on the backend service. UFW on the home box keeps Ogmios's listener
+bound to 127.0.0.1 — no public port, no allowlist needed.
+
+#### Adding db-sync to a Cloudflare Tunnel setup (advanced)
+
+If you want db-sync without buying a Droplet, two paths:
+
+1. **`cloudflared access tcp` baked into the backend image.** Modify
+   `backend/Dockerfile` to install `cloudflared`, add an entrypoint
+   that runs `cloudflared access tcp --hostname dbsync.yourdomain
+   --url 127.0.0.1:5432 &` before `node dist/index.js`, and set
+   `DBSYNC_URL=postgres://user:pass@127.0.0.1:5432/db`. Requires a
+   Cloudflare Access service token (set as a SECRET env on the App
+   Platform side). Not on the M7 path; document if/when we need it.
+2. **HTTP wrapper at home.** Run `postgrest` (or similar) at home
+   exposing the dbsync schema over HTTPS, route via CF Tunnel like
+   Ogmios, and write a small adapter on the backend that translates
+   the `DbSyncClient` interface to postgrest queries. More code; less
+   Docker surgery.
+
+Both are deferred — neither blocks the alpha.
+
+### 2. Tiny DO Droplet as a fixed-IP jump host
+
+A $4/mo Droplet with a Reserved IP, reverse-SSH-tunnel from home to
+the Droplet, expose Ogmios + Postgres on the Droplet's public side,
+UFW-allow only the Droplet's IP at home. More moving parts than CF
+Tunnel; only worth it if you really want db-sync without the
+adapter work.
+
+### 3. App Platform Pro + Dedicated Egress IPs (paid)
+
+The "just pay DO" answer. Pro plan + the Dedicated Egress IP add-on
+gives App Platform a stable outbound IP you can UFW-allow. Probably
+premature for a one-maintainer alpha; revisit at mainnet scale.
+
+## Secrets handling
+
+`.do/app.yaml` is committed to a public repo, so **no real secret
+values live in it**. SECRET-typed env vars carry placeholders
+(`value: EDIT_ME` for `OGMIOS_URL`, `value: ""` for the optional
+ones); the real values are managed in DO. Two patterns work:
+
+### A. Manage in the DO dashboard (simplest, recommended)
+
+1. `make do-deploy` once with the placeholder spec. The container
+   will boot, fail to connect to Ogmios, and `/health` will 503 —
+   that's expected.
+2. In the DO dashboard → your app → Settings → App-Level Environment
+   Variables (or per-component), edit each `type: SECRET` variable
+   and paste the real value. Save.
+3. DO triggers a redeploy; the indexer connects, `/health` flips to
+   200.
+
+DO **preserves dashboard-set SECRET values across spec updates** as
+long as the spec keeps the placeholder. So `make do-update
+APP_ID=…` is safe to run repeatedly without clobbering secrets.
+This is what we recommend for the Preprod alpha.
+
+### B. Keep a local spec with real values
+
+For ops scripts that need to be reproducible, drop a copy at
+`.do/app.local.yaml` with real values filled in. The repo's
+`.gitignore` excludes `.do/*.local.yaml`. Apply with:
+
+```bash
+APP_SPEC=.do/app.local.yaml make do-update APP_ID=<uuid>
+```
+
+If you go this route, treat the file like a credential — keep it out
+of cloud sync, shared dotfiles, etc.
+
+### What's safe to commit
+
+- Plaintext URLs without embedded tokens (e.g.
+  `wss://ogmios-preprod.yourdomain.com` if the auth is at the CF
+  Access layer, not in the URL).
+- `${APP_URL}` interpolations.
+- All `scope: BUILD_TIME` UI envs *except* tokens — but remember
+  build-time UI envs end up in the bundle anyway (see "UI build-time
+  secrets" below), so a free-tier Blockfrost project ID is fine
+  there even though it's marked SECRET.
+
+### What must never be committed
+
+- Demeter / DRI URLs that include a token query param.
+- Postgres connection strings with passwords.
+- Any paid-tier Blockfrost project ID.
 
 ## Environment variable matrix
 
