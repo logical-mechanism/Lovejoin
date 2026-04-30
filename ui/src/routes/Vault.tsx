@@ -328,7 +328,7 @@ function UnlockedVault() {
           <Eyebrow>
             {vault!.kind === "wallet"
               ? t("vault.eyebrow")
-              : t("vault.fallback_title")}
+              : t("vault.eyebrow_recovery")}
           </Eyebrow>
           <h2 className="lj-card__title">{t("vault.title")}</h2>
         </div>

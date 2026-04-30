@@ -37,19 +37,19 @@ export function Protocol() {
         <li>
           <Trans
             i18nKey="protocol.primitive_g"
-            components={{ b: <strong />, c: <code /> }}
+            components={{ b: <strong />, c: <code />, e: <em /> }}
           />
         </li>
         <li>
           <Trans
             i18nKey="protocol.primitive_x"
-            components={{ b: <strong />, c: <code /> }}
+            components={{ b: <strong />, c: <code />, e: <em /> }}
           />
         </li>
         <li>
           <Trans
             i18nKey="protocol.primitive_hash"
-            components={{ b: <strong />, c: <code /> }}
+            components={{ b: <strong />, c: <code />, e: <em /> }}
           />
         </li>
       </ul>
@@ -58,17 +58,17 @@ export function Protocol() {
       <p>
         <Trans
           i18nKey="protocol.deposit_p1"
-          components={{ b: <strong />, c: <code /> }}
+          components={{ b: <strong />, c: <code />, e: <em /> }}
         />
       </p>
       <pre className="lj-math">
-        <code>{`a = [d] · G
-b = [x · d] · G`}</code>
+        <code>{`a = [d] · g
+b = [x · d] · g`}</code>
       </pre>
       <p>
         <Trans
           i18nKey="protocol.deposit_p2"
-          components={{ b: <strong />, c: <code /> }}
+          components={{ b: <strong />, c: <code />, e: <em /> }}
         />
       </p>
 
@@ -101,7 +101,7 @@ b = [x · d] · G`}</code>
       <p>
         <Trans
           i18nKey="protocol.privacy_p1"
-          components={{ b: <strong />, c: <code /> }}
+          components={{ b: <strong />, c: <code />, e: <em /> }}
         />
       </p>
       <pre className="lj-math">
@@ -110,7 +110,7 @@ b = [x · d] · G`}</code>
       <p>
         <Trans
           i18nKey="protocol.privacy_p2"
-          components={{ b: <strong />, c: <code /> }}
+          components={{ b: <strong />, c: <code />, e: <em /> }}
         />
       </p>
 
@@ -118,7 +118,7 @@ b = [x · d] · G`}</code>
       <p>
         <Trans
           i18nKey="protocol.withdraw_p1"
-          components={{ b: <strong />, c: <code /> }}
+          components={{ b: <strong />, c: <code />, e: <em /> }}
         />
       </p>
       <pre className="lj-math">
@@ -130,7 +130,7 @@ verify:    [s] · a ≟ t + [c] · b`}</code>
       <p>
         <Trans
           i18nKey="protocol.withdraw_p2"
-          components={{ b: <strong />, c: <code /> }}
+          components={{ b: <strong />, c: <code />, e: <em /> }}
         />
       </p>
 

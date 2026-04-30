@@ -265,7 +265,9 @@ export function Pool() {
             <div className="lj-review__row">
               <dt className="lj-review__label">{t("pool.review_collateral")}</dt>
               <dd className="lj-review__value lj-review__value--muted">
-                {t("pool.review_collateral_value")}
+                {feePayer === "shard"
+                  ? t("pool.review_collateral_value_shard")
+                  : t("pool.review_collateral_value_wallet")}
               </dd>
             </div>
           </dl>
