@@ -1,7 +1,7 @@
 // Unit tests for tx/donate.ts.
 //
 // We focus on the pure planning surface (`planDonateTx`). The mesh-driven
-// `buildDonateTx` is exercised by the Preprod integration test — same
+// `buildDonateTx` is exercised by the Preprod integration test, same
 // posture as `deposit.test.ts`.
 
 import { describe, expect, it } from "vitest";
@@ -50,7 +50,7 @@ function feeShard(lovelace = 5_000_000n): Utxo {
   };
 }
 
-describe("tx/donate — planDonateTx", () => {
+describe("tx/donate planDonateTx", () => {
   it("produces a Replenish output with strictly more lovelace than the input", () => {
     const input = feeShard(7_000_000n);
     const plan = planDonateTx({

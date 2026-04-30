@@ -1,33 +1,38 @@
-// Donate — top up the shared fee_contract pool without minting a mix-box.
+// Donate. Top up the shared fee_contract pool without minting a mix-box.
 //
 // The on-chain fee_contract accepts any positive Replenish (fee_out >
 // fee_in, unit datum unchanged, ada-only). Deposits already exercise that
 // path implicitly; this screen surfaces it as a standalone action so
 // donors and operators can pad the pool whenever it runs low. There's
-// no anonymity story here — the donor's wallet is on the tx — so the
+// no anonymity story here (the donor's wallet is on the tx), so the
 // flow is the simplest possible: pick an amount, sign, submit.
 //
 // We deliberately do not unlock the vault for this flow. Donations are
 // not derived from the seed; the wallet just signs a Replenish tx.
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 
 import { buildDonateTx } from "@lovejoin/sdk";
 
 import { useAppState } from "../lib/store.js";
 import { Eyebrow } from "../components/ui/Eyebrow.js";
+import { Hash } from "../components/ui/Hash.js";
 import { useToast } from "../components/Toaster.js";
 import { useBackendStatus } from "../components/BackendStatus.js";
-import { BackendClient } from "../lib/backend.js";
+import { BackendClient, type FeeShard } from "../lib/backend.js";
 import { formatAda } from "../lib/format.js";
 
 const DEFAULT_AMOUNT_ADA = 5;
 const MIN_AMOUNT_ADA = 1;
-// Soft cap on the input field — donations bigger than this are unusual
+// Soft cap on the input field. Donations bigger than this are unusual
 // enough that we want the donor to type the digit explicitly rather
 // than fat-finger a stepper into the hundreds.
 const MAX_AMOUNT_ADA = 1_000;
+// Threshold for switching from per-shard rows to a total-only summary.
+// The canonical fee_shard_target is 10; this leaves headroom for a few
+// extras while keeping the list compact enough to read at a glance.
+const SHARD_LIST_LIMIT = 12;
 
 export function Donate() {
   const { t } = useTranslation();
@@ -46,36 +51,45 @@ export function Donate() {
   const [submitting, setSubmitting] = useState(false);
   const [poolLovelace, setPoolLovelace] = useState<bigint | null>(null);
   const [shardCount, setShardCount] = useState<number | null>(null);
+  const [shards, setShards] = useState<FeeShard[] | null>(null);
+
+  const useBackend =
+    !!config.backendUrl &&
+    (backend?.status === "synced" || backend?.status === "syncing");
 
   // Best-effort fee-pool snapshot. The backend already exposes /fee, so
   // when the indexer is up we surface "pool is at X ADA across N shards"
-  // to give the donor a sense of impact. Failure is silent — donations
-  // work without it.
-  useEffect(() => {
-    let cancelled = false;
-    const useBackend =
-      !!config.backendUrl &&
-      (backend?.status === "synced" || backend?.status === "syncing");
+  // plus a per-shard breakdown so the donor can see impact. Failure is
+  // silent; donations work without it.
+  const loadSnapshot = useCallback(async (): Promise<void> => {
     if (!useBackend) {
       setPoolLovelace(null);
       setShardCount(null);
+      setShards(null);
       return;
     }
+    try {
+      const client = new BackendClient(config.backendUrl);
+      const snap = await client.fee();
+      if (!snap) return;
+      setPoolLovelace(BigInt(snap.totalLovelace));
+      setShardCount(snap.shardCount);
+      setShards(snap.shards);
+    } catch {
+      /* surface nothing; the snapshot is decorative */
+    }
+  }, [config.backendUrl, useBackend]);
+
+  useEffect(() => {
+    let cancelled = false;
     void (async () => {
-      try {
-        const client = new BackendClient(config.backendUrl);
-        const snap = await client.fee();
-        if (cancelled || !snap) return;
-        setPoolLovelace(BigInt(snap.totalLovelace));
-        setShardCount(snap.shardCount);
-      } catch {
-        /* surface nothing — the snapshot is decorative */
-      }
+      await loadSnapshot();
+      if (cancelled) return;
     })();
     return () => {
       cancelled = true;
     };
-  }, [config.backendUrl, backend?.status]);
+  }, [loadSnapshot]);
 
   if (!provider || !addresses || !wallet) {
     return (
@@ -94,7 +108,7 @@ export function Donate() {
   }
 
   const donationLovelace = BigInt(Math.max(0, Math.floor(amountAda * 1_000_000)));
-  // 5 ADA cushion mirrors the deposit form — covers tx fee + change min-utxo.
+  // 5 ADA cushion mirrors the deposit form. Covers tx fee + change min-utxo.
   const requiredLovelace = donationLovelace + 5_000_000n;
   const balanceShort =
     walletLovelace !== null && walletLovelace < requiredLovelace;
@@ -118,27 +132,13 @@ export function Donate() {
         txHash: result.txId,
         network: config.network,
       });
-      // Re-fetch the snapshot so the impact line updates without a full
+      // Re-fetch the snapshot so the impact lines update without a full
       // page reload. A small delay lets the indexer pick up the new shard
       // value; the snapshot is decorative, so it's fine if it's stale for
       // a few seconds.
-      const useBackend =
-        !!config.backendUrl &&
-        (backend?.status === "synced" || backend?.status === "syncing");
       if (useBackend) {
         window.setTimeout(() => {
-          void (async () => {
-            try {
-              const client = new BackendClient(config.backendUrl);
-              const snap = await client.fee();
-              if (snap) {
-                setPoolLovelace(BigInt(snap.totalLovelace));
-                setShardCount(snap.shardCount);
-              }
-            } catch {
-              /* same as the mount fetch — silent */
-            }
-          })();
+          void loadSnapshot();
         }, 12_000);
       }
     } catch (err) {
@@ -166,12 +166,41 @@ export function Donate() {
             <span className="lj-stat__value" data-num>
               {formatAda(poolLovelace)} ₳
             </span>
+            <span className="lj-stat__sub">
+              {t("donate.shard_count", { count: shardCount })}
+            </span>
           </div>
         )}
       </header>
       <p className="text-sm text-muted leading-relaxed max-w-prose">
         {t("donate.lede")}
       </p>
+
+      {shards && shards.length > 0 && shards.length <= SHARD_LIST_LIMIT && (
+        <div className="mt-6">
+          <Eyebrow>{t("donate.shards_title")}</Eyebrow>
+          <table className="lj-table mt-3">
+            <thead>
+              <tr>
+                <th>{t("donate.shard_ref")}</th>
+                <th className="lj-table__num">{t("donate.shard_balance")}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {shards.map((s) => (
+                <tr key={`${s.txHash}#${s.outputIndex}`}>
+                  <td>
+                    <Hash value={`${s.txHash}#${s.outputIndex}`} edge={6} />
+                  </td>
+                  <td className="lj-table__num">
+                    {formatAda(BigInt(s.lovelace))} ₳
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
 
       <form
         className="mt-6 flex flex-col gap-6"

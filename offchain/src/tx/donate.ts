@@ -1,12 +1,12 @@
 // Fee-shard donation tx builder.
 //
-// Spec: docs/spec/03-contracts.md §3 (validate_replenish) — the on-chain
-// rules a Replenish tx must satisfy. Donation is a Replenish-only tx with
-// no mix-box output: the caller's wallet contributes lovelace to a fee
-// shard, the same shard datum (`()`) is preserved, and the output value
-// strictly exceeds the input. No fee_shard_target is changed; a donation
-// just makes the shared fee pool wealthier so future Mix txs can drain
-// from it longer.
+// Spec: docs/spec/03-contracts.md §3 (validate_replenish). That section
+// lists the on-chain rules a Replenish tx must satisfy. Donation is a
+// Replenish-only tx with no mix-box output: the caller's wallet
+// contributes lovelace to a fee shard, the same shard datum (`()`) is
+// preserved, and the output value strictly exceeds the input. No
+// fee_shard_target is changed; a donation just makes the shared fee
+// pool wealthier so future Mix txs can drain from it longer.
 //
 // This is structurally a deposit-without-the-mix-box, so the implementation
 // mirrors `deposit.ts`: a pure `planDonateTx` that produces the plan and a
@@ -38,7 +38,7 @@ import {
 } from "../wallet/cip30.js";
 
 /**
- * Plan for a donation tx — pure data describing the inputs/outputs needed
+ * Plan for a donation tx: pure data describing the inputs/outputs needed
  * to bump a single fee shard by `donationLovelace`. Produced by
  * `planDonateTx`; consumed by `buildDonateTx`.
  */
@@ -65,7 +65,7 @@ export interface PlanDonateArgs {
   donationLovelace: Lovelace;
   /** Fee shard to top up. */
   feeShard: Utxo;
-  /** Bootstrap addresses.json — provides script hashes + reference UTxO. */
+  /** Bootstrap addresses.json. Provides script hashes + reference UTxO. */
   addresses: LovejoinAddresses;
   /** Network discriminator for bech32 address construction. */
   networkId: LovejoinNetworkId;
@@ -102,9 +102,9 @@ export interface BuildDonateArgs {
   network: "preprod" | "preview" | "test" | "mainnet";
   /** Lovelace contribution from the donor. */
   donationLovelace: Lovelace;
-  /** User wallet — supplies inputs, change, collateral, and signing. */
+  /** User wallet. Supplies inputs, change, collateral, and signing. */
   wallet: LovejoinWallet;
-  /** Chain provider — for reference UTxO + protocol params + submission. */
+  /** Chain provider. Reads reference UTxO + protocol params + submits. */
   provider: ChainProvider;
   /** Bootstrap addresses.json content. */
   addresses: LovejoinAddresses;
@@ -136,7 +136,7 @@ export interface DonateResult {
  * exceeds the old one, so any positive contribution is accepted. mesh
  * handles fee + change against the donor's wallet.
  *
- * Unlike Mix, this tx has the donor's wallet on it — there is no
+ * Unlike Mix, this tx has the donor's wallet on it. There is no
  * anonymity claim for donations, by design. The fee_contract still
  * blocks native assets in/out per Rule 6, so the tx is ada-only.
  */
@@ -151,7 +151,7 @@ export async function buildDonateTx(args: BuildDonateArgs): Promise<DonateResult
   // We don't need the params for tx construction (the on-chain Replenish
   // rule doesn't reference any of the on-chain ReferenceDatum fields), but
   // we still call this to fail loudly when addresses.json disagrees with
-  // the chain — same defense-in-depth as `buildDepositTx`.
+  // the chain. Same defense-in-depth as `buildDepositTx`.
   await fetchProtocolParams(args.addresses, args.provider);
 
   const feeAddress = buildScriptAddress(

@@ -205,8 +205,12 @@
   "donate": {
     "section_title": "Donate to fee pool",
     "eyebrow": "Top up the shared fee shards",
-    "lede": "Mix txs draw on a shared pool of fee shards. Donations top up that pool without minting a new mix-box. There is no privacy gain for you here — your wallet is on the tx — but every donation extends the runway for everyone else's mixes.",
+    "lede": "Mix txs draw on a shared pool of fee shards. Donations top up that pool without minting a new mix-box. There is no privacy gain for you here (your wallet is on the tx), but every donation extends the runway for everyone else's mixes.",
     "pool_label": "Pool size",
+    "shard_count": "across {{count}} shards",
+    "shards_title": "Fee shards",
+    "shard_ref": "Shard",
+    "shard_balance": "Balance",
     "amount_label": "Amount (ADA)",
     "amount_help": "Any positive amount is accepted on chain. The Replenish rule only requires the shard to gain lovelace.",
     "tx_preview_title": "Transaction preview",
