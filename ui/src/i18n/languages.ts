@@ -23,7 +23,8 @@ export type LangCode =
   | "vi"
   | "id"
   | "de"
-  | "pl";
+  | "pl"
+  | "it";
 
 export interface LangMeta {
   code: LangCode;
@@ -50,6 +51,7 @@ export const LANGUAGES: readonly LangMeta[] = [
   { code: "id", nativeName: "Bahasa Indonesia", englishName: "Indonesian", dir: "ltr" },
   { code: "de", nativeName: "Deutsch",    englishName: "German",     dir: "ltr" },
   { code: "pl", nativeName: "Polski",     englishName: "Polish",     dir: "ltr" },
+  { code: "it", nativeName: "Italiano",   englishName: "Italian",    dir: "ltr" },
 ] as const;
 
 export const SUPPORTED_LANG_CODES: readonly LangCode[] =
