@@ -41,12 +41,6 @@ services:
 
     dockerfile_path: backend/Dockerfile
     source_dir: /
-    # NETWORK build-arg picks artifacts/<network>/addresses.json. Bump
-    # to mainnet only after the audit gate (docs/spec/11-open-questions.md
-    # OQ-Y).
-    build_args:
-      - key: NETWORK
-        value: preprod
 
     instance_size_slug: basic-xxs
     instance_count: 1
@@ -73,8 +67,15 @@ services:
 
     envs:
       # Static (plaintext) — fine to commit values via the spec.
+      #
+      # NETWORK does double duty: it's a Dockerfile ARG (picks
+      # artifacts/<NETWORK>/addresses.json at build time) AND a
+      # backend/src/config.ts runtime env. RUN_AND_BUILD_TIME makes
+      # DO pass it both as `--build-arg NETWORK=…` to docker build
+      # and as a process env var at runtime. Bump to mainnet only
+      # after the audit gate (docs/spec/11-open-questions.md OQ-Y).
       - key: NETWORK
-        scope: RUN_TIME
+        scope: RUN_AND_BUILD_TIME
         value: preprod
       - key: PORT
         scope: RUN_TIME
@@ -171,12 +172,10 @@ services:
     source_dir: /
 
     # Vite reads VITE_* at *build* time (it's a static SPA — env vars
-    # become string literals in the bundle). Both build_args and the
-    # BUILD_TIME-scoped envs below are passed to `docker build`; we
-    # use envs so DO's secret type can mask the Blockfrost project id.
-    build_args:
-      - key: VITE_NETWORK
-        value: preprod
+    # become string literals in the bundle). DO passes BUILD_TIME-scoped
+    # envs to `docker build` as `--build-arg`; SECRET-typed ones get
+    # masked in the spec audit log. VITE_NETWORK is plaintext; the
+    # rest live in the `envs` block below.
 
     instance_size_slug: basic-xxs
     instance_count: 1
@@ -197,6 +196,13 @@ services:
       - path: /
 
     envs:
+      # Selects the SDK's per-network code paths. Must match the
+      # backend service's NETWORK var so the UI talks to the right
+      # chain.
+      - key: VITE_NETWORK
+        scope: BUILD_TIME
+        value: preprod
+
       # ${APP_URL}/api lets the UI call the same hostname it was
       # served from — no CORS, no extra DNS, no rewrite required. The
       # backend's /api prefix is stripped by DO before it reaches
