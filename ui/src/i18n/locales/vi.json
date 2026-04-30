@@ -19,6 +19,7 @@
     "app": "Lovejoin",
     "home": "Lovejoin · máy trộn riêng tư",
     "deposit": "Gửi · Lovejoin",
+    "donate": "Quyên góp · Lovejoin",
     "pool": "Trộn · Lovejoin",
     "vault": "Két · Lovejoin",
     "box": "Chi tiết hộp · Lovejoin",
@@ -28,12 +29,19 @@
     "region_label": "Thông báo",
     "deposit_success": "Đã gửi giao dịch nạp",
     "deposit_failed": "Nạp thất bại",
+    "donate_success": "Đã gửi quyên góp",
+    "donate_failed": "Quyên góp thất bại",
     "mix_success": "Đã gửi trộn với N = {{n}}",
     "mix_failed": "Trộn thất bại",
     "withdraw_success": "Đã gửi giao dịch rút",
     "withdraw_failed": "Rút thất bại",
     "view_on_scan": "xem trên cardanoscan ↗",
     "dismiss": "Đóng"
+  },
+  "tx": {
+    "retrying_collision": "Một UTxO mục tiêu vừa bị tiêu thụ. Đang thử lại với lựa chọn mới (lần thử {{attempt}})…",
+    "busy_title": "Hãy thử lại sau giây lát",
+    "busy_detail": "Giao thức đang bận: mọi UTxO mục tiêu đều bị một giao dịch khác tiêu thụ. Đợi vài giây rồi gửi lại."
   },
   "errors": {
     "network": "Lỗi mạng. Hãy kiểm tra kết nối và thử lại.",
@@ -67,6 +75,7 @@
     "deposit": "Gửi",
     "pool": "Trộn",
     "vault": "Két",
+    "donate": "Quyên góp",
     "protocol": "Giao thức"
   },
   "language": {
@@ -198,6 +207,24 @@
     "tx_preview_copy_bulk": "Ví của bạn trả {{total}} ADA ({{count}} × {{denom}} ADA) cộng một khoản nạp lại vào fee shard. Một chữ ký cho cả lô.",
     "index_help": "Bộ đếm két cho khoá bí mật chủ sở hữu của giao dịch gửi này."
   },
+  "donate": {
+    "section_title": "Quyên góp vào pool phí",
+    "eyebrow": "Bù vào các shard phí dùng chung",
+    "lede": "Mix tx rút từ pool shard phí dùng chung. Quyên góp bù vào pool đó mà không đúc mix-box mới. Bạn không có lợi ích riêng tư nào ở đây (ví của bạn nằm trên tx), nhưng mỗi lần quyên góp kéo dài thời gian sử dụng cho các mix của người khác.",
+    "pool_label": "Quy mô pool",
+    "shard_count": "trên {{count}} shard",
+    "shards_title": "Shard phí",
+    "shards_caption": "Số dư hiện tại của từng shard trong pool phí dùng chung.",
+    "shard_ref": "Shard",
+    "shard_balance": "Số dư",
+    "amount_label": "Số lượng (ADA)",
+    "amount_help": "Bất kỳ số dương nào cũng được chấp nhận on-chain. Quy tắc Replenish chỉ yêu cầu shard tăng lovelace.",
+    "tx_preview_title": "Xem trước giao dịch",
+    "tx_preview_copy": "Ví của bạn trả {{amount}} ADA vào một shard phí được chọn ngẫu nhiên. Cần chữ ký ví.",
+    "submit": "Quyên góp",
+    "submitting": "Đang xây dựng quyên góp…",
+    "preconditions_missing": "Kết nối ví để quyên góp."
+  },
   "boxes": {
     "section_title": "Hộp của tôi",
     "empty": "Két chưa có hộp sở hữu nào đang sống.",
@@ -298,7 +325,20 @@
     "mix_h": "Trộn",
     "privacy_h": "Liên kết",
     "withdraw_h": "Rút",
-    "further_h": "Đọc thêm"
+    "further_h": "Đọc thêm",
+    "primitive_g": "<b>G</b>: phần tử sinh của BLS12-381 G1, nhóm con đường cong cấp <c>r</c>.",
+    "primitive_x": "<b>x ∈ Z_r</b>: bí mật chủ sở hữu của bạn. Được suy ra một cách xác định từ chữ ký CIP-8 của ví, nên không cần sao lưu riêng.",
+    "primitive_hash": "<b>blake2b-256</b>: hàm băm dùng cho cả Fiat–Shamir on-chain và seed của vault trong UI này.",
+    "deposit_p1": "Một khoản gửi chọn một độ ngẫu nhiên mới <c>d</c> và khóa mệnh giá cố định vào script mix-box với inline datum. Hai điểm G1 nén 48 byte, trong đó <c>b</c> đóng vai trò là dấu sở hữu của bạn:",
+    "deposit_p2": "Bất kỳ ai theo dõi chuỗi đều thấy <c>(a, b)</c> nhưng không biết gì về <c>x</c> hay <c>d</c>. Cả hai đều là mẫu ngẫu nhiên đều và bài toán logarit rời rạc khó.",
+    "mix_p1": "Một Mix tx lấy <b>N</b> hộp đang hoạt động và ngẫu-nhiên-hóa lại chúng với một vô hướng mới cho mỗi đầu vào <c>y_i</c>. <e>Đầu ra</e> tại vị trí <c>i</c> là <e>tái-ngẫu-nhiên-hóa hoán vị</e>:",
+    "mix_p2": "trong đó <c>π</c> là một hoán vị của <c>0..N</c>. Tính chất quan trọng: nếu <c>b_i = [x_i] · a_i</c> ở đầu vào, thì <c>b'_i = [x_π(i)] · a'_i</c> ở đầu ra. Quyền sở hữu sống sót sau tái-ngẫu-nhiên-hóa, nhưng cặp <e>đầu vào → đầu ra</e> bị che giấu.",
+    "mix_p3": "Để chứng minh tx bảo toàn quyền sở hữu mà không tiết lộ <e>đầu vào nào</e> nó sở hữu, người gửi tạo một chứng minh <b>sigma-OR N nhánh</b> cho mỗi đầu vào. Một chứng minh Schnorr duy nhất \"tôi biết <c>x</c> cho một đầu ra nào đó\", được xác minh on-chain. Thử thách Fiat–Shamir gắn với cả N tuyên bố đầu ra cộng datum gửi của hộp, nên chứng minh không thể bị nhắm lại.",
+    "privacy_p1": "Sau một lần Mix với độ rộng <c>N</c>, xác suất một người quan sát bên ngoài liên kết đúng đầu vào với đầu ra của bạn là <c>1/N</c>. Sau <c>k</c> vòng độc lập:",
+    "privacy_p2": "Tại <b>N = 3</b> (giới hạn đã hiệu chỉnh của Lovejoin trên Preprod hôm nay), mỗi vòng thêm chia xác suất liên kết cho 3. Mười hai vòng đẩy nó xuống dưới 2⁻¹⁹, ít hơn một phần nửa triệu. Hai mươi vòng đẩy nó xuống dưới 2⁻³¹.",
+    "withdraw_p1": "Để rời pool, bạn tiêu mix-box ở nhánh chủ sở hữu của script <c>mix_box</c> với một chứng minh Schnorr của <c>b = [x] · a</c> gắn với <c>tx.outputs</c>. Người chứng minh chọn một <c>k ∈ Z_r</c> đều và tính:",
+    "withdraw_p2": "Việc thay thế đầu ra sẽ làm vô hiệu thử thách, vì thế validator chỉ có thể tiêu hộp theo đúng đường tiêu mà người chứng minh đã ký. Bản thân hộp không có chữ ký ví. Chỉ các đầu ra đích được ví của người gửi (trả phí) ủy quyền.",
+    "further_p": "Cấu trúc đầy đủ và chứng minh an toàn nằm trong <paper>bài báo Sigmajoin</paper>. Cài đặt validator on-chain ở <c>contracts/validators/mix_logic.ak</c>; bộ dựng off-chain ở <c>offchain/src/tx/mix.ts</c>; các vector KAT đa ngôn ngữ ở <c>crypto/test-vectors/</c>."
   },
   "vault": {
     "title": "Két",
