@@ -149,10 +149,26 @@ ingress:
   - service: http_status:404
 YAML
 
-# 6. Run as a systemd service so it survives reboots
+# 6. Move the config + credentials to /etc/cloudflared/ before
+#    installing the service. `sudo cloudflared service install` runs
+#    as root and won't read your user's `~/.cloudflared/` (root's
+#    `~` is /root). It looks in /etc/cloudflared/ instead.
+sudo mkdir -p /etc/cloudflared
+sudo cp ~/.cloudflared/config.yml /etc/cloudflared/
+sudo cp ~/.cloudflared/*.json /etc/cloudflared/
+sudo sed -i "s|$HOME/.cloudflared|/etc/cloudflared|g" /etc/cloudflared/config.yml
+
+# 7. Run as a systemd service so it survives reboots
 sudo cloudflared service install
 sudo systemctl enable --now cloudflared
+sudo systemctl status cloudflared        # active (running)
 ```
+
+Leave `~/.cloudflared/cert.pem` alone — it's used by your shell for
+tunnel-management commands (`cloudflared tunnel route dns ...`,
+`cloudflared tunnel info ...`). The daemon doesn't need it; the
+tunnel-specific `<UUID>.json` is what authenticates the daemon as
+this particular tunnel.
 
 `tcp://` (rather than `http://`) is what lets the consumer side use
 `cloudflared access tcp`. Both services stay bound to localhost on the
