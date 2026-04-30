@@ -628,7 +628,7 @@ function UnlockedVault() {
           <div>
             <dt className="lj-eyebrow">{t("withdraw.destination_label")}</dt>
             <dd className="mt-1 break-all font-mono text-xs text-paper">
-              {destination.trim() || "—"}
+              {destination.trim()}
             </dd>
           </div>
         </dl>
