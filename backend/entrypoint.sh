@@ -12,13 +12,14 @@
 #   DBSYNC_URL=postgres://USER:PASS@127.0.0.1:5432/DBNAME
 #
 # Cloudflare Access service-token auth is mandatory when the home-side
-# Access application enforces a policy (it should). The `cloudflared
-# access` *client* — which is what we run here, distinct from the
-# `cloudflared tunnel` daemon on the home server — reads
-# CF_ACCESS_CLIENT_ID + CF_ACCESS_CLIENT_SECRET from the env. (The
-# TUNNEL_SERVICE_TOKEN_* env vars used by the tunnel daemon are a
-# different auth context entirely; mixing them up gives a "websocket:
-# bad handshake" against CF's edge.)
+# Access application enforces a policy (it should). We pass the
+# credentials to `cloudflared access tcp` via its CLI flags
+# (`--service-token-id` + `--service-token-secret`) rather than relying
+# on env-var inheritance — different cloudflared versions have read
+# different env-var names (TUNNEL_SERVICE_TOKEN_*, CF_ACCESS_CLIENT_*),
+# and getting it wrong manifests as "websocket: bad handshake" because
+# the request reaches CF Access without auth headers and gets bounced.
+# Flags are unambiguous.
 #
 # See docs/deploy.md §"Connecting App Platform to home-hosted infrastructure".
 
@@ -27,15 +28,10 @@ set -eu
 OGMIOS_LOCAL_PORT=1337
 DBSYNC_LOCAL_PORT=5432
 
-# Translate operator-friendly env names into the ones cloudflared's
-# access client expects. Only export when both are set so a bare
-# `cloudflared access` without auth fails fast on a misconfig instead
-# of hitting CF Access without credentials and 403'ing in a confusing
-# way.
-if [ -n "${CF_TUNNEL_SERVICE_TOKEN_ID:-}" ] && [ -n "${CF_TUNNEL_SERVICE_TOKEN_SECRET:-}" ]; then
-    export CF_ACCESS_CLIENT_ID="$CF_TUNNEL_SERVICE_TOKEN_ID"
-    export CF_ACCESS_CLIENT_SECRET="$CF_TUNNEL_SERVICE_TOKEN_SECRET"
-fi
+# Sanity log so a misconfig is obvious from the runtime tail. Prints
+# only "set" or "MISSING" — never the values themselves.
+echo "entrypoint: CF_TUNNEL_SERVICE_TOKEN_ID=$( [ -n "${CF_TUNNEL_SERVICE_TOKEN_ID:-}" ] && echo set || echo MISSING )" >&2
+echo "entrypoint: CF_TUNNEL_SERVICE_TOKEN_SECRET=$( [ -n "${CF_TUNNEL_SERVICE_TOKEN_SECRET:-}" ] && echo set || echo MISSING )" >&2
 
 start_cf_tcp() {
     name="$1"
@@ -45,7 +41,9 @@ start_cf_tcp() {
     echo "entrypoint: starting cloudflared access tcp for $name (-> $hostname:$local_port)" >&2
     cloudflared access tcp \
         --hostname "$hostname" \
-        --url "127.0.0.1:$local_port" &
+        --url "127.0.0.1:$local_port" \
+        --service-token-id "${CF_TUNNEL_SERVICE_TOKEN_ID:-}" \
+        --service-token-secret "${CF_TUNNEL_SERVICE_TOKEN_SECRET:-}" &
 
     # Wait up to 30s for the local listener to come up. cloudflared's
     # access tcp opens the listen socket synchronously after the
