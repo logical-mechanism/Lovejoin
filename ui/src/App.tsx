@@ -9,6 +9,7 @@ import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 
 import { BackendStatusProvider } from "./components/BackendStatus.js";
 import { CollateralStatusProvider } from "./components/CollateralProviderStatus.js";
+import { ErrorBoundary } from "./components/ErrorBoundary.js";
 import { ToasterProvider } from "./components/Toaster.js";
 import { Box } from "./routes/Box.js";
 import { Deposit } from "./routes/Deposit.js";
@@ -20,27 +21,36 @@ import { Vault } from "./routes/Vault.js";
 import { AppStateProvider, useAppState } from "./lib/store.js";
 
 export function App() {
+  // ErrorBoundary wraps the entire tree below the providers so:
+  //  - the boundary itself can call useTranslation (i18n is initialized
+  //    statically from main.tsx, no provider needed in-tree);
+  //  - if a route throws, the AppStateProvider stays mounted so the
+  //    user's session state isn't blown away on the way to the error
+  //    screen. The "Reset state" button in the boundary reaches in and
+  //    wipes localStorage explicitly when that's actually wanted.
   return (
     <AppStateProvider>
       <ToasterProvider>
         <CollateralStatusBridge>
           <BackendStatusBridge>
-            <BrowserRouter>
-              <Routes>
-                <Route element={<Layout />}>
-                  <Route index element={<Home />} />
-                  <Route path="deposit" element={<Deposit />} />
-                  <Route path="pool" element={<Pool />} />
-                  <Route path="vault" element={<Vault />} />
-                  <Route path="vault/:txid/:idx" element={<Box />} />
-                  {/* /withdraw was a parallel multi-select flow that
-                   * duplicated the Vault list. Folded into Vault; keep
-                   * a redirect so external links + bookmarks still land. */}
-                  <Route path="withdraw" element={<Navigate to="/vault" replace />} />
-                  <Route path="protocol" element={<Protocol />} />
-                </Route>
-              </Routes>
-            </BrowserRouter>
+            <ErrorBoundary>
+              <BrowserRouter>
+                <Routes>
+                  <Route element={<Layout />}>
+                    <Route index element={<Home />} />
+                    <Route path="deposit" element={<Deposit />} />
+                    <Route path="pool" element={<Pool />} />
+                    <Route path="vault" element={<Vault />} />
+                    <Route path="vault/:txid/:idx" element={<Box />} />
+                    {/* /withdraw was a parallel multi-select flow that
+                     * duplicated the Vault list. Folded into Vault; keep
+                     * a redirect so external links + bookmarks still land. */}
+                    <Route path="withdraw" element={<Navigate to="/vault" replace />} />
+                    <Route path="protocol" element={<Protocol />} />
+                  </Route>
+                </Routes>
+              </BrowserRouter>
+            </ErrorBoundary>
           </BackendStatusBridge>
         </CollateralStatusBridge>
       </ToasterProvider>

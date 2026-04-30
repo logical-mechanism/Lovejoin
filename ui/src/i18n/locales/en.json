@@ -46,6 +46,13 @@
     "user_rejected": "You declined the wallet prompt.",
     "collateral_unreachable": "Collateral provider unreachable. Wait for it to recover and try again."
   },
+  "error": {
+    "boundary_eyebrow": "Error",
+    "boundary_title": "Something went wrong",
+    "boundary_lede": "An unexpected error broke this screen. The protocol is unaffected — your boxes are still on chain. Reload to recover; if the same error keeps showing up, clear local state and try again.",
+    "boundary_reload": "Reload",
+    "boundary_reset": "Clear local state + reload"
+  },
   "app": {
     "title": "Lovejoin",
     "tagline": "A Cardano-native privacy mixer.",
@@ -107,6 +114,7 @@
     "address": "Change address",
     "refresh": "Refresh wallets",
     "connect_error": "Failed to connect: {{message}}",
+    "network_mismatch": "Wallet is on {{walletNet}} but this app is configured for {{appNet}}. Switch your wallet's network or pick a different account.",
     "section_title": "Wallet",
     "disconnect_confirm": "Disconnect this wallet from Lovejoin?"
   },
@@ -301,6 +309,7 @@
     "scan_summary": "Found {{count}} owned box(es) in {{pool}} pool boxes.",
     "empty": "No owned boxes yet.",
     "empty_hint": "Make a deposit to populate the vault. The pool is rescanned each time the vault is unlocked.",
+    "box_pending": "In flight",
     "recover_link": "Use a recovery password instead",
     "recover_eyebrow": "Recovery vault",
     "recover_title": "Unlock with a password",

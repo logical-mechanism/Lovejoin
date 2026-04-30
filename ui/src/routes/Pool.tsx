@@ -17,12 +17,14 @@
 //       error:   coral banner with friendly retry copy
 //       ready:   the MixButton CTA
 //
-// `useEffect` polls the pool every 30 s. The first fetch sets `loading`
-// so users don't stare at a "0 boxes loaded" UI on a slow network. On
-// subsequent polls we don't re-show the loading state — the user
-// already trusts the screen.
+// `useVisibleRefresh` drives the pool refresh: fires on mount (with the
+// loading skeleton), every 30 s while the tab is visible, and again the
+// moment the user tabs back from a stale background. The mount fetch
+// sets `loading` so users don't stare at a "0 boxes loaded" UI on a
+// slow first paint; subsequent triggers leave the existing data in
+// place and silently update.
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Link } from "react-router-dom";
 import type { MixFeePayer } from "@lovejoin/sdk";
@@ -40,6 +42,7 @@ import { BackendClient } from "../lib/backend.js";
 import { fetchPoolDirect, type DirectPoolEntry } from "../lib/pool.js";
 import { useAppState } from "../lib/store.js";
 import { friendlyErrorMessage } from "../lib/errors.js";
+import { useVisibleRefresh } from "../lib/use-visible-refresh.js";
 
 export function Pool() {
   const { t } = useTranslation();
@@ -73,12 +76,14 @@ export function Pool() {
   // doesn't spuriously re-fire on every probe tick.
   const backendStatus = backend?.status ?? null;
 
-  useEffect(() => {
-    if (!provider || !addresses) return;
-    let cancelled = false;
-    let firstRun = true;
-    const refresh = async () => {
-      if (firstRun) setLoading(true);
+  const { refresh: refreshPool } = useVisibleRefresh(
+    async (trigger) => {
+      if (!provider || !addresses) return;
+      // Only the first paint shows the big "Scanning…" line. Visibility,
+      // interval, and manual triggers refresh in place — the user is
+      // already looking at populated data and a sudden skeleton would
+      // feel like a regression.
+      if (trigger === "mount") setLoading(true);
       try {
         // Provider preference: when the self-hosted backend is reachable
         // AND its indexer is caught up to chain tip, treat it as
@@ -94,7 +99,6 @@ export function Pool() {
           try {
             const client = new BackendClient(config.backendUrl);
             const page = await client.pool({ limit: 500 });
-            if (cancelled) return;
             if (page) {
               const fromBackend = page.boxes.map((b) => ({
                 ref: { txId: b.txHash.toLowerCase(), outputIndex: b.outputIndex },
@@ -113,26 +117,28 @@ export function Pool() {
         }
         if (!entries) {
           entries = await fetchPoolDirect({ provider, addresses });
-          if (cancelled) return;
         }
         setPoolEntries(entries);
         setPoolError(null);
       } catch (e) {
-        if (!cancelled) setPoolError((e as Error).message);
+        setPoolError((e as Error).message);
       } finally {
-        if (!cancelled && firstRun) {
-          setLoading(false);
-          firstRun = false;
-        }
+        if (trigger === "mount") setLoading(false);
       }
-    };
-    void refresh();
-    const id = window.setInterval(() => void refresh(), 30_000);
-    return () => {
-      cancelled = true;
-      window.clearInterval(id);
-    };
-  }, [provider, addresses, config.backendUrl, backendStatus]);
+    },
+    { intervalMs: 30_000, enabled: !!provider && !!addresses },
+  );
+
+  // When the backend health flips (e.g. syncing → synced) we want to
+  // re-read the pool immediately rather than wait up to 30 s for the
+  // next interval tick. Skip the very first run so we don't fire a
+  // duplicate fetch on top of the hook's mount call.
+  const lastBackendStatus = useRef(backendStatus);
+  useEffect(() => {
+    if (lastBackendStatus.current === backendStatus) return;
+    lastBackendStatus.current = backendStatus;
+    refreshPool();
+  }, [backendStatus, refreshPool]);
 
   // Status branches for the action area. Render priority:
   //   error > loading > empty > ready

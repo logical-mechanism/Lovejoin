@@ -11,7 +11,6 @@
 import {
   createContext,
   useContext,
-  useEffect,
   useMemo,
   useRef,
   useState,
@@ -24,6 +23,7 @@ import {
   type CollateralProbeResult,
   type CollateralStatus,
 } from "../lib/collateral-status.js";
+import { useVisibleRefresh } from "../lib/use-visible-refresh.js";
 
 interface CollateralStatusValue {
   result: CollateralProbeResult | null;
@@ -69,18 +69,13 @@ export function CollateralStatusProvider({
     };
   }, [endpoint, fetchFn]);
 
-  useEffect(() => {
-    cancelledRef.current = false;
-    if (skip) return;
-    void refresh();
-    const id = window.setInterval(() => {
+  useVisibleRefresh(
+    () => {
+      cancelledRef.current = false;
       void refresh();
-    }, pollMs);
-    return () => {
-      cancelledRef.current = true;
-      window.clearInterval(id);
-    };
-  }, [refresh, pollMs, skip]);
+    },
+    { intervalMs: pollMs, enabled: !skip },
+  );
 
   const value: CollateralStatusValue = { result, refresh: () => void refresh() };
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;

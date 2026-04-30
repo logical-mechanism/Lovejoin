@@ -102,7 +102,7 @@ export function MixButton({
   onSubmittingChange,
 }: MixButtonProps) {
   const { t } = useTranslation();
-  const { ownedBoxes } = useAppState();
+  const { ownedBoxes, markTxPending } = useAppState();
   const [submitting, setSubmitting] = useState(false);
   const [cooldown, setCooldown] = useState(0);
   const [confirmOpen, setConfirmOpen] = useState(false);
@@ -160,12 +160,13 @@ export function MixButton({
     setSubmitting(true);
     onSubmittingChange?.(true);
     try {
-      const inputs = pickMixInputs({
+      const picked = pickMixInputs({
         pool: poolEntries,
         n,
         feePayer,
         ownedRefs: ownedRefSet,
-      }).map<MixInput>((e) => {
+      });
+      const inputs = picked.map<MixInput>((e) => {
         const utxo: Utxo = {
           ref: e.ref,
           address: "",
@@ -189,6 +190,17 @@ export function MixButton({
         addresses,
         feePayer,
       });
+      // Mark any of the user's own boxes that ended up as Mix inputs
+      // as pending so the Vault row dims out until the rescan
+      // confirms the spend. Only relevant when wallet-mode + bias hit
+      // (or shard-mode pure-random happened to grab one), so most
+      // submits write zero refs here.
+      const ownedInputs = picked
+        .map((e) => refKey(e.ref))
+        .filter((key) => ownedRefSet.has(key));
+      if (ownedInputs.length > 0) {
+        markTxPending(ownedInputs);
+      }
       onSubmitted(result.txId);
       startCooldown();
     } catch (e) {

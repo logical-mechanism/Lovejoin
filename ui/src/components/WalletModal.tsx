@@ -13,6 +13,7 @@ import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 
 import { connectWallet, listInstalledWallets } from "../lib/sdk.js";
+import { useAppState } from "../lib/store.js";
 import { Modal } from "./ui/Modal.js";
 
 export interface WalletModalProps {
@@ -33,6 +34,7 @@ interface InstalledWallet {
 
 export function WalletModal({ open, onClose, onConnected }: WalletModalProps) {
   const { t } = useTranslation();
+  const { config } = useAppState();
   const [wallets, setWallets] = useState<InstalledWallet[] | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -59,6 +61,21 @@ export function WalletModal({ open, onClose, onConnected }: WalletModalProps) {
     setError(null);
     try {
       const wallet = await connectWallet(w.id);
+      // Network-id sanity. CIP-30 returns 0 for testnets (preprod /
+      // preview / custom) and 1 for mainnet. Without this guard a user
+      // on Lace-mainnet pointing at the preprod build would just see
+      // cryptic tx-build failures later. Fail loud, fail early.
+      const networkId = await wallet.getNetworkId();
+      const expectedId = config.network === "mainnet" ? 1 : 0;
+      if (networkId !== expectedId) {
+        const walletNet = networkId === 1 ? "mainnet" : "testnet";
+        throw new Error(
+          t("wallet.network_mismatch", {
+            walletNet,
+            appNet: config.network,
+          }),
+        );
+      }
       const changeAddress = await wallet.getChangeAddress();
       onConnected({ wallet, walletId: w.id, changeAddress });
       onClose();
