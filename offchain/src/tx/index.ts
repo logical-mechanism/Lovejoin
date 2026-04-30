@@ -8,6 +8,7 @@
 export * from "./params.js";
 export * from "./fee.js";
 export * from "./collateral.js";
+export * from "./known-collateral-hosts.js";
 export * from "./address.js";
 export * from "./deposit.js";
 export * from "./donate.js";
