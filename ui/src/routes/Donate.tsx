@@ -49,6 +49,7 @@ export function Donate() {
 
   const [amountAda, setAmountAda] = useState<number>(DEFAULT_AMOUNT_ADA);
   const [submitting, setSubmitting] = useState(false);
+  const [retryAttempt, setRetryAttempt] = useState<number | null>(null);
   const [poolLovelace, setPoolLovelace] = useState<bigint | null>(null);
   const [shardCount, setShardCount] = useState<number | null>(null);
   const [shards, setShards] = useState<FeeShard[] | null>(null);
@@ -118,6 +119,7 @@ export function Donate() {
     e.preventDefault();
     if (submitting || !validAmount) return;
     setSubmitting(true);
+    setRetryAttempt(null);
     try {
       const result = await buildDonateTx({
         network: config.network as "preprod" | "preview" | "mainnet",
@@ -125,6 +127,10 @@ export function Donate() {
         wallet,
         provider,
         addresses,
+        retry: {
+          maxAttempts: 3,
+          onRetry: (info) => setRetryAttempt(info.attempt),
+        },
       });
       toast.push({
         tone: "success",
@@ -149,6 +155,7 @@ export function Donate() {
       });
     } finally {
       setSubmitting(false);
+      setRetryAttempt(null);
       void refreshWalletBalance();
     }
   };
@@ -247,6 +254,11 @@ export function Donate() {
               )}
               {submitting ? t("donate.submitting") : t("donate.submit")}
             </button>
+            {retryAttempt !== null && (
+              <p className="mt-3 text-xs text-amber">
+                {t("tx.retrying_collision", { attempt: retryAttempt })}
+              </p>
+            )}
             {balanceShort && walletLovelace !== null && (
               <p className="mt-3 text-xs text-amber">
                 {t("wallet.insufficient_balance", {

@@ -106,6 +106,7 @@ export function MixButton({
   const { ownedBoxes, markTxPending, walletLovelace, refreshWalletBalance } =
     useAppState();
   const [submitting, setSubmitting] = useState(false);
+  const [retryAttempt, setRetryAttempt] = useState<number | null>(null);
   const [cooldown, setCooldown] = useState(0);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const cooldownTimer = useRef<number | null>(null);
@@ -168,6 +169,7 @@ export function MixButton({
     if (disabled) return;
     setConfirmOpen(false);
     setSubmitting(true);
+    setRetryAttempt(null);
     onSubmittingChange?.(true);
     try {
       const picked = pickMixInputs({
@@ -199,6 +201,10 @@ export function MixButton({
         provider,
         addresses,
         feePayer,
+        retry: {
+          maxAttempts: 3,
+          onRetry: (info) => setRetryAttempt(info.attempt),
+        },
       });
       // Mark any of the user's own boxes that ended up as Mix inputs
       // as pending so the Vault row dims out until the rescan
@@ -218,6 +224,7 @@ export function MixButton({
       refreshCollateral();
     } finally {
       setSubmitting(false);
+      setRetryAttempt(null);
       onSubmittingChange?.(false);
       void refreshWalletBalance();
     }
@@ -273,6 +280,11 @@ export function MixButton({
             have: formatAda(walletLovelace),
             need: formatAda(mixWalletRequiredLovelace),
           })}
+        </p>
+      )}
+      {retryAttempt !== null && (
+        <p className="text-xs text-amber">
+          {t("tx.retrying_collision", { attempt: retryAttempt })}
         </p>
       )}
 

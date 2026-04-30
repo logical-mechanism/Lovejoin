@@ -664,6 +664,8 @@ export interface BuildBulkWithdrawArgs {
   /** See {@link WithdrawFeePayer}. Default: `"box"`. */
   feePayer?: WithdrawFeePayer;
   signOnly?: boolean;
+  /** Retry on input collisions. See {@link BuildWithdrawArgs.retry}. */
+  retry?: RetryOptions;
 }
 
 export interface BulkWithdrawResult {
@@ -701,6 +703,7 @@ export async function buildBulkWithdrawTx(
   const networkId = networkIdFor(args.network);
   const { params } = await fetchProtocolParams(args.addresses, args.provider);
 
+  return withInputCollisionRetry(async () => {
   // Sort entries by (txId asc, outputIndex asc) — matches the ledger's
   // canonical input ordering. The validator's `collect_well_formed_mix_inputs`
   // walks `tx.inputs` in that same order, so `proofs[i]` MUST line up.
@@ -958,6 +961,7 @@ export async function buildBulkWithdrawTx(
   }
   const txId = await args.provider.submitTx(signedTx);
   return { signedTxHex: signedTx, txId, owners, count: n, totalLovelace };
+  }, args.retry);
 }
 
 /**

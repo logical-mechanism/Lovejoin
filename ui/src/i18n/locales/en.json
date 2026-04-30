@@ -38,6 +38,9 @@
     "view_on_scan": "view on cardanoscan ↗",
     "dismiss": "Dismiss"
   },
+  "tx": {
+    "retrying_collision": "A targeted UTxO was just consumed. Retrying with a fresh pick (attempt {{attempt}})…"
+  },
   "errors": {
     "network": "Network error. Check your connection and try again.",
     "blockfrost_auth": "Blockfrost rejected the request. Your VITE_BLOCKFROST_PROJECT_ID looks invalid for this network.",

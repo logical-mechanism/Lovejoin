@@ -131,6 +131,7 @@ function UnlockedVault() {
   const [selectedRefs, setSelectedRefs] = useState<Set<string>>(() => new Set());
   const [destination, setDestination] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [retryAttempt, setRetryAttempt] = useState<number | null>(null);
   const [confirmOpen, setConfirmOpen] = useState(false);
   // Track rescan-in-flight locally so the "Scan again" button can
   // disable + show a spinner. The initial unlock-time scan is already
@@ -257,6 +258,7 @@ function UnlockedVault() {
     if (validation.status !== "ok") return;
     setConfirmOpen(false);
     setSubmitting(true);
+    setRetryAttempt(null);
     try {
       const entries: BulkWithdrawEntry[] = selectedBoxes.map((b) => ({
         mixBox: { ref: b.entry.ref, a: b.entry.a, b: b.entry.b },
@@ -277,6 +279,10 @@ function UnlockedVault() {
         provider: provider!,
         addresses: addresses!,
         collateralProvider,
+        retry: {
+          maxAttempts: 3,
+          onRetry: (info) => setRetryAttempt(info.attempt),
+        },
       });
       toast.push({
         tone: "success",
@@ -307,6 +313,7 @@ function UnlockedVault() {
       });
     } finally {
       setSubmitting(false);
+      setRetryAttempt(null);
       void refreshWalletBalance();
     }
   };
@@ -588,6 +595,11 @@ function UnlockedVault() {
                     have: formatAda(walletLovelace),
                     need: formatAda(withdrawRequiredLovelace),
                   })}
+                </p>
+              )}
+              {retryAttempt !== null && (
+                <p className="mt-3 text-xs text-amber">
+                  {t("tx.retrying_collision", { attempt: retryAttempt })}
                 </p>
               )}
             </div>
