@@ -158,6 +158,28 @@ sudo systemctl enable --now cloudflared
 `cloudflared access tcp`. Both services stay bound to localhost on the
 home box — UFW keeps doing its job; no inbound rule needed.
 
+##### Ignore the "allow Cloudflare IPs at your origin" prompt
+
+During CF onboarding you'll see a recommendation along the lines of:
+
+> Only allow Cloudflare IP addresses at your origin. Update your origin
+> server's firewall to block all incoming traffic that doesn't
+> originate from Cloudflare.
+
+**That recommendation does not apply to a tunnel setup.** It's for
+users running a public-facing origin behind CF's reverse proxy, who
+want to make sure attackers can't bypass the proxy by hitting the
+origin's public IP directly. With Cloudflare Tunnel there is no
+inbound traffic to the origin at all — `cloudflared` dials *outbound*
+to CF and proxies traffic back through that outbound connection. So:
+
+- Keep your existing UFW default-deny inbound posture.
+- Bind Ogmios + Postgres to `127.0.0.1` (or your LAN-only interface)
+  so they don't even listen on a public interface.
+- Don't add allow-rules for any CF IP ranges. Outbound-443 is the only
+  thing `cloudflared` needs, which is already allowed in any sane
+  default config.
+
 #### Cloudflare Access policy + service token
 
 In the Cloudflare Zero Trust dashboard:
