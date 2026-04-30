@@ -34,7 +34,7 @@ import { Eyebrow } from "../components/ui/Eyebrow.js";
 import { Hash } from "../components/ui/Hash.js";
 import { Modal } from "../components/ui/Modal.js";
 import { StatusDot } from "../components/ui/StatusDot.js";
-import { Bip39FallbackPanel } from "../components/Bip39FallbackPanel.js";
+import { RecoverPasswordPanel } from "../components/RecoverPasswordPanel.js";
 import { useToast } from "../components/Toaster.js";
 import { WithdrawReview } from "../components/WithdrawReview.js";
 import { formatAda } from "../lib/format.js";
@@ -50,7 +50,7 @@ export function Vault() {
   if (!vault) {
     if (showFallback) {
       return (
-        <Bip39FallbackPanel onClose={() => setShowFallback(false)} />
+        <RecoverPasswordPanel onClose={() => setShowFallback(false)} />
       );
     }
     return (
@@ -72,6 +72,9 @@ export function Vault() {
             disabled={!wallet || vaultBusy}
             onClick={() => void unlockWithWallet()}
           >
+            {vaultBusy && (
+              <span className="lj-spinner lj-spinner--sm" aria-hidden="true" />
+            )}
             {vaultBusy ? t("vault.unlocking") : t("vault.unlock_with_wallet")}
           </button>
         </div>
@@ -83,8 +86,10 @@ export function Vault() {
             type="button"
             className="lj-btn lj-btn--quiet"
             onClick={() => setShowFallback(true)}
+            disabled={!wallet}
+            title={!wallet ? t("vault.no_wallet") : undefined}
           >
-            {t("vault.fallback_link")}
+            {t("vault.recover_link")}
             <span aria-hidden="true">→</span>
           </button>
         </div>
@@ -122,6 +127,20 @@ function UnlockedVault() {
   const [destination, setDestination] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
+  // Track rescan-in-flight locally so the "Scan again" button can
+  // disable + show a spinner. The initial unlock-time scan is already
+  // awaited inside `unlockWithWallet`, so by the time we render here
+  // the box list is hydrated — no need to seed this `true`.
+  const [rescanning, setRescanning] = useState(false);
+  const runRescan = async () => {
+    if (rescanning) return;
+    setRescanning(true);
+    try {
+      await rescan();
+    } finally {
+      setRescanning(false);
+    }
+  };
 
   // Default-select the first owned box on initial load so single-box
   // users don't have to think about the new multi-select UI. Once the
@@ -251,10 +270,13 @@ function UnlockedVault() {
           <button
             type="button"
             className="lj-btn lj-btn--quiet"
-            onClick={() => void rescan()}
-            disabled={submitting}
+            onClick={() => void runRescan()}
+            disabled={submitting || rescanning}
           >
-            {t("vault.scan_again")}
+            {rescanning && (
+              <span className="lj-spinner lj-spinner--sm" aria-hidden="true" />
+            )}
+            {rescanning ? t("vault.scanning_pool") : t("vault.scan_again")}
           </button>
           <button
             type="button"
@@ -457,6 +479,9 @@ function UnlockedVault() {
                 disabled={!canSubmit}
                 className="lj-btn lj-btn--primary lj-btn--lg"
               >
+                {submitting && (
+                  <span className="lj-spinner lj-spinner--sm" aria-hidden="true" />
+                )}
                 {submitting ? t("withdraw.submitting") : t("withdraw.submit")}
               </button>
               {!preconditionsOk && (

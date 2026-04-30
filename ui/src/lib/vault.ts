@@ -1,22 +1,29 @@
 // Vault state machine — turns a master seed into the live "owned boxes"
 // the rest of the UI consumes.
 //
-// Spec: docs/spec/06-ui.md M6.5 — "Wallet-derived vault (default flow) —
-// zero new keys for the user to manage. ... seed = blake2b_256(signature
-// _bytes); per-deposit owner secret x_i = scalar_from_hkdf(seed, 'lovejoin
-// /owner/v1', counter=i) reduced mod r."
+// Two unlock paths both produce a 32-byte master seed; the rest of the
+// vault doesn't care which path was used. Both are wallet-bound (no
+// vault is reachable without a connected CIP-30 wallet) and both leave
+// nothing on disk:
 //
-// Two unlock paths produce the same kind of `UnlockedSeed`:
+//   1. **signData (default):** the wallet signs a fixed payload via
+//      CIP-8. `seed = blake2b_256(domain || stake_addr || sig_bytes)`.
+//      Recovery = same wallet anywhere; Ed25519 is deterministic.
+//      Strongest path because security ports from the wallet's private
+//      key — no separate secret to memorize. Requires a wallet that
+//      exposes signData (most software wallets do; some hardware-wallet
+//      bridges don't).
 //
-//   1. **Wallet-derived (default):** the connected CIP-30 wallet does a
-//      single signData(stakeAddr, 'lovejoin/owner/v1') round-trip. The
-//      signature is hashed into a 32-byte seed. No persistence — the
-//      next session re-prompts the wallet for the same signature and
-//      recomputes the same seed (Ed25519 is deterministic).
-//
-//   2. **BIP-39 fallback (advanced):** the user creates or unlocks an
-//      encrypted IndexedDB vault. The 32-byte BIP-39 entropy is the
-//      seed input directly (no further round-trip needed).
+//   2. **Password (recovery):** for wallets without signData and as a
+//      cross-device recovery escape hatch. `seed = Argon2id(password,
+//      salt = recoverySalt(network, stake_addr_bech32))`. Same wallet +
+//      same password on any device → same seed. Strictly weaker than
+//      signData (the salt is built from the public stake address, so an
+//      attacker who knows your address can offline-brute-force the
+//      password) — mitigated by enforcing a long password and heavy
+//      Argon2id parameters (RECOVERY_KDF_PARAMS_V1, ~2 s per derivation).
+//      Replaces the prior BIP-39 + IndexedDB fallback, which required
+//      saving 24 words AND maintaining browser storage to recover.
 //
 // Once unlocked, the vault scans the live pool with `findOwnedBoxes` for
 // indices `[0..MAX_INDEX_SCAN)` and surfaces the union as `OwnedBox[]`.
@@ -25,6 +32,8 @@
 // construction (every deposit increments by 1 when sourced from this
 // derivation).
 
+import { argon2id } from "hash-wasm";
+
 import {
   buildScriptAddress,
   deriveOwnerSecret,
@@ -32,19 +41,25 @@ import {
   fetchPool,
   findOwnedBoxes,
   ownsBox,
+  recoverySalt,
   scalarMul,
   pointEqual,
   pointFromBytes,
   scalarToBytes,
   GENERATOR_COMPRESSED,
+  RECOVERY_KDF_PARAMS_V1,
+  RECOVERY_PASSWORD_MIN_LENGTH,
   type ChainProvider,
   type LovejoinAddresses,
   type PoolEntry,
+  type RecoveryNetwork,
   type Scalar,
   type SignDataCapableWallet,
 } from "@lovejoin/sdk";
 
-import { EntropyVault, type UnlockedEntropyVault } from "../storage/secrets.js";
+interface RewardAddressCapableWallet {
+  getRewardAddresses(): Promise<string[]>;
+}
 
 /**
  * Maximum per-vault deposit index the auto-scanner will probe. Higher =
@@ -54,17 +69,12 @@ import { EntropyVault, type UnlockedEntropyVault } from "../storage/secrets.js";
  */
 export const MAX_INDEX_SCAN = 1024;
 
-export type VaultKind = "wallet" | "bip39";
+export type VaultKind = "wallet" | "password";
 
 export interface UnlockedSeed {
   kind: VaultKind;
   /** The raw 32-byte master seed. Held in memory only. */
   seed: Uint8Array;
-  /**
-   * For the BIP-39 path: the open vault handle so callers can rotate
-   * passphrases or destroy the entropy. Always null for wallet-derived.
-   */
-  bip39Vault: UnlockedEntropyVault | null;
 }
 
 export interface OwnedBox {
@@ -196,22 +206,54 @@ export async function unlockFromWallet(args: {
   wallet: SignDataCapableWallet;
 }): Promise<UnlockedSeed> {
   const { seed } = await deriveSeedFromWalletSignature({ wallet: args.wallet });
-  return { kind: "wallet", seed, bip39Vault: null };
+  return { kind: "wallet", seed };
 }
 
 /**
- * Unlock the BIP-39 fallback vault with a passphrase. First-ever call
- * auto-creates the meta record; subsequent calls verify the passphrase.
- * Returns null when the vault exists but no entropy has been written
- * yet (the in-progress create flow).
+ * Recovery unlock — `seed = Argon2id(password, salt = recoverySalt(...))`.
+ * Used by wallets that don't expose signData and as a cross-device
+ * recovery path (same wallet + same password = same seed, no IndexedDB
+ * blob required). Wallet still must be connected so we can read the
+ * stake address that goes into the salt.
+ *
+ * Throws if the password is shorter than RECOVERY_PASSWORD_MIN_LENGTH or
+ * if the wallet exposes no reward addresses. The Argon2id call typically
+ * runs ~2 s on a 2025-era laptop with the v1 parameter set; callers
+ * should show a spinner.
  */
-export async function unlockFromBip39(args: {
-  passphrase: string;
-}): Promise<{ seed: Uint8Array | null; vault: UnlockedEntropyVault }> {
-  const vault = await EntropyVault.unlock(args.passphrase);
-  const entropyHex = await vault.getEntropyHex();
-  if (!entropyHex) return { seed: null, vault };
-  return { seed: hexToBytes(entropyHex), vault };
+export async function unlockFromPassword(args: {
+  wallet: RewardAddressCapableWallet;
+  password: string;
+  network: RecoveryNetwork;
+}): Promise<UnlockedSeed> {
+  if (args.password.length < RECOVERY_PASSWORD_MIN_LENGTH) {
+    throw new Error(
+      `password: must be at least ${RECOVERY_PASSWORD_MIN_LENGTH} characters`,
+    );
+  }
+  const rewards = await args.wallet.getRewardAddresses();
+  if (!rewards || rewards.length === 0) {
+    throw new Error(
+      "wallet: exposed no reward (stake) addresses — cannot derive a recovery salt",
+    );
+  }
+  const salt = recoverySalt({
+    network: args.network,
+    stakeAddrBech32: rewards[0]!,
+  });
+  // hash-wasm returns a `Uint8Array` when outputType is "binary", but its
+  // type narrowing routes through a string union; cast and copy out of
+  // the wasm-backed buffer (same pattern the prior BIP-39 vault used).
+  const raw = (await argon2id({
+    password: args.password,
+    salt,
+    iterations: RECOVERY_KDF_PARAMS_V1.iterations,
+    memorySize: RECOVERY_KDF_PARAMS_V1.memorySizeKib,
+    parallelism: RECOVERY_KDF_PARAMS_V1.parallelism,
+    hashLength: RECOVERY_KDF_PARAMS_V1.hashLength,
+    outputType: "binary",
+  })) as Uint8Array;
+  return { kind: "password", seed: Uint8Array.from(raw) };
 }
 
 /**
@@ -239,11 +281,3 @@ function bytesToHex(b: Uint8Array): string {
   return s;
 }
 
-function hexToBytes(hex: string): Uint8Array {
-  const cleaned = hex.replace(/^0x/i, "");
-  const out = new Uint8Array(cleaned.length / 2);
-  for (let i = 0; i < out.length; i++) {
-    out[i] = Number.parseInt(cleaned.slice(i * 2, i * 2 + 2), 16);
-  }
-  return out;
-}
