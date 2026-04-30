@@ -191,8 +191,13 @@ export function Pool() {
 
         <div className="mt-6 flex flex-col gap-6">
           <div className="flex flex-wrap items-center gap-x-6 gap-y-2">
-            <Eyebrow>{t("pool.fee_payer_label")}</Eyebrow>
-            <div className="lj-toggle" role="group">
+            <Eyebrow id="fee-payer-label">{t("pool.fee_payer_label")}</Eyebrow>
+            <div
+              className="lj-toggle"
+              role="group"
+              aria-labelledby="fee-payer-label"
+              aria-describedby="fee-payer-hint"
+            >
               <button
                 type="button"
                 aria-pressed={feePayer === "shard"}
@@ -208,7 +213,10 @@ export function Pool() {
                 {t("pool.fee_payer_wallet")} (N={maxNWallet})
               </button>
             </div>
-            <p className="text-xs text-whisper basis-full leading-relaxed">
+            <p
+              id="fee-payer-hint"
+              className="text-xs text-whisper basis-full leading-relaxed"
+            >
               {feePayer === "shard"
                 ? t("pool.fee_payer_shard_hint")
                 : t("pool.fee_payer_wallet_hint")}
@@ -265,7 +273,7 @@ export function Pool() {
 
         <div className="mt-8">
           {showLoading && (
-            <div className="lj-loading" aria-live="polite">
+            <div className="lj-loading" role="status" aria-live="polite">
               {t("pool.scanning")}
             </div>
           )}

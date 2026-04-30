@@ -97,18 +97,23 @@ export function WalletModal({ open, onClose, onConnected }: WalletModalProps) {
       </header>
 
       {wallets === null && !error && (
-        <div className="lj-loading">{t("wallet.scanning")}</div>
+        <div className="lj-loading" role="status" aria-live="polite">
+          {t("wallet.scanning")}
+        </div>
       )}
 
       {wallets !== null && wallets.length === 0 && (
-        <div className="lj-empty">
+        <div className="lj-empty" role="status">
           <p className="lj-empty__title">{t("wallet.no_wallets_title")}</p>
           <p>{t("wallet.no_wallets")}</p>
         </div>
       )}
 
       {wallets !== null && wallets.length > 0 && (
-        <ul className="flex flex-col divide-y divide-rule">
+        <ul
+          className="flex flex-col divide-y divide-rule"
+          aria-label={t("wallet.list_aria_label")}
+        >
           {wallets.map((w) => {
             const isConnecting = busyId === w.id;
             const isOtherBusy = busyId !== null && !isConnecting;
@@ -119,6 +124,7 @@ export function WalletModal({ open, onClose, onConnected }: WalletModalProps) {
                   onClick={() => onPick(w)}
                   disabled={busyId !== null}
                   aria-busy={isConnecting}
+                  aria-label={t("wallet.connect_to", { name: w.name || w.id })}
                   className={`flex w-full items-center gap-3 px-1 py-3 text-left transition-colors hover:bg-surface disabled:cursor-not-allowed ${
                     isOtherBusy ? "opacity-40" : ""
                   }`}
@@ -126,7 +132,7 @@ export function WalletModal({ open, onClose, onConnected }: WalletModalProps) {
                   {w.icon ? (
                     <img src={w.icon} alt="" className="h-7 w-7 rounded" />
                   ) : (
-                    <span className="h-7 w-7 rounded bg-rise" />
+                    <span className="h-7 w-7 rounded bg-rise" aria-hidden="true" />
                   )}
                   <span className="flex-1 capitalize">{w.name || w.id}</span>
                   {isConnecting ? (
@@ -138,7 +144,7 @@ export function WalletModal({ open, onClose, onConnected }: WalletModalProps) {
                       {t("wallet.connecting")}
                     </span>
                   ) : (
-                    <span className="text-xs text-whisper">→</span>
+                    <span className="text-xs text-whisper" aria-hidden="true">→</span>
                   )}
                 </button>
               </li>

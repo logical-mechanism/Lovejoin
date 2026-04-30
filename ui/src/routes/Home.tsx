@@ -95,8 +95,8 @@ function Pillar({
   to: string;
 }) {
   return (
-    <Link to={to} className="lj-pillar group block focus:outline-none">
-      <span className="lj-pillar__numeral">{numeral}</span>
+    <Link to={to} className="lj-pillar group block">
+      <span className="lj-pillar__numeral" aria-hidden="true">{numeral}</span>
       <h3 className="lj-pillar__title">{title}</h3>
       <p className="lj-pillar__copy">{copy}</p>
     </Link>

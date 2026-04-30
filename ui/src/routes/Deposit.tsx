@@ -205,10 +205,14 @@ export function Deposit() {
       >
         <fieldset disabled={submitting} className="contents">
           <div className="grid gap-6 sm:grid-cols-2">
-            <label className="lj-field">
-              <span className="lj-field__label">{t("deposit.count_label")}</span>
+            <div className="lj-field">
+              <label className="lj-field__label" htmlFor="deposit-count">
+                {t("deposit.count_label")}
+              </label>
               <input
+                id="deposit-count"
                 type="number"
+                inputMode="numeric"
                 min={1}
                 max={MAX_BULK_COUNT}
                 value={count}
@@ -221,24 +225,32 @@ export function Deposit() {
                   )
                 }
                 className="lj-input max-w-[10rem]"
+                aria-describedby="deposit-count-help"
               />
-              <span className="lj-field__hint">
+              <span id="deposit-count-help" className="lj-field__hint">
                 {t("deposit.count_help", { denom: denomAda, total: formatAda(denomLovelace * BigInt(count)) })}
               </span>
-            </label>
+            </div>
 
-            <label className="lj-field">
-              <span className="lj-field__label">{t("deposit.rounds_label")}</span>
+            <div className="lj-field">
+              <label className="lj-field__label" htmlFor="deposit-rounds">
+                {t("deposit.rounds_label")}
+              </label>
               <input
+                id="deposit-rounds"
                 type="number"
+                inputMode="numeric"
                 min={1}
                 max={500}
                 value={rounds}
                 onChange={(e) => setRounds(Number.parseInt(e.target.value, 10) || 1)}
                 className="lj-input max-w-[10rem]"
+                aria-describedby="deposit-rounds-help"
               />
-              <span className="lj-field__hint">{t("deposit.rounds_help")}</span>
-            </label>
+              <span id="deposit-rounds-help" className="lj-field__hint">
+                {t("deposit.rounds_help")}
+              </span>
+            </div>
           </div>
 
           <div className="lj-banner lj-banner--signal">

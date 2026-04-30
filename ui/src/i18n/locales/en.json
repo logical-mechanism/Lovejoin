@@ -9,11 +9,15 @@
     "close": "Close",
     "copy": "Copy",
     "copied": "Copied",
+    "copy_value": "Copy {{value}} to clipboard",
     "loading": "Loading…",
     "tx_hash": "Tx",
     "address": "Address",
     "amount": "Amount",
     "fee": "Fee"
+  },
+  "a11y": {
+    "skip_to_main": "Skip to main content"
   },
   "page_title": {
     "app": "Lovejoin",
@@ -120,6 +124,8 @@
     "modal_eyebrow": "CIP-30",
     "modal_lede": "Your wallet does three things: one signature to derive your vault, and signing each deposit and withdraw. It is never on a Mix tx.",
     "scanning": "Scanning installed wallets…",
+    "list_aria_label": "Installed wallets",
+    "connect_to": "Connect to {{name}}",
     "no_wallets_title": "No wallet detected",
     "no_wallets": "Install Lace, Eternl, Nami, or Flint, then reload this page.",
     "connecting": "Connecting…",
@@ -214,6 +220,7 @@
     "pool_label": "Pool size",
     "shard_count": "across {{count}} shards",
     "shards_title": "Fee shards",
+    "shards_caption": "Current per-shard balance of the shared fee pool.",
     "shard_ref": "Shard",
     "shard_balance": "Balance",
     "amount_label": "Amount (ADA)",
@@ -261,6 +268,10 @@
     "select_boxes": "Select one or more boxes to withdraw together.",
     "select_all": "Select all",
     "clear_selection": "Clear",
+    "table_caption": "Owned mix-boxes available to withdraw.",
+    "column_select": "Select box",
+    "column_index_long": "Vault index — derivation counter for this owner secret",
+    "column_b_long": "Box public key b",
     "selection_summary": "{{count}} box(es) selected. {{total}} ADA total to destination.",
     "no_box_selected": "Select at least one vault box above to continue.",
     "destination_section": "Send to",
@@ -356,7 +367,8 @@
     "recover_unlocking": "Deriving seed…",
     "recover_strength_weak": "Too weak",
     "recover_strength_fair": "Fair",
-    "recover_strength_strong": "Strong"
+    "recover_strength_strong": "Strong",
+    "recover_strength_announce_prefix": "Password strength: "
   },
   "secret_card": {
     "title": "Save this secret now",

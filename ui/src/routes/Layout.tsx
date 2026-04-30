@@ -33,8 +33,16 @@ export function Layout() {
 
   return (
     <div className="lj-shell">
+      {/* Skip link is the first focusable element on every page so
+       * keyboard / AT users can jump past the sticky header + main nav
+       * straight to the route content. WCAG 2.4.1 (Bypass Blocks). The
+       * link is visually hidden until it receives focus, then becomes a
+       * solid pill in the top-left. */}
+      <a href="#lj-main" className="lj-skip-link">
+        {t("a11y.skip_to_main")}
+      </a>
       <Header />
-      <main className="lj-main">
+      <main id="lj-main" className="lj-main" tabIndex={-1}>
         <h1 className="sr-only">{t(routeKey)}</h1>
         {addressesError && (
           <div role="alert" className="lj-banner lj-banner--amber">

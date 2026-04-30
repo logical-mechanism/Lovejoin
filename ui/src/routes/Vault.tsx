@@ -406,13 +406,26 @@ function UnlockedVault() {
               </div>
               <div className="overflow-x-auto">
                 <table className="lj-table">
+                  <caption className="sr-only">
+                    {t("withdraw.table_caption")}
+                  </caption>
                   <thead>
                     <tr>
-                      <th className="w-8" />
-                      <th>i</th>
-                      <th>{t("common.tx_hash")}</th>
-                      <th className="lj-table__num">b</th>
-                      <th className="lj-table__num">{t("common.amount")}</th>
+                      <th scope="col" className="w-8">
+                        <span className="sr-only">
+                          {t("withdraw.column_select")}
+                        </span>
+                      </th>
+                      <th scope="col">
+                        <abbr title={t("withdraw.column_index_long")}>i</abbr>
+                      </th>
+                      <th scope="col">{t("common.tx_hash")}</th>
+                      <th scope="col" className="lj-table__num">
+                        <abbr title={t("withdraw.column_b_long")}>b</abbr>
+                      </th>
+                      <th scope="col" className="lj-table__num">
+                        {t("common.amount")}
+                      </th>
                     </tr>
                   </thead>
                   <tbody>
@@ -500,57 +513,61 @@ function UnlockedVault() {
               <p className="lj-eyebrow mb-3">
                 {t("withdraw.destination_section")}
               </p>
-              <label className="lj-field">
-              <span className="lj-field__label">
-                {t("withdraw.destination_label")}
-              </span>
-              <input
-                type="text"
-                value={destination}
-                onChange={(e) => setDestination(e.target.value)}
-                spellCheck={false}
-                autoComplete="off"
-                placeholder={t("withdraw.destination_placeholder")}
-                className={`lj-input${
-                  validation.status === "invalid" ||
-                  validation.status === "wrong-network"
-                    ? " lj-input--error"
-                    : ""
-                }`}
-                aria-invalid={
-                  validation.status === "invalid" ||
-                  validation.status === "wrong-network"
-                }
-              />
-              {validation.status === "invalid" && (
-                <p className="lj-field__error" role="alert">
-                  {t("withdraw.dest_invalid")}
-                </p>
-              )}
-              {validation.status === "wrong-network" && (
-                <p className="lj-field__warn" role="alert">
-                  {t("withdraw.dest_wrong_network", {
-                    addressNet:
-                      validation.addressNetwork === "testnet"
-                        ? t("withdraw.net_testnet")
-                        : t("withdraw.net_mainnet"),
-                    expected: config.network,
-                  })}
-                </p>
-              )}
-              {validation.status === "ok" &&
-                validation.kind.kind === "regular-key" && (
-                  <p className="lj-field__hint">
-                    {t("withdraw.dest_regular_key")}
-                  </p>
-                )}
-              {validation.status === "ok" &&
-                validation.kind.kind === "stealth" && (
-                  <p className="lj-field__hint">
-                    {t("withdraw.dest_stealth")}
-                  </p>
-                )}
-              </label>
+              <div className="lj-field">
+                <label className="lj-field__label" htmlFor="vault-destination">
+                  {t("withdraw.destination_label")}
+                </label>
+                <input
+                  id="vault-destination"
+                  type="text"
+                  value={destination}
+                  onChange={(e) => setDestination(e.target.value)}
+                  spellCheck={false}
+                  autoComplete="off"
+                  placeholder={t("withdraw.destination_placeholder")}
+                  className={`lj-input${
+                    validation.status === "invalid" ||
+                    validation.status === "wrong-network"
+                      ? " lj-input--error"
+                      : ""
+                  }`}
+                  aria-invalid={
+                    validation.status === "invalid" ||
+                    validation.status === "wrong-network"
+                  }
+                  aria-describedby="vault-destination-help"
+                />
+                <div id="vault-destination-help">
+                  {validation.status === "invalid" && (
+                    <p className="lj-field__error" role="alert">
+                      {t("withdraw.dest_invalid")}
+                    </p>
+                  )}
+                  {validation.status === "wrong-network" && (
+                    <p className="lj-field__warn" role="alert">
+                      {t("withdraw.dest_wrong_network", {
+                        addressNet:
+                          validation.addressNetwork === "testnet"
+                            ? t("withdraw.net_testnet")
+                            : t("withdraw.net_mainnet"),
+                        expected: config.network,
+                      })}
+                    </p>
+                  )}
+                  {validation.status === "ok" &&
+                    validation.kind.kind === "regular-key" && (
+                      <p className="lj-field__hint">
+                        {t("withdraw.dest_regular_key")}
+                      </p>
+                    )}
+                  {validation.status === "ok" &&
+                    validation.kind.kind === "stealth" && (
+                      <p className="lj-field__hint">
+                        {t("withdraw.dest_stealth")}
+                      </p>
+                    )}
+                </div>
+              </div>
             </div>
 
             {selectedBoxes.length > 0 && (

@@ -106,11 +106,12 @@ export function RecoverPasswordPanel({ onClose }: RecoverPasswordPanelProps) {
       </div>
 
       <form className="mt-6 flex flex-col gap-3" onSubmit={(e) => void onSubmit(e)}>
-        <label className="lj-field">
-          <span className="lj-field__label">
+        <div className="lj-field">
+          <label className="lj-field__label" htmlFor="recover-password">
             {t("vault.recover_password_label")}
-          </span>
+          </label>
           <input
+            id="recover-password"
             type="password"
             autoComplete="off"
             spellCheck={false}
@@ -119,14 +120,15 @@ export function RecoverPasswordPanel({ onClose }: RecoverPasswordPanelProps) {
             onChange={(e) => setPassword(e.target.value)}
             disabled={vaultBusy}
             autoFocus
+            aria-describedby="recover-password-strength recover-password-hint"
           />
           <StrengthMeter password={password} assessment={assessment} />
-          <span className="lj-field__hint">
+          <span id="recover-password-hint" className="lj-field__hint">
             {t("vault.recover_password_hint", {
               min: RECOVERY_PASSWORD_MIN_LENGTH,
             })}
           </span>
-        </label>
+        </div>
 
         <button
           type="submit"
@@ -163,7 +165,6 @@ function StrengthMeter({
   assessment: StrengthAssessment;
 }) {
   const { t } = useTranslation();
-  if (password.length === 0) return null;
   // 4-segment meter: weak fills 1, fair fills 2, strong fills 4.
   const lit =
     assessment.strength === "weak"
@@ -171,29 +172,49 @@ function StrengthMeter({
       : assessment.strength === "fair"
         ? 2
         : 4;
+  // Render the live region unconditionally — even when empty — so the
+  // wired aria-describedby on the input always resolves. We only render
+  // the visible UI when the user has typed something.
   return (
-    <div className="flex items-center gap-3">
-      <div className="lj-meter mt-0 flex-1" aria-hidden="true">
-        {[0, 1, 2, 3].map((i) => (
+    <div
+      id="recover-password-strength"
+      role="status"
+      aria-live="polite"
+      aria-atomic="true"
+    >
+      {password.length > 0 && (
+        <div className="flex items-center gap-3">
+          <div
+            className="lj-meter mt-0 flex-1"
+            aria-hidden="true"
+          >
+            {[0, 1, 2, 3].map((i) => (
+              <span
+                key={i}
+                className={
+                  "lj-meter__seg" + (i < lit ? " lj-meter__seg--lit" : "")
+                }
+              />
+            ))}
+          </div>
           <span
-            key={i}
-            className={
-              "lj-meter__seg" + (i < lit ? " lj-meter__seg--lit" : "")
-            }
-          />
-        ))}
-      </div>
-      <span
-        className={`text-xs font-mono uppercase tracking-wider ${
-          assessment.strength === "strong"
-            ? "text-paper"
-            : assessment.strength === "fair"
-              ? "text-amber"
-              : "text-coral"
-        }`}
-      >
-        {t(assessment.labelKey)}
-      </span>
+            className={`text-xs font-mono uppercase tracking-wider ${
+              assessment.strength === "strong"
+                ? "text-paper"
+                : assessment.strength === "fair"
+                  ? "text-amber"
+                  : "text-coral"
+            }`}
+          >
+            {/* AT users hear "Password strength: Strong" rather than just
+             * "Strong" so the reading is unambiguous in context. */}
+            <span className="sr-only">
+              {t("vault.recover_strength_announce_prefix")}
+            </span>
+            {t(assessment.labelKey)}
+          </span>
+        </div>
+      )}
     </div>
   );
 }
