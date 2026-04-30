@@ -25,9 +25,6 @@ services:
 
     dockerfile_path: backend/Dockerfile
     source_dir: /
-    build_args:
-      - key: NETWORK
-        value: <NETWORK>      # preprod | preview | mainnet
 
     instance_size_slug: basic-xxs
     instance_count: 1
@@ -45,8 +42,11 @@ services:
       - path: /api
 
     envs:
+      # NETWORK does double duty: a Dockerfile ARG (selects
+      # artifacts/<NETWORK>/addresses.json) AND a runtime env. The
+      # RUN_AND_BUILD_TIME scope passes it to both stages.
       - key: NETWORK
-        scope: RUN_TIME
+        scope: RUN_AND_BUILD_TIME
         value: <NETWORK>
       - key: PORT
         scope: RUN_TIME
@@ -101,9 +101,6 @@ services:
 
     dockerfile_path: ui/Dockerfile
     source_dir: /
-    build_args:
-      - key: VITE_NETWORK
-        value: <NETWORK>
 
     instance_size_slug: basic-xxs
     instance_count: 1
@@ -121,6 +118,9 @@ services:
       - path: /
 
     envs:
+      - key: VITE_NETWORK
+        scope: BUILD_TIME
+        value: <NETWORK>
       - key: VITE_BACKEND_URL
         scope: BUILD_TIME
         value: ${APP_URL}/api
