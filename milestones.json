@@ -289,18 +289,29 @@
       "depends_on": ["M0", "M1", "M2", "M3", "M3.5", "M4", "M5", "M6", "M6.5"],
       "spec": "docs/spec/09-milestones.md#m7--cicd-and-release-engineering",
       "notes": [
-        "Scope reduced 2026-04-28 vs. the original spec: nightly Preprod integration + 30-min fuzz on a cron were dropped. Two reasons: (1) automating them on GitHub-hosted runners requires putting a funded Preprod wallet's key into repo secrets, which is a real risk surface for a one-maintainer project; (2) the spec also assumes Blockfrost is the canonical chain provider for CI, but post-M5 the self-hosted backend is the path forward and Blockfrost is the fallback — wiring Blockfrost into CI now would entrench the wrong default. The integration harness (integration-tests/) and fuzz harness (stress-tests/fuzz-runner.ts) still exist and are operator-run; they'll come back as a manual workflow_dispatch pre-release gate on a self-hosted runner when we tag a real version (post-M4.5 redeploy)."
+        "Scope reduced 2026-04-28 vs. the original spec: nightly Preprod integration + 30-min fuzz on a cron were dropped. Two reasons: (1) automating them on GitHub-hosted runners requires putting a funded Preprod wallet's key into repo secrets, which is a real risk surface for a one-maintainer project; (2) the spec also assumes Blockfrost is the canonical chain provider for CI, but post-M5 the self-hosted backend is the path forward and Blockfrost is the fallback — wiring Blockfrost into CI now would entrench the wrong default. The integration harness (integration-tests/) and fuzz harness (stress-tests/fuzz-runner.ts) still exist and are operator-run; they'll come back as a manual workflow_dispatch pre-release gate on a self-hosted runner when we tag a real version (post-M4.5 redeploy).",
+        "Deploy hosting decision (2026-04-30): DigitalOcean App Platform for the alpha. Two services on one shared domain (backend at /api, UI at /), GitHub-source auto-deploy on push to main. The release.yml docker/ui-bundle jobs publish artifacts; App Platform consumes the same Dockerfiles via dockerfile_path. Rationale: a single managed platform handles build + run + TLS + custom domain + auto-rollback without a Kubernetes cluster, which is overkill for a one-maintainer alpha."
       ],
       "deliverables": [
         "GitHub Actions workflow on PR + merge: builds all packages, runs unit + validator + property tests (.github/workflows/ci.yml — contracts/ts/rust/reproducibility jobs)",
         "On merge to main: publishes @lovejoin/sdk to npm under the dev tag, builds + pushes backend Docker image to GHCR, uploads ui/dist as a release artifact (.github/workflows/release.yml — npm-sdk/docker-backend/ui-bundle jobs)",
         "Reproducible-build verification script (scripts/check-reproducibility.sh) wired into the ci.yml reproducibility job",
         "All on-PR jobs ship per-job timeout-minutes well under the 30-minute pipeline budget",
+        "Deploy-ready container images: backend/Dockerfile (bakes artifacts/<NETWORK>/addresses.json via NETWORK build-arg), ui/Dockerfile + ui/nginx.conf (multi-stage Vite build → nginx:alpine with SPA fallback + immutable hashed-asset cache + no-cache index.html)",
+        "DigitalOcean App Platform spec: .do/app.yaml committed for the live Preprod alpha (backend + ui services, /api → backend route stripping, ${APP_URL}/api as VITE_BACKEND_URL build-time env, /health-driven auto-restart), .do/deploy.template.yaml for additional environments",
+        "Deploy operator guide: docs/deploy.md (architecture, external Cardano-infra requirements, full env-var matrix incl. SECRET vs plaintext + build-time vs runtime, first-time deploy + update walkthrough)",
+        "make do-deploy / make do-update / make docker-build-{backend,ui} targets so CI + operators have a single entry point",
+        "Backend /health returns 503 when the indexer runtime hits a fatal error so DO restarts the container; alarm-only states (reference UTxO compromise) stay 200 because a restart can't fix them",
         "DEFERRED: integration nightly on Preprod + 30-min fuzz nightly. See notes for the reasoning. Re-introduce as a manual workflow_dispatch pre-release gate on a self-hosted runner when we tag a real version post-M4.5."
       ],
       "exit_criteria": [
         { "description": "GitHub Actions workflow exists with all jobs", "check": "grep -E 'integration|fuzz|publish|docker|ui-bundle' .github/workflows/*.yml" },
-        { "description": "Reproducible build script exists and passes", "check": "test -x scripts/check-reproducibility.sh && ./scripts/check-reproducibility.sh" }
+        { "description": "Reproducible build script exists and passes", "check": "test -x scripts/check-reproducibility.sh && ./scripts/check-reproducibility.sh" },
+        { "description": "Backend Dockerfile bakes addresses.json via NETWORK build-arg", "check": "grep -q 'COPY artifacts/.\\+/addresses.json /srv/lovejoin/addresses.json' backend/Dockerfile" },
+        { "description": "UI Dockerfile + nginx site config exist", "check": "test -f ui/Dockerfile && test -f ui/nginx.conf" },
+        { "description": "DigitalOcean App spec committed", "check": "test -f .do/app.yaml && grep -q 'dockerfile_path: backend/Dockerfile' .do/app.yaml && grep -q 'dockerfile_path: ui/Dockerfile' .do/app.yaml" },
+        { "description": "Deploy guide exists", "check": "test -f docs/deploy.md" },
+        { "description": "Backend exposes a start script", "check": "node -e \"const p=require('./backend/package.json'); if (!p.scripts.start) { process.exit(1); }\"" }
       ]
     }
   ]

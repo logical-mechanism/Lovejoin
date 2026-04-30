@@ -107,7 +107,7 @@ export async function buildServer(deps: ApiServerDeps): Promise<FastifyInstance>
 // ------------------------------------------------------------------
 
 function registerHealth(fastify: FastifyInstance, deps: ApiServerDeps): void {
-  fastify.get("/health", async () => {
+  fastify.get("/health", async (_req, reply: FastifyReply) => {
     const tip = deps.state.tip;
     const chainTip = deps.runtime?.chainTip() ?? null;
     // Lag is measured in *slots*, not seconds — slots on Cardano are
@@ -119,14 +119,27 @@ function registerHealth(fastify: FastifyInstance, deps: ApiServerDeps): void {
     // `chainTip.slot - indexerTip.slot`.
     const lagSeconds =
       tip && chainTip ? Math.max(0, chainTip.slot - tip.slot) : null;
+    const fatalError = deps.runtime?.fatalError() ?? null;
+    // Surface unhealthy as HTTP 503 only when the indexer runtime has a
+    // *fatal* error — i.e., the chainsync loop is gone and no amount of
+    // waiting will recover it. Container orchestrators (DO App
+    // Platform, k8s) interpret 503 as "restart me", and a fresh
+    // process re-establishes the ogmios connection. We deliberately do
+    // NOT 503 on `state.alarm()` (reference-UTxO compromise) — that's
+    // a real on-chain anomaly a restart cannot fix, so /params already
+    // 503s but /health stays 200 to keep the container alive for
+    // operator inspection.
+    if (fatalError) {
+      reply.code(503);
+    }
     return {
-      ok: deps.state.alarm() === null,
+      ok: deps.state.alarm() === null && fatalError === null,
       tip,
       chainTip,
       lagSeconds,
       referenceUtxoOk: deps.state.snapshot().referenceUtxoOk,
       runtimeRunning: deps.runtime?.isRunning() ?? null,
-      runtimeError: deps.runtime?.fatalError()?.message ?? null,
+      runtimeError: fatalError?.message ?? null,
     };
   });
 }

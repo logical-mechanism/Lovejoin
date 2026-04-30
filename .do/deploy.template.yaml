@@ -1,0 +1,116 @@
+# DigitalOcean App Platform spec — *template* with placeholders.
+#
+# Copy to app.yaml (or app.<network>.yaml) and replace every <PLACEHOLDER>
+# before applying. The committed .do/app.yaml is the live Preprod spec;
+# this template exists for contributors spinning up their own copy or
+# adding a mainnet variant after the audit gate.
+#
+# Apply with:   doctl apps create --spec .do/app.<network>.yaml
+# Diff with:    doctl apps spec get <app-id> | diff - .do/app.<network>.yaml
+
+name: <APP_NAME>            # e.g. lovejoin-preprod, lovejoin-mainnet
+
+region: <DO_REGION>          # e.g. nyc, sfo3, lon1
+
+# domains:
+#   - domain: <CUSTOM_DOMAIN>
+#     type: PRIMARY
+
+services:
+  - name: backend
+    github:
+      repo: <GITHUB_OWNER>/<GITHUB_REPO>
+      branch: <GIT_BRANCH>
+      deploy_on_push: true
+
+    dockerfile_path: backend/Dockerfile
+    source_dir: /
+    build_args:
+      - key: NETWORK
+        value: <NETWORK>      # preprod | preview | mainnet
+
+    instance_size_slug: basic-xxs
+    instance_count: 1
+    http_port: 3001
+
+    health_check:
+      http_path: /health
+      initial_delay_seconds: 60
+      period_seconds: 30
+      timeout_seconds: 5
+      success_threshold: 1
+      failure_threshold: 3
+
+    routes:
+      - path: /api
+
+    envs:
+      - key: NETWORK
+        scope: RUN_TIME
+        value: <NETWORK>
+      - key: PORT
+        scope: RUN_TIME
+        value: "3001"
+      - key: HOST
+        scope: RUN_TIME
+        value: 0.0.0.0
+      - key: ADDRESSES_PATH
+        scope: RUN_TIME
+        value: /srv/lovejoin/addresses.json
+      - key: RATE_LIMIT_PER_MIN
+        scope: RUN_TIME
+        value: "600"
+      - key: CORS_ORIGINS
+        scope: RUN_TIME
+        value: ${APP_URL}
+      - key: OGMIOS_URL
+        scope: RUN_TIME
+        type: SECRET
+        value: <OGMIOS_WSS_URL>            # wss://ogmios.example/<token>
+      - key: DBSYNC_URL
+        scope: RUN_TIME
+        type: SECRET
+        value: <POSTGRES_DBSYNC_URL>       # postgres://… or "" to disable
+      - key: BLOCKFROST_PROJECT_ID_<NETWORK_UPPER>
+        scope: RUN_TIME
+        type: SECRET
+        value: <BLOCKFROST_PROJECT_ID>     # "" to disable history fallback
+
+  - name: ui
+    github:
+      repo: <GITHUB_OWNER>/<GITHUB_REPO>
+      branch: <GIT_BRANCH>
+      deploy_on_push: true
+
+    dockerfile_path: ui/Dockerfile
+    source_dir: /
+    build_args:
+      - key: VITE_NETWORK
+        value: <NETWORK>
+
+    instance_size_slug: basic-xxs
+    instance_count: 1
+    http_port: 8080
+
+    health_check:
+      http_path: /
+      initial_delay_seconds: 30
+      period_seconds: 30
+      timeout_seconds: 5
+      success_threshold: 1
+      failure_threshold: 3
+
+    routes:
+      - path: /
+
+    envs:
+      - key: VITE_BACKEND_URL
+        scope: BUILD_TIME
+        value: ${APP_URL}/api
+      - key: VITE_BLOCKFROST_PROJECT_ID
+        scope: BUILD_TIME
+        type: SECRET
+        value: <BLOCKFROST_PROJECT_ID>
+      - key: VITE_COLLATERAL_ENDPOINT
+        scope: BUILD_TIME
+        value: ""                          # "" → SDK's per-network default

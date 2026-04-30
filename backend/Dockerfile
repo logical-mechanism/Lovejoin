@@ -13,21 +13,29 @@
 #
 #   docker build -f backend/Dockerfile -t lovejoin-backend .
 #
+# Build args:
+#
+#   NETWORK=preprod (default) | test | mainnet
+#     Selects which artifacts/<NETWORK>/addresses.json gets baked into
+#     the image at /srv/lovejoin/addresses.json. addresses.json is the
+#     output of the one-shot bootstrap ceremony and is static for the
+#     lifetime of a deployment — so baking it in is the right call.
+#     Override at build time:  --build-arg NETWORK=mainnet
+#
 # Runtime config — every value the entrypoint reads from env:
 #
 #   NETWORK=preprod | mainnet | preview
 #   PORT=3001
 #   HOST=0.0.0.0
 #   OGMIOS_URL=ws://ogmios:1337
-#   DBSYNC_URL=postgres://USER:PASS@HOST/db
-#   ADDRESSES_PATH=/srv/lovejoin/addresses.json
-#   CORS_ORIGINS=https://lovejoin.example,https://...
+#   DBSYNC_URL=postgres://USER:PASS@HOST/db        (optional)
+#   BLOCKFROST_PROJECT_ID_PREPROD=…                (optional fallback)
+#   ADDRESSES_PATH=/srv/lovejoin/addresses.json    (default; matches the COPY below)
+#   CORS_ORIGINS=https://lovejoin.example,https://…
 #   RATE_LIMIT_PER_MIN=600
-#
-# The addresses.json from the bootstrap ceremony must be mounted in or
-# baked in by a downstream image — there's no sane default for it.
 
 ARG NODE_VERSION=22-alpine
+ARG NETWORK=preprod
 
 FROM node:${NODE_VERSION} AS deps
 WORKDIR /app
@@ -72,6 +80,12 @@ RUN --mount=type=cache,id=pnpm-store,target=/pnpm/store \
 
 # Compiled JS from the build stage.
 COPY --from=build /app/backend/dist backend/dist
+
+# Bake the bootstrap-produced addresses.json into the image. The path
+# matches the default `ADDRESSES_PATH` so no env wiring is needed at
+# deploy time. Switch networks with `--build-arg NETWORK=…`.
+ARG NETWORK
+COPY artifacts/${NETWORK}/addresses.json /srv/lovejoin/addresses.json
 
 USER node
 EXPOSE 3001

@@ -1,0 +1,188 @@
+# DigitalOcean App Platform spec — Preprod alpha deployment.
+#
+# Single app, two services on one shared domain:
+#   • backend  → /api/*  (path-stripped to / before forwarding to Fastify)
+#   • ui       → /*      (nginx serving the Vite static bundle)
+#
+# Route stripping means the Fastify routes stay at their canonical
+# top-level paths (/health, /pool, /params, etc.) — see
+# backend/src/api/server.ts; the /api prefix exists only in DO routing.
+#
+# Apply with:   doctl apps create --spec .do/app.yaml
+# Update with:  doctl apps update <app-id> --spec .do/app.yaml
+#
+# Auto-deploy on push to main is enabled at the github source level. To
+# deploy a different branch, change `branch` here and re-apply.
+#
+# Schema reference: https://docs.digitalocean.com/products/app-platform/reference/app-spec/
+
+name: lovejoin-preprod
+
+# Region close to most users. lon = London, can be changed; full list:
+# https://docs.digitalocean.com/products/platform/availability-matrix/
+region: nyc
+
+# Domain config left empty so the app spawns at the auto-assigned
+# ondigitalocean.app subdomain on first apply. Add a custom domain in
+# the DO dashboard or extend this section once DNS is decided.
+# domains:
+#   - domain: lovejoin.example
+#     type: PRIMARY
+
+services:
+  # ------------------------------------------------------------------
+  # Backend (Fastify indexer + REST API).
+  # ------------------------------------------------------------------
+  - name: backend
+    github:
+      repo: logical-mechanism/Lovejoin
+      branch: main
+      deploy_on_push: true
+
+    dockerfile_path: backend/Dockerfile
+    source_dir: /
+    # NETWORK build-arg picks artifacts/<network>/addresses.json. Bump
+    # to mainnet only after the audit gate (docs/spec/11-open-questions.md
+    # OQ-Y).
+    build_args:
+      - key: NETWORK
+        value: preprod
+
+    instance_size_slug: basic-xxs
+    instance_count: 1
+    http_port: 3001
+
+    # Path that DO probes for liveness. Fastify's /health returns 503
+    # only when the indexer runtime has a fatal error (a restart can
+    # actually help) — DO's default behaviour treats 200–399 as
+    # healthy, anything else as a failure. After 3 consecutive failures
+    # DO restarts the container.
+    health_check:
+      http_path: /health
+      initial_delay_seconds: 60
+      period_seconds: 30
+      timeout_seconds: 5
+      success_threshold: 1
+      failure_threshold: 3
+
+    # DO routing: /api/* hits the backend; the /api prefix is stripped
+    # by default before forwarding to the service. So /api/health on
+    # the public URL → /health inside the container.
+    routes:
+      - path: /api
+
+    envs:
+      # Static (plaintext) — fine to commit values via the spec.
+      - key: NETWORK
+        scope: RUN_TIME
+        value: preprod
+      - key: PORT
+        scope: RUN_TIME
+        value: "3001"
+      - key: HOST
+        scope: RUN_TIME
+        value: 0.0.0.0
+      - key: ADDRESSES_PATH
+        scope: RUN_TIME
+        # Matches the COPY in backend/Dockerfile.
+        value: /srv/lovejoin/addresses.json
+      - key: RATE_LIMIT_PER_MIN
+        scope: RUN_TIME
+        value: "600"
+      # CORS allowlist. ${APP_URL} expands at deploy time to the
+      # service's full public URL (https://lovejoin-preprod.ondigitalocean.app
+      # by default). If you add a custom domain, append it here as a
+      # comma-separated list.
+      - key: CORS_ORIGINS
+        scope: RUN_TIME
+        value: ${APP_URL}
+
+      # External Cardano infrastructure — DO can't run a node, so point
+      # at a managed Ogmios endpoint (Demeter, DRI, or self-hosted on a
+      # Droplet). Set as SECRET because the URL typically embeds a
+      # token. Required.
+      - key: OGMIOS_URL
+        scope: RUN_TIME
+        type: SECRET
+        # Set in the DO dashboard or via `doctl apps update`. Format:
+        # wss://ogmios.example/your-token.
+        value: EDIT_ME
+
+      # Optional: db-sync postgres. When set, /history/:address +
+      # /utxos/:address + /tx/:hash become available. When unset the
+      # routes 503 and /history falls back to Blockfrost (below).
+      - key: DBSYNC_URL
+        scope: RUN_TIME
+        type: SECRET
+        value: ""
+
+      # Optional Blockfrost fallback for /history when db-sync is
+      # absent or briefly down. Suffix-match keeps a single .env in
+      # sync with the SDK's BLOCKFROST_PROJECT_ID_<NETWORK> convention.
+      - key: BLOCKFROST_PROJECT_ID_PREPROD
+        scope: RUN_TIME
+        type: SECRET
+        value: ""
+
+  # ------------------------------------------------------------------
+  # UI (nginx serving the Vite static bundle).
+  # ------------------------------------------------------------------
+  - name: ui
+    github:
+      repo: logical-mechanism/Lovejoin
+      branch: main
+      deploy_on_push: true
+
+    dockerfile_path: ui/Dockerfile
+    source_dir: /
+
+    # Vite reads VITE_* at *build* time (it's a static SPA — env vars
+    # become string literals in the bundle). Both build_args and the
+    # BUILD_TIME-scoped envs below are passed to `docker build`; we
+    # use envs so DO's secret type can mask the Blockfrost project id.
+    build_args:
+      - key: VITE_NETWORK
+        value: preprod
+
+    instance_size_slug: basic-xxs
+    instance_count: 1
+    http_port: 8080
+
+    # nginx serves /index.html on /, so / is a valid health probe.
+    health_check:
+      http_path: /
+      initial_delay_seconds: 30
+      period_seconds: 30
+      timeout_seconds: 5
+      success_threshold: 1
+      failure_threshold: 3
+
+    # Catch-all for the public domain. Order matters: more specific
+    # routes win, so backend's /api beats ui's /.
+    routes:
+      - path: /
+
+    envs:
+      # ${APP_URL}/api lets the UI call the same hostname it was
+      # served from — no CORS, no extra DNS, no rewrite required. The
+      # backend's /api prefix is stripped by DO before it reaches
+      # Fastify.
+      - key: VITE_BACKEND_URL
+        scope: BUILD_TIME
+        value: ${APP_URL}/api
+
+      # Build-time fallback for direct Blockfrost queries when the
+      # backend's /history is unavailable. SECRET so the value is
+      # masked in the spec's audit log; still ends up baked into the
+      # static bundle (see docs/deploy.md §"UI build-time secrets").
+      - key: VITE_BLOCKFROST_PROJECT_ID
+        scope: BUILD_TIME
+        type: SECRET
+        value: ""
+
+      # Optional override for the collateral-provider host. The SDK
+      # ships a sensible per-network default (offchain/src/tx/known-collateral-hosts.ts);
+      # leave empty to use it.
+      - key: VITE_COLLATERAL_ENDPOINT
+        scope: BUILD_TIME
+        value: ""

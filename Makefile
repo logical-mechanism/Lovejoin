@@ -16,7 +16,8 @@ NODE_ENV_FLAG := --env-file-if-exists=$(ENV_FILE)
 
 .PHONY: help install build test lint contracts ui-dev backend-dev clean \
         cli deposit withdraw integration-test sdk-test sdk-build \
-        probe-evaluator diff-validators sync-ui-addresses
+        probe-evaluator diff-validators sync-ui-addresses \
+        do-deploy do-update docker-build-backend docker-build-ui
 
 help:
 	@echo "Lovejoin — top-level targets"
@@ -51,6 +52,14 @@ help:
 	@echo "                                 # copy artifacts/<net>/addresses.json -> ui/public/"
 	@echo "                                 # injecting max_n from config/network.<net>.json so"
 	@echo "                                 # the UI's MixWidthSlider reflects deployed reality."
+	@echo ""
+	@echo "Deploy (DigitalOcean App Platform — see docs/deploy.md):"
+	@echo "  make docker-build-backend [NETWORK=preprod]"
+	@echo "                                 # docker build -f backend/Dockerfile (sanity check)"
+	@echo "  make docker-build-ui [NETWORK=preprod] [BACKEND_URL=...] [BLOCKFROST=...]"
+	@echo "                                 # docker build -f ui/Dockerfile (sanity check)"
+	@echo "  make do-deploy                 # doctl apps create --spec .do/app.yaml (first-time)"
+	@echo "  make do-update APP_ID=<id>     # doctl apps update <id> --spec .do/app.yaml"
 
 install:
 	$(PNPM) install
@@ -196,6 +205,50 @@ sync-ui-addresses:
 	@jq -r '.referenceScriptSizes | "  ref-script bytes: mix_box=\(.mix_box) mix_logic=\(.mix_logic) fee_contract=\(.fee_contract)"' \
 		"ui/public/addresses.$(NETWORK).json"
 	@jq -r '"  ref UTxO=\(.referenceUtxoRef)"' "ui/public/addresses.$(NETWORK).json"
+
+# ---------------------------------------------------------------------------
+# Deploy targets — DigitalOcean App Platform.
+#
+# `make do-deploy` is for first-time spinup; subsequent rolls happen
+# automatically when GitHub pushes to the branch the spec points at
+# (deploy_on_push: true). For spec edits between deploys, use
+# `make do-update APP_ID=<id>`.
+#
+# Both targets shell out to `doctl`. Install + authenticate it once with:
+#   sudo snap install doctl
+#   doctl auth init        # paste a personal access token
+# ---------------------------------------------------------------------------
+
+DOCTL ?= doctl
+APP_SPEC ?= .do/app.yaml
+
+do-deploy:
+	@if [ ! -f "$(APP_SPEC)" ]; then \
+		echo "do-deploy: $(APP_SPEC) not found"; exit 1; \
+	fi
+	$(DOCTL) apps create --spec $(APP_SPEC)
+
+do-update:
+	@if [ -z "$(APP_ID)" ]; then \
+		echo "do-update: APP_ID=<uuid> required (use 'doctl apps list' to find it)"; \
+		exit 1; \
+	fi
+	$(DOCTL) apps update $(APP_ID) --spec $(APP_SPEC)
+
+# Local Docker build sanity checks. Mirror what DO will do on push.
+# NETWORK is shared with sync-ui-addresses below — declared once.
+BACKEND_URL ?= http://localhost:3001
+BLOCKFROST ?=
+
+docker-build-backend:
+	docker build -f backend/Dockerfile --build-arg NETWORK=$(NETWORK) -t lovejoin-backend:$(NETWORK) .
+
+docker-build-ui:
+	docker build -f ui/Dockerfile \
+		--build-arg VITE_NETWORK=$(NETWORK) \
+		--build-arg VITE_BACKEND_URL=$(BACKEND_URL) \
+		--build-arg VITE_BLOCKFROST_PROJECT_ID=$(BLOCKFROST) \
+		-t lovejoin-ui:$(NETWORK) .
 
 # Vitest doesn't surface --env-file directly, but it inherits process.env. We
 # wrap the runner with `node --env-file-if-exists=.env -- pnpm` so the env is
