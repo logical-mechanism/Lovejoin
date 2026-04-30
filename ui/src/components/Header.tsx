@@ -14,6 +14,7 @@ import { Hash } from "./ui/Hash.js";
 import { Modal } from "./ui/Modal.js";
 import { StatusDot } from "./ui/StatusDot.js";
 import { WalletModal } from "./WalletModal.js";
+import { LanguageSwitcher } from "./LanguageSwitcher.js";
 
 export function Header() {
   const { t } = useTranslation();
@@ -41,6 +42,8 @@ export function Header() {
           <NavLink to="/vault">{t("nav.vault")}</NavLink>
           <NavLink to="/protocol">{t("nav.protocol")}</NavLink>
         </nav>
+
+        <LanguageSwitcher />
 
         {wallet ? (
           <button
