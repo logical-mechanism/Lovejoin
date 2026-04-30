@@ -68,7 +68,26 @@ export function Pool() {
   const legacyMaxN = protocol?.max_n ?? 2;
   const maxNShard = protocol?.max_n_shard ?? legacyMaxN;
   const maxNWallet = protocol?.max_n_wallet ?? legacyMaxN;
-  const [feePayer, setFeePayer] = useState<MixFeePayer>("shard");
+  // Persist the fee-payer toggle across reloads so power users who
+  // prefer wallet-mode don't have to re-flip it every session. Lazy
+  // init avoids hydration churn; the key is namespaced under
+  // `lovejoin.pool.*` so future Pool prefs slot in alongside it.
+  const [feePayer, setFeePayer] = useState<MixFeePayer>(() => {
+    try {
+      const stored = window.localStorage.getItem("lovejoin.pool.feePayer");
+      if (stored === "shard" || stored === "wallet") return stored;
+    } catch {
+      /* localStorage unavailable (private mode etc.) — fall back to default. */
+    }
+    return "shard";
+  });
+  useEffect(() => {
+    try {
+      window.localStorage.setItem("lovejoin.pool.feePayer", feePayer);
+    } catch {
+      /* same; persistence is nice-to-have, not load-bearing. */
+    }
+  }, [feePayer]);
   const n = feePayer === "shard" ? maxNShard : maxNWallet;
 
   // The badge probe lives in App-level context; pull the status into a

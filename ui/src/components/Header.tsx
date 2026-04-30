@@ -11,6 +11,7 @@ import { useTranslation } from "react-i18next";
 
 import { useAppState } from "../lib/store.js";
 import { Hash } from "./ui/Hash.js";
+import { Modal } from "./ui/Modal.js";
 import { StatusDot } from "./ui/StatusDot.js";
 import { WalletModal } from "./WalletModal.js";
 
@@ -18,6 +19,12 @@ export function Header() {
   const { t } = useTranslation();
   const { wallet, walletId, changeAddress, setWallet } = useAppState();
   const [modalOpen, setModalOpen] = useState(false);
+  // Disconnect needs a confirm step — the pill is one of the most-
+  // hovered targets in the header, and a slipped click cost the user
+  // a fresh signData round-trip + pool rescan. Cheap to require an
+  // explicit confirmation; matches the existing "disconnect_confirm"
+  // i18n key the M6 wallet section already had reserved.
+  const [disconnectOpen, setDisconnectOpen] = useState(false);
 
   return (
     <header className="lj-header">
@@ -39,7 +46,7 @@ export function Header() {
           <button
             type="button"
             className="lj-wallet-pill"
-            onClick={() => setWallet(null)}
+            onClick={() => setDisconnectOpen(true)}
             title={t("app.disconnect_wallet")}
           >
             <span className="lj-wallet-pill__icon" />
@@ -65,6 +72,41 @@ export function Header() {
         onClose={() => setModalOpen(false)}
         onConnected={(args) => setWallet(args)}
       />
+
+      <Modal
+        open={disconnectOpen}
+        onClose={() => setDisconnectOpen(false)}
+        title={t("wallet.disconnect_title")}
+      >
+        <header className="mb-5">
+          <p className="lj-eyebrow">{t("wallet.disconnect_eyebrow")}</p>
+          <h2 className="mt-2 font-display text-2xl font-light tracking-tight text-paper">
+            {t("wallet.disconnect_title")}
+          </h2>
+          <p className="mt-2 text-sm text-muted">
+            {t("wallet.disconnect_lede")}
+          </p>
+        </header>
+        <footer className="mt-6 flex justify-end gap-2">
+          <button
+            type="button"
+            className="lj-btn lj-btn--quiet"
+            onClick={() => setDisconnectOpen(false)}
+          >
+            {t("common.cancel")}
+          </button>
+          <button
+            type="button"
+            className="lj-btn lj-btn--danger"
+            onClick={() => {
+              setDisconnectOpen(false);
+              setWallet(null);
+            }}
+          >
+            {t("wallet.disconnect_confirm")}
+          </button>
+        </footer>
+      </Modal>
     </header>
   );
 }

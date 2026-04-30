@@ -8,6 +8,7 @@
 // stays readable — React's default error logging is noisy and isn't
 // the assertion target here.
 
+import type { ReactElement } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { render } from "@testing-library/react";
 
@@ -18,11 +19,11 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
-function Throws({ message }: { message: string }): JSX.Element {
+function Throws({ message }: { message: string }): ReactElement {
   throw new Error(message);
 }
 
-function Healthy(): JSX.Element {
+function Healthy(): ReactElement {
   return <p>Healthy child rendered</p>;
 }
 

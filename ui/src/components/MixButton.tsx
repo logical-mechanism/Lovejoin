@@ -51,6 +51,7 @@ import {
   type Utxo,
 } from "@lovejoin/sdk";
 
+import { formatAda } from "../lib/format.js";
 import type { Network } from "../lib/sdk.js";
 import { useAppState } from "../lib/store.js";
 import {
@@ -102,7 +103,8 @@ export function MixButton({
   onSubmittingChange,
 }: MixButtonProps) {
   const { t } = useTranslation();
-  const { ownedBoxes, markTxPending } = useAppState();
+  const { ownedBoxes, markTxPending, walletLovelace, refreshWalletBalance } =
+    useAppState();
   const [submitting, setSubmitting] = useState(false);
   const [cooldown, setCooldown] = useState(0);
   const [confirmOpen, setConfirmOpen] = useState(false);
@@ -134,6 +136,14 @@ export function MixButton({
   // signature; without a connected wallet there's no path to build
   // that tx. Shard-mode has no such constraint.
   const walletModeNeedsWallet = feePayer === "wallet" && !wallet;
+  // Soft balance hint for wallet-mode mix. ~3 ADA covers the tx fee
+  // + change min-utxo with headroom; advisory only, no hard gate.
+  const mixWalletRequiredLovelace = 3_000_000n;
+  const walletModeBalanceShort =
+    feePayer === "wallet" &&
+    !!wallet &&
+    walletLovelace !== null &&
+    walletLovelace < mixWalletRequiredLovelace;
   const disabled =
     submitting ||
     cooldown > 0 ||
@@ -209,6 +219,7 @@ export function MixButton({
     } finally {
       setSubmitting(false);
       onSubmittingChange?.(false);
+      void refreshWalletBalance();
     }
   };
 
@@ -254,6 +265,14 @@ export function MixButton({
       {collateralOk && enoughBoxes && walletModeNeedsWallet && (
         <p className="text-xs text-whisper">
           {t("pool.mix_disabled_wallet_needed")}
+        </p>
+      )}
+      {walletModeBalanceShort && walletLovelace !== null && (
+        <p className="text-xs text-amber">
+          {t("wallet.insufficient_balance", {
+            have: formatAda(walletLovelace),
+            need: formatAda(mixWalletRequiredLovelace),
+          })}
         </p>
       )}
 

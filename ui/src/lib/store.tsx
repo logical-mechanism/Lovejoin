@@ -64,6 +64,16 @@ export interface AppState {
   wallet: BrowserWallet | null;
   walletId: string | null;
   changeAddress: string | null;
+  /**
+   * Cached spendable lovelace from the connected wallet, refreshed at
+   * connect, after every tx submit (success or failure), and on demand
+   * via `refreshWalletBalance()`. Null when no wallet is connected, or
+   * when a fetch failed (the UI treats null as "unknown" rather than
+   * "zero").
+   */
+  walletLovelace: bigint | null;
+  /** Re-read the connected wallet's lovelace into store state. */
+  refreshWalletBalance: () => Promise<void>;
   setWallet: (
     args: { wallet: BrowserWallet; walletId: string; changeAddress: string } | null,
   ) => void;
@@ -134,6 +144,7 @@ export function AppStateProvider({ children, testOverrides }: AppStateProviderPr
   const [wallet, setWalletState] = useState<BrowserWallet | null>(null);
   const [walletId, setWalletId] = useState<string | null>(null);
   const [changeAddress, setChangeAddress] = useState<string | null>(null);
+  const [walletLovelace, setWalletLovelace] = useState<bigint | null>(null);
 
   const [vault, setVault] = useState<UnlockedSeed | null>(null);
   const [vaultError, setVaultError] = useState<string | null>(null);
@@ -213,6 +224,7 @@ export function AppStateProvider({ children, testOverrides }: AppStateProviderPr
         setWalletState(null);
         setWalletId(null);
         setChangeAddress(null);
+        setWalletLovelace(null);
         // Disconnecting the wallet implicitly locks the wallet-derived
         // vault since its seed is bound to that wallet's signature.
         setVault((cur) => (cur?.kind === "wallet" ? null : cur));
@@ -220,6 +232,33 @@ export function AppStateProvider({ children, testOverrides }: AppStateProviderPr
     },
     [],
   );
+
+  const refreshWalletBalance = useCallback(async () => {
+    if (!wallet) {
+      setWalletLovelace(null);
+      return;
+    }
+    try {
+      // CIP-30 wallets expose total spendable lovelace as a decimal
+      // string. Coerce to bigint; null on parse failure so consumers
+      // can render "unknown" instead of misreporting zero.
+      const lov = await wallet.getLovelace();
+      setWalletLovelace(BigInt(lov));
+    } catch {
+      setWalletLovelace(null);
+    }
+  }, [wallet]);
+
+  // Pull the balance once on connect. Tx submit handlers re-call this
+  // after their submit resolves so the form's "you have X ada" hint
+  // updates without waiting for the next visibility refresh.
+  useEffect(() => {
+    if (!wallet) {
+      setWalletLovelace(null);
+      return;
+    }
+    void refreshWalletBalance();
+  }, [wallet, refreshWalletBalance]);
 
   const runScan = useCallback(
     async (seed: Uint8Array) => {
@@ -372,6 +411,8 @@ export function AppStateProvider({ children, testOverrides }: AppStateProviderPr
     rescan,
     pendingTxRefs,
     markTxPending,
+    walletLovelace,
+    refreshWalletBalance,
   };
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }

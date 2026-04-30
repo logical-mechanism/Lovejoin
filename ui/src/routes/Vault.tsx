@@ -124,6 +124,8 @@ function UnlockedVault() {
     rescan,
     pendingTxRefs,
     markTxPending,
+    walletLovelace,
+    refreshWalletBalance,
   } = useAppState();
 
   const [selectedRefs, setSelectedRefs] = useState<Set<string>>(() => new Set());
@@ -232,6 +234,18 @@ function UnlockedVault() {
     validation.status === "ok" &&
     !submitting;
 
+  // Soft balance hint. Withdraw fees are paid by the connected wallet
+  // (collateral comes from giveme.my); 3 ADA covers tx fee + min-utxo
+  // overhead with headroom across N up to bulk_withdraw's cap. We
+  // don't gate the submit button on this — the wallet may have a
+  // pending UTxO the SDK will end up using even though our cached
+  // balance can't see it. Surface as advisory copy under the button.
+  const withdrawRequiredLovelace = 3_000_000n;
+  const balanceShort =
+    !!wallet &&
+    walletLovelace !== null &&
+    walletLovelace < withdrawRequiredLovelace;
+
   const onRequestSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!canSubmit) return;
@@ -293,6 +307,7 @@ function UnlockedVault() {
       });
     } finally {
       setSubmitting(false);
+      void refreshWalletBalance();
     }
   };
 
@@ -567,6 +582,14 @@ function UnlockedVault() {
                     {t("withdraw.no_box_selected")}
                   </p>
                 )}
+              {balanceShort && walletLovelace !== null && !submitting && (
+                <p className="mt-3 text-xs text-amber">
+                  {t("wallet.insufficient_balance", {
+                    have: formatAda(walletLovelace),
+                    need: formatAda(withdrawRequiredLovelace),
+                  })}
+                </p>
+              )}
             </div>
           </fieldset>
         </form>

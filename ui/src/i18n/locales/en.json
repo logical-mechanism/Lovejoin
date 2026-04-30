@@ -115,8 +115,12 @@
     "refresh": "Refresh wallets",
     "connect_error": "Failed to connect: {{message}}",
     "network_mismatch": "Wallet is on {{walletNet}} but this app is configured for {{appNet}}. Switch your wallet's network or pick a different account.",
+    "insufficient_balance": "Wallet balance is {{have}} ₳ — this transaction needs at least {{need}} ₳ for fees. The build will likely fail.",
     "section_title": "Wallet",
-    "disconnect_confirm": "Disconnect this wallet from Lovejoin?"
+    "disconnect_eyebrow": "Wallet",
+    "disconnect_title": "Disconnect wallet?",
+    "disconnect_lede": "The session vault will lock and the next reconnect will re-prompt for a signature. Boxes are unaffected — they live on chain.",
+    "disconnect_confirm": "Disconnect"
   },
   "pool": {
     "section_title": "Mix",

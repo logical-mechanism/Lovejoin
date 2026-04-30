@@ -35,6 +35,8 @@ export function Deposit() {
     nextDepositIndex,
     rescan,
     unlockWithWallet,
+    walletLovelace,
+    refreshWalletBalance,
   } = useAppState();
   const [rounds, setRounds] = useState<number>(30);
   const [count, setCount] = useState<number>(1);
@@ -129,6 +131,17 @@ export function Deposit() {
   const denomLovelace = BigInt(addresses.protocol.denom_lovelace);
   const denomAda = formatAda(denomLovelace);
 
+  // Estimated minimum spendable lovelace required for the configured
+  // (count) deposits: the deposited principal × count, plus a 5 ADA
+  // cushion to cover the tx fee + the change min-utxo. We treat this
+  // as a soft hint, not a hard gate — the wallet's own balance may
+  // include locked / pending UTxOs the SDK can't actually spend, so
+  // false-negatives at the form level are worse than letting the user
+  // attempt and surface mesh's authoritative error if it really fails.
+  const requiredLovelace = denomLovelace * BigInt(count) + 5_000_000n;
+  const balanceShort =
+    walletLovelace !== null && walletLovelace < requiredLovelace;
+
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (submitting) return;
@@ -163,6 +176,7 @@ export function Deposit() {
       });
     } finally {
       setSubmitting(false);
+      void refreshWalletBalance();
     }
   };
 
@@ -251,6 +265,14 @@ export function Deposit() {
               )}
               {submitting ? t("deposit.submitting") : t("deposit.submit")}
             </button>
+            {balanceShort && walletLovelace !== null && (
+              <p className="mt-3 text-xs text-amber">
+                {t("wallet.insufficient_balance", {
+                  have: formatAda(walletLovelace),
+                  need: formatAda(requiredLovelace),
+                })}
+              </p>
+            )}
           </div>
         </fieldset>
       </form>
