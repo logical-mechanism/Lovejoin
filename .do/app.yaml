@@ -97,27 +97,55 @@ services:
         scope: RUN_TIME
         value: ${APP_URL}
 
-      # External Cardano infrastructure — DO can't run a node, so point
-      # at a managed Ogmios endpoint (Demeter, DRI, or self-hosted via
-      # Cloudflare Tunnel — see docs/deploy.md §"Connecting App Platform
-      # to home-hosted infrastructure"). Set as SECRET because the URL
-      # often embeds a token. Required.
+      # External Cardano infrastructure — DO can't run a node. Pattern
+      # we use for the Preprod alpha: home-hosted Ogmios + db-sync
+      # bridged via Cloudflare Tunnel + Cloudflare Access service
+      # tokens. See docs/deploy.md §"Connecting App Platform to
+      # home-hosted infrastructure" for the home-side setup.
       #
-      # Placeholder is intentional — set the real value in the DO
-      # dashboard after the first deploy. DO preserves dashboard-set
-      # SECRET values across `doctl apps update --spec` calls. See
-      # docs/deploy.md §"Secrets handling".
+      # When CF_TUNNEL_*_HOSTNAME below is set, the container runs
+      # `cloudflared access tcp` as a sidecar that exposes the remote
+      # service on 127.0.0.1, so OGMIOS_URL + DBSYNC_URL point at
+      # loopback. To bypass the tunnel (managed Ogmios at Demeter,
+      # direct postgres URL, etc.), unset CF_TUNNEL_*_HOSTNAME and
+      # set OGMIOS_URL / DBSYNC_URL to the directly-reachable URL.
+      #
+      # All SECRET values below are placeholders. Set real values once
+      # in the DO dashboard after the first deploy; DO preserves
+      # dashboard-set SECRET values across `doctl apps update --spec`
+      # calls (see docs/deploy.md §"Secrets handling").
       - key: OGMIOS_URL
         scope: RUN_TIME
-        type: SECRET
-        value: EDIT_ME
+        # Loopback by default — the cloudflared sidecar opens the
+        # listener at 127.0.0.1:1337 once CF_TUNNEL_OGMIOS_HOSTNAME
+        # is set. Override to a public URL (Demeter / DRI) to skip
+        # the tunnel.
+        value: ws://127.0.0.1:1337
 
-      # Optional: db-sync postgres. When set, /history/:address +
-      # /utxos/:address + /tx/:hash become available. When unset the
-      # routes 503 and /history falls back to Blockfrost (below); the
-      # SDK + UI fall back to BlockfrostProvider for /utxos + /tx, so
-      # the user-facing flow keeps working.
+      # When CF_TUNNEL_DBSYNC_HOSTNAME is unset and DBSYNC_URL is
+      # blank, the address-keyed routes 503 and the SDK + UI fall
+      # back to BlockfrostProvider for /utxos + /tx. With the tunnel
+      # in place set this to postgres://USER:PASS@127.0.0.1:5432/DBNAME.
       - key: DBSYNC_URL
+        scope: RUN_TIME
+        type: SECRET
+        value: ""
+
+      # Cloudflare Tunnel sidecar config — operator fills these in
+      # after creating the home-side tunnel + Access applications.
+      # Hostnames are not strictly secret but live in DO so they can
+      # be edited without a redeploy of the spec.
+      - key: CF_TUNNEL_OGMIOS_HOSTNAME
+        scope: RUN_TIME
+        value: ""
+      - key: CF_TUNNEL_DBSYNC_HOSTNAME
+        scope: RUN_TIME
+        value: ""
+      - key: CF_TUNNEL_SERVICE_TOKEN_ID
+        scope: RUN_TIME
+        type: SECRET
+        value: ""
+      - key: CF_TUNNEL_SERVICE_TOKEN_SECRET
         scope: RUN_TIME
         type: SECRET
         value: ""

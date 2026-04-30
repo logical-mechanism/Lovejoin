@@ -66,79 +66,133 @@ your service shares a NAT pool whose addresses rotate, so a UFW
 allowlist on a home server has no fixed target to whitelist. The
 options, ordered by what we use:
 
-### 1. Cloudflare Tunnel (recommended, free)
+### 1. Cloudflare Tunnel + Cloudflare Access (recommended, free)
 
-`cloudflared` runs on the home box and dials *outbound* to Cloudflare;
-Cloudflare exposes `ogmios.yourdomain` as a public hostname. No
-inbound port at home, no DDNS, no allowlist, TLS handled by CF. The
-tradeoff is a hard split between protocols:
+`cloudflared` runs on the home box and dials *outbound* to Cloudflare,
+which exposes the services on hostnames you control. No inbound port
+at home, no DDNS, no allowlist, TLS handled by CF. Two transport modes
+matter:
 
-| Protocol | Works via CF Tunnel public hostname? | Notes |
-| --- | --- | --- |
-| Ogmios (HTTP/WS) | **yes** | `service: http://localhost:1337`; CF forwards `Upgrade: websocket` cleanly. |
-| Postgres (raw TCP) | **no** | Public hostnames are HTTP/HTTPS/WS only. TCP routes need `cloudflared access tcp` on the *consuming* side, which App Platform basic can't run as a sidecar. |
+| Mode | Works for | How the consumer reaches it | Used here for |
+| --- | --- | --- | --- |
+| Public hostname (HTTP/HTTPS/WS) | Ogmios | Plain HTTPS/WSS to the public hostname | Optional alternative for Ogmios |
+| Cloudflare Access (TCP) | Ogmios + Postgres | A `cloudflared access tcp` client opens a local TCP relay | **Both** Ogmios + db-sync in our setup |
 
-So the alpha shape is **Ogmios via CF Tunnel + db-sync skipped**
-(Blockfrost fallback covers `/history`; the rest of the
-db-sync-backed routes 503 and the SDK falls through to direct
-Blockfrost queries). Add db-sync back later via one of the heavier
-options below.
+We use the **Access TCP path for both Ogmios and db-sync**: it's the
+only way Postgres works through CF Tunnel (raw TCP doesn't ride a
+public hostname), and routing Ogmios the same way lets a single
+service token authorize both. The backend container ships with a
+`cloudflared` sidecar — see [`backend/entrypoint.sh`](../backend/entrypoint.sh)
+and the Dockerfile's runtime stage — that opens `127.0.0.1:1337`
+(Ogmios) and `127.0.0.1:5432` (Postgres) before `node dist/index.js`
+starts.
 
-#### One-time home setup
+#### Home-side setup (one-time)
 
 ```bash
 # 1. Install on the home server (Linux example; see CF docs for other OSes)
 sudo apt install cloudflared
 
-# 2. Authenticate against your CF zone
-cloudflared tunnel login           # opens browser, picks the zone
+# 2. Authenticate against your CF zone (opens a browser, picks the zone)
+cloudflared tunnel login
 
 # 3. Create a named tunnel
 cloudflared tunnel create lovejoin-preprod
+# → prints the tunnel UUID; note it.
 
-# 4. Route a hostname to it
+# 4. Route both hostnames to the same tunnel
 cloudflared tunnel route dns lovejoin-preprod ogmios-preprod.yourdomain.com
+cloudflared tunnel route dns lovejoin-preprod dbsync-preprod.yourdomain.com
 
-# 5. Configure ingress
+# 5. Configure ingress — both services on the one tunnel
 cat > ~/.cloudflared/config.yml <<'YAML'
 tunnel: <UUID-from-step-3>
 credentials-file: /home/<you>/.cloudflared/<UUID>.json
 ingress:
   - hostname: ogmios-preprod.yourdomain.com
-    service: http://localhost:1337
+    service: tcp://localhost:1337
+  - hostname: dbsync-preprod.yourdomain.com
+    service: tcp://localhost:5432
   - service: http_status:404
 YAML
 
-# 6. Run as a systemd service
+# 6. Run as a systemd service so it survives reboots
 sudo cloudflared service install
 sudo systemctl enable --now cloudflared
-
-# 7. Verify from anywhere on the internet
-curl -I https://ogmios-preprod.yourdomain.com/health
 ```
 
-Then in App Platform, set `OGMIOS_URL=wss://ogmios-preprod.yourdomain.com`
-on the backend service. UFW on the home box keeps Ogmios's listener
-bound to 127.0.0.1 — no public port, no allowlist needed.
+`tcp://` (rather than `http://`) is what lets the consumer side use
+`cloudflared access tcp`. Both services stay bound to localhost on the
+home box — UFW keeps doing its job; no inbound rule needed.
 
-#### Adding db-sync to a Cloudflare Tunnel setup (advanced)
+#### Cloudflare Access policy + service token
 
-If you want db-sync without buying a Droplet, two paths:
+In the Cloudflare Zero Trust dashboard:
 
-1. **`cloudflared access tcp` baked into the backend image.** Modify
-   `backend/Dockerfile` to install `cloudflared`, add an entrypoint
-   that runs `cloudflared access tcp --hostname dbsync.yourdomain
-   --url 127.0.0.1:5432 &` before `node dist/index.js`, and set
-   `DBSYNC_URL=postgres://user:pass@127.0.0.1:5432/db`. Requires a
-   Cloudflare Access service token (set as a SECRET env on the App
-   Platform side). Not on the M7 path; document if/when we need it.
-2. **HTTP wrapper at home.** Run `postgrest` (or similar) at home
-   exposing the dbsync schema over HTTPS, route via CF Tunnel like
-   Ogmios, and write a small adapter on the backend that translates
-   the `DbSyncClient` interface to postgrest queries. More code; less
-   Docker surgery.
+1. **Access → Applications → Add an Application → Self-hosted.**
+   Application domain: `ogmios-preprod.yourdomain.com`. Add an Access
+   policy that includes "Service Auth" and an "Include" rule of
+   "Service Token".
+2. **Repeat for `dbsync-preprod.yourdomain.com`.**
+3. **Access → Service Auth → Service Tokens → Create Service Token.**
+   Name it `lovejoin-backend`; CF gives you a Client ID and a Client
+   Secret. **Save the secret on the spot — it won't be shown again.**
+4. Back in each application's policy, "Include" the service token
+   you just created so it satisfies the rule.
 
-Both are deferred — neither blocks the alpha.
+Network-wise: every request that reaches `cloudflared` for those
+hostnames must present `CF-Access-Client-Id` + `CF-Access-Client-Secret`
+headers. The `cloudflared access tcp` client we run inside the
+backend container does this automatically when it sees the
+corresponding env vars.
+
+#### App Platform side
+
+Set these on the backend service (via DO dashboard or [.do/app.yaml](../.do/app.yaml)):
+
+| Env var | Type | Example | Notes |
+| --- | --- | --- | --- |
+| `CF_TUNNEL_OGMIOS_HOSTNAME` | plaintext | `ogmios-preprod.yourdomain.com` | Empty = skip the Ogmios sidecar; `OGMIOS_URL` then has to be a directly-reachable URL. |
+| `CF_TUNNEL_DBSYNC_HOSTNAME` | plaintext | `dbsync-preprod.yourdomain.com` | Empty = skip the db-sync sidecar. |
+| `CF_TUNNEL_SERVICE_TOKEN_ID` | **SECRET** | `<uuid>.access` | Service-token Client ID from CF Zero Trust. |
+| `CF_TUNNEL_SERVICE_TOKEN_SECRET` | **SECRET** | (long opaque string) | Service-token Client Secret. |
+| `OGMIOS_URL` | plaintext | `ws://127.0.0.1:1337` | Loopback when the sidecar is in play. |
+| `DBSYNC_URL` | **SECRET** | `postgres://user:pass@127.0.0.1:5432/cexplorer` | Loopback host; user/pass are the home-side Postgres creds. |
+
+The committed `.do/app.yaml` already has these as placeholders;
+filling them in via the DO dashboard is the path described under
+"Secrets handling" below.
+
+#### Verifying it works
+
+After the first deploy with values filled in, watch the runtime logs:
+
+```
+entrypoint: starting cloudflared access tcp for ogmios (-> ogmios-preprod.yourdomain.com:1337)
+entrypoint: cloudflared listener for ogmios ready on 127.0.0.1:1337
+entrypoint: starting cloudflared access tcp for dbsync (-> dbsync-preprod.yourdomain.com:5432)
+entrypoint: cloudflared listener for dbsync ready on 127.0.0.1:5432
+```
+
+Then `/api/health` should report `ok: true` once the indexer catches
+up. If the listener doesn't come up after 30 s the entrypoint exits 1
+(DO restarts the container); 99% of the time that means the service
+token is wrong or the CF Access app for that hostname doesn't exist
+yet.
+
+#### Skipping the tunnel for one or both services
+
+The entrypoint's tunnel logic is opt-in per service:
+
+- Want Ogmios on a public CF hostname (no Access)? Configure the
+  home-side ingress as `service: http://localhost:1337`, leave
+  `CF_TUNNEL_OGMIOS_HOSTNAME` empty, and set `OGMIOS_URL=wss://ogmios-preprod.yourdomain.com`.
+- Want managed Ogmios (Demeter, DRI)? Same idea — leave
+  `CF_TUNNEL_OGMIOS_HOSTNAME` empty and put the provider URL in
+  `OGMIOS_URL`.
+- Want to skip db-sync entirely (Blockfrost fallback for `/history`,
+  `/utxos` + `/tx` 503)? Leave both `CF_TUNNEL_DBSYNC_HOSTNAME` and
+  `DBSYNC_URL` empty. Set `BLOCKFROST_PROJECT_ID_PREPROD`.
 
 ### 2. Tiny DO Droplet as a fixed-IP jump host
 
@@ -158,19 +212,24 @@ premature for a one-maintainer alpha; revisit at mainnet scale.
 
 `.do/app.yaml` is committed to a public repo, so **no real secret
 values live in it**. SECRET-typed env vars carry placeholders
-(`value: EDIT_ME` for `OGMIOS_URL`, `value: ""` for the optional
-ones); the real values are managed in DO. Two patterns work:
+(empty strings); the real values are managed in DO. Two patterns
+work:
 
 ### A. Manage in the DO dashboard (simplest, recommended)
 
 1. `make do-deploy` once with the placeholder spec. The container
-   will boot, fail to connect to Ogmios, and `/health` will 503 —
-   that's expected.
-2. In the DO dashboard → your app → Settings → App-Level Environment
-   Variables (or per-component), edit each `type: SECRET` variable
-   and paste the real value. Save.
-3. DO triggers a redeploy; the indexer connects, `/health` flips to
-   200.
+   may restart-loop until the tunnel envs are filled in — expected.
+2. In the DO dashboard → your app → Settings → backend component →
+   Environment Variables, edit each variable and paste the real
+   value:
+   - `CF_TUNNEL_OGMIOS_HOSTNAME`, `CF_TUNNEL_DBSYNC_HOSTNAME`
+     (plaintext, e.g. `ogmios-preprod.yourdomain.com`)
+   - `CF_TUNNEL_SERVICE_TOKEN_ID`, `CF_TUNNEL_SERVICE_TOKEN_SECRET`
+     (SECRET — Client ID + Client Secret from CF Zero Trust)
+   - `DBSYNC_URL` (SECRET — `postgres://user:pass@127.0.0.1:5432/cexplorer`)
+   - `BLOCKFROST_PROJECT_ID_PREPROD` (SECRET — optional fallback)
+3. DO triggers a redeploy; the cloudflared sidecar comes up,
+   indexer connects, `/health` flips to 200.
 
 DO **preserves dashboard-set SECRET values across spec updates** as
 long as the spec keeps the placeholder. So `make do-update
@@ -209,15 +268,15 @@ of cloud sync, shared dotfiles, etc.
 
 ## Environment variable matrix
 
-### Backend (runtime — read by `backend/src/config.ts`)
+### Backend (runtime — read by `backend/src/config.ts` + `backend/entrypoint.sh`)
 
 | Var | Required | Type | Default | Notes |
 | --- | --- | --- | --- | --- |
 | `NETWORK` | yes | plaintext | `preprod` | Must match the `NETWORK` build-arg used to bake `addresses.json`. |
 | `PORT` | yes | plaintext | `3001` | Fastify listens here. DO health-checks the same port. |
 | `HOST` | no | plaintext | `0.0.0.0` | Container-friendly default; do not set `127.0.0.1`. |
-| `OGMIOS_URL` | yes | **secret** | – | `wss://ogmios.example/<token>`. Indexer + `/submit` + `/evaluate`. |
-| `DBSYNC_URL` | no | **secret** | – | `postgres://user:pass@host/db`. Set to enable address-keyed routes. |
+| `OGMIOS_URL` | yes | plaintext | `ws://127.0.0.1:1337` | Loopback when the CF Tunnel sidecar runs; otherwise a directly-reachable URL. |
+| `DBSYNC_URL` | no | **secret** | – | `postgres://user:pass@127.0.0.1:5432/cexplorer` (CF Tunnel) or any direct postgres URL. |
 | `BLOCKFROST_PROJECT_ID_PREPROD` | no | **secret** | – | History fallback when db-sync is down. Suffix matches the network. |
 | `BLOCKFROST_BASE_URL` | no | plaintext | per-network public Blockfrost | Override only if you proxy. |
 | `ADDRESSES_PATH` | no | plaintext | `/srv/lovejoin/addresses.json` | Matches the `COPY` in `backend/Dockerfile`. |
@@ -225,6 +284,10 @@ of cloud sync, shared dotfiles, etc.
 | `RATE_LIMIT_PER_MIN` | no | plaintext | `600` | Per-IP rate limit on every Fastify route. |
 | `BOOTSTRAP_START_SLOT` | no | plaintext | `addresses.bootstrapStartPoint.slot` | Override the chainsync intersection. |
 | `BOOTSTRAP_START_BLOCKHASH` | no | plaintext | `addresses.bootstrapStartPoint.blockHash` | Required iff `BOOTSTRAP_START_SLOT` is set. |
+| `CF_TUNNEL_OGMIOS_HOSTNAME` | no | plaintext | – | If set, entrypoint runs `cloudflared access tcp` for it on 127.0.0.1:1337. |
+| `CF_TUNNEL_DBSYNC_HOSTNAME` | no | plaintext | – | Same, on 127.0.0.1:5432. |
+| `CF_TUNNEL_SERVICE_TOKEN_ID` | iff a CF tunnel hostname is set | **secret** | – | CF Access service-token Client ID. |
+| `CF_TUNNEL_SERVICE_TOKEN_SECRET` | iff a CF tunnel hostname is set | **secret** | – | CF Access service-token Client Secret. |
 
 ### UI (build-time — read by Vite from the workspace `.env`)
 

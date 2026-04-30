@@ -63,14 +63,31 @@ services:
       - key: CORS_ORIGINS
         scope: RUN_TIME
         value: ${APP_URL}
+      # CF Tunnel sidecar pattern: leave OGMIOS_URL on loopback and
+      # set CF_TUNNEL_OGMIOS_HOSTNAME below. To skip the tunnel,
+      # replace with a public URL (e.g. wss://ogmios.demeter.run/<token>).
       - key: OGMIOS_URL
         scope: RUN_TIME
-        type: SECRET
-        value: <OGMIOS_WSS_URL>            # wss://ogmios.example/<token>
+        value: ws://127.0.0.1:1337
       - key: DBSYNC_URL
         scope: RUN_TIME
         type: SECRET
-        value: <POSTGRES_DBSYNC_URL>       # postgres://… or "" to disable
+        value: <POSTGRES_DBSYNC_URL>       # postgres://USER:PASS@127.0.0.1:5432/DBNAME (with CF tunnel)
+                                           #   or "" to disable address-keyed routes
+      - key: CF_TUNNEL_OGMIOS_HOSTNAME
+        scope: RUN_TIME
+        value: <OGMIOS_HOSTNAME>           # e.g. ogmios-preprod.example.com; "" to skip
+      - key: CF_TUNNEL_DBSYNC_HOSTNAME
+        scope: RUN_TIME
+        value: <DBSYNC_HOSTNAME>           # e.g. dbsync-preprod.example.com; "" to skip
+      - key: CF_TUNNEL_SERVICE_TOKEN_ID
+        scope: RUN_TIME
+        type: SECRET
+        value: <CF_ACCESS_SERVICE_TOKEN_ID>
+      - key: CF_TUNNEL_SERVICE_TOKEN_SECRET
+        scope: RUN_TIME
+        type: SECRET
+        value: <CF_ACCESS_SERVICE_TOKEN_SECRET>
       - key: BLOCKFROST_PROJECT_ID_<NETWORK_UPPER>
         scope: RUN_TIME
         type: SECRET
