@@ -6,7 +6,11 @@ dist
 .github
 *.log
 test
-artifacts
 docs
 papers
 crypto/ref/target
+
+# Note: `artifacts/` is intentionally NOT excluded — backend/Dockerfile
+# bakes the bootstrap-produced addresses.json into the image via
+# `COPY artifacts/${NETWORK}/addresses.json /srv/lovejoin/addresses.json`.
+# Per-network artifact dirs are < 250KB so the cost is trivial.

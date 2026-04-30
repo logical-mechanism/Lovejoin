@@ -167,6 +167,35 @@ describe("API: /health", () => {
     expect(body.lagSeconds).toBeNull();
     expect(body.chainTip).toBeNull();
   });
+
+  it("returns 503 when the indexer runtime has a fatal error so DO restarts the container", async () => {
+    // Synthetic runtime stub: only fatalError() needs to be truthy for
+    // the unhealthy branch. chainTip() / isRunning() round out the
+    // shape the route reads.
+    const fatal = new Error("ogmios connection lost");
+    const errored = await buildServer({
+      state,
+      runtime: {
+        chainTip: () => null,
+        isRunning: () => false,
+        fatalError: () => fatal,
+        // Untyped extras: the route doesn't read them but the type
+        // wants the full shape. Cast through any to keep the test
+        // narrow.
+      } as unknown as Parameters<typeof buildServer>[0]["runtime"],
+      config: CONFIG,
+      dbsync: null,
+    });
+    try {
+      const res = await errored.inject({ method: "GET", url: "/health" });
+      expect(res.statusCode).toBe(503);
+      const body = res.json();
+      expect(body.ok).toBe(false);
+      expect(body.runtimeError).toBe("ogmios connection lost");
+    } finally {
+      await errored.close();
+    }
+  });
 });
 
 describe("API: /params", () => {

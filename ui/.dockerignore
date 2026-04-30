@@ -1,0 +1,26 @@
+# UI Dockerfile build context is the *repository root* (the workspace
+# lockfile lives there and the SDK build needs offchain/), so a true
+# Docker-honored ignore would live at the repo root. This file is kept
+# alongside the UI so contributors editing the UI image find it easily;
+# the canonical exclude list applies to both Dockerfiles via the root
+# .dockerignore Docker actually reads.
+#
+# Keep this in sync with backend/.dockerignore — same exclusions, same
+# constraints (don't exclude artifacts/, that breaks bake).
+
+node_modules
+dist
+.env
+.env.*
+.git
+.github
+*.log
+test
+docs
+papers
+crypto/ref/target
+
+# UI-specific bulk: Playwright outputs, vite caches.
+ui/playwright-report
+ui/test-results
+ui/.vite

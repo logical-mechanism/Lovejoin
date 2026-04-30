@@ -1,0 +1,50 @@
+# Repo-root .dockerignore — applies to both backend/ and ui/ Dockerfiles.
+#
+# The build context for both is the repository root (the workspace
+# lockfile + offchain/ tree are needed for pnpm workspace resolution
+# and the SDK build), so this is the .dockerignore BuildKit honours.
+# The per-package backend/.dockerignore + ui/.dockerignore exist only
+# as documentation for contributors editing those images; Docker does
+# not read them when the build context is the repo root.
+
+# Workspace + IDE
+.git
+.github
+.idea
+.vscode
+.DS_Store
+**/node_modules
+**/.cache
+**/.turbo
+
+# Build outputs (re-built inside the image)
+backend/dist
+offchain/dist
+ui/dist
+
+# Bulk dev-only directories
+docs
+papers
+bench
+crypto/ref/target
+
+# Test outputs
+ui/playwright-report
+ui/test-results
+**/coverage
+
+# Local secrets / dotenvs — must never be baked into an image
+.env
+.env.*
+**/.env
+**/.env.*
+!.env.example
+!**/.env.example
+
+# Logs
+*.log
+
+# Note: artifacts/ is intentionally NOT excluded. backend/Dockerfile
+# bakes artifacts/${NETWORK}/addresses.json into the image as the
+# bootstrap-derived protocol address book. Per-network artifact dirs
+# are < 250KB so the cost is trivial.

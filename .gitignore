@@ -26,6 +26,12 @@ crypto/ref/target/
 *.skey
 *.vkey
 
+# Local DO App Platform spec — committed `.do/app.yaml` carries
+# placeholders for SECRET env vars (OGMIOS_URL, DBSYNC_URL, etc.); a
+# local copy with real values can live next to it as `*.local.yaml`
+# and never reaches the repo. See docs/deploy.md §"Secrets handling".
+.do/*.local.yaml
+
 # Bootstrap wallets — recommended location for the per-network wallet files
 # (payment.skey/vkey, payment.addr) used by infra/bootstrap/*.sh. The bootstrap
 # scripts only ever read these via env vars, but keeping the conventional path
