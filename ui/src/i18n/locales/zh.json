@@ -19,6 +19,7 @@
     "app": "Lovejoin",
     "home": "Lovejoin · 隐私混币器",
     "deposit": "存入 · Lovejoin",
+    "donate": "捐赠 · Lovejoin",
     "pool": "混币 · Lovejoin",
     "vault": "保险库 · Lovejoin",
     "box": "盒子详情 · Lovejoin",
@@ -28,12 +29,19 @@
     "region_label": "通知",
     "deposit_success": "存入已提交",
     "deposit_failed": "存入失败",
+    "donate_success": "捐赠已提交",
+    "donate_failed": "捐赠失败",
     "mix_success": "已提交混币 N = {{n}}",
     "mix_failed": "混币失败",
     "withdraw_success": "提取已提交",
     "withdraw_failed": "提取失败",
     "view_on_scan": "在 cardanoscan 查看 ↗",
     "dismiss": "关闭"
+  },
+  "tx": {
+    "retrying_collision": "目标 UTxO 刚刚被消耗。正在用新的选择重试（第 {{attempt}} 次）…",
+    "busy_title": "请稍后再试",
+    "busy_detail": "协议当前繁忙：所有目标 UTxO 都被另一笔交易消耗了。等几秒后再次提交。"
   },
   "errors": {
     "network": "网络错误。请检查连接后重试。",
@@ -67,6 +75,7 @@
     "deposit": "存入",
     "pool": "混币",
     "vault": "保险库",
+    "donate": "捐赠",
     "protocol": "协议"
   },
   "language": {
@@ -198,6 +207,24 @@
     "tx_preview_copy_bulk": "你的钱包支付 {{total}} ADA（{{count}} × {{denom}} ADA），外加手续费分片补充金。整批仅需一次签名。",
     "index_help": "用于此存入所有者密钥的保险库计数器。"
   },
+  "donate": {
+    "section_title": "向手续费池捐赠",
+    "eyebrow": "为共享手续费分片续费",
+    "lede": "混币交易从共享的手续费分片池中支取。捐赠会为该池续费，但不会铸造新的混币盒子。你自己得不到任何隐私收益（你的钱包出现在 tx 中），但每一次捐赠都会延长其他人混币的可用次数。",
+    "pool_label": "资金池规模",
+    "shard_count": "分布于 {{count}} 个分片",
+    "shards_title": "手续费分片",
+    "shards_caption": "共享手续费池每个分片的当前余额。",
+    "shard_ref": "分片",
+    "shard_balance": "余额",
+    "amount_label": "金额（ADA）",
+    "amount_help": "链上接受任何正数。Replenish 规则只要求分片增加 lovelace。",
+    "tx_preview_title": "交易预览",
+    "tx_preview_copy": "你的钱包向一个随机选取的手续费分片支付 {{amount}} ADA。需要钱包签名。",
+    "submit": "捐赠",
+    "submitting": "构建捐赠交易中…",
+    "preconditions_missing": "请先连接钱包再捐赠。"
+  },
   "boxes": {
     "section_title": "我的盒子",
     "empty": "保险库尚无活跃的自有盒子。",
@@ -298,7 +325,20 @@
     "mix_h": "混币",
     "privacy_h": "可链接性",
     "withdraw_h": "提取",
-    "further_h": "延伸阅读"
+    "further_h": "延伸阅读",
+    "primitive_g": "<b>G</b>：BLS12-381 G1 的生成元，阶为 <c>r</c> 的曲线子群。",
+    "primitive_x": "<b>x ∈ Z_r</b>：你的所有者密钥。从你钱包的 CIP-8 签名确定性地派生，因此无需另行备份。",
+    "primitive_hash": "<b>blake2b-256</b>：用于链上 Fiat–Shamir 与本 UI 保险库种子的哈希函数。",
+    "deposit_p1": "存入会选取一个新的随机数 <c>d</c>，并以 inline datum 将固定面额锁入 mix-box 脚本。两个 48 字节的压缩 G1 点，其中 <c>b</c> 充当你的所有权标记：",
+    "deposit_p2": "任何观察链的人都能看到 <c>(a, b)</c>，却无法知道 <c>x</c> 或 <c>d</c>。两者都是均匀随机样本，离散对数难以求解。",
+    "mix_p1": "混币交易选取 <b>N</b> 个活跃盒子，并用每个输入新的标量 <c>y_i</c> 对其重新随机化。位置 <c>i</c> 处的<e>输出</e>是<e>经过置换的重新随机化</e>：",
+    "mix_p2": "其中 <c>π</c> 是 <c>0..N</c> 的一个置换。关键性质：若输入处 <c>b_i = [x_i] · a_i</c>，则输出处 <c>b'_i = [x_π(i)] · a'_i</c>。所有权在重新随机化中得以保留，但<e>输入 → 输出</e>的配对被隐藏。",
+    "mix_p3": "为了证明交易在不暴露<e>哪一个</e>输入归属下保留所有权，提交者为每个输入生成一个 <b>N 路 sigma-OR</b> 证明。一条 Schnorr 证明，宣称\"我知道某个输出对应的 <c>x</c>\"，并在链上验证。Fiat–Shamir 挑战绑定到全部 N 个输出陈述以及盒子的存入 datum，因此证明无法被重定向。",
+    "privacy_p1": "在宽度 <c>N</c> 的单次混币之后，外部观察者将你的输入正确链接到你的输出的概率为 <c>1/N</c>。在 <c>k</c> 次独立轮次之后：",
+    "privacy_p2": "在 <b>N = 3</b>（Lovejoin 当前在 Preprod 上的校准上限）下，每多一轮可链接性就除以 3。十二轮把它压到 2⁻¹⁹ 以下，不到五十万分之一；二十轮把它压到 2⁻³¹ 以下。",
+    "withdraw_p1": "要离开资金池，你需要用绑定到 <c>tx.outputs</c> 的 <c>b = [x] · a</c> 的 Schnorr 证明，在 <c>mix_box</c> 脚本的所有者分支花费混币盒子。证明者均匀地选取 <c>k ∈ Z_r</c>，并计算：",
+    "withdraw_p2": "更换输出会使挑战失效，因此验证器只能沿证明者签署的花费路径消费此盒子。盒子本身没有钱包签名。只有目的地输出由提交者钱包（支付手续费的那个）授权。",
+    "further_p": "完整构造与安全证明见 <paper>Sigmajoin 论文</paper>。链上验证器实现位于 <c>contracts/validators/mix_logic.ak</c>；链下构建器位于 <c>offchain/src/tx/mix.ts</c>；跨语言 KAT 向量位于 <c>crypto/test-vectors/</c>。"
   },
   "vault": {
     "title": "保险库",

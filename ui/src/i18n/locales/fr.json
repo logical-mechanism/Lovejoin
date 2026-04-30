@@ -19,6 +19,7 @@
     "app": "Lovejoin",
     "home": "Lovejoin · mixeur de confidentialité",
     "deposit": "Dépôt · Lovejoin",
+    "donate": "Don · Lovejoin",
     "pool": "Mix · Lovejoin",
     "vault": "Coffre · Lovejoin",
     "box": "Détail de la boîte · Lovejoin",
@@ -28,12 +29,19 @@
     "region_label": "Notifications",
     "deposit_success": "Dépôt envoyé",
     "deposit_failed": "Échec du dépôt",
+    "donate_success": "Don envoyé",
+    "donate_failed": "Don échoué",
     "mix_success": "Mix envoyé avec N = {{n}}",
     "mix_failed": "Échec du Mix",
     "withdraw_success": "Retrait envoyé",
     "withdraw_failed": "Échec du retrait",
     "view_on_scan": "voir sur cardanoscan ↗",
     "dismiss": "Ignorer"
+  },
+  "tx": {
+    "retrying_collision": "Une UTxO ciblée vient d'être consommée. Nouvelle tentative avec une sélection fraîche (essai {{attempt}})…",
+    "busy_title": "Réessayez dans un instant",
+    "busy_detail": "Le protocole est occupé : chaque UTxO ciblée a été consommée par une autre transaction. Attendez quelques secondes et soumettez à nouveau."
   },
   "errors": {
     "network": "Erreur réseau. Vérifiez votre connexion et réessayez.",
@@ -67,6 +75,7 @@
     "deposit": "Dépôt",
     "pool": "Mix",
     "vault": "Coffre",
+    "donate": "Don",
     "protocol": "Protocole"
   },
   "language": {
@@ -198,6 +207,24 @@
     "tx_preview_copy_bulk": "Votre portefeuille paie {{total}} ADA ({{count}} × {{denom}} ADA) plus un complément au shard de frais. Une seule signature pour tout le lot.",
     "index_help": "Compteur du coffre pour le secret propriétaire de ce dépôt."
   },
+  "donate": {
+    "section_title": "Don au pool de frais",
+    "eyebrow": "Rechargez les shards de frais partagés",
+    "lede": "Les txs de Mix puisent dans un pool partagé de shards de frais. Les dons rechargent ce pool sans créer de nouvelle mix-box. Aucun gain de confidentialité pour vous ici (votre portefeuille est sur la tx), mais chaque don étend l'autonomie pour les mix des autres.",
+    "pool_label": "Taille du pool",
+    "shard_count": "sur {{count}} shards",
+    "shards_title": "Shards de frais",
+    "shards_caption": "Solde par shard du pool de frais partagé.",
+    "shard_ref": "Shard",
+    "shard_balance": "Solde",
+    "amount_label": "Montant (ADA)",
+    "amount_help": "Tout montant positif est accepté on-chain. La règle Replenish exige seulement que le shard gagne du lovelace.",
+    "tx_preview_title": "Aperçu de la transaction",
+    "tx_preview_copy": "Votre portefeuille verse {{amount}} ADA dans un shard de frais choisi au hasard. Signature du portefeuille requise.",
+    "submit": "Faire un don",
+    "submitting": "Construction du don…",
+    "preconditions_missing": "Connectez un portefeuille pour faire un don."
+  },
   "boxes": {
     "section_title": "Mes boîtes",
     "empty": "Le coffre n'a pas encore de boîte active vous appartenant.",
@@ -298,7 +325,20 @@
     "mix_h": "Mix",
     "privacy_h": "Liaison",
     "withdraw_h": "Retrait",
-    "further_h": "Pour aller plus loin"
+    "further_h": "Pour aller plus loin",
+    "primitive_g": "<b>G</b> : le générateur de BLS12-381 G1, le sous-groupe de la courbe d'ordre <c>r</c>.",
+    "primitive_x": "<b>x ∈ Z_r</b> : votre secret de propriétaire. Dérivé de manière déterministe de la signature CIP-8 de votre portefeuille, donc inutile de le sauvegarder séparément.",
+    "primitive_hash": "<b>blake2b-256</b> : la fonction de hachage utilisée à la fois pour Fiat–Shamir on-chain et pour la graine du coffre de cette UI.",
+    "deposit_p1": "Un dépôt choisit un aléa frais <c>d</c> et verrouille la dénomination fixe au script mix-box avec le datum inline. Deux points G1 compressés de 48 octets, où <c>b</c> sert de marque de propriété :",
+    "deposit_p2": "Quiconque observe la chaîne voit <c>(a, b)</c> mais n'apprend rien sur <c>x</c> ni <c>d</c>. Les deux sont des échantillons uniformes et le logarithme discret est difficile.",
+    "mix_p1": "Une tx de Mix prend <b>N</b> boxes actives et les ré-aléatorise avec un scalaire frais par entrée <c>y_i</c>. La <e>sortie</e> à la position <c>i</c> est la <e>ré-aléatorisation permutée</e> :",
+    "mix_p2": "où <c>π</c> est une permutation de <c>0..N</c>. La propriété cruciale : si <c>b_i = [x_i] · a_i</c> en entrée, alors <c>b'_i = [x_π(i)] · a'_i</c> en sortie. La propriété survit à la ré-aléatorisation, mais l'appariement <e>entrée → sortie</e> est masqué.",
+    "mix_p3": "Pour prouver que la tx préserve la propriété sans révéler <e>quelle</e> entrée elle possède, l'émetteur génère une preuve <b>sigma-OR à N voies</b> par entrée. Une seule preuve Schnorr de \"je connais <c>x</c> pour une sortie\", vérifiée on-chain. Le défi Fiat–Shamir se lie à toutes les N déclarations de sortie plus le datum de dépôt de la box, donc la preuve ne peut être re-ciblée.",
+    "privacy_p1": "Après un seul Mix de largeur <c>N</c>, la probabilité qu'un observateur extérieur lie correctement votre entrée à votre sortie est <c>1/N</c>. Après <c>k</c> tours indépendants :",
+    "privacy_p2": "À <b>N = 3</b> (le plafond calibré de Lovejoin sur Preprod aujourd'hui) chaque tour supplémentaire divise la probabilité de liaison par 3. Douze tours la font passer sous 2⁻¹⁹, moins d'une chance sur un demi-million. Vingt tours la font passer sous 2⁻³¹.",
+    "withdraw_p1": "Pour quitter le pool, vous dépensez la mix-box sur la branche propriétaire du script <c>mix_box</c> avec une preuve Schnorr de <c>b = [x] · a</c> liée à <c>tx.outputs</c>. Le prouveur choisit un <c>k ∈ Z_r</c> uniforme et calcule :",
+    "withdraw_p2": "La substitution des sorties invalide le défi, donc le validateur ne peut dépenser la box que sur le chemin de dépense que le prouveur a signé. Aucune signature de portefeuille sur la box elle-même. Seules les sorties de destination sont autorisées par le portefeuille de l'émetteur (qui paie les frais).",
+    "further_p": "Construction complète + preuves de sécurité dans le <paper>paper Sigmajoin</paper>. L'implémentation du validateur on-chain vit dans <c>contracts/validators/mix_logic.ak</c> ; le builder off-chain est <c>offchain/src/tx/mix.ts</c> ; les vecteurs KAT inter-langages sont dans <c>crypto/test-vectors/</c>."
   },
   "vault": {
     "title": "Coffre",

@@ -19,6 +19,7 @@
     "app": "Lovejoin",
     "home": "Lovejoin · mikser prywatności",
     "deposit": "Wpłata · Lovejoin",
+    "donate": "Wsparcie · Lovejoin",
     "pool": "Mix · Lovejoin",
     "vault": "Sejf · Lovejoin",
     "box": "Szczegóły boxa · Lovejoin",
@@ -28,12 +29,19 @@
     "region_label": "Powiadomienia",
     "deposit_success": "Wpłatę wysłano",
     "deposit_failed": "Wpłata nieudana",
+    "donate_success": "Wsparcie wysłane",
+    "donate_failed": "Wsparcie nieudane",
     "mix_success": "Mix wysłano przy N = {{n}}",
     "mix_failed": "Mix nieudany",
     "withdraw_success": "Wypłatę wysłano",
     "withdraw_failed": "Wypłata nieudana",
     "view_on_scan": "zobacz na cardanoscan ↗",
     "dismiss": "Zamknij"
+  },
+  "tx": {
+    "retrying_collision": "Wybrany UTxO właśnie został zużyty. Ponawiam z nowym wyborem (próba {{attempt}})…",
+    "busy_title": "Spróbuj ponownie za chwilę",
+    "busy_detail": "Protokół jest zajęty: każdy wybrany UTxO został zużyty przez inną transakcję. Poczekaj kilka sekund i wyślij ponownie."
   },
   "errors": {
     "network": "Błąd sieci. Sprawdź połączenie i spróbuj ponownie.",
@@ -67,6 +75,7 @@
     "deposit": "Wpłata",
     "pool": "Mix",
     "vault": "Sejf",
+    "donate": "Wsparcie",
     "protocol": "Protokół"
   },
   "language": {
@@ -198,6 +207,24 @@
     "tx_preview_copy_bulk": "Twój portfel płaci {{total}} ADA ({{count}} × {{denom}} ADA) plus doładowanie fee shardu. Jeden podpis na całą partię.",
     "index_help": "Licznik sejfu dla sekretu właściciela tej wpłaty."
   },
+  "donate": {
+    "section_title": "Wsparcie puli opłat",
+    "eyebrow": "Doładuj wspólne shardy opłat",
+    "lede": "Transakcje Mix czerpią ze wspólnej puli shardów opłat. Wpłaty doładowują tę pulę bez tworzenia nowego mix-boxa. Nie masz tu osobistego zysku w prywatności (twój portfel jest w tx), ale każda wpłata wydłuża zasięg miksów innych.",
+    "pool_label": "Rozmiar puli",
+    "shard_count": "w {{count}} shardach",
+    "shards_title": "Shardy opłat",
+    "shards_caption": "Aktualny stan na shard wspólnej puli opłat.",
+    "shard_ref": "Shard",
+    "shard_balance": "Saldo",
+    "amount_label": "Kwota (ADA)",
+    "amount_help": "On-chain akceptowana jest dowolna dodatnia kwota. Reguła Replenish wymaga jedynie, by shard zyskał lovelace.",
+    "tx_preview_title": "Podgląd transakcji",
+    "tx_preview_copy": "Twój portfel płaci {{amount}} ADA do losowo wybranego sharda opłat. Wymagany podpis portfela.",
+    "submit": "Wesprzyj",
+    "submitting": "Buduję wsparcie…",
+    "preconditions_missing": "Połącz portfel, aby wesprzeć."
+  },
   "boxes": {
     "section_title": "Moje boxy",
     "empty": "Sejf nie ma jeszcze aktywnych własnych boxów.",
@@ -298,7 +325,20 @@
     "mix_h": "Mix",
     "privacy_h": "Powiązanie",
     "withdraw_h": "Wypłata",
-    "further_h": "Dalsza lektura"
+    "further_h": "Dalsza lektura",
+    "primitive_g": "<b>G</b>: generator BLS12-381 G1, podgrupy krzywej rzędu <c>r</c>.",
+    "primitive_x": "<b>x ∈ Z_r</b>: twój sekret właściciela. Wyprowadzany deterministycznie z podpisu CIP-8 twojego portfela, więc nie trzeba go osobno backupować.",
+    "primitive_hash": "<b>blake2b-256</b>: funkcja skrótu używana zarówno dla on-chain Fiat–Shamir, jak i ziarna sejfu w tym UI.",
+    "deposit_p1": "Wpłata wybiera świeżą losowość <c>d</c> i blokuje stałą nominację w skrypcie mix-box z inline datum. Dwa skompresowane 48-bajtowe punkty G1, gdzie <c>b</c> pełni rolę twojego znaku własności:",
+    "deposit_p2": "Każdy obserwujący łańcuch widzi <c>(a, b)</c>, ale nie dowiaduje się niczego o <c>x</c> ani <c>d</c>. Oba są jednorodnymi próbkami losowymi, a logarytm dyskretny jest trudny.",
+    "mix_p1": "Tx Mix bierze <b>N</b> aktywnych boxów i ponownie randomizuje je świeżym skalarem na każde wejście <c>y_i</c>. <e>Wyjście</e> w pozycji <c>i</c> jest <e>permutowaną re-randomizacją</e>:",
+    "mix_p2": "gdzie <c>π</c> jest permutacją <c>0..N</c>. Kluczowa własność: jeśli <c>b_i = [x_i] · a_i</c> na wejściu, to <c>b'_i = [x_π(i)] · a'_i</c> na wyjściu. Własność przeżywa re-randomizację, ale parowanie <e>wejście → wyjście</e> jest ukryte.",
+    "mix_p3": "Aby udowodnić, że tx zachowuje własność, nie ujawniając, <e>które</e> wejście posiada, nadawca generuje dowód <b>N-drożny sigma-OR</b> dla każdego wejścia. Jeden dowód Schnorra \"znam <c>x</c> dla pewnego wyjścia\", weryfikowany on-chain. Wyzwanie Fiat–Shamir wiąże się ze wszystkimi N stwierdzeniami wyjścia plus datum depozytu boxa, dlatego dowodu nie można przekierować.",
+    "privacy_p1": "Po jednym Miksie o szerokości <c>N</c> prawdopodobieństwo, że zewnętrzny obserwator poprawnie powiąże twoje wejście z wyjściem, wynosi <c>1/N</c>. Po <c>k</c> niezależnych rundach:",
+    "privacy_p2": "Przy <b>N = 3</b> (skalibrowany pułap Lovejoin na Preprod dziś) każda dodatkowa runda dzieli prawdopodobieństwo powiązania przez 3. Dwanaście rund spycha je poniżej 2⁻¹⁹, mniej niż jedna szansa na pół miliona. Dwadzieścia rund spycha je poniżej 2⁻³¹.",
+    "withdraw_p1": "Aby opuścić pulę, wydajesz mix-box w gałęzi właściciela skryptu <c>mix_box</c> z dowodem Schnorra <c>b = [x] · a</c> związanym z <c>tx.outputs</c>. Dowodzący wybiera jednorodne <c>k ∈ Z_r</c> i oblicza:",
+    "withdraw_p2": "Podmiana wyjść unieważnia wyzwanie, więc walidator może wydać box tylko na ścieżce wydania, którą podpisał dowodzący. Na samym boxie nie ma podpisu portfela. Tylko wyjścia docelowe są autoryzowane przez portfel nadawcy (który płaci opłatę).",
+    "further_p": "Pełna konstrukcja + dowody bezpieczeństwa są w <paper>papierze Sigmajoin</paper>. Implementacja on-chain walidatora żyje w <c>contracts/validators/mix_logic.ak</c>; off-chain builder to <c>offchain/src/tx/mix.ts</c>; międzyjęzykowe wektory KAT są w <c>crypto/test-vectors/</c>."
   },
   "vault": {
     "title": "Sejf",

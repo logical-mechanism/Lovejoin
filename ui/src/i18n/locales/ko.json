@@ -19,6 +19,7 @@
     "app": "Lovejoin",
     "home": "Lovejoin · 프라이버시 믹서",
     "deposit": "예치 · Lovejoin",
+    "donate": "기부 · Lovejoin",
     "pool": "믹스 · Lovejoin",
     "vault": "볼트 · Lovejoin",
     "box": "박스 상세 · Lovejoin",
@@ -28,12 +29,19 @@
     "region_label": "알림",
     "deposit_success": "예치 전송됨",
     "deposit_failed": "예치 실패",
+    "donate_success": "기부가 전송되었습니다",
+    "donate_failed": "기부 실패",
     "mix_success": "N = {{n}}로 믹스 전송됨",
     "mix_failed": "믹스 실패",
     "withdraw_success": "출금 전송됨",
     "withdraw_failed": "출금 실패",
     "view_on_scan": "cardanoscan에서 보기 ↗",
     "dismiss": "닫기"
+  },
+  "tx": {
+    "retrying_collision": "대상 UTxO가 방금 소비되었습니다. 새로 선택해 재시도 중입니다 (시도 {{attempt}})…",
+    "busy_title": "잠시 후 다시 시도하세요",
+    "busy_detail": "프로토콜이 혼잡합니다: 대상 UTxO가 모두 다른 트랜잭션에 의해 소비되었습니다. 몇 초 기다린 뒤 다시 제출하세요."
   },
   "errors": {
     "network": "네트워크 오류. 연결을 확인하고 다시 시도해 주세요.",
@@ -67,6 +75,7 @@
     "deposit": "예치",
     "pool": "믹스",
     "vault": "볼트",
+    "donate": "기부",
     "protocol": "프로토콜"
   },
   "language": {
@@ -198,6 +207,24 @@
     "tx_preview_copy_bulk": "지갑이 {{total}} ADA ({{count}} × {{denom}} ADA)와 수수료 샤드 보충 톱업을 지불합니다. 배치 전체에 서명 한 번.",
     "index_help": "이 예치의 소유자 시크릿용 볼트 카운터."
   },
+  "donate": {
+    "section_title": "수수료 풀에 기부",
+    "eyebrow": "공유 수수료 샤드 보충",
+    "lede": "Mix 트랜잭션은 공유 수수료 샤드 풀에서 끌어옵니다. 기부는 새 mix-box를 발행하지 않고 그 풀을 보충합니다. 본인에게는 프라이버시 이득이 없지만 (당신의 지갑은 tx에 노출됩니다), 기부 한 건마다 다른 사람들의 mix 여유 자원을 늘립니다.",
+    "pool_label": "풀 크기",
+    "shard_count": "{{count}}개의 샤드에 분산",
+    "shards_title": "수수료 샤드",
+    "shards_caption": "공유 수수료 풀의 샤드별 현재 잔액.",
+    "shard_ref": "샤드",
+    "shard_balance": "잔액",
+    "amount_label": "금액 (ADA)",
+    "amount_help": "온체인에서는 양수 어떤 금액이든 받습니다. Replenish 규칙은 샤드가 lovelace를 얻기만 하면 됩니다.",
+    "tx_preview_title": "트랜잭션 미리보기",
+    "tx_preview_copy": "지갑이 무작위로 선택된 수수료 샤드에 {{amount}} ADA를 지불합니다. 지갑 서명이 필요합니다.",
+    "submit": "기부",
+    "submitting": "기부 트랜잭션 구성 중…",
+    "preconditions_missing": "기부하려면 지갑을 연결하세요."
+  },
   "boxes": {
     "section_title": "내 박스",
     "empty": "볼트에 활성 소유 박스가 아직 없습니다.",
@@ -298,7 +325,20 @@
     "mix_h": "믹스",
     "privacy_h": "연결성",
     "withdraw_h": "출금",
-    "further_h": "더 읽기"
+    "further_h": "더 읽기",
+    "primitive_g": "<b>G</b>: BLS12-381 G1의 생성원, 위수 <c>r</c>의 곡선 부분군.",
+    "primitive_x": "<b>x ∈ Z_r</b>: 당신의 소유자 비밀. 지갑의 CIP-8 서명에서 결정적으로 유도되므로 별도 백업이 필요 없습니다.",
+    "primitive_hash": "<b>blake2b-256</b>: 온체인 Fiat–Shamir와 본 UI의 vault 시드 모두에 쓰이는 해시 함수.",
+    "deposit_p1": "예치는 신선한 난수 <c>d</c>를 골라 인라인 datum과 함께 고정 액면을 mix-box 스크립트에 잠급니다. 48바이트 압축 G1 점 두 개로, <c>b</c>가 당신의 소유 표식 역할을 합니다:",
+    "deposit_p2": "체인을 보는 누구나 <c>(a, b)</c>를 볼 수 있지만 <c>x</c>나 <c>d</c>에 대해서는 아무 것도 알 수 없습니다. 둘 다 균등 무작위 표본이고 이산 로그는 어렵기 때문입니다.",
+    "mix_p1": "Mix tx는 활성 box <b>N</b>개를 잡아 각 입력마다 새로운 스칼라 <c>y_i</c>로 재랜덤화합니다. 위치 <c>i</c>의 <e>출력</e>은 <e>치환된 재랜덤화</e>입니다:",
+    "mix_p2": "여기서 <c>π</c>는 <c>0..N</c>의 치환입니다. 핵심 성질: 입력에서 <c>b_i = [x_i] · a_i</c>이면, 출력에서 <c>b'_i = [x_π(i)] · a'_i</c>가 성립합니다. 소유권은 재랜덤화에서 살아남지만, <e>입력 → 출력</e> 매핑은 가려집니다.",
+    "mix_p3": "tx가 <e>어느</e> 입력을 소유하는지 드러내지 않고 소유권을 보존함을 증명하려고, 제출자는 입력마다 <b>N-way sigma-OR</b> 증명을 생성합니다. \"어떤 출력에 대해 <c>x</c>를 안다\"는 Schnorr 증명 한 개가 온체인에서 검증됩니다. Fiat–Shamir 챌린지는 N개 출력 명제와 box의 예치 datum 전부에 결합되어 있어, 증명을 다른 대상으로 돌릴 수 없습니다.",
+    "privacy_p1": "폭 <c>N</c>의 Mix를 한 번 거친 뒤, 외부 관찰자가 당신의 입력과 출력을 올바르게 연결할 확률은 <c>1/N</c>입니다. 독립적으로 <c>k</c>회 반복한 뒤:",
+    "privacy_p2": "<b>N = 3</b> (오늘 Preprod에서 Lovejoin의 보정된 상한)에서는 라운드를 한 번 추가할 때마다 연결 확률이 1/3로 줄어듭니다. 12라운드로 2⁻¹⁹ 미만, 약 50만분의 1 미만. 20라운드로 2⁻³¹ 미만이 됩니다.",
+    "withdraw_p1": "풀을 떠나려면, <c>tx.outputs</c>에 결합된 <c>b = [x] · a</c>의 Schnorr 증명으로 <c>mix_box</c> 스크립트의 owner 분기에서 mix-box를 소비합니다. 증명자는 균등한 <c>k ∈ Z_r</c>를 골라 다음을 계산합니다:",
+    "withdraw_p2": "출력 치환은 챌린지를 무효화하므로, 검증자는 증명자가 서명한 지출 경로로만 box를 소비할 수 있습니다. box 자체에는 지갑 서명이 없습니다. tx를 권한화하는 (수수료를 내는) 것은 제출자 지갑의 목적지 출력뿐입니다.",
+    "further_p": "전체 구성과 보안 증명은 <paper>Sigmajoin 논문</paper>에 있습니다. 온체인 검증자 구현은 <c>contracts/validators/mix_logic.ak</c>에, 오프체인 빌더는 <c>offchain/src/tx/mix.ts</c>에, 언어 간 KAT 벡터는 <c>crypto/test-vectors/</c>에 있습니다."
   },
   "vault": {
     "title": "볼트",

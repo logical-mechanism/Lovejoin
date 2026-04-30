@@ -19,6 +19,7 @@
     "app": "Lovejoin",
     "home": "Lovejoin · Privacy-Mixer",
     "deposit": "Einzahlen · Lovejoin",
+    "donate": "Spenden · Lovejoin",
     "pool": "Mixen · Lovejoin",
     "vault": "Vault · Lovejoin",
     "box": "Box-Detail · Lovejoin",
@@ -28,12 +29,19 @@
     "region_label": "Benachrichtigungen",
     "deposit_success": "Einzahlung gesendet",
     "deposit_failed": "Einzahlung fehlgeschlagen",
+    "donate_success": "Spende übermittelt",
+    "donate_failed": "Spende fehlgeschlagen",
     "mix_success": "Mix mit N = {{n}} gesendet",
     "mix_failed": "Mix fehlgeschlagen",
     "withdraw_success": "Abhebung gesendet",
     "withdraw_failed": "Abhebung fehlgeschlagen",
     "view_on_scan": "auf cardanoscan ansehen ↗",
     "dismiss": "Schließen"
+  },
+  "tx": {
+    "retrying_collision": "Ein anvisierter UTxO wurde gerade verbraucht. Erneuter Versuch mit einer neuen Auswahl (Versuch {{attempt}})…",
+    "busy_title": "Versuche es gleich erneut",
+    "busy_detail": "Das Protokoll ist gerade beschäftigt: Jeder anvisierte UTxO wurde von einer anderen Transaktion verbraucht. Warte ein paar Sekunden und sende erneut."
   },
   "errors": {
     "network": "Netzwerkfehler. Verbindung prüfen und erneut versuchen.",
@@ -67,6 +75,7 @@
     "deposit": "Einzahlen",
     "pool": "Mixen",
     "vault": "Vault",
+    "donate": "Spenden",
     "protocol": "Protokoll"
   },
   "language": {
@@ -198,6 +207,24 @@
     "tx_preview_copy_bulk": "Deine Wallet zahlt {{total}} ADA ({{count}} × {{denom}} ADA) plus eine Aufstockung des Fee-Shards. Eine Signatur für den ganzen Stapel.",
     "index_help": "Vault-Zähler für das Owner-Geheimnis dieser Einzahlung."
   },
+  "donate": {
+    "section_title": "An den Gebühren-Pool spenden",
+    "eyebrow": "Lade die geteilten Gebühren-Shards auf",
+    "lede": "Mix-Txs greifen auf einen geteilten Pool aus Gebühren-Shards zu. Spenden laden diesen Pool auf, ohne eine neue Mix-Box zu prägen. Es gibt hier keinen Privatsphäre-Vorteil für dich (dein Wallet steht auf der Tx), aber jede Spende verlängert die Reichweite für die Mixes anderer.",
+    "pool_label": "Pool-Größe",
+    "shard_count": "über {{count}} Shards",
+    "shards_title": "Gebühren-Shards",
+    "shards_caption": "Aktueller Stand pro Shard im geteilten Gebühren-Pool.",
+    "shard_ref": "Shard",
+    "shard_balance": "Stand",
+    "amount_label": "Betrag (ADA)",
+    "amount_help": "Jeder positive Betrag wird on-chain akzeptiert. Die Replenish-Regel verlangt nur, dass der Shard Lovelace gewinnt.",
+    "tx_preview_title": "Transaktionsvorschau",
+    "tx_preview_copy": "Dein Wallet zahlt {{amount}} ADA in einen zufällig ausgewählten Gebühren-Shard. Wallet-Signatur erforderlich.",
+    "submit": "Spenden",
+    "submitting": "Spende wird gebaut…",
+    "preconditions_missing": "Verbinde ein Wallet, um zu spenden."
+  },
   "boxes": {
     "section_title": "Meine Boxes",
     "empty": "Im Vault sind noch keine aktiven, eigenen Boxes.",
@@ -298,7 +325,20 @@
     "mix_h": "Mixen",
     "privacy_h": "Verknüpfung",
     "withdraw_h": "Abheben",
-    "further_h": "Weiterführendes"
+    "further_h": "Weiterführendes",
+    "primitive_g": "<b>G</b>: der Generator von BLS12-381 G1, die Kurven-Untergruppe der Ordnung <c>r</c>.",
+    "primitive_x": "<b>x ∈ Z_r</b>: dein Owner-Geheimnis. Wird deterministisch aus der CIP-8-Signatur deines Wallets abgeleitet, muss also nie separat gesichert werden.",
+    "primitive_hash": "<b>blake2b-256</b>: die Hashfunktion, die sowohl für Fiat–Shamir on-chain als auch für den Vault-Seed dieser UI genutzt wird.",
+    "deposit_p1": "Ein Deposit wählt eine frische Zufallszahl <c>d</c> und sperrt die feste Stückelung am Mix-Box-Skript mit dem Inline-Datum. Zwei 48-Byte komprimierte G1-Punkte, wobei <c>b</c> als Eigentumsmarkierung dient:",
+    "deposit_p2": "Wer die Chain beobachtet, sieht <c>(a, b)</c>, lernt aber nichts über <c>x</c> oder <c>d</c>. Beides sind gleichverteilte Zufallswerte und der diskrete Logarithmus ist hart.",
+    "mix_p1": "Eine Mix-Tx wählt <b>N</b> aktive Boxen und re-randomisiert sie mit einem frischen Skalar pro Eingabe <c>y_i</c>. Die <e>Ausgabe</e> an Position <c>i</c> ist die <e>permutierte Re-Randomisierung</e>:",
+    "mix_p2": "wobei <c>π</c> eine Permutation von <c>0..N</c> ist. Die entscheidende Eigenschaft: gilt <c>b_i = [x_i] · a_i</c> auf der Eingabeseite, so gilt <c>b'_i = [x_π(i)] · a'_i</c> auf der Ausgabeseite. Eigentum überlebt die Re-Randomisierung, aber die Zuordnung <e>Eingabe → Ausgabe</e> bleibt verborgen.",
+    "mix_p3": "Um zu beweisen, dass die Tx Eigentum bewahrt, ohne preiszugeben, <e>welche</e> Eingabe ihr gehört, erzeugt der Sender pro Eingabe einen <b>N-Wege Sigma-OR</b>-Beweis. Ein einziger Schnorr-Beweis \"Ich kenne <c>x</c> zu irgendeiner Ausgabe\", on-chain verifiziert. Die Fiat–Shamir-Challenge bindet an alle N Ausgabe-Statements plus das Deposit-Datum der Box, sodass der Beweis nicht umgelenkt werden kann.",
+    "privacy_p1": "Nach einem einzigen Mix mit Breite <c>N</c> beträgt die Wahrscheinlichkeit, dass ein externer Beobachter deine Eingabe korrekt mit deiner Ausgabe verknüpft, <c>1/N</c>. Nach <c>k</c> unabhängigen Runden:",
+    "privacy_p2": "Bei <b>N = 3</b> (Lovejoins kalibrierter Cap auf Preprod heute) teilt jede zusätzliche Runde die Verknüpfungswahrscheinlichkeit durch 3. Zwölf Runden drücken sie unter 2⁻¹⁹, weniger als eine Chance in einer halben Million. Zwanzig Runden drücken sie unter 2⁻³¹.",
+    "withdraw_p1": "Um den Pool zu verlassen, gibst du die Mix-Box am Owner-Branch des <c>mix_box</c>-Skripts aus, mit einem Schnorr-Beweis von <c>b = [x] · a</c>, gebunden an <c>tx.outputs</c>. Der Prover wählt ein gleichverteiltes <c>k ∈ Z_r</c> und berechnet:",
+    "withdraw_p2": "Output-Substitution invalidiert die Challenge, also kann der Validator die Box nur auf dem Spend-Pfad ausgeben, den der Prover signiert hat. Auf der Box selbst gibt es keine Wallet-Signatur. Nur die Ziel-Outputs werden vom Wallet des Senders autorisiert (das die Gebühr zahlt).",
+    "further_p": "Vollständige Konstruktion + Sicherheitsbeweise im <paper>Sigmajoin-Paper</paper>. Die On-Chain-Validator-Implementierung lebt in <c>contracts/validators/mix_logic.ak</c>; der Off-Chain-Builder ist <c>offchain/src/tx/mix.ts</c>; sprachübergreifende KAT-Vektoren liegen in <c>crypto/test-vectors/</c>."
   },
   "vault": {
     "title": "Vault",

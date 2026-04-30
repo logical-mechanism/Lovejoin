@@ -19,6 +19,7 @@
     "app": "Lovejoin",
     "home": "Lovejoin · gizlilik karıştırıcısı",
     "deposit": "Yatırım · Lovejoin",
+    "donate": "Bağış · Lovejoin",
     "pool": "Karıştır · Lovejoin",
     "vault": "Kasa · Lovejoin",
     "box": "Kutu detayı · Lovejoin",
@@ -28,12 +29,19 @@
     "region_label": "Bildirimler",
     "deposit_success": "Yatırım gönderildi",
     "deposit_failed": "Yatırım başarısız",
+    "donate_success": "Bağış gönderildi",
+    "donate_failed": "Bağış başarısız",
     "mix_success": "N = {{n}} ile karıştırma gönderildi",
     "mix_failed": "Karıştırma başarısız",
     "withdraw_success": "Çekim gönderildi",
     "withdraw_failed": "Çekim başarısız",
     "view_on_scan": "cardanoscan üzerinde görüntüle ↗",
     "dismiss": "Kapat"
+  },
+  "tx": {
+    "retrying_collision": "Hedeflenen bir UTxO az önce harcandı. Yeni seçimle yeniden deneniyor (deneme {{attempt}})…",
+    "busy_title": "Birazdan tekrar deneyin",
+    "busy_detail": "Protokol şu anda meşgul: hedeflenen her UTxO başka bir işlemce harcandı. Birkaç saniye bekleyip tekrar gönderin."
   },
   "errors": {
     "network": "Ağ hatası. Bağlantınızı kontrol edip tekrar deneyin.",
@@ -67,6 +75,7 @@
     "deposit": "Yatırım",
     "pool": "Karıştır",
     "vault": "Kasa",
+    "donate": "Bağış",
     "protocol": "Protokol"
   },
   "language": {
@@ -198,6 +207,24 @@
     "tx_preview_copy_bulk": "Cüzdanınız {{total}} ADA ({{count}} × {{denom}} ADA) ve ücret shard'ına takviye öder. Tüm parti için tek imza.",
     "index_help": "Bu yatırımın sahip sırrı için kasa sayacı."
   },
+  "donate": {
+    "section_title": "Ücret havuzuna bağış",
+    "eyebrow": "Paylaşılan ücret parçalarını yenile",
+    "lede": "Mix işlemleri ortak bir ücret parça havuzundan çeker. Bağışlar, yeni bir mix-box basmadan o havuzu yeniler. Burada size özel bir gizlilik kazancı yok (cüzdanınız tx üzerinde), ama her bağış başkalarının mix'leri için ömrü uzatır.",
+    "pool_label": "Havuz boyutu",
+    "shard_count": "{{count}} parça arasında",
+    "shards_title": "Ücret parçaları",
+    "shards_caption": "Paylaşılan ücret havuzunun parça başına güncel bakiyesi.",
+    "shard_ref": "Parça",
+    "shard_balance": "Bakiye",
+    "amount_label": "Tutar (ADA)",
+    "amount_help": "Zincir üstünde herhangi bir pozitif tutar kabul edilir. Replenish kuralı yalnızca parçanın lovelace kazanmasını ister.",
+    "tx_preview_title": "İşlem önizlemesi",
+    "tx_preview_copy": "Cüzdanınız rastgele seçilen bir ücret parçasına {{amount}} ADA öder. Cüzdan imzası gerekir.",
+    "submit": "Bağış yap",
+    "submitting": "Bağış oluşturuluyor…",
+    "preconditions_missing": "Bağış için bir cüzdan bağlayın."
+  },
   "boxes": {
     "section_title": "Kutularım",
     "empty": "Kasada henüz aktif kendi kutunuz yok.",
@@ -298,7 +325,20 @@
     "mix_h": "Karıştır",
     "privacy_h": "Bağlanma",
     "withdraw_h": "Çekim",
-    "further_h": "Daha fazlası"
+    "further_h": "Daha fazlası",
+    "primitive_g": "<b>G</b>: BLS12-381 G1'in üreteci, mertebesi <c>r</c> olan eğri alt grubu.",
+    "primitive_x": "<b>x ∈ Z_r</b>: sahip sırrınız. Cüzdanınızın CIP-8 imzasından deterministik biçimde türetilir, ayrıca yedeklemeye gerek kalmaz.",
+    "primitive_hash": "<b>blake2b-256</b>: hem zincir üstü Fiat–Shamir için hem de bu UI'nın kasa tohumu için kullanılan özet işlevi.",
+    "deposit_p1": "Bir yatırım taze bir rastgelelik <c>d</c> seçer ve sabit denominasyonu inline datum ile mix-box betiğine kilitler. İki 48 baytlık sıkıştırılmış G1 noktası, <c>b</c> sahiplik işaretiniz olarak iş görür:",
+    "deposit_p2": "Zinciri izleyen herkes <c>(a, b)</c>'yi görür ama <c>x</c> ya da <c>d</c> hakkında bir şey öğrenemez. Her ikisi de düzgün rastgele örneklerdir ve ayrık logaritma zordur.",
+    "mix_p1": "Mix tx, <b>N</b> aktif kutuyu alır ve her giriş için taze bir skaler <c>y_i</c> ile yeniden rastgeleleştirir. <c>i</c> konumundaki <e>çıktı</e>, <e>permüte edilmiş yeniden rastgeleleştirme</e>dir:",
+    "mix_p2": "burada <c>π</c>, <c>0..N</c>'in bir permütasyonudur. Kritik özellik: girişte <c>b_i = [x_i] · a_i</c> ise çıkışta <c>b'_i = [x_π(i)] · a'_i</c>. Sahiplik yeniden rastgeleleştirmeden sağ çıkar, ama <e>giriş → çıkış</e> eşleşmesi gizlenir.",
+    "mix_p3": "Tx'in <e>hangi</e> girişe sahip olduğunu açıklamadan sahipliği koruduğunu kanıtlamak için gönderen, her giriş için bir <b>N-yollu sigma-OR</b> kanıtı üretir. \"Bir çıktı için <c>x</c>'i biliyorum\" diyen tek bir Schnorr kanıtı, zincir üstünde doğrulanır. Fiat–Shamir meydan okuması tüm N çıktı ifadelerine ve kutunun yatırım datum'una bağlanır, böylece kanıt yeniden hedeflenemez.",
+    "privacy_p1": "Genişlik <c>N</c>'lik tek bir Mix'ten sonra, dış bir gözlemcinin girdinizi çıktınızla doğru eşleştirme olasılığı <c>1/N</c>'dir. Bağımsız <c>k</c> turdan sonra:",
+    "privacy_p2": "<b>N = 3</b>'te (bugün Preprod'da Lovejoin'in kalibre tavanı) her ek tur bağ kurma olasılığını 3'e böler. On iki tur onu 2⁻¹⁹'un, yani yarım milyonda birden az bir şansın altına indirir. Yirmi tur onu 2⁻³¹'in altına indirir.",
+    "withdraw_p1": "Havuzdan çıkmak için, <c>tx.outputs</c>'a bağlı <c>b = [x] · a</c>'nın Schnorr kanıtıyla, <c>mix_box</c> betiğinin sahip dalında mix-box'u harcarsınız. Kanıtlayıcı düzgün bir <c>k ∈ Z_r</c> seçer ve hesaplar:",
+    "withdraw_p2": "Çıktı değişimi meydan okumayı geçersiz kılar, dolayısıyla doğrulayıcı kutuyu yalnızca kanıtlayıcının imzaladığı harcama yolunda harcayabilir. Kutunun kendisinde cüzdan imzası yoktur. Yalnızca hedef çıktıları gönderenin cüzdanı tarafından (ücreti ödeyen) yetkilendirilir.",
+    "further_p": "Tam yapı + güvenlik kanıtları <paper>Sigmajoin makalesinde</paper>. Zincir üstü doğrulayıcı uygulaması <c>contracts/validators/mix_logic.ak</c>'ta yaşar; zincir dışı oluşturucu <c>offchain/src/tx/mix.ts</c>'tir; diller arası KAT vektörleri <c>crypto/test-vectors/</c>'dadır."
   },
   "vault": {
     "title": "Kasa",
