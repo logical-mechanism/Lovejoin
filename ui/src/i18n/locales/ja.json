@@ -19,6 +19,7 @@
     "app": "Lovejoin",
     "home": "Lovejoin · プライバシーミキサー",
     "deposit": "入金 · Lovejoin",
+    "donate": "寄付 · Lovejoin",
     "pool": "ミックス · Lovejoin",
     "vault": "ボールト · Lovejoin",
     "box": "ボックス詳細 · Lovejoin",
@@ -28,12 +29,19 @@
     "region_label": "通知",
     "deposit_success": "入金を送信しました",
     "deposit_failed": "入金に失敗しました",
+    "donate_success": "寄付を送信しました",
+    "donate_failed": "寄付に失敗しました",
     "mix_success": "N = {{n}} でミックスを送信しました",
     "mix_failed": "ミックスに失敗しました",
     "withdraw_success": "出金を送信しました",
     "withdraw_failed": "出金に失敗しました",
     "view_on_scan": "cardanoscan で表示 ↗",
     "dismiss": "閉じる"
+  },
+  "tx": {
+    "retrying_collision": "対象の UTxO がたった今消費されました。新しい選択でリトライしています（試行 {{attempt}}）…",
+    "busy_title": "少し待ってから再試行してください",
+    "busy_detail": "プロトコルは現在混雑しています：対象の UTxO はすべて別のトランザクションに消費されました。数秒待ってからもう一度送信してください。"
   },
   "errors": {
     "network": "ネットワークエラー。接続を確認してもう一度お試しください。",
@@ -67,6 +75,7 @@
     "deposit": "入金",
     "pool": "ミックス",
     "vault": "ボールト",
+    "donate": "寄付",
     "protocol": "プロトコル"
   },
   "language": {
@@ -198,6 +207,24 @@
     "tx_preview_copy_bulk": "ウォレットが {{total}} ADA（{{count}} × {{denom}} ADA）と、手数料シャードへの補充トップアップを支払います。バッチ全体で署名は 1 回。",
     "index_help": "この入金の所有者シークレット用ボールトカウンター。"
   },
+  "donate": {
+    "section_title": "手数料プールへ寄付",
+    "eyebrow": "共有手数料シャードを補充",
+    "lede": "Mix tx は共有の手数料シャードプールから引き出します。寄付はそのプールを新しい mix-box を作らずに補充します。あなた自身のプライバシー上の利得はありません（あなたのウォレットは tx に乗ります）が、寄付一つひとつが他の人たちの mix の余裕を伸ばします。",
+    "pool_label": "プール規模",
+    "shard_count": "{{count}} 個のシャードに分散",
+    "shards_title": "手数料シャード",
+    "shards_caption": "共有手数料プールのシャードごとの現在残高。",
+    "shard_ref": "シャード",
+    "shard_balance": "残高",
+    "amount_label": "金額（ADA）",
+    "amount_help": "オンチェーンでは正の値ならいくらでも受け付けます。Replenish ルールはシャードが lovelace を増やすことしか要求しません。",
+    "tx_preview_title": "トランザクションのプレビュー",
+    "tx_preview_copy": "あなたのウォレットが {{amount}} ADA をランダムに選ばれた手数料シャードに支払います。ウォレットの署名が必要です。",
+    "submit": "寄付する",
+    "submitting": "寄付トランザクションを構築中…",
+    "preconditions_missing": "寄付するにはウォレットを接続してください。"
+  },
   "boxes": {
     "section_title": "マイボックス",
     "empty": "ボールトに有効な所有ボックスはまだありません。",
@@ -298,7 +325,20 @@
     "mix_h": "ミックス",
     "privacy_h": "紐付け",
     "withdraw_h": "出金",
-    "further_h": "さらに読む"
+    "further_h": "さらに読む",
+    "primitive_g": "<b>G</b>：BLS12-381 G1 の生成元、位数 <c>r</c> の曲線部分群。",
+    "primitive_x": "<b>x ∈ Z_r</b>：あなたのオーナー秘密。ウォレットの CIP-8 署名から決定的に導出されるので、別途バックアップする必要はありません。",
+    "primitive_hash": "<b>blake2b-256</b>：オンチェーン Fiat–Shamir と本 UI の vault シードの両方に使われるハッシュ関数。",
+    "deposit_p1": "デポジットは新しい乱数 <c>d</c> を選び、固定面額をインライン datum 付きで mix-box スクリプトにロックします。48 バイトの圧縮 G1 点が 2 つで、<c>b</c> があなたの所有マークとして働きます：",
+    "deposit_p2": "チェーンを観察する誰もが <c>(a, b)</c> を見ることはできますが、<c>x</c> や <c>d</c> については何も分かりません。どちらも一様な乱数サンプルで、離散対数は困難だからです。",
+    "mix_p1": "Mix tx は <b>N</b> 個のアクティブ box を取り、入力ごとに新しいスカラー <c>y_i</c> で再ランダム化します。位置 <c>i</c> の<e>出力</e>は<e>並べ替え後の再ランダム化</e>です：",
+    "mix_p2": "ここで <c>π</c> は <c>0..N</c> の順列です。重要な性質：入力で <c>b_i = [x_i] · a_i</c> なら、出力では <c>b'_i = [x_π(i)] · a'_i</c> が成り立ちます。所有権は再ランダム化を生き残りますが、<e>入力 → 出力</e>の対応は隠されます。",
+    "mix_p3": "tx が所有権を保つことを <e>どの</e>入力を所有するか明かさずに証明するため、提出者は入力ごとに <b>N 路 sigma-OR</b> 証明を生成します。「ある出力について <c>x</c> を知っている」という Schnorr 証明 1 つを、オンチェーンで検証します。Fiat–Shamir チャレンジは N 個の出力ステートメントと box のデポジット datum すべてに束縛されるので、証明を別の対象に再利用することはできません。",
+    "privacy_p1": "幅 <c>N</c> の Mix を 1 回行った後、外部の観察者があなたの入力と出力を正しく対応付けられる確率は <c>1/N</c> です。<c>k</c> 回独立に繰り返した後：",
+    "privacy_p2": "<b>N = 3</b>（現在 Preprod での Lovejoin の校正済み上限）では、追加 1 ラウンドごとにリンケージ確率が 1/3 になります。12 ラウンドで 2⁻¹⁹ を下回り、50 万分の 1 未満。20 ラウンドで 2⁻³¹ を下回ります。",
+    "withdraw_p1": "プールから出るには、<c>tx.outputs</c> に束縛された <c>b = [x] · a</c> の Schnorr 証明を用い、<c>mix_box</c> スクリプトのオーナー枝で mix-box を消費します。証明者は一様な <c>k ∈ Z_r</c> を選んで以下を計算します：",
+    "withdraw_p2": "出力を差し替えるとチャレンジが無効になるので、バリデータは証明者が署名した支出経路でしか box を消費できません。box 自体にウォレット署名はありません。tx を権限付ける（手数料を支払う）のは送信者ウォレットの宛先出力だけです。",
+    "further_p": "完全な構成と安全性証明は <paper>Sigmajoin の論文</paper> にあります。オンチェーンバリデータの実装は <c>contracts/validators/mix_logic.ak</c> に、オフチェーンビルダは <c>offchain/src/tx/mix.ts</c> に、言語横断の KAT ベクトルは <c>crypto/test-vectors/</c> にあります。"
   },
   "vault": {
     "title": "ボールト",
