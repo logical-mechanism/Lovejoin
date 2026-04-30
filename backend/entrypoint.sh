@@ -12,9 +12,13 @@
 #   DBSYNC_URL=postgres://USER:PASS@127.0.0.1:5432/DBNAME
 #
 # Cloudflare Access service-token auth is mandatory when the home-side
-# Access application enforces a policy (it should). cloudflared reads
-# TUNNEL_SERVICE_TOKEN_ID + TUNNEL_SERVICE_TOKEN_SECRET from the env;
-# we translate the more readable CF_TUNNEL_* names below.
+# Access application enforces a policy (it should). The `cloudflared
+# access` *client* — which is what we run here, distinct from the
+# `cloudflared tunnel` daemon on the home server — reads
+# CF_ACCESS_CLIENT_ID + CF_ACCESS_CLIENT_SECRET from the env. (The
+# TUNNEL_SERVICE_TOKEN_* env vars used by the tunnel daemon are a
+# different auth context entirely; mixing them up gives a "websocket:
+# bad handshake" against CF's edge.)
 #
 # See docs/deploy.md §"Connecting App Platform to home-hosted infrastructure".
 
@@ -23,13 +27,14 @@ set -eu
 OGMIOS_LOCAL_PORT=1337
 DBSYNC_LOCAL_PORT=5432
 
-# Translate operator-friendly env names into the ones cloudflared
-# expects. Only export when both are set so a bare `cloudflared access`
-# without auth fails fast on a misconfig instead of hitting CF Access
-# without credentials and 403'ing in a confusing way.
+# Translate operator-friendly env names into the ones cloudflared's
+# access client expects. Only export when both are set so a bare
+# `cloudflared access` without auth fails fast on a misconfig instead
+# of hitting CF Access without credentials and 403'ing in a confusing
+# way.
 if [ -n "${CF_TUNNEL_SERVICE_TOKEN_ID:-}" ] && [ -n "${CF_TUNNEL_SERVICE_TOKEN_SECRET:-}" ]; then
-    export TUNNEL_SERVICE_TOKEN_ID="$CF_TUNNEL_SERVICE_TOKEN_ID"
-    export TUNNEL_SERVICE_TOKEN_SECRET="$CF_TUNNEL_SERVICE_TOKEN_SECRET"
+    export CF_ACCESS_CLIENT_ID="$CF_TUNNEL_SERVICE_TOKEN_ID"
+    export CF_ACCESS_CLIENT_SECRET="$CF_TUNNEL_SERVICE_TOKEN_SECRET"
 fi
 
 start_cf_tcp() {
