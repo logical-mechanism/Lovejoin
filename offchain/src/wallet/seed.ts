@@ -91,6 +91,30 @@ export const OWNER_HKDF_TAG_V1 = "lovejoin/owner/v1";
 const OWNER_HKDF_TAG_V1_BYTES = new TextEncoder().encode(OWNER_HKDF_TAG_V1);
 
 /**
+ * Domain tag for the password-recovery salt. Different from
+ * SEED_DOMAIN_TAG_V1 so a leak of one derivation does NOT compromise the
+ * other, and so a future Argon2id parameter bump only requires bumping
+ * this v1 — not the signData-derived path.
+ *
+ * The recovery seed is `Argon2id(password, salt = recoverySalt(network,
+ * stakeAddrBech32))`. Salt construction uses the same blake2b_256-of-
+ * concat-bytes pattern as `deriveVaultSeed` so the per-(network, wallet)
+ * salt is reproducible across devices: a user who connects the same
+ * wallet on a fresh browser gets the same salt → same seed → same boxes.
+ *
+ * The stake-address bech32 string is mixed in raw (UTF-8 bytes) — it
+ * already encodes the network header byte plus the 28-byte stake key
+ * hash, so we don't need to bech32-decode it on the client. Mixing the
+ * `network` argument too is belt-and-braces against a future wallet
+ * exposing a mismatched address (preprod address while VITE_NETWORK is
+ * mainnet) — different network, different seed.
+ */
+export const RECOVERY_SALT_DOMAIN_TAG_V1 = "lovejoin/recover-seed/v1";
+const RECOVERY_SALT_DOMAIN_TAG_V1_BYTES = new TextEncoder().encode(
+  RECOVERY_SALT_DOMAIN_TAG_V1,
+);
+
+/**
  * Refuse to derive a seed from anything other than a Cardano stake
  * (reward) address. Stake addresses use HRP `stake1` (mainnet) or
  * `stake_test1` (preprod / preview). Wallets vary in what their
@@ -160,6 +184,87 @@ export function deriveVaultSeed(args: {
   buf.set(args.signatureBytes, off);
   return blake2b256(buf);
 }
+
+/** Cardano network tag byte mixed into the recovery salt. */
+const RECOVERY_NETWORK_TAG: Record<RecoveryNetwork, number> = {
+  mainnet: 0x01,
+  preprod: 0x02,
+  preview: 0x03,
+};
+
+export type RecoveryNetwork = "mainnet" | "preprod" | "preview";
+
+/**
+ * Build the per-(network, wallet) Argon2id salt for the password-recovery
+ * unlock path. Reproducible across devices given the same inputs.
+ *
+ * Layout: `blake2b_256(RECOVERY_SALT_DOMAIN_TAG_V1 || network_tag ||
+ * stake_addr_utf8)`. The output is 32 bytes — the salt size Argon2id
+ * expects. We hash everything together so the salt is fixed-length
+ * regardless of how long the address bech32 is.
+ *
+ * Refuses non-stake addresses for the same reason `deriveVaultSeed`
+ * does: a wallet bridge mistakenly returning a payment address would
+ * silently change the salt across reconnects (payment addresses rotate;
+ * stake addresses don't).
+ */
+export function recoverySalt(args: {
+  network: RecoveryNetwork;
+  stakeAddrBech32: string;
+}): Uint8Array {
+  if (!isStakeAddressBech32(args.stakeAddrBech32)) {
+    throw new Error(
+      `recoverySalt: refusing to build salt from non-stake address ${JSON.stringify(args.stakeAddrBech32)}`,
+    );
+  }
+  const tag = RECOVERY_NETWORK_TAG[args.network];
+  if (tag === undefined) {
+    throw new Error(`recoverySalt: unknown network ${args.network}`);
+  }
+  const addrBytes = new TextEncoder().encode(args.stakeAddrBech32);
+  const buf = new Uint8Array(
+    RECOVERY_SALT_DOMAIN_TAG_V1_BYTES.length + 1 + addrBytes.length,
+  );
+  let off = 0;
+  buf.set(RECOVERY_SALT_DOMAIN_TAG_V1_BYTES, off);
+  off += RECOVERY_SALT_DOMAIN_TAG_V1_BYTES.length;
+  buf[off] = tag;
+  off += 1;
+  buf.set(addrBytes, off);
+  return blake2b256(buf);
+}
+
+/**
+ * Argon2id parameter set for the password-recovery seed.
+ *
+ * Threat model: the salt is reproducible from any user's *public* stake
+ * address, so an attacker who knows which address to target can
+ * brute-force the password offline. Unlike the (now-removed) BIP-39
+ * vault, there's no encrypted blob the attacker has to also exfiltrate
+ * — the password is the entire security barrier. We compensate with
+ * deliberately heavy Argon2id parameters: 4 iterations × 256 MiB ×
+ * single lane runs in ~2 s on a 2025-era laptop and forces a memory-
+ * hungry workload that hurts GPU/ASIC crackers most.
+ *
+ * Exposed as a constant so the UI can show users a "this will take a
+ * couple seconds" hint and tests can assert against it.
+ */
+export const RECOVERY_KDF_PARAMS_V1 = {
+  iterations: 4,
+  memorySizeKib: 256 * 1024,
+  parallelism: 1,
+  hashLength: 32,
+} as const;
+
+/**
+ * Minimum password length the UI enforces for the recovery flow. Keep in
+ * sync with the strength meter. 12 characters at full ASCII printable
+ * range gives ~78 bits of entropy if chosen randomly — plenty against
+ * the Argon2id wall above. Users who pick natural-language passphrases
+ * need to type more characters to reach the same entropy; the UI's
+ * strength meter is what actually gates submission.
+ */
+export const RECOVERY_PASSWORD_MIN_LENGTH = 12;
 
 /**
  * Encode a 32-bit unsigned counter big-endian. Matches the bytes the spec

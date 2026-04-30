@@ -274,6 +274,9 @@ export function Box() {
                   disabled={!canSubmit}
                   className="lj-btn lj-btn--primary lj-btn--lg"
                 >
+                  {submitting && (
+                    <span className="lj-spinner lj-spinner--sm" aria-hidden="true" />
+                  )}
                   {submitting ? t("withdraw.submitting") : t("withdraw.submit")}
                 </button>
               </div>

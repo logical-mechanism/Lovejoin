@@ -17,12 +17,14 @@
 //       error:   coral banner with friendly retry copy
 //       ready:   the MixButton CTA
 //
-// `useEffect` polls the pool every 30 s. The first fetch sets `loading`
-// so users don't stare at a "0 boxes loaded" UI on a slow network. On
-// subsequent polls we don't re-show the loading state — the user
-// already trusts the screen.
+// `useVisibleRefresh` drives the pool refresh: fires on mount (with the
+// loading skeleton), every 30 s while the tab is visible, and again the
+// moment the user tabs back from a stale background. The mount fetch
+// sets `loading` so users don't stare at a "0 boxes loaded" UI on a
+// slow first paint; subsequent triggers leave the existing data in
+// place and silently update.
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Link } from "react-router-dom";
 import type { MixFeePayer } from "@lovejoin/sdk";
@@ -40,6 +42,7 @@ import { BackendClient } from "../lib/backend.js";
 import { fetchPoolDirect, type DirectPoolEntry } from "../lib/pool.js";
 import { useAppState } from "../lib/store.js";
 import { friendlyErrorMessage } from "../lib/errors.js";
+import { useVisibleRefresh } from "../lib/use-visible-refresh.js";
 
 export function Pool() {
   const { t } = useTranslation();
@@ -50,6 +53,10 @@ export function Pool() {
   const [poolEntries, setPoolEntries] = useState<DirectPoolEntry[]>([]);
   const [poolError, setPoolError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  // Bubbled up from <MixButton> so we can darken the whole card while
+  // build+sign+submit is in flight (5–10 s). The button alone is too
+  // small a feedback target for that wait.
+  const [mixSubmitting, setMixSubmitting] = useState(false);
 
   // N is fixed by the selected fee mode — no half-width mixes. Shard mode
   // adds a fee_contract.spend invocation (~187M CPU at Conway prices) which
@@ -61,7 +68,26 @@ export function Pool() {
   const legacyMaxN = protocol?.max_n ?? 2;
   const maxNShard = protocol?.max_n_shard ?? legacyMaxN;
   const maxNWallet = protocol?.max_n_wallet ?? legacyMaxN;
-  const [feePayer, setFeePayer] = useState<MixFeePayer>("shard");
+  // Persist the fee-payer toggle across reloads so power users who
+  // prefer wallet-mode don't have to re-flip it every session. Lazy
+  // init avoids hydration churn; the key is namespaced under
+  // `lovejoin.pool.*` so future Pool prefs slot in alongside it.
+  const [feePayer, setFeePayer] = useState<MixFeePayer>(() => {
+    try {
+      const stored = window.localStorage.getItem("lovejoin.pool.feePayer");
+      if (stored === "shard" || stored === "wallet") return stored;
+    } catch {
+      /* localStorage unavailable (private mode etc.) — fall back to default. */
+    }
+    return "shard";
+  });
+  useEffect(() => {
+    try {
+      window.localStorage.setItem("lovejoin.pool.feePayer", feePayer);
+    } catch {
+      /* same; persistence is nice-to-have, not load-bearing. */
+    }
+  }, [feePayer]);
   const n = feePayer === "shard" ? maxNShard : maxNWallet;
 
   // The badge probe lives in App-level context; pull the status into a
@@ -69,12 +95,14 @@ export function Pool() {
   // doesn't spuriously re-fire on every probe tick.
   const backendStatus = backend?.status ?? null;
 
-  useEffect(() => {
-    if (!provider || !addresses) return;
-    let cancelled = false;
-    let firstRun = true;
-    const refresh = async () => {
-      if (firstRun) setLoading(true);
+  const { refresh: refreshPool } = useVisibleRefresh(
+    async (trigger) => {
+      if (!provider || !addresses) return;
+      // Only the first paint shows the big "Scanning…" line. Visibility,
+      // interval, and manual triggers refresh in place — the user is
+      // already looking at populated data and a sudden skeleton would
+      // feel like a regression.
+      if (trigger === "mount") setLoading(true);
       try {
         // Provider preference: when the self-hosted backend is reachable
         // AND its indexer is caught up to chain tip, treat it as
@@ -90,7 +118,6 @@ export function Pool() {
           try {
             const client = new BackendClient(config.backendUrl);
             const page = await client.pool({ limit: 500 });
-            if (cancelled) return;
             if (page) {
               const fromBackend = page.boxes.map((b) => ({
                 ref: { txId: b.txHash.toLowerCase(), outputIndex: b.outputIndex },
@@ -109,26 +136,28 @@ export function Pool() {
         }
         if (!entries) {
           entries = await fetchPoolDirect({ provider, addresses });
-          if (cancelled) return;
         }
         setPoolEntries(entries);
         setPoolError(null);
       } catch (e) {
-        if (!cancelled) setPoolError((e as Error).message);
+        setPoolError((e as Error).message);
       } finally {
-        if (!cancelled && firstRun) {
-          setLoading(false);
-          firstRun = false;
-        }
+        if (trigger === "mount") setLoading(false);
       }
-    };
-    void refresh();
-    const id = window.setInterval(() => void refresh(), 30_000);
-    return () => {
-      cancelled = true;
-      window.clearInterval(id);
-    };
-  }, [provider, addresses, config.backendUrl, backendStatus]);
+    },
+    { intervalMs: 30_000, enabled: !!provider && !!addresses },
+  );
+
+  // When the backend health flips (e.g. syncing → synced) we want to
+  // re-read the pool immediately rather than wait up to 30 s for the
+  // next interval tick. Skip the very first run so we don't fire a
+  // duplicate fetch on top of the hook's mount call.
+  const lastBackendStatus = useRef(backendStatus);
+  useEffect(() => {
+    if (lastBackendStatus.current === backendStatus) return;
+    lastBackendStatus.current = backendStatus;
+    refreshPool();
+  }, [backendStatus, refreshPool]);
 
   // Status branches for the action area. Render priority:
   //   error > loading > empty > ready
@@ -145,7 +174,10 @@ export function Pool() {
         <CollateralProviderBanner status={collateral.status} />
       )}
 
-      <section className="lj-card">
+      <section
+        className={`lj-card lj-overlay ${mixSubmitting ? "lj-overlay--busy" : ""}`}
+        aria-busy={mixSubmitting}
+      >
         <header className="lj-card__head">
           <div>
             <Eyebrow>{t("pool.eyebrow")}</Eyebrow>
@@ -252,9 +284,14 @@ export function Pool() {
 
           {showReady && (
             <div className="flex flex-wrap items-end gap-6">
-              {!wallet ? (
-                <p className="text-sm text-whisper">{t("pool.connect_to_mix")}</p>
-              ) : provider && addresses ? (
+              {provider && addresses ? (
+                // Shard-mode submission is wallet-anonymous: no wallet
+                // input, no signature, collateral signed by giveme.my.
+                // The button is reachable even with no wallet connected
+                // — anyone can contribute mix txs to the public pool,
+                // which improves linkage probability for everyone.
+                // Wallet-mode still requires a wallet; MixButton's own
+                // disabled calc handles that case with an inline hint.
                 <MixButton
                   network={config.network}
                   provider={provider}
@@ -263,6 +300,7 @@ export function Pool() {
                   poolEntries={poolEntries}
                   n={n}
                   feePayer={feePayer}
+                  onSubmittingChange={setMixSubmitting}
                   onSubmitted={(txId) =>
                     toast.push({
                       tone: "success",
@@ -297,6 +335,12 @@ export function Pool() {
             </div>
           )}
         </div>
+
+        {mixSubmitting && (
+          <div className="lj-overlay__indicator">
+            <div className="lj-spinner" aria-label={t("pool.mix_submitting")} />
+          </div>
+        )}
       </section>
     </>
   );

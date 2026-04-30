@@ -34,16 +34,16 @@ export function Protocol() {
       <p>{t("protocol.primitives_p")}</p>
       <ul>
         <li>
-          <strong>G</strong> — the generator of BLS12-381 G1, the curve
+          <strong>G</strong>: the generator of BLS12-381 G1, the curve
           subgroup of order <code>r</code>.
         </li>
         <li>
-          <strong>x ∈ Z_r</strong> — your owner secret. Derived
+          <strong>x ∈ Z_r</strong>: your owner secret. Derived
           deterministically from your wallet's CIP-8 signature so it
           never needs to be backed up separately.
         </li>
         <li>
-          <strong>blake2b-256</strong> — the hash function used for both
+          <strong>blake2b-256</strong>: the hash function used for both
           on-chain Fiat–Shamir and this UI's vault seed.
         </li>
       </ul>
@@ -51,8 +51,8 @@ export function Protocol() {
       <h2>{t("protocol.deposit_h")}</h2>
       <p>
         A deposit picks a fresh randomness <code>d</code> and locks the
-        fixed denomination at the mix-box script with the inline datum
-        — two 48-byte compressed G1 points, with <code>b</code> acting
+        fixed denomination at the mix-box script with the inline datum.
+        Two 48-byte compressed G1 points, with <code>b</code> acting
         as your ownership mark:
       </p>
       <pre className="lj-math">
@@ -61,7 +61,7 @@ b = [x · d] · G`}</code>
       </pre>
       <p>
         Anyone watching the chain sees <code>(a, b)</code> but learns
-        nothing about <code>x</code> or <code>d</code> — both are uniform
+        nothing about <code>x</code> or <code>d</code>. Both are uniform
         random samples and the discrete log is hard.
       </p>
 
@@ -80,17 +80,17 @@ b = [x · d] · G`}</code>
       <p>
         where <code>π</code> is a permutation of <code>0..N</code>. The
         crucial property: if <code>b_i = [x_i] · a_i</code> on input,
-        then <code>{" "}b'_i = [x_π(i)] · a'_i</code> on output —
-        ownership survives the re-randomisation, but the pairing
+        then <code>{" "}b'_i = [x_π(i)] · a'_i</code> on output.
+        Ownership survives the re-randomisation, but the pairing
         <em> input → output</em> is hidden.
       </p>
       <p>
         To prove the tx preserves ownership without revealing
         <em>{" "}which</em> input it owns, the submitter generates an
-        <strong>{" "}N-way sigma-OR</strong> proof per input — one Schnorr
+        <strong>{" "}N-way sigma-OR</strong> proof per input. One Schnorr
         proof of "I know <code>x</code> for some output", verified
         on chain. The Fiat–Shamir challenge binds to all N output
-        statements + the box's deposit datum, so the proof can't be
+        statements plus the box's deposit datum, so the proof can't be
         re-targeted.
       </p>
 
@@ -106,7 +106,7 @@ b = [x · d] · G`}</code>
       <p>
         At <strong>N = 3</strong> (Lovejoin's calibrated cap on Preprod
         today) every additional round divides the linkage probability by
-        3. Twelve rounds drives it under 2⁻¹⁹ — fewer than one chance in
+        3. Twelve rounds drives it under 2⁻¹⁹, fewer than one chance in
         half a million. Twenty rounds drives it under 2⁻³¹.
       </p>
 
@@ -126,9 +126,9 @@ verify:    [s] · a ≟ t + [c] · b`}</code>
       <p>
         Output substitution invalidates the challenge, so the validator
         can spend the box only along the spend path the prover signed.
-        No wallet signature on the box itself — only the destination
-        outputs are tx-authorized by the submitter's wallet (which pays
-        the fee).
+        There is no wallet signature on the box itself. Only the
+        destination outputs are tx-authorized by the submitter's wallet
+        (which pays the fee).
       </p>
 
       <h2>{t("protocol.further_h")}</h2>

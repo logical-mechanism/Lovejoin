@@ -24,8 +24,13 @@
   --color-rule: #2a2a30;
   --color-rule-strong: #44444c;
   --color-paper: #f1efe9;
-  --color-muted: #a8a4a0;
-  --color-whisper: #5e5c58;
+  /* Bumped one notch lighter — the prior values landed at ~6.7:1
+   * contrast against surface, technically WCAG-passing but visibly
+   * blending into the dark ground on consumer monitors. The muted /
+   * whisper spread is preserved so the title → body → caption hierarchy
+   * still reads, just at a higher absolute baseline. */
+  --color-muted: #bcb8b3;
+  --color-whisper: #78756f;
 
   /* No chromatic accent. The signal IS paper — high-contrast monochrome
    * is the differentiator now that every "modern dapp" reaches for the
@@ -850,6 +855,24 @@
     border-top-color: var(--color-amber);
     border-radius: 999px;
     animation: lj-spin 700ms linear infinite;
+    flex-shrink: 0;
+  }
+  /* Inline spinner — sized for use inside a button, next to a label.
+   * Inherits border colour from the button text colour so it reads
+   * correctly on both primary (paper-on-ink) and quiet (muted) buttons.
+   * Border-top stays amber to match the section-level spinner. */
+  .lj-spinner--sm {
+    width: 12px;
+    height: 12px;
+    border-width: 1.5px;
+    border-color: color-mix(in oklab, currentColor 40%, transparent);
+    border-top-color: var(--color-amber);
+  }
+  /* On the primary (paper-on-ink) button, the inherited 40% currentColor
+   * is too dark against the bright fill — bump the contrast so the ring
+   * stays visible. */
+  .lj-btn--primary .lj-spinner--sm {
+    border-color: color-mix(in oklab, var(--color-signal-ink) 30%, transparent);
   }
   @keyframes lj-spin {
     to { transform: rotate(360deg); }

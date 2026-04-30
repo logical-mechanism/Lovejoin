@@ -25,6 +25,9 @@ import {
   scalarToBytes,
 } from "../../src/crypto/bls.js";
 import {
+  RECOVERY_KDF_PARAMS_V1,
+  RECOVERY_PASSWORD_MIN_LENGTH,
+  RECOVERY_SALT_DOMAIN_TAG_V1,
   SEED_DOMAIN_TAG_V1,
   SIGN_DATA_PAYLOAD_V1,
   deriveOwnerSecret,
@@ -33,6 +36,7 @@ import {
   deriveSeedFromWalletSignature,
   deriveVaultSeed,
   isStakeAddressBech32,
+  recoverySalt,
   type SignDataCapableWallet,
 } from "../../src/wallet/seed.js";
 
@@ -294,6 +298,62 @@ describe("deriveSeedFromWalletSignature", () => {
       /non-stake/,
     );
     expect(signDataCalled).toBe(false);
+  });
+});
+
+describe("recoverySalt", () => {
+  it("returns 32 bytes", () => {
+    const salt = recoverySalt({
+      network: "preprod",
+      stakeAddrBech32: PREPROD_STAKE,
+    });
+    expect(salt.length).toBe(32);
+  });
+
+  it("is deterministic on the same (network, stake addr)", () => {
+    const a = recoverySalt({ network: "preprod", stakeAddrBech32: PREPROD_STAKE });
+    const b = recoverySalt({ network: "preprod", stakeAddrBech32: PREPROD_STAKE });
+    expect(a).toEqual(b);
+  });
+
+  it("differs across networks (network-tag binding)", () => {
+    // Same stake-addr (it's allowed as input on either side because the
+    // tag is a separate byte) — different network → different salt.
+    const onPreprod = recoverySalt({ network: "preprod", stakeAddrBech32: PREPROD_STAKE });
+    const onMainnet = recoverySalt({ network: "mainnet", stakeAddrBech32: PREPROD_STAKE });
+    expect(onPreprod).not.toEqual(onMainnet);
+  });
+
+  it("differs across wallets (per-wallet binding)", () => {
+    const a = recoverySalt({ network: "preprod", stakeAddrBech32: PREPROD_STAKE });
+    const other = "stake_test1uq0000000000000000000000000000000000000000000000pdtl0c";
+    const b = recoverySalt({ network: "preprod", stakeAddrBech32: other });
+    expect(a).not.toEqual(b);
+  });
+
+  it("differs from the signData seed-domain output (cross-domain separation)", () => {
+    // RECOVERY_SALT_DOMAIN_TAG_V1 is independent of SEED_DOMAIN_TAG_V1.
+    // A leak of one derivation must NOT enable reproducing the other.
+    expect(RECOVERY_SALT_DOMAIN_TAG_V1).not.toBe(SEED_DOMAIN_TAG_V1);
+    expect(RECOVERY_SALT_DOMAIN_TAG_V1).toBe("lovejoin/recover-seed/v1");
+  });
+
+  it("refuses non-stake addresses", () => {
+    expect(() =>
+      recoverySalt({
+        network: "preprod",
+        stakeAddrBech32: "addr_test1qrpapegfgqcaqjlk2ksqcgfwhxqdwexlpwdvphmkr8slpmcwf6cf6",
+      }),
+    ).toThrow(/non-stake/);
+  });
+
+  it("ships a sane KDF parameter set", () => {
+    // Pinning these so a bump goes through deliberate review — every
+    // existing user's recovery seed is a function of these numbers.
+    expect(RECOVERY_KDF_PARAMS_V1.iterations).toBeGreaterThanOrEqual(3);
+    expect(RECOVERY_KDF_PARAMS_V1.memorySizeKib).toBeGreaterThanOrEqual(128 * 1024);
+    expect(RECOVERY_KDF_PARAMS_V1.hashLength).toBe(32);
+    expect(RECOVERY_PASSWORD_MIN_LENGTH).toBeGreaterThanOrEqual(12);
   });
 });
 

@@ -34,11 +34,12 @@ import { Eyebrow } from "../components/ui/Eyebrow.js";
 import { Hash } from "../components/ui/Hash.js";
 import { Modal } from "../components/ui/Modal.js";
 import { StatusDot } from "../components/ui/StatusDot.js";
-import { Bip39FallbackPanel } from "../components/Bip39FallbackPanel.js";
+import { RecoverPasswordPanel } from "../components/RecoverPasswordPanel.js";
 import { useToast } from "../components/Toaster.js";
 import { WithdrawReview } from "../components/WithdrawReview.js";
 import { formatAda } from "../lib/format.js";
 import { validateDestination } from "../lib/seedelf.js";
+import { useVisibleRefresh } from "../lib/use-visible-refresh.js";
 import type { OwnedBox } from "../lib/vault.js";
 
 export function Vault() {
@@ -50,7 +51,7 @@ export function Vault() {
   if (!vault) {
     if (showFallback) {
       return (
-        <Bip39FallbackPanel onClose={() => setShowFallback(false)} />
+        <RecoverPasswordPanel onClose={() => setShowFallback(false)} />
       );
     }
     return (
@@ -72,6 +73,9 @@ export function Vault() {
             disabled={!wallet || vaultBusy}
             onClick={() => void unlockWithWallet()}
           >
+            {vaultBusy && (
+              <span className="lj-spinner lj-spinner--sm" aria-hidden="true" />
+            )}
             {vaultBusy ? t("vault.unlocking") : t("vault.unlock_with_wallet")}
           </button>
         </div>
@@ -83,8 +87,10 @@ export function Vault() {
             type="button"
             className="lj-btn lj-btn--quiet"
             onClick={() => setShowFallback(true)}
+            disabled={!wallet}
+            title={!wallet ? t("vault.no_wallet") : undefined}
           >
-            {t("vault.fallback_link")}
+            {t("vault.recover_link")}
             <span aria-hidden="true">→</span>
           </button>
         </div>
@@ -116,16 +122,52 @@ function UnlockedVault() {
     scanError,
     lockVault,
     rescan,
+    pendingTxRefs,
+    markTxPending,
+    walletLovelace,
+    refreshWalletBalance,
   } = useAppState();
 
   const [selectedRefs, setSelectedRefs] = useState<Set<string>>(() => new Set());
   const [destination, setDestination] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
+  // Track rescan-in-flight locally so the "Scan again" button can
+  // disable + show a spinner. The initial unlock-time scan is already
+  // awaited inside `unlockWithWallet`, so by the time we render here
+  // the box list is hydrated — no need to seed this `true`. The
+  // useVisibleRefresh hook below silently fires `runRescan()` on tab
+  // focus (after staleness) and on a 60 s timer while visible, so the
+  // box list stays current without the user having to click anything;
+  // when it does fire silently we still show the spinner so the user
+  // sees that something refreshed.
+  const [rescanning, setRescanning] = useState(false);
+  const runRescan = async () => {
+    if (rescanning) return;
+    setRescanning(true);
+    try {
+      await rescan();
+    } finally {
+      setRescanning(false);
+    }
+  };
+  // 60 s background refresh while visible. The deposit / withdraw /
+  // mix flows all schedule their own 12 s rescan after submit, so this
+  // is purely a "tab away for a while, come back to fresh data" tell —
+  // not the primary mechanism for updating after a tx the user just
+  // submitted themselves. `enabled` flips off the moment the vault
+  // locks; useAppState's vault is null until unlock, and re-enables
+  // once the user unlocks again.
+  useVisibleRefresh(() => runRescan(), {
+    intervalMs: 60_000,
+    enabled: !!vault,
+  });
 
   // Default-select the first owned box on initial load so single-box
   // users don't have to think about the new multi-select UI. Once the
   // user touches the checkboxes the auto-default doesn't reapply.
+  // Skip pending boxes so we don't auto-select something already in
+  // flight (the user can still see the row, dimmed, with the spinner).
   const [autoSelected, setAutoSelected] = useState(false);
   useEffect(() => {
     if (autoSelected) return;
@@ -133,13 +175,21 @@ function UnlockedVault() {
       setAutoSelected(true);
       return;
     }
-    if (ownedBoxes.length === 0) return;
-    const first = ownedBoxes[0]!;
-    setSelectedRefs(new Set([`${first.entry.ref.txId}#${first.entry.ref.outputIndex}`]));
+    const first = ownedBoxes.find(
+      (b) =>
+        !pendingTxRefs.has(
+          `${b.entry.ref.txId.toLowerCase()}#${b.entry.ref.outputIndex}`,
+        ),
+    );
+    if (!first) return;
+    setSelectedRefs(
+      new Set([`${first.entry.ref.txId.toLowerCase()}#${first.entry.ref.outputIndex}`]),
+    );
     setAutoSelected(true);
-  }, [ownedBoxes, selectedRefs, autoSelected]);
+  }, [ownedBoxes, selectedRefs, autoSelected, pendingTxRefs]);
 
   const toggleRef = (ref: string) => {
+    if (pendingTxRefs.has(ref)) return; // can't toggle a pending row
     setSelectedRefs((prev) => {
       const next = new Set(prev);
       if (next.has(ref)) next.delete(ref);
@@ -151,14 +201,18 @@ function UnlockedVault() {
   const selectAll = () =>
     setSelectedRefs(
       new Set(
-        ownedBoxes.map((b) => `${b.entry.ref.txId}#${b.entry.ref.outputIndex}`),
+        ownedBoxes
+          .map((b) => `${b.entry.ref.txId.toLowerCase()}#${b.entry.ref.outputIndex}`)
+          .filter((ref) => !pendingTxRefs.has(ref)),
       ),
     );
 
   const selectedBoxes: OwnedBox[] = useMemo(
     () =>
       ownedBoxes.filter((b) =>
-        selectedRefs.has(`${b.entry.ref.txId}#${b.entry.ref.outputIndex}`),
+        selectedRefs.has(
+          `${b.entry.ref.txId.toLowerCase()}#${b.entry.ref.outputIndex}`,
+        ),
       ),
     [ownedBoxes, selectedRefs],
   );
@@ -179,6 +233,18 @@ function UnlockedVault() {
     selectedBoxes.length > 0 &&
     validation.status === "ok" &&
     !submitting;
+
+  // Soft balance hint. Withdraw fees are paid by the connected wallet
+  // (collateral comes from giveme.my); 3 ADA covers tx fee + min-utxo
+  // overhead with headroom across N up to bulk_withdraw's cap. We
+  // don't gate the submit button on this — the wallet may have a
+  // pending UTxO the SDK will end up using even though our cached
+  // balance can't see it. Surface as advisory copy under the button.
+  const withdrawRequiredLovelace = 3_000_000n;
+  const balanceShort =
+    !!wallet &&
+    walletLovelace !== null &&
+    walletLovelace < withdrawRequiredLovelace;
 
   const onRequestSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -218,6 +284,15 @@ function UnlockedVault() {
         txHash: result.txId,
         network: config.network,
       });
+      // Mark the just-submitted boxes as pending so the rows render
+      // dimmed + locked until the rescan confirms the spend (or the
+      // 90 s safety timer expires). Closes the perceptual gap between
+      // "submitted" toast and the boxes actually leaving the table.
+      markTxPending(
+        selectedBoxes.map(
+          (b) => `${b.entry.ref.txId.toLowerCase()}#${b.entry.ref.outputIndex}`,
+        ),
+      );
       // Clear the picker so the row visibly drains as the chain confirms;
       // schedule a rescan so the boxes drop out of `ownedBoxes` once the
       // withdraw tx lands on chain.
@@ -232,6 +307,7 @@ function UnlockedVault() {
       });
     } finally {
       setSubmitting(false);
+      void refreshWalletBalance();
     }
   };
 
@@ -251,10 +327,13 @@ function UnlockedVault() {
           <button
             type="button"
             className="lj-btn lj-btn--quiet"
-            onClick={() => void rescan()}
-            disabled={submitting}
+            onClick={() => void runRescan()}
+            disabled={submitting || rescanning}
           >
-            {t("vault.scan_again")}
+            {rescanning && (
+              <span className="lj-spinner lj-spinner--sm" aria-hidden="true" />
+            )}
+            {rescanning ? t("vault.scanning_pool") : t("vault.scan_again")}
           </button>
           <button
             type="button"
@@ -328,14 +407,27 @@ function UnlockedVault() {
                   </thead>
                   <tbody>
                     {ownedBoxes.map((box) => {
-                      const ref = `${box.entry.ref.txId}#${box.entry.ref.outputIndex}`;
+                      const ref = `${box.entry.ref.txId.toLowerCase()}#${box.entry.ref.outputIndex}`;
                       const ada = formatAda(box.entry.utxo.lovelace);
                       const checked = selectedRefs.has(ref);
+                      // Pending = in flight from a Withdraw or owned-input
+                      // Mix this session. We dim the row, lock the
+                      // checkbox, and surface a small "in flight" eyebrow
+                      // so the user can see the box is on its way out.
+                      const pending = pendingTxRefs.has(ref);
+                      const rowClasses = [
+                        pending ? "" : "cursor-pointer",
+                        checked && !pending ? "bg-rise" : "",
+                        pending ? "opacity-50" : "",
+                      ]
+                        .filter(Boolean)
+                        .join(" ");
                       return (
                         <tr
                           key={ref}
-                          className={`cursor-pointer ${checked ? "bg-rise" : ""}`}
-                          onClick={() => toggleRef(ref)}
+                          className={rowClasses}
+                          onClick={pending ? undefined : () => toggleRef(ref)}
+                          aria-busy={pending}
                         >
                           <td className="text-center">
                             <input
@@ -344,11 +436,26 @@ function UnlockedVault() {
                               checked={checked}
                               onChange={() => toggleRef(ref)}
                               onClick={(e) => e.stopPropagation()}
-                              className="accent-paper"
+                              disabled={pending}
+                              className="accent-paper disabled:cursor-not-allowed"
                               aria-label={t("withdraw.select_boxes")}
                             />
                           </td>
-                          <td className="lj-table__num">{box.index}</td>
+                          <td className="lj-table__num">
+                            {pending ? (
+                              <span className="inline-flex items-center gap-2">
+                                <span
+                                  className="lj-spinner lj-spinner--sm"
+                                  aria-hidden="true"
+                                />
+                                <span className="text-whisper text-xs uppercase tracking-wider">
+                                  {t("vault.box_pending")}
+                                </span>
+                              </span>
+                            ) : (
+                              box.index
+                            )}
+                          </td>
                           <td>
                             <Hash value={box.entry.ref.txId} edge={6} />
                             <span className="text-whisper text-xs">
@@ -457,6 +564,9 @@ function UnlockedVault() {
                 disabled={!canSubmit}
                 className="lj-btn lj-btn--primary lj-btn--lg"
               >
+                {submitting && (
+                  <span className="lj-spinner lj-spinner--sm" aria-hidden="true" />
+                )}
                 {submitting ? t("withdraw.submitting") : t("withdraw.submit")}
               </button>
               {!preconditionsOk && (
@@ -472,6 +582,14 @@ function UnlockedVault() {
                     {t("withdraw.no_box_selected")}
                   </p>
                 )}
+              {balanceShort && walletLovelace !== null && !submitting && (
+                <p className="mt-3 text-xs text-amber">
+                  {t("wallet.insufficient_balance", {
+                    have: formatAda(walletLovelace),
+                    need: formatAda(withdrawRequiredLovelace),
+                  })}
+                </p>
+              )}
             </div>
           </fieldset>
         </form>
@@ -510,7 +628,7 @@ function UnlockedVault() {
           <div>
             <dt className="lj-eyebrow">{t("withdraw.destination_label")}</dt>
             <dd className="mt-1 break-all font-mono text-xs text-paper">
-              {destination.trim() || "—"}
+              {destination.trim()}
             </dd>
           </div>
         </dl>
