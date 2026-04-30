@@ -29,6 +29,7 @@ import {
   type LovejoinAddresses,
   parseUtxoRef,
 } from "./params.js";
+import { type RetryOptions, withInputCollisionRetry } from "./retry.js";
 import { buildScriptAddress } from "./address.js";
 import {
   type LovejoinNetworkId,
@@ -114,6 +115,17 @@ export interface BuildDonateArgs {
   collateralProvider?: CollateralProvider;
   /** If true, sign but don't submit. Default: false. */
   signOnly?: boolean;
+  /**
+   * Retry behaviour on input collisions. The fee_contract has only 10
+   * shards and they're hot under mix activity; a donation that picked
+   * a shard that was just consumed by a Mix tx would otherwise fail
+   * with `BadInputsUTxO` and require the user to re-sign manually.
+   * When `retry.maxAttempts > 1`, the SDK re-picks a fresh shard,
+   * rebuilds, and re-asks the wallet to sign on each retry.
+   *
+   * Default: no retry (1 attempt). UI typically passes `{ maxAttempts: 3 }`.
+   */
+  retry?: RetryOptions;
 }
 
 export interface DonateResult {
@@ -159,96 +171,107 @@ export async function buildDonateTx(args: BuildDonateArgs): Promise<DonateResult
     networkId,
     null,
   );
-  const feeShard = args.feeShard ?? await pickRandomFeeShard({
-    provider: args.provider,
-    feeScriptAddressBech32: feeAddress,
-  });
-
-  const plan = planDonateTx({
-    donationLovelace: args.donationLovelace,
-    feeShard,
-    addresses: args.addresses,
-    networkId,
-  });
-
   const collateral = args.collateralProvider ?? new WalletProvider(args.wallet);
-  const preparedCollateral = await collateral.prepareCollateral({
-    provider: args.provider,
-    collateralAmountLovelace: 5_000_000n,
-  });
 
-  const { MeshTxBuilder } = await import("@meshsdk/core");
-  const meshProvider = await getMeshProvider(args.provider);
-  const meshParams = await getMeshProtocolParams(args.provider);
-  const txBuilder = new MeshTxBuilder({
-    fetcher: meshProvider as never,
-    submitter: meshProvider as never,
-    evaluator: meshProvider as never,
-    params: meshParams as never,
-    verbose: false,
-  });
-  // Trust evaluator-returned exec units exactly (mesh defaults to 1.1×).
-  txBuilder.txEvaluationMultiplier = 1;
+  // Build + sign + submit, with retry on input collision. Retry semantics:
+  //   * Attempt 1 honours `args.feeShard` (caller's pre-pick wins).
+  //   * Attempts 2+ ignore `args.feeShard` and pick a fresh shard from
+  //     chain. Reusing the caller's pre-pick on a retry would just hit the
+  //     same BadInputsUTxO again. Each retry rebuilds the tx body so the
+  //     wallet signs the new body.
+  return withInputCollisionRetry(async (attempt) => {
+    const feeShard =
+      attempt === 1 && args.feeShard
+        ? args.feeShard
+        : await pickRandomFeeShard({
+            provider: args.provider,
+            feeScriptAddressBech32: feeAddress,
+          });
 
-  const walletUtxos = normalizeWalletUtxos(await args.wallet.getUtxos());
-  const changeAddress = await args.wallet.getChangeAddress();
+    const plan = planDonateTx({
+      donationLovelace: args.donationLovelace,
+      feeShard,
+      addresses: args.addresses,
+      networkId,
+    });
 
-  txBuilder
-    .readOnlyTxInReference(plan.referenceUtxoRef.txId, plan.referenceUtxoRef.outputIndex)
-    .spendingPlutusScriptV3()
-    .txIn(
-      plan.feeShardInput.ref.txId,
-      plan.feeShardInput.ref.outputIndex,
-      [{ unit: "lovelace", quantity: plan.feeShardInput.lovelace.toString() }],
-      plan.feeShardOutput.addressBech32,
-    )
-    .txInInlineDatumPresent()
-    .txInRedeemerValue(plan.replenishRedeemerHex, "CBOR")
-    .spendingTxInReference(
-      plan.feeContractRefScriptUtxoRef.txId,
-      plan.feeContractRefScriptUtxoRef.outputIndex,
-      args.addresses.referenceScriptSizes?.fee_contract?.toString(),
-      args.addresses.feeScriptHash,
-    )
-    .txOut(plan.feeShardOutput.addressBech32, [
-      { unit: "lovelace", quantity: plan.feeShardOutput.lovelace.toString() },
-    ])
-    .txOutInlineDatumValue(plan.feeShardOutput.inlineDatumHex, "CBOR")
-    .changeAddress(changeAddress)
-    .selectUtxosFrom(walletUtxos);
+    const preparedCollateral = await collateral.prepareCollateral({
+      provider: args.provider,
+      collateralAmountLovelace: 5_000_000n,
+    });
 
-  for (const utxo of preparedCollateral.inputs) {
-    txBuilder.txInCollateral(
-      utxo.ref.txId,
-      utxo.ref.outputIndex,
-      [{ unit: "lovelace", quantity: utxo.lovelace.toString() }],
-      utxo.address,
-    );
-  }
-  if (preparedCollateral.requiredSignerPkhHex) {
-    txBuilder.requiredSignerHash(preparedCollateral.requiredSignerPkhHex);
-  }
+    const { MeshTxBuilder } = await import("@meshsdk/core");
+    const meshProvider = await getMeshProvider(args.provider);
+    const meshParams = await getMeshProtocolParams(args.provider);
+    const txBuilder = new MeshTxBuilder({
+      fetcher: meshProvider as never,
+      submitter: meshProvider as never,
+      evaluator: meshProvider as never,
+      params: meshParams as never,
+      verbose: false,
+    });
+    txBuilder.txEvaluationMultiplier = 1;
 
-  const unsignedTx = await txBuilder.complete();
-  const walletSignedTx = await args.wallet.signTx(unsignedTx);
-  const signedTx = preparedCollateral.externallySigned
-    ? await mergeExternalCollateralWitness(collateral, walletSignedTx)
-    : walletSignedTx;
+    const walletUtxos = normalizeWalletUtxos(await args.wallet.getUtxos());
+    const changeAddress = await args.wallet.getChangeAddress();
 
-  if (args.signOnly) {
+    txBuilder
+      .readOnlyTxInReference(plan.referenceUtxoRef.txId, plan.referenceUtxoRef.outputIndex)
+      .spendingPlutusScriptV3()
+      .txIn(
+        plan.feeShardInput.ref.txId,
+        plan.feeShardInput.ref.outputIndex,
+        [{ unit: "lovelace", quantity: plan.feeShardInput.lovelace.toString() }],
+        plan.feeShardOutput.addressBech32,
+      )
+      .txInInlineDatumPresent()
+      .txInRedeemerValue(plan.replenishRedeemerHex, "CBOR")
+      .spendingTxInReference(
+        plan.feeContractRefScriptUtxoRef.txId,
+        plan.feeContractRefScriptUtxoRef.outputIndex,
+        args.addresses.referenceScriptSizes?.fee_contract?.toString(),
+        args.addresses.feeScriptHash,
+      )
+      .txOut(plan.feeShardOutput.addressBech32, [
+        { unit: "lovelace", quantity: plan.feeShardOutput.lovelace.toString() },
+      ])
+      .txOutInlineDatumValue(plan.feeShardOutput.inlineDatumHex, "CBOR")
+      .changeAddress(changeAddress)
+      .selectUtxosFrom(walletUtxos);
+
+    for (const utxo of preparedCollateral.inputs) {
+      txBuilder.txInCollateral(
+        utxo.ref.txId,
+        utxo.ref.outputIndex,
+        [{ unit: "lovelace", quantity: utxo.lovelace.toString() }],
+        utxo.address,
+      );
+    }
+    if (preparedCollateral.requiredSignerPkhHex) {
+      txBuilder.requiredSignerHash(preparedCollateral.requiredSignerPkhHex);
+    }
+
+    const unsignedTx = await txBuilder.complete();
+    const walletSignedTx = await args.wallet.signTx(unsignedTx);
+    const signedTx = preparedCollateral.externallySigned
+      ? await mergeExternalCollateralWitness(collateral, walletSignedTx)
+      : walletSignedTx;
+
+    if (args.signOnly) {
+      return {
+        signedTxHex: signedTx,
+        txId: "",
+        feeShardRef: plan.feeShardInput.ref,
+        newShardLovelace: plan.feeShardOutput.lovelace,
+      };
+    }
+
+    const txId = await args.provider.submitTx(signedTx);
     return {
       signedTxHex: signedTx,
-      txId: "",
+      txId,
       feeShardRef: plan.feeShardInput.ref,
       newShardLovelace: plan.feeShardOutput.lovelace,
     };
-  }
-
-  const txId = await args.provider.submitTx(signedTx);
-  return {
-    signedTxHex: signedTx,
-    txId,
-    feeShardRef: plan.feeShardInput.ref,
-    newShardLovelace: plan.feeShardOutput.lovelace,
-  };
+  }, args.retry);
 }

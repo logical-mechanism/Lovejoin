@@ -70,6 +70,7 @@ import { mergeExternalCollateralWitness } from "./witness-merge.js";
  */
 const POPULATE_TIME_EXUNITS_PLACEHOLDER: ExUnits = { mem: 10_000, steps: 1_000_000 };
 import { getMeshProtocolParams, getMeshProvider } from "./mesh-bridge.js";
+import { type RetryOptions, withInputCollisionRetry } from "./retry.js";
 import {
   computeRefScriptFee,
   extractFeeFromTxCbor,
@@ -323,6 +324,13 @@ export interface BuildWithdrawArgs {
   /** See {@link WithdrawFeePayer}. Default: `"box"`. */
   feePayer?: WithdrawFeePayer;
   signOnly?: boolean;
+  /**
+   * Retry on input collisions. Mix-box collisions are essentially
+   * impossible (only the owner can spend), but the wallet's funding
+   * UTxOs can churn between sign and submit. On retry, mesh re-selects
+   * fresh wallet UTxOs and the wallet signs the new body. Default: 1.
+   */
+  retry?: RetryOptions;
 }
 
 export interface WithdrawResult {
@@ -344,6 +352,13 @@ export async function buildWithdrawTx(args: BuildWithdrawArgs): Promise<Withdraw
   const feePayer: WithdrawFeePayer = args.feePayer ?? "box";
 
   const { params } = await fetchProtocolParams(args.addresses, args.provider);
+
+  // Build + sign + submit, with retry on input collision. Withdraw's
+  // mix-box input is owner-only so collisions there are impossible; the
+  // realistic case is the wallet's funding UTxOs churning between sign
+  // and submit. Each retry rebuilds against fresh wallet UTxOs (mesh
+  // re-selects on every `complete()`) and the wallet signs again.
+  return withInputCollisionRetry(async () => {
   const plan = planWithdrawTx({
     ownerSecret: args.ownerSecret,
     mixBox: args.mixBox,
@@ -594,6 +609,7 @@ export async function buildWithdrawTx(args: BuildWithdrawArgs): Promise<Withdraw
   }
   const txId = await args.provider.submitTx(signedTx);
   return { signedTxHex: signedTx, txId, owner };
+  }, args.retry);
 }
 
 /**

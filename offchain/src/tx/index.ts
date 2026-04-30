@@ -11,6 +11,7 @@ export * from "./collateral.js";
 export * from "./address.js";
 export * from "./deposit.js";
 export * from "./donate.js";
+export * from "./retry.js";
 export * from "./withdraw.js";
 export * from "./mix.js";
 export * from "./mesh-bridge.js";
