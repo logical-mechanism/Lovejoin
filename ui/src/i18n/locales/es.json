@@ -19,6 +19,7 @@
     "app": "Lovejoin",
     "home": "Lovejoin · mezclador privado",
     "deposit": "Depósito · Lovejoin",
+    "donate": "Donar · Lovejoin",
     "pool": "Mezcla · Lovejoin",
     "vault": "Bóveda · Lovejoin",
     "box": "Detalle de caja · Lovejoin",
@@ -28,12 +29,19 @@
     "region_label": "Notificaciones",
     "deposit_success": "Depósito enviado",
     "deposit_failed": "Depósito fallido",
+    "donate_success": "Donación enviada",
+    "donate_failed": "Donación fallida",
     "mix_success": "Mezcla enviada con N = {{n}}",
     "mix_failed": "Mezcla fallida",
     "withdraw_success": "Retiro enviado",
     "withdraw_failed": "Retiro fallido",
     "view_on_scan": "ver en cardanoscan ↗",
     "dismiss": "Descartar"
+  },
+  "tx": {
+    "retrying_collision": "Una UTxO objetivo acaba de ser consumida. Reintentando con una selección nueva (intento {{attempt}})…",
+    "busy_title": "Inténtalo de nuevo en un momento",
+    "busy_detail": "El protocolo está ocupado: cada UTxO objetivo fue consumida por otra transacción. Espera unos segundos y vuelve a enviar."
   },
   "errors": {
     "network": "Error de red. Revisa tu conexión y vuelve a intentar.",
@@ -67,6 +75,7 @@
     "deposit": "Depósito",
     "pool": "Mezcla",
     "vault": "Bóveda",
+    "donate": "Donar",
     "protocol": "Protocolo"
   },
   "language": {
@@ -198,6 +207,24 @@
     "tx_preview_copy_bulk": "Tu cartera paga {{total}} ADA ({{count}} × {{denom}} ADA) más un top-up al shard de comisión. Una sola firma para todo el lote.",
     "index_help": "Contador de la bóveda para el secreto de propietario de este depósito."
   },
+  "donate": {
+    "section_title": "Donar al pool de comisión",
+    "eyebrow": "Recarga los shards de comisión compartidos",
+    "lede": "Las txs de Mezcla recurren a un pool compartido de shards de comisión. Las donaciones recargan ese pool sin acuñar una nueva caja de mezcla. No hay ganancia de privacidad para ti aquí (tu cartera está en la tx), pero cada donación extiende la pista para las mezclas de los demás.",
+    "pool_label": "Tamaño del pool",
+    "shard_count": "en {{count}} shards",
+    "shards_title": "Shards de comisión",
+    "shards_caption": "Saldo actual por shard del pool de comisión compartido.",
+    "shard_ref": "Shard",
+    "shard_balance": "Saldo",
+    "amount_label": "Cantidad (ADA)",
+    "amount_help": "Cualquier cantidad positiva se acepta en cadena. La regla Replenish solo exige que el shard gane lovelace.",
+    "tx_preview_title": "Vista previa de la transacción",
+    "tx_preview_copy": "Tu cartera paga {{amount}} ADA a un shard de comisión elegido al azar. Se requiere firma de la cartera.",
+    "submit": "Donar",
+    "submitting": "Construyendo la donación…",
+    "preconditions_missing": "Conecta una cartera para donar."
+  },
   "boxes": {
     "section_title": "Mis cajas",
     "empty": "La bóveda aún no tiene cajas propias activas.",
@@ -294,11 +321,24 @@
     "lede": "Un recorrido de cinco minutos por la matemática detrás de Lovejoin. Lee el paper de Sigmajoin para el argumento de seguridad completo; esta página es el tour del implementador.",
     "primitives_h": "Primitivas",
     "primitives_p": "Lovejoin usa tres:",
+    "primitive_g": "<b>G</b>: el generador de BLS12-381 G1, el subgrupo de la curva de orden <c>r</c>.",
+    "primitive_x": "<b>x ∈ Z_r</b>: tu secreto de propietario. Se deriva determinísticamente de la firma CIP-8 de tu cartera, así no hay que respaldarlo aparte.",
+    "primitive_hash": "<b>blake2b-256</b>: la función hash usada para Fiat–Shamir en cadena y para la semilla de la bóveda en esta UI.",
     "deposit_h": "Depósito",
+    "deposit_p1": "Un depósito elige una aleatoriedad nueva <c>d</c> y bloquea la denominación fija en el script mix-box con el datum inline. Dos puntos G1 comprimidos de 48 bytes, donde <c>b</c> actúa como tu marca de propiedad:",
+    "deposit_p2": "Cualquiera que vigile la cadena ve <c>(a, b)</c> pero no aprende nada sobre <c>x</c> ni <c>d</c>. Ambos son muestras uniformes y el logaritmo discreto es difícil.",
     "mix_h": "Mezcla",
+    "mix_p1": "Una tx de Mezcla elige <b>N</b> cajas activas y las re-randomiza con un escalar fresco por entrada <c>y_i</c>. La <e>salida</e> en la posición <c>i</c> es la <e>re-randomización permutada</e>:",
+    "mix_p2": "donde <c>π</c> es una permutación de <c>0..N</c>. La propiedad clave: si <c>b_i = [x_i] · a_i</c> en la entrada, entonces <c>b'_i = [x_π(i)] · a'_i</c> en la salida. La propiedad sobrevive a la re-randomización, pero el emparejamiento <e>entrada → salida</e> queda oculto.",
+    "mix_p3": "Para probar que la tx preserva la propiedad sin revelar <e>cuál</e> entrada posee, el emisor genera una prueba <b>sigma-OR de N vías</b> por entrada. Una sola prueba Schnorr de \"conozco <c>x</c> para alguna salida\", verificada en cadena. El reto Fiat–Shamir se enlaza a las N declaraciones de salida más el datum de depósito de la caja, así la prueba no se puede redirigir.",
     "privacy_h": "Enlace",
+    "privacy_p1": "Tras una sola Mezcla con ancho <c>N</c>, la probabilidad de que un observador externo enlace correctamente tu entrada con tu salida es <c>1/N</c>. Tras <c>k</c> rondas independientes:",
+    "privacy_p2": "Con <b>N = 3</b> (el tope calibrado de Lovejoin en Preprod hoy) cada ronda adicional divide la probabilidad de enlace entre 3. Doce rondas la bajan a menos de 2⁻¹⁹, menos de una posibilidad entre medio millón. Veinte rondas la dejan por debajo de 2⁻³¹.",
     "withdraw_h": "Retiro",
-    "further_h": "Lectura adicional"
+    "withdraw_p1": "Para salir del pool gastas la mix-box en la rama de propietario del script <c>mix_box</c> con una prueba Schnorr de <c>b = [x] · a</c> ligada a <c>tx.outputs</c>. El probador elige un <c>k ∈ Z_r</c> uniforme y calcula:",
+    "withdraw_p2": "La sustitución de salidas invalida el reto, así el validador solo puede gastar la caja por el camino que el probador firmó. No hay firma de cartera sobre la caja en sí. Solo las salidas de destino están autorizadas por la cartera del emisor (que paga la comisión).",
+    "further_h": "Lectura adicional",
+    "further_p": "Construcción y pruebas de seguridad completas en el <paper>paper de Sigmajoin</paper>. La implementación del validador en cadena vive en <c>contracts/validators/mix_logic.ak</c>; el constructor off-chain es <c>offchain/src/tx/mix.ts</c>; los vectores KAT entre lenguajes están en <c>crypto/test-vectors/</c>."
   },
   "vault": {
     "title": "Bóveda",
