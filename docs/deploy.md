@@ -89,11 +89,44 @@ starts.
 
 #### Home-side setup (one-time)
 
+Pick whichever flow fits — both produce the same tunnel + ingress.
+For a **headless server**, the dashboard-managed flow is simplest
+(no `tunnel login`, no local config file). For users comfortable
+editing config on the server, the locally-managed flow is also
+fine.
+
+##### Option A — dashboard-managed (token, headless-friendly)
+
+1. Cloudflare Zero Trust dashboard → **Networks → Tunnels → Create
+   a tunnel**. Connector: *Cloudflared*. Name: `lovejoin-preprod`.
+2. CF gives you a one-line install command for every common OS,
+   embedding a JWT token. On the headless box:
+   ```bash
+   sudo cloudflared service install eyJh...<token>...
+   ```
+   That installs + starts the systemd service in one step. No
+   `tunnel login`, no config.yml, no cert.pem.
+3. Still in the dashboard, **Public Hostnames → Add a public
+   hostname** twice — once for each:
+   - `ogmios-preprod.yourdomain.com` → service `TCP` → URL `localhost:1337`
+   - `dbsync-preprod.yourdomain.com` → service `TCP` → URL `localhost:5432`
+4. The tunnel picks up the new hostnames within seconds; no service
+   restart needed.
+
+The tunnel's identity (token) lives in `/etc/cloudflared/...` on the
+server; the ingress rules live in CF and are edited from the dashboard.
+
+##### Option B — locally-managed (config.yml, also works headless)
+
 ```bash
 # 1. Install on the home server (Linux example; see CF docs for other OSes)
 sudo apt install cloudflared
 
-# 2. Authenticate against your CF zone (opens a browser, picks the zone)
+# 2. Authenticate against your CF zone. On a headless box, cloudflared
+#    can't open a browser — it prints the auth URL to stdout. Copy
+#    the URL, open it on your laptop / phone, pick the zone. The
+#    cert.pem is fetched by cloudflared on the server via a CF API
+#    poll once you finish the browser auth.
 cloudflared tunnel login
 
 # 3. Create a named tunnel
