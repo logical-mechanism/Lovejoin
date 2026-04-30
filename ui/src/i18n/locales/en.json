@@ -19,6 +19,7 @@
     "app": "Lovejoin",
     "home": "Lovejoin · privacy mixer",
     "deposit": "Deposit · Lovejoin",
+    "donate": "Donate · Lovejoin",
     "pool": "Mix · Lovejoin",
     "vault": "Vault · Lovejoin",
     "box": "Box detail · Lovejoin",
@@ -28,6 +29,8 @@
     "region_label": "Notifications",
     "deposit_success": "Deposit submitted",
     "deposit_failed": "Deposit failed",
+    "donate_success": "Donation submitted",
+    "donate_failed": "Donation failed",
     "mix_success": "Mix submitted at N = {{n}}",
     "mix_failed": "Mix failed",
     "withdraw_success": "Withdraw submitted",
@@ -67,6 +70,7 @@
     "deposit": "Deposit",
     "pool": "Mix",
     "vault": "Vault",
+    "donate": "Donate",
     "protocol": "Protocol"
   },
   "language": {
@@ -197,6 +201,19 @@
     "tx_preview_copy": "Your wallet pays the {{denom}} ADA denomination plus a small replenish-fee top-up to the fee shard. Wallet signature is required.",
     "tx_preview_copy_bulk": "Your wallet pays {{total}} ADA ({{count}} × {{denom}} ADA) plus a replenish-fee top-up to the fee shard. One signature for the whole batch.",
     "index_help": "Vault counter for this deposit's owner secret."
+  },
+  "donate": {
+    "section_title": "Donate to fee pool",
+    "eyebrow": "Top up the shared fee shards",
+    "lede": "Mix txs draw on a shared pool of fee shards. Donations top up that pool without minting a new mix-box. There is no privacy gain for you here — your wallet is on the tx — but every donation extends the runway for everyone else's mixes.",
+    "pool_label": "Pool size",
+    "amount_label": "Amount (ADA)",
+    "amount_help": "Any positive amount is accepted on chain. The Replenish rule only requires the shard to gain lovelace.",
+    "tx_preview_title": "Transaction preview",
+    "tx_preview_copy": "Your wallet pays {{amount}} ADA into a randomly-picked fee shard. Wallet signature is required.",
+    "submit": "Donate",
+    "submitting": "Building donation…",
+    "preconditions_missing": "Connect a wallet to donate."
   },
   "boxes": {
     "section_title": "My boxes",
