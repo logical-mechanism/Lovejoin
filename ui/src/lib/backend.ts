@@ -100,6 +100,20 @@ export class BackendClient {
     return this.getJson<PoolPage>(path, signal);
   }
 
+  /**
+   * Fetch a single mix-box's indexer-tracked metadata. Used by the Vault
+   * to surface the per-box mix-round counter (`generation`) without
+   * walking the full pool. Returns null when the backend is unreachable
+   * or the box isn't in the indexer's live set (404).
+   */
+  async box(
+    ref: { txId: string; outputIndex: number },
+    signal?: AbortSignal,
+  ): Promise<PoolBox | null> {
+    const path = `/box/${ref.txId.toLowerCase()}/${ref.outputIndex}`;
+    return this.getJson<PoolBox>(path, signal);
+  }
+
   async fee(signal?: AbortSignal): Promise<FeeSnapshot | null> {
     return this.getJson<FeeSnapshot>("/fee", signal);
   }

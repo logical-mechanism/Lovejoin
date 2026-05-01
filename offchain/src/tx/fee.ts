@@ -108,23 +108,41 @@ export async function listFeeShards(args: {
  * is in flight (e.g., a tx they just submitted but haven't confirmed yet).
  * If excluding leaves zero candidates we fall back to the full set rather
  * than throwing — concurrency hint, not a hard constraint.
+ *
+ * `minLovelace` is a hard floor: shards holding less than this are filtered
+ * out and never picked. Mix passes 3 ADA so the shard can cover its own
+ * tx fee + min-utxo on the recreated shard output without going negative.
+ * Donate and Deposit intentionally leave it unset; they top shards up and
+ * MUST be allowed to target depleted ones. Throws if no shard meets the
+ * floor (preferable to a guaranteed-failing tx submit).
  */
 export function pickRandomShard(args: {
   shards: Utxo[];
   excludeRefs?: ReadonlyArray<{ txId: string; outputIndex: number }>;
+  minLovelace?: Lovelace;
   rng?: RandomInt;
 }): Utxo {
   const rng = args.rng ?? cryptoRandomInt;
   if (args.shards.length === 0) {
     throw new Error("pickRandomShard: empty shard list");
   }
+  const above =
+    args.minLovelace !== undefined
+      ? args.shards.filter((s) => s.lovelace >= args.minLovelace!)
+      : args.shards;
+  if (above.length === 0) {
+    throw new Error(
+      `pickRandomShard: no shard holds at least ${args.minLovelace} lovelace; ` +
+        `donate to the fee pool to top it up`,
+    );
+  }
   const exclude = new Set(
     (args.excludeRefs ?? []).map((r) => `${r.txId}#${r.outputIndex}`),
   );
-  const eligible = args.shards.filter(
+  const eligible = above.filter(
     (s) => !exclude.has(`${s.ref.txId}#${s.ref.outputIndex}`),
   );
-  const candidates = eligible.length > 0 ? eligible : args.shards;
+  const candidates = eligible.length > 0 ? eligible : above;
   return candidates[rng(candidates.length)]!;
 }
 
@@ -136,17 +154,19 @@ export async function pickRandomFeeShard(args: {
   provider: ChainProvider;
   feeScriptAddressBech32: string;
   excludeRefs?: ReadonlyArray<{ txId: string; outputIndex: number }>;
+  minLovelace?: Lovelace;
   rng?: RandomInt;
 }): Promise<Utxo> {
   const shards = await listFeeShards({
     provider: args.provider,
     feeScriptAddressBech32: args.feeScriptAddressBech32,
   });
-  // Pass through `excludeRefs` and `rng` only when defined; with
-  // exactOptionalPropertyTypes a literal `undefined` would fail to type.
+  // Pass through `excludeRefs`, `minLovelace`, and `rng` only when defined;
+  // with exactOptionalPropertyTypes a literal `undefined` would fail to type.
   return pickRandomShard({
     shards,
     ...(args.excludeRefs !== undefined ? { excludeRefs: args.excludeRefs } : {}),
+    ...(args.minLovelace !== undefined ? { minLovelace: args.minLovelace } : {}),
     ...(args.rng !== undefined ? { rng: args.rng } : {}),
   });
 }

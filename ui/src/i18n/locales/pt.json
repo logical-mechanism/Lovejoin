@@ -415,7 +415,18 @@
     "page_indicator": "Página {{current}} de {{total}}",
     "prev_page": "Anterior",
     "next_page": "Próxima",
-    "recover_strength_announce_prefix": "Força da senha: "
+    "recover_strength_announce_prefix": "Força da senha: ",
+    "column_rounds": "rodadas",
+    "column_rounds_long": "Rodadas de mix: quantas vezes esta caixa foi re-randomizada desde o depósito.",
+    "column_action": "Ação da caixa",
+    "mix_row": "Mix",
+    "mix_row_submitting": "Misturando…",
+    "mix_row_confirm_eyebrow": "Avança uma caixa",
+    "mix_row_confirm_title": "Misturar esta caixa",
+    "mix_row_confirm_lede": "Envia uma tx de mix com taxa por shard que inclui esta caixa mais outras {{n}} - 1 caixas escolhidas ao acaso da pool ativa. A wallet fica fora da tx; a taxa é paga por um fee shard. O contador de rodadas desta caixa aumenta em um quando a tx é confirmada.",
+    "mix_row_confirm_submit": "Misturar esta caixa",
+    "mix_disabled_collateral": "Provedor de colateral inacessível. O envio do mix está desativado.",
+    "mix_disabled_pool": "Pool pequeno demais para misturar esta caixa. São necessárias {{need}} caixas ativas; há {{have}}."
   },
   "secret_card": {
     "title": "Salve este secret agora",

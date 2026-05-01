@@ -415,7 +415,18 @@
     "page_indicator": "पृष्ठ {{current}} / {{total}}",
     "prev_page": "पिछला",
     "next_page": "अगला",
-    "recover_strength_announce_prefix": "पासवर्ड शक्ति: "
+    "recover_strength_announce_prefix": "पासवर्ड शक्ति: ",
+    "column_rounds": "राउंड",
+    "column_rounds_long": "मिक्स राउंड: जमा होने के बाद से इस बॉक्स को कितनी बार फिर से रैंडमाइज़ किया गया है।",
+    "column_action": "बॉक्स कार्रवाई",
+    "mix_row": "मिक्स",
+    "mix_row_submitting": "मिक्स हो रहा है…",
+    "mix_row_confirm_eyebrow": "एक बॉक्स आगे बढ़ाएँ",
+    "mix_row_confirm_title": "इस बॉक्स को मिक्स करें",
+    "mix_row_confirm_lede": "एक शार्ड-फी मिक्स tx सबमिट करता है जिसमें यह बॉक्स और लाइव pool से यादृच्छिक रूप से चुने गए {{n}} - 1 अन्य बॉक्स शामिल होते हैं। वॉलेट tx से बाहर रहता है; शुल्क एक फी शार्ड से दिया जाता है। tx पुष्ट होने पर इस बॉक्स का राउंड काउंटर एक बढ़ जाता है।",
+    "mix_row_confirm_submit": "इस बॉक्स को मिक्स करें",
+    "mix_disabled_collateral": "कोलैटरल प्रदाता तक नहीं पहुँचा जा सका। मिक्स सबमिशन अक्षम है।",
+    "mix_disabled_pool": "इस बॉक्स को मिक्स करने के लिए पूल बहुत छोटा है। {{need}} लाइव बॉक्स चाहिए; {{have}} हैं।"
   },
   "secret_card": {
     "title": "यह secret अभी सहेजें",

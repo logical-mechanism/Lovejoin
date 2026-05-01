@@ -415,7 +415,18 @@
     "page_indicator": "Page {{current}} sur {{total}}",
     "prev_page": "Précédent",
     "next_page": "Suivant",
-    "recover_strength_announce_prefix": "Force du mot de passe : "
+    "recover_strength_announce_prefix": "Force du mot de passe : ",
+    "column_rounds": "tours",
+    "column_rounds_long": "Tours de mix : nombre de fois où cette boîte a été re-randomisée depuis son dépôt.",
+    "column_action": "Action de la boîte",
+    "mix_row": "Mixer",
+    "mix_row_submitting": "Mix en cours…",
+    "mix_row_confirm_eyebrow": "Avance une boîte",
+    "mix_row_confirm_title": "Mixer cette boîte",
+    "mix_row_confirm_lede": "Soumet une tx de mix à frais de shard qui inclut cette boîte plus {{n}} - 1 autres boîtes choisies au hasard dans la pool active. La wallet reste hors de la tx ; les frais sont payés par un fee shard. Le compteur de tours de cette boîte augmente d'un une fois la tx confirmée.",
+    "mix_row_confirm_submit": "Mixer cette boîte",
+    "mix_disabled_collateral": "Fournisseur de collatéral injoignable. La soumission de mix est désactivée.",
+    "mix_disabled_pool": "Pool trop petite pour mixer cette boîte. Il faut {{need}} boîtes actives ; il y en a {{have}}."
   },
   "secret_card": {
     "title": "Sauvegardez ce secret maintenant",

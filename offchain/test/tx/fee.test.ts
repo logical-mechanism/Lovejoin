@@ -120,6 +120,48 @@ describe("tx/fee — pickRandomShard", () => {
     expect(() => pickRandomShard({ shards: [] })).toThrow(/empty/);
   });
 
+  it("filters out shards below minLovelace", () => {
+    const mixed: Utxo[] = [
+      utxo({ txId: "1".repeat(64), idx: 0, lovelace: 2_500_000n }),
+      utxo({ txId: "2".repeat(64), idx: 0, lovelace: 5_000_000n }),
+      utxo({ txId: "3".repeat(64), idx: 0, lovelace: 500_000n }),
+    ];
+    const picked = pickRandomShard({
+      shards: mixed,
+      minLovelace: 3_000_000n,
+      rng: () => 0,
+    });
+    expect(picked.ref.txId).toBe("2".repeat(64));
+  });
+
+  it("throws when every shard is below minLovelace", () => {
+    const lows: Utxo[] = [
+      utxo({ txId: "1".repeat(64), idx: 0, lovelace: 1_500_000n }),
+      utxo({ txId: "2".repeat(64), idx: 0, lovelace: 2_500_000n }),
+    ];
+    expect(() =>
+      pickRandomShard({ shards: lows, minLovelace: 3_000_000n }),
+    ).toThrow(/at least 3000000 lovelace/);
+  });
+
+  it("applies minLovelace before excludeRefs", () => {
+    // Two shards above the floor; excluding one of them must not let the
+    // below-floor shard sneak back in via the "fall back to full set"
+    // branch. We only fall back to the above-floor set.
+    const mixed: Utxo[] = [
+      utxo({ txId: "1".repeat(64), idx: 0, lovelace: 1_500_000n }),
+      utxo({ txId: "2".repeat(64), idx: 0, lovelace: 5_000_000n }),
+      utxo({ txId: "3".repeat(64), idx: 0, lovelace: 5_000_000n }),
+    ];
+    const picked = pickRandomShard({
+      shards: mixed,
+      excludeRefs: [{ txId: "2".repeat(64), outputIndex: 0 }],
+      minLovelace: 3_000_000n,
+      rng: () => 0,
+    });
+    expect(picked.ref.txId).toBe("3".repeat(64));
+  });
+
   it("uniform sample over many draws", () => {
     // 30k draws across 3 shards: each bucket should land in [9000, 11000].
     const counts = [0, 0, 0];

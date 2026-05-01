@@ -1002,10 +1002,21 @@
     position: absolute;
     inset: 0;
     display: flex;
-    align-items: center;
+    align-items: flex-start;
     justify-content: center;
     z-index: 1;
     pointer-events: none;
+  }
+  /* Stick the spinner / progress card to the visible viewport so it
+   * stays in view on tall sections (Vault's box table can scroll past
+   * a screen). Without this the indicator sits at the section's
+   * geometric center, which on a long card lands offscreen. The
+   * wrapper still spans the section so the dim backdrop covers
+   * everything; only the inner card tracks the viewport. */
+  .lj-overlay__indicator > * {
+    position: sticky;
+    top: 50vh;
+    transform: translateY(-50%);
   }
   .lj-spinner {
     width: 28px;
