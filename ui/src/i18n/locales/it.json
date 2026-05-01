@@ -44,6 +44,36 @@
     "busy_title": "Riprova fra un istante",
     "busy_detail": "Il protocollo è impegnato: ogni UTxO mirata è stata consumata da un'altra transazione. Aspetta qualche secondo e invia di nuovo."
   },
+  "tx_progress": {
+    "deposit": {
+      "derive": "Derivazione dei segreti del proprietario…",
+      "shard": "Selezione del frammento commissioni…",
+      "build": "Costruzione della transazione…",
+      "sign": "In attesa della firma del wallet…",
+      "submit": "Invio alla chain…"
+    },
+    "donate": {
+      "shard": "Selezione del frammento commissioni…",
+      "build": "Costruzione della transazione…",
+      "sign": "In attesa della firma del wallet…",
+      "submit": "Invio alla chain…"
+    },
+    "mix": {
+      "select": "Selezione delle box del pool…",
+      "shard": "Selezione del frammento commissioni…",
+      "proof": "Generazione prova sigma-OR (N={{n}})…",
+      "collateral": "Recupero del collaterale…",
+      "build": "Costruzione della transazione…",
+      "submit": "Invio alla chain…"
+    },
+    "withdraw": {
+      "proof": "Generazione prova di Schnorr…",
+      "collateral": "Recupero del collaterale…",
+      "build": "Costruzione della transazione…",
+      "sign": "In attesa della firma del wallet…",
+      "submit": "Invio alla chain…"
+    }
+  },
   "errors": {
     "network": "Errore di rete. Controlla la connessione e riprova.",
     "blockfrost_auth": "Blockfrost ha rifiutato la richiesta. Il tuo VITE_BLOCKFROST_PROJECT_ID non sembra valido per questa rete.",

@@ -18,10 +18,12 @@ import { buildDonateTx, isInputCollisionError } from "@lovejoin/sdk";
 import { useAppState } from "../lib/store.js";
 import { Eyebrow } from "../components/ui/Eyebrow.js";
 import { Hash } from "../components/ui/Hash.js";
+import { TxBuildProgress } from "../components/TxBuildProgress.js";
 import { useToast } from "../components/Toaster.js";
 import { useBackendStatus } from "../components/BackendStatus.js";
 import { BackendClient, type FeeShard } from "../lib/backend.js";
 import { formatAda } from "../lib/format.js";
+import { donatePhases } from "../lib/tx-phases.js";
 
 const DEFAULT_AMOUNT_ADA = 5;
 const MIN_AMOUNT_ADA = 1;
@@ -303,11 +305,13 @@ export function Donate() {
         </fieldset>
       </form>
 
-      {submitting && (
-        <div className="lj-overlay__indicator">
-          <div className="lj-spinner" aria-label={t("donate.submitting")} />
-        </div>
-      )}
+      <div className="lj-overlay__indicator">
+        <TxBuildProgress
+          active={submitting}
+          phases={donatePhases(t)}
+          ariaLabel={t("donate.submitting")}
+        />
+      </div>
     </section>
   );
 }

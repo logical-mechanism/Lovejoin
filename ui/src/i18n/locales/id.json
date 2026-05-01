@@ -44,6 +44,36 @@
     "busy_title": "Coba lagi sebentar",
     "busy_detail": "Protokol sedang sibuk: setiap UTxO target sudah dipakai oleh transaksi lain. Tunggu beberapa detik lalu kirim lagi."
   },
+  "tx_progress": {
+    "deposit": {
+      "derive": "Menurunkan rahasia pemilik…",
+      "shard": "Memilih shard biaya…",
+      "build": "Menyusun transaksi…",
+      "sign": "Menunggu tanda tangan dompet…",
+      "submit": "Mengirim ke chain…"
+    },
+    "donate": {
+      "shard": "Memilih shard biaya…",
+      "build": "Menyusun transaksi…",
+      "sign": "Menunggu tanda tangan dompet…",
+      "submit": "Mengirim ke chain…"
+    },
+    "mix": {
+      "select": "Memilih kotak pool…",
+      "shard": "Memilih shard biaya…",
+      "proof": "Membuat bukti sigma-OR (N={{n}})…",
+      "collateral": "Mengambil agunan…",
+      "build": "Menyusun transaksi…",
+      "submit": "Mengirim ke chain…"
+    },
+    "withdraw": {
+      "proof": "Membuat bukti Schnorr…",
+      "collateral": "Mengambil agunan…",
+      "build": "Menyusun transaksi…",
+      "sign": "Menunggu tanda tangan dompet…",
+      "submit": "Mengirim ke chain…"
+    }
+  },
   "errors": {
     "network": "Kesalahan jaringan. Periksa koneksi Anda dan coba lagi.",
     "blockfrost_auth": "Blockfrost menolak permintaan. VITE_BLOCKFROST_PROJECT_ID Anda terlihat tidak valid untuk jaringan ini.",

@@ -47,6 +47,36 @@
     "busy_title": "Try again in a moment",
     "busy_detail": "The protocol is currently busy: every targeted UTxO was consumed by another transaction. Wait a few seconds and submit again."
   },
+  "tx_progress": {
+    "deposit": {
+      "derive": "Deriving owner secrets…",
+      "shard": "Selecting fee shard…",
+      "build": "Building transaction…",
+      "sign": "Awaiting wallet signature…",
+      "submit": "Submitting to chain…"
+    },
+    "donate": {
+      "shard": "Selecting fee shard…",
+      "build": "Building transaction…",
+      "sign": "Awaiting wallet signature…",
+      "submit": "Submitting to chain…"
+    },
+    "mix": {
+      "select": "Selecting pool boxes…",
+      "shard": "Selecting fee shard…",
+      "proof": "Generating sigma-OR proof (N={{n}})…",
+      "collateral": "Fetching collateral…",
+      "build": "Building transaction…",
+      "submit": "Submitting to chain…"
+    },
+    "withdraw": {
+      "proof": "Generating Schnorr proof…",
+      "collateral": "Fetching collateral…",
+      "build": "Building transaction…",
+      "sign": "Awaiting wallet signature…",
+      "submit": "Submitting to chain…"
+    }
+  },
   "errors": {
     "network": "Network error. Check your connection and try again.",
     "blockfrost_auth": "Blockfrost rejected the request. Your VITE_BLOCKFROST_PROJECT_ID looks invalid for this network.",

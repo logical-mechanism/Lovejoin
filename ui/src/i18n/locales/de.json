@@ -44,6 +44,36 @@
     "busy_title": "Versuche es gleich erneut",
     "busy_detail": "Das Protokoll ist gerade beschäftigt: Jeder anvisierte UTxO wurde von einer anderen Transaktion verbraucht. Warte ein paar Sekunden und sende erneut."
   },
+  "tx_progress": {
+    "deposit": {
+      "derive": "Besitzer-Schlüssel werden abgeleitet…",
+      "shard": "Fee-Shard wird ausgewählt…",
+      "build": "Transaktion wird gebaut…",
+      "sign": "Warte auf Wallet-Signatur…",
+      "submit": "Wird an die Chain gesendet…"
+    },
+    "donate": {
+      "shard": "Fee-Shard wird ausgewählt…",
+      "build": "Transaktion wird gebaut…",
+      "sign": "Warte auf Wallet-Signatur…",
+      "submit": "Wird an die Chain gesendet…"
+    },
+    "mix": {
+      "select": "Pool-Boxen werden ausgewählt…",
+      "shard": "Fee-Shard wird ausgewählt…",
+      "proof": "Sigma-OR-Beweis wird erstellt (N={{n}})…",
+      "collateral": "Sicherheit wird abgerufen…",
+      "build": "Transaktion wird gebaut…",
+      "submit": "Wird an die Chain gesendet…"
+    },
+    "withdraw": {
+      "proof": "Schnorr-Beweis wird erstellt…",
+      "collateral": "Sicherheit wird abgerufen…",
+      "build": "Transaktion wird gebaut…",
+      "sign": "Warte auf Wallet-Signatur…",
+      "submit": "Wird an die Chain gesendet…"
+    }
+  },
   "errors": {
     "network": "Netzwerkfehler. Verbindung prüfen und erneut versuchen.",
     "blockfrost_auth": "Blockfrost hat die Anfrage abgelehnt. Deine VITE_BLOCKFROST_PROJECT_ID scheint für dieses Netzwerk ungültig zu sein.",
