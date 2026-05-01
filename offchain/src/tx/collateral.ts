@@ -364,7 +364,7 @@ export class GivemeMyProvider implements CollateralProvider {
       throw new Error("GivemeMyProvider.signTxBody: txCborHex must be non-empty hex");
     }
     const body = JSON.stringify({ tx_body: txCborHex });
-    // eslint-disable-next-line no-console
+     
     console.log(
       `[lovejoin/collateral] POST ${this.endpoint} ` +
         `(host=${this.host.name}, txCbor=${txCborHex.length / 2} bytes)`,
@@ -374,7 +374,7 @@ export class GivemeMyProvider implements CollateralProvider {
       headers: { "Content-Type": "application/json" },
       body,
     });
-    // eslint-disable-next-line no-console
+     
     console.log(`[lovejoin/collateral] HTTP ${res.status} ${res.statusText}`);
 
     // Read body once as text. Detecting HTML up-front lets us emit a

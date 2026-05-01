@@ -67,6 +67,6 @@ describe.skipIf(reason !== null)(`m4 — mix N=2 on ${NETWORK}`, () => {
 });
 
 if (reason) {
-  // eslint-disable-next-line no-console
+   
   console.log(`[m4 mix-n2] SKIP — ${reason}`);
 }

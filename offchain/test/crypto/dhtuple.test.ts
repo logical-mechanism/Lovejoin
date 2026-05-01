@@ -80,7 +80,7 @@ describe("crypto/dhtuple", () => {
     const g = generator();
     const h = scalarMul(2n, g);
     const x = 5n;
-    const { u, v } = dhPair(g, h, x);
+    const { u } = dhPair(g, h, x);
     const proof = proveDHTuple(g, h, x, bytes(""));
 
     // Crafted "bad" pair: (u, v) where u and v are unrelated by the same x.

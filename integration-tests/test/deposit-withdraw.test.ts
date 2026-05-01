@@ -126,7 +126,7 @@ describe.skipIf(skipReason !== null)(
 
 if (skipReason) {
   // Surface the skip reason as test output so it shows up in CI logs.
-  // eslint-disable-next-line no-console
+   
   console.log(`[m3 deposit-withdraw] SKIP — ${skipReason}`);
 }
 

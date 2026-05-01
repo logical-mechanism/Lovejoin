@@ -10,11 +10,7 @@ import {
   pointToBytes,
   scalarMul,
 } from "../src/crypto/bls.js";
-import {
-  proveSchnorr,
-  publicPoint,
-  publicPointG,
-} from "../src/crypto/schnorr.js";
+import { proveSchnorr, publicPoint } from "../src/crypto/schnorr.js";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = resolve(HERE, "../..");

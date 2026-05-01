@@ -26,7 +26,6 @@ import {
   encodeMixRedeemer,
   serialiseMixDatumCanonical,
   type MixInput,
-  type MixPlan,
   type MixProofPlan,
   planMixTx,
   verifyMixPlanWithHash,
@@ -610,14 +609,6 @@ function bytesToHex(bytes: Uint8Array): string {
   return s;
 }
 
-function hexToBytes(hex: string): Uint8Array {
-  const cleaned = hex.replace(/^0x/i, "");
-  const out = new Uint8Array(cleaned.length / 2);
-  for (let i = 0; i < out.length; i++) {
-    out[i] = Number.parseInt(cleaned.slice(i * 2, i * 2 + 2), 16);
-  }
-  return out;
-}
 
 // Suppress unused-import warnings for symbols kept for readability.
 void G1_COMPRESSED_BYTES;

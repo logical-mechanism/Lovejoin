@@ -327,7 +327,7 @@ export class BackendMeshProvider implements MeshFetcherSubmitter {
       return await primary();
     } catch (err) {
       if (!this.fallback) throw err;
-      // eslint-disable-next-line no-console
+       
       console.warn(
         `[BackendMeshProvider] ${method} fell back to Blockfrost: ${(err as Error).message}`,
       );

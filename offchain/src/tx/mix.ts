@@ -107,7 +107,6 @@ import { buildScriptRewardAddress } from "./withdraw.js";
 import {
   type LovejoinNetworkId,
   type LovejoinWallet,
-  meshUtxoToLovejoin,
   networkIdFor,
   normalizeWalletUtxos,
 } from "../wallet/cip30.js";
@@ -1202,7 +1201,7 @@ export async function buildMixTx(args: BuildMixArgs): Promise<MixResult> {
       // network is unusually expensive (defensive — under normal Conway
       // params minFee << max).
       const capped = minFee > plan.txFeeLovelace ? plan.txFeeLovelace : minFee;
-      // eslint-disable-next-line no-console
+       
       console.log(
         `[lovejoin/mix] shard-mode fee discovery: minFee=${minFee} ` +
           `(size+script+ref) cap=${plan.txFeeLovelace} → setFee(${capped}); ` +
@@ -1216,7 +1215,7 @@ export async function buildMixTx(args: BuildMixArgs): Promise<MixResult> {
         );
       }
     } else {
-      // eslint-disable-next-line no-console
+       
       console.warn(
         `[lovejoin/mix] shard-mode fee discovery: evaluator returned non-array ` +
           `result; falling back to plan.txFeeLovelace=${plan.txFeeLovelace}`,
@@ -1229,7 +1228,7 @@ export async function buildMixTx(args: BuildMixArgs): Promise<MixResult> {
     const meshFee = extractFeeFromTxCbor(unsignedTxHex, cst);
     const refScriptFee = computeRefScriptFee(refScriptSize, refScriptCostPerByte);
     const correctedFee = meshFee + refScriptFee;
-    // eslint-disable-next-line no-console
+     
     console.log(
       `[lovejoin/mix] wallet-mode fee correction: mesh=${meshFee} + ref-script(` +
         `${refScriptSize}b × ${refScriptCostPerByte}/b)=${refScriptFee} → setFee(${correctedFee})`,
@@ -1254,7 +1253,7 @@ export async function buildMixTx(args: BuildMixArgs): Promise<MixResult> {
       );
     }
     signedTx = await appendVkeyWitness(unsignedTxHex, hostWitness);
-    // eslint-disable-next-line no-console
+     
     console.log(
       `[lovejoin/mix] external collateral witness merged from ${hostWitness.vkeyHex.slice(0, 8)}…`,
     );
@@ -1308,7 +1307,7 @@ function defaultMixCollateralProvider(args: BuildMixArgs): CollateralProvider {
         `Mix tx: no pinned collateral host for "${args.network}" and no wallet supplied. Pass an explicit collateralProvider, or connect a wallet so we can fall back to WalletProvider. Original: ${e instanceof Error ? e.message : String(e)}`,
       );
     }
-    // eslint-disable-next-line no-console
+     
     console.warn(
       `[lovejoin/mix] no pinned collateral host for "${args.network}" — falling back to ` +
         `wallet collateral. Mix anonymity is degraded on this path. Original: ` +
@@ -1348,7 +1347,7 @@ async function buildWithFeeBumpRetry(
       const reportedMin = BigInt(match[1] ?? "0");
       if (reportedMin <= fee) throw e;
       const next = reportedMin > feeCeiling ? feeCeiling : reportedMin;
-      // eslint-disable-next-line no-console
+       
       console.warn(
         `[lovejoin/mix] mesh-csl reported Min fee=${reportedMin} > our fee=${fee}; ` +
           `retrying with setFee(${next}) (cap=${feeCeiling})`,

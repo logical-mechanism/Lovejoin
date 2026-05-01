@@ -100,7 +100,7 @@ export function deriveNonce(secret: Scalar, message: Uint8Array): Scalar {
   // RFC 6979 step h: generate T, test against rejection criteria, repeat as needed.
   // For SHA-256 + scalar field of size ~256 bits, one HMAC block is enough; we still
   // loop so the construction remains correct if the curve ever changes.
-  // eslint-disable-next-line no-constant-condition
+   
   while (true) {
     const buf = new Uint8Array(SCALAR_BYTES);
     let off = 0;

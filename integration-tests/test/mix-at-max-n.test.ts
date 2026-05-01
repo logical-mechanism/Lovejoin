@@ -84,6 +84,6 @@ function readMaxN(network: string): number | null {
 }
 
 if (reason) {
-  // eslint-disable-next-line no-console
+   
   console.log(`[m4 mix-at-max-n] SKIP — ${reason}`);
 }

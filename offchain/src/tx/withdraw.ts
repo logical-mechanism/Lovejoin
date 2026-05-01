@@ -41,7 +41,6 @@ import {
   type Scalar,
   blake2b256,
   pointFromBytes,
-  pointToBytes,
   proveSchnorr,
   publicPoint,
   SCALAR_BYTES,
@@ -84,7 +83,6 @@ import {
 import {
   type LovejoinNetworkId,
   type LovejoinWallet,
-  meshUtxoToLovejoin,
   networkIdFor,
   normalizeWalletUtxos,
 } from "../wallet/cip30.js";
@@ -558,7 +556,7 @@ export async function buildWithdrawTx(args: BuildWithdrawArgs): Promise<Withdraw
   );
   const refScriptFee = computeRefScriptFee(refScriptSize, refScriptCostPerByte);
   const correctFee = meshFee + refScriptFee;
-  // eslint-disable-next-line no-console
+   
   console.log(
     `[lovejoin/withdraw] fee correction: mesh=${meshFee} + ref-script(` +
       `${refScriptSize}b × ${refScriptCostPerByte}/b)=${refScriptFee} → setFee(${correctFee})`,
@@ -580,7 +578,7 @@ export async function buildWithdrawTx(args: BuildWithdrawArgs): Promise<Withdraw
     correctFee,
   );
 
-  // eslint-disable-next-line no-console
+   
   console.log(
     `[lovejoin/withdraw] unsigned tx CBOR (${unsignedHexFinal.length / 2} bytes, feePayer=${feePayer}): ` +
       `${unsignedHexFinal}`,
@@ -798,7 +796,6 @@ export async function buildBulkWithdrawTx(
   //   * placeholder/real owner redeemer carries N proofs
   const placeholderRedeemer = placeholderOwnerRedeemerCborHex(n);
 
-  type TightUnits = { spends: ExUnits[]; withdraw: ExUnits };
   const buildOnce = (
     redeemerCborHex: string,
     spendUnitsForInput: (i: number) => ExUnits,
@@ -915,7 +912,7 @@ export async function buildBulkWithdrawTx(
   );
   const refScriptFee = computeRefScriptFee(refScriptSize, refScriptCostPerByte);
   const correctFee = meshFee + refScriptFee;
-  // eslint-disable-next-line no-console
+   
   console.log(
     `[lovejoin/withdraw-bulk] fee correction: mesh=${meshFee} + ref-script(` +
       `${refScriptSize}b × ${refScriptCostPerByte}/b)=${refScriptFee} → setFee(${correctFee})`,
@@ -937,7 +934,7 @@ export async function buildBulkWithdrawTx(
     correctFee,
   );
 
-  // eslint-disable-next-line no-console
+   
   console.log(
     `[lovejoin/withdraw-bulk] unsigned tx CBOR (${unsignedHexFinal.length / 2} bytes, ` +
       `n=${n}, feePayer=${feePayer}): ${unsignedHexFinal}`,

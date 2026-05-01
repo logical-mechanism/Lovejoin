@@ -4,7 +4,6 @@ import {
   SCALAR_BYTES,
   SCALAR_ORDER,
   generator,
-  pointToBytes,
   scalarMul,
 } from "../../src/crypto/bls.js";
 import {

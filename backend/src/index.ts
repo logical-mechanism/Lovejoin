@@ -127,7 +127,7 @@ export async function main(): Promise<void> {
   mempoolPoller.start();
 
   await server.listen({ port: config.port, host: config.host });
-  // eslint-disable-next-line no-console
+   
   console.log(
     `lovejoin backend ${BACKEND_VERSION} listening on http://${config.host}:${config.port} (network=${config.network})`,
   );

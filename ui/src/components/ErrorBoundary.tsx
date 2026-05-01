@@ -29,7 +29,7 @@ export class ErrorBoundary extends React.Component<{ children: ReactNode }, Stat
   }
 
   override componentDidCatch(error: Error, info: React.ErrorInfo): void {
-    // eslint-disable-next-line no-console
+     
     console.error("[lovejoin] uncaught render error:", error, info);
   }
 

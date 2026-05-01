@@ -335,7 +335,7 @@ export class BackendChainProvider implements ChainProvider {
       return await primary();
     } catch (err) {
       if (!this.fallback) throw err;
-      // eslint-disable-next-line no-console
+       
       console.warn(
         `[BackendChainProvider] ${method} fell back to Blockfrost: ${(err as Error).message}`,
       );

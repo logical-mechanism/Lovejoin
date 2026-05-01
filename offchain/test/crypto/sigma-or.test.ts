@@ -2,7 +2,6 @@ import { describe, expect, it } from "vitest";
 import {
   G1_COMPRESSED_BYTES,
   SCALAR_BYTES,
-  SCALAR_ORDER,
   generator,
   scalarMul,
 } from "../../src/crypto/bls.js";

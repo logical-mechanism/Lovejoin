@@ -197,7 +197,7 @@ function drawScalar(rng?: () => Uint8Array): Scalar {
   const draw = rng ?? defaultScalarDraw;
   // Reject-sample 32 random bytes until we land in [1, r). With r ≈ 2^255
   // this almost always passes on the first try.
-  // eslint-disable-next-line no-constant-condition
+   
   while (true) {
     const bytes = draw();
     if (bytes.length !== 32) {

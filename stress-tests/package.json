@@ -6,7 +6,11 @@
   "scripts": {
     "calibrate:max-n": "tsx max-n-calibration.ts",
     "calibrate:fee": "tsx fee-calibration.ts",
-    "fuzz": "tsx fuzz-runner.ts"
+    "fuzz": "tsx fuzz-runner.ts",
+    "lint": "eslint .",
+    "lint:eslint": "eslint .",
+    "format": "prettier --write .",
+    "format:check": "prettier --check ."
   },
   "dependencies": {
     "@lovejoin/sdk": "workspace:*"

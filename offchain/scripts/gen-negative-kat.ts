@@ -114,7 +114,9 @@ for (const p of dhtuplePositives.slice(0, 8)) {
 }
 
 // Sigma-OR: tamper c[0] (breaks XOR), z[0] (breaks per-branch eq), t0[0] of branch 0.
-for (const p of sigmaPositives) {
+// (No-op selection pass intentionally left for future-N expansion; the
+//  real per-mutation work happens in the loop below.)
+for (const _p of sigmaPositives) {
   // Take 4 per N value.
   // (Selection: simply take some indices that hit each N.)
 }

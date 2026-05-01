@@ -110,6 +110,6 @@ describe.skipIf(reason !== null)(`m4 — full lifecycle on ${NETWORK}`, () => {
 });
 
 if (reason) {
-  // eslint-disable-next-line no-console
+   
   console.log(`[m4 full-lifecycle] SKIP — ${reason}`);
 }

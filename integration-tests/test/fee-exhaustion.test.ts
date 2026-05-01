@@ -116,6 +116,6 @@ void generateOwnerSecret;
 void G1_COMPRESSED_BYTES;
 
 if (reason) {
-  // eslint-disable-next-line no-console
+   
   console.log(`[m4 fee-exhaustion] SKIP — ${reason}`);
 }
