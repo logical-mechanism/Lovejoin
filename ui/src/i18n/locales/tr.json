@@ -82,6 +82,7 @@
     "cbor": "İşlem kodlaması başarısız oldu. Bu bir hata, lütfen bildirin.",
     "script_eval": "Zincir üstü betik işlemi reddetti. Sayfayı yüklediğinizden bu yana pool veya ücret shard'ı değişmiş olabilir. Yenileyip tekrar deneyin.",
     "no_utxos": "Cüzdanınızda bu işlem için harcanabilir UTxO yok.",
+    "no_fee_shards": "Tüm ücret shard'ları şu anda harcanıyor. Birkaç saniye bekleyip tekrar deneyin.",
     "user_rejected": "Cüzdan istemini reddettiniz.",
     "collateral_unreachable": "Teminat sağlayıcısına ulaşılamıyor. Toparlanmasını bekleyip tekrar deneyin."
   },

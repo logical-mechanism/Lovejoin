@@ -82,6 +82,7 @@
     "cbor": "Mã hoá giao dịch thất bại. Đây là một lỗi, vui lòng báo cáo.",
     "script_eval": "Script trên chuỗi đã từ chối giao dịch. Pool hoặc fee shard có thể đã thay đổi từ khi bạn tải trang. Tải lại và thử lại.",
     "no_utxos": "Ví của bạn không có UTxO khả dụng cho giao dịch này.",
+    "no_fee_shards": "Tất cả fee shard đang được sử dụng. Hãy đợi vài giây rồi thử lại.",
     "user_rejected": "Bạn đã từ chối yêu cầu của ví.",
     "collateral_unreachable": "Không thể kết nối tới nhà cung cấp tài sản đảm bảo. Hãy đợi nó phục hồi rồi thử lại."
   },

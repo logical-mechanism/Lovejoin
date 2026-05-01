@@ -38,6 +38,7 @@ import { RecoverPasswordPanel } from "../components/RecoverPasswordPanel.js";
 import { TxBuildProgress } from "../components/TxBuildProgress.js";
 import { useToast } from "../components/Toaster.js";
 import { WithdrawReview } from "../components/WithdrawReview.js";
+import { friendlyErrorMessage } from "../lib/errors.js";
 import { formatAda } from "../lib/format.js";
 import { validateDestination } from "../lib/seedelf.js";
 import { withdrawPhases } from "../lib/tx-phases.js";
@@ -326,7 +327,7 @@ function UnlockedVault() {
       toast.push({
         tone: "error",
         title: busy ? t("tx.busy_title") : t("toast.withdraw_failed"),
-        detail: busy ? t("tx.busy_detail") : (err as Error).message,
+        detail: busy ? t("tx.busy_detail") : friendlyErrorMessage((err as Error).message, t),
       });
     } finally {
       setSubmitting(false);

@@ -82,6 +82,7 @@
     "cbor": "Pengkodean transaksi gagal. Ini adalah bug, mohon laporkan.",
     "script_eval": "Skrip on-chain menolak transaksi. Pool atau fee shard mungkin berubah sejak Anda memuat halaman. Muat ulang dan coba lagi.",
     "no_utxos": "Dompet Anda tidak punya UTxO yang bisa dibelanjakan untuk transaksi ini.",
+    "no_fee_shards": "Semua fee shard sedang dibelanjakan. Tunggu beberapa detik lalu coba lagi.",
     "user_rejected": "Anda menolak permintaan dompet.",
     "collateral_unreachable": "Penyedia collateral tidak terjangkau. Tunggu hingga pulih lalu coba lagi."
   },

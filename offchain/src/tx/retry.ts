@@ -29,8 +29,12 @@
  *     set" error. Most reliable signal.
  *   * `ValueNotConservedUTxO` - sometimes follows BadInputsUTxO when a
  *     consumed input was a different size.
- *   * `input not found` / `unknown input` - looser matches that show up
- *     in some Ogmios/mesh error stringifications.
+ *   * `input not found` / `unknown input` / `unknown UTxO reference` /
+ *     `unknownOutputReferences` - looser matches that show up in Ogmios
+ *     and mesh error stringifications.
+ *   * Ogmios JSON-RPC code 3117 - "The transaction contains unknown
+ *     UTxO references as inputs". Same root cause: the input was spent
+ *     between build and submit.
  *
  * Anything else (script eval, fee too low, datum mismatch, etc.) is a
  * non-retryable failure and surfaces to the caller.
@@ -53,8 +57,11 @@ export function isInputCollisionError(err: unknown): boolean {
   return (
     msg.includes("BadInputsUTxO") ||
     msg.includes("ValueNotConservedUTxO") ||
+    msg.includes("unknownOutputReferences") ||
     /\binput not found\b/i.test(msg) ||
-    /\bunknown input\b/i.test(msg)
+    /\bunknown input\b/i.test(msg) ||
+    /\bunknown utxo reference/i.test(msg) ||
+    /ogmios[^]*\berror\s*3117\b/i.test(msg)
   );
 }
 

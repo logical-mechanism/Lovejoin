@@ -82,6 +82,7 @@
     "cbor": "Kodowanie transakcji nie powiodło się. To bug, zgłoś proszę.",
     "script_eval": "Skrypt on-chain odrzucił transakcję. Pool albo fee shard mogły się zmienić od czasu wczytania strony. Odśwież i spróbuj ponownie.",
     "no_utxos": "Twój portfel nie ma wydatkowalnych UTxO dla tej transakcji.",
+    "no_fee_shards": "Wszystkie shardy opłat są obecnie wydawane. Poczekaj kilka sekund i spróbuj ponownie.",
     "user_rejected": "Odrzuciłeś prośbę portfela.",
     "collateral_unreachable": "Dostawca collateralu nieosiągalny. Poczekaj na powrót i spróbuj ponownie."
   },
