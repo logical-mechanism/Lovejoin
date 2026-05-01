@@ -22,9 +22,11 @@ backend/dist
 offchain/dist
 ui/dist
 
-# Bulk dev-only directories
+# Bulk dev-only directories. `papers/` is intentionally NOT excluded:
+# ui/Dockerfile copies it in so ui/scripts/copy-papers.mjs can land
+# the whitepaper PDFs under /papers/* in the static bundle. Without
+# this carve-out the UI build fails with ENOENT on /app/papers/*.pdf.
 docs
-papers
 bench
 crypto/ref/target
 
