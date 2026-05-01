@@ -408,6 +408,51 @@ test pay_mix_fee_rejects_native_asset_in_output() fail {
   )
 }
 
+test pay_mix_fee_rejects_native_asset_in_input() fail {
+  // Spec §3 PayMixFee rule 6: no native assets in the fee input either —
+  // `expect_ada_only_lovelace(input.output.value)` aborts on the fee shard
+  // input fold step.
+  let mix_inputs = build_mix_inputs(2)
+  let unit: Data = Void
+  let dirty_value =
+    assets.merge(
+      assets.from_lovelace(default_fee_in),
+      assets.from_asset(
+        #"33333333333333333333333333333333333333333333333333333333",
+        "junk",
+        1,
+      ),
+    )
+  let dirty_fee_in =
+    Input {
+      output_reference: out_ref(fee_input_byte, 0),
+      output: Output {
+        address: script_address(fee_script_hash),
+        value: dirty_value,
+        datum: InlineDatum(unit),
+        reference_script: None,
+      },
+    }
+  let fee_out = fee_shard_output(default_fee_in - 200_000)
+  let tx =
+    Transaction {
+      ..transaction.placeholder,
+      reference_inputs: [default_reference_input()],
+      inputs: list.concat(mix_inputs, [dirty_fee_in]),
+      outputs: [fee_out],
+      fee: 200_000,
+      redeemers: [Pair(Withdraw(Script(mix_logic_hash)), bogus_mix_redeemer(2))],
+    }
+  fee_contract.fee_contract.spend(
+    ref_nft_policy,
+    ref_nft_name,
+    Some(unit),
+    PayMixFee,
+    dirty_fee_in.output_reference,
+    tx,
+  )
+}
+
 // ---------------------------------------------------------------------------
 // F-1 regression — PayMixFee must reject Owner-branch txs even when the
 // structural input-count gate is satisfied. Without this, an attacker who
@@ -573,6 +618,149 @@ test replenish_rejects_no_fee_output() fail {
     Some(unit),
     Replenish,
     fee_in.output_reference,
+    tx,
+  )
+}
+
+test replenish_rejects_two_fee_outputs() fail {
+  // Spec §3 Replenish rule 1: exactly one fee output. Two fee outputs would
+  // increase shard count (drift away from `fee_shard_target` = 10) and break
+  // SDK random-shard selection. Pattern-match on `[fee_output]` aborts.
+  let fee_in = fee_shard_input(fee_input_byte, 0, 5_000_000)
+  let fee_out_a = fee_shard_output(7_000_000)
+  let fee_out_b = fee_shard_output(1_000_000)
+  let tx =
+    Transaction {
+      ..transaction.placeholder,
+      reference_inputs: [default_reference_input()],
+      inputs: [fee_in],
+      outputs: [fee_out_a, fee_out_b],
+      fee: 0,
+    }
+  let unit: Data = Void
+  fee_contract.fee_contract.spend(
+    ref_nft_policy,
+    ref_nft_name,
+    Some(unit),
+    Replenish,
+    fee_in.output_reference,
+    tx,
+  )
+}
+
+test replenish_rejects_non_unit_datum_on_output() {
+  // Spec §3 Replenish rule 1: datum unchanged. The fee shard's datum must
+  // remain `()` after replenish; an integer-shaped datum on the output makes
+  // `is_unit_inline_datum` return False, which makes `validate_replenish`
+  // return False (no abort).
+  let fee_in = fee_shard_input(fee_input_byte, 0, 5_000_000)
+  let bad_datum: Data = 42
+  let fee_out =
+    Output {
+      address: script_address(fee_script_hash),
+      value: assets.from_lovelace(8_000_000),
+      datum: InlineDatum(bad_datum),
+      reference_script: None,
+    }
+  let tx =
+    Transaction {
+      ..transaction.placeholder,
+      reference_inputs: [default_reference_input()],
+      inputs: [fee_in],
+      outputs: [fee_out],
+      fee: 0,
+    }
+  let unit: Data = Void
+  !fee_contract.fee_contract.spend(
+    ref_nft_policy,
+    ref_nft_name,
+    Some(unit),
+    Replenish,
+    fee_in.output_reference,
+    tx,
+  )
+}
+
+test replenish_rejects_native_asset_in_output() fail {
+  // Spec §3 Replenish rule 3: no native assets in fee input/output.
+  // `expect_ada_only_lovelace(fee_output.value)` aborts on the dirty output.
+  let fee_in = fee_shard_input(fee_input_byte, 0, 5_000_000)
+  let unit: Data = Void
+  let dirty_value =
+    assets.merge(
+      assets.from_lovelace(8_000_000),
+      assets.from_asset(
+        #"33333333333333333333333333333333333333333333333333333333",
+        "junk",
+        1,
+      ),
+    )
+  let fee_out =
+    Output {
+      address: script_address(fee_script_hash),
+      value: dirty_value,
+      datum: InlineDatum(unit),
+      reference_script: None,
+    }
+  let tx =
+    Transaction {
+      ..transaction.placeholder,
+      reference_inputs: [default_reference_input()],
+      inputs: [fee_in],
+      outputs: [fee_out],
+      fee: 0,
+    }
+  fee_contract.fee_contract.spend(
+    ref_nft_policy,
+    ref_nft_name,
+    Some(unit),
+    Replenish,
+    fee_in.output_reference,
+    tx,
+  )
+}
+
+test replenish_rejects_native_asset_in_input() fail {
+  // Spec §3 Replenish rule 3 applied to the input side. A fee shard that
+  // accidentally accumulated a native asset can't be replenished — the only
+  // way to clean it up is via the Rule-2 recovery path (datum != unit), which
+  // doesn't apply to a properly-`()`-tagged shard. Same `expect_ada_only`
+  // abort as the output case, on the input fold.
+  let unit: Data = Void
+  let dirty_value =
+    assets.merge(
+      assets.from_lovelace(5_000_000),
+      assets.from_asset(
+        #"33333333333333333333333333333333333333333333333333333333",
+        "junk",
+        1,
+      ),
+    )
+  let dirty_fee_in =
+    Input {
+      output_reference: out_ref(fee_input_byte, 0),
+      output: Output {
+        address: script_address(fee_script_hash),
+        value: dirty_value,
+        datum: InlineDatum(unit),
+        reference_script: None,
+      },
+    }
+  let fee_out = fee_shard_output(8_000_000)
+  let tx =
+    Transaction {
+      ..transaction.placeholder,
+      reference_inputs: [default_reference_input()],
+      inputs: [dirty_fee_in],
+      outputs: [fee_out],
+      fee: 0,
+    }
+  fee_contract.fee_contract.spend(
+    ref_nft_policy,
+    ref_nft_name,
+    Some(unit),
+    Replenish,
+    dirty_fee_in.output_reference,
     tx,
   )
 }
