@@ -162,14 +162,19 @@ jobs:
       - name: Build SDK (for downstream resolution)
         run: pnpm --filter @lovejoin/sdk run build
 
+      # `pnpm --filter X test --coverage` forwards `--coverage` to vitest;
+      # `pnpm --filter X run test -- --coverage` does NOT in pnpm 10 (the
+      # `--` form swallows the flag silently and produces no lcov, which
+      # then fails actions/upload-artifact's if-no-files-found gate). Use
+      # the implicit-script shorthand.
       - name: Coverage — offchain
-        run: pnpm --filter @lovejoin/sdk run test -- --coverage
+        run: pnpm --filter @lovejoin/sdk test --coverage
 
       - name: Coverage — backend
-        run: pnpm --filter @lovejoin/backend run test -- --coverage
+        run: pnpm --filter @lovejoin/backend test --coverage
 
       - name: Coverage — ui
-        run: pnpm --filter @lovejoin/ui run test -- --coverage
+        run: pnpm --filter @lovejoin/ui test --coverage
 
       - name: Upload lcov reports
         uses: actions/upload-artifact@v4
