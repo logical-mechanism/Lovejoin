@@ -626,6 +626,14 @@
     background: var(--color-rise);
   }
 
+  /* Lazy-route Suspense placeholder — invisible spacer, not a spinner.
+   * Code-split chunks usually arrive in <100ms on warm caches; flashing a
+   * spinner for that long reads worse than a blank pane. The route's own
+   * loaded UI replaces this on Suspense resolve. */
+  .lj-route-fallback {
+    min-height: 12rem;
+  }
+
   /* Hero: mono headline, large but tight. No serif. */
   .lj-hero {
     padding: 3rem 0 1.5rem;

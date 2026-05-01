@@ -17,6 +17,7 @@ import {
 import { useTranslation } from "react-i18next";
 
 import { probeBackend, type BackendProbeResult } from "../lib/backend-status.js";
+import { useAfterFirstPaint } from "../lib/use-after-first-paint.js";
 
 interface BackendStatusValue {
   result: BackendProbeResult | null;
@@ -58,9 +59,14 @@ export function BackendStatusProvider({
     };
   }, [backendUrl, fetchFn]);
 
+  // Same first-paint gate the collateral probe uses — keeps the /health
+  // request off the LCP-critical connection pool. Once `ready` flips,
+  // the probe runs immediately and the 15s polling kicks in.
+  const ready = useAfterFirstPaint(skip);
   useEffect(() => {
     cancelledRef.current = false;
     if (skip) return;
+    if (!ready) return;
     void refresh();
     const id = window.setInterval(() => {
       void refresh();
@@ -69,7 +75,7 @@ export function BackendStatusProvider({
       cancelledRef.current = true;
       window.clearInterval(id);
     };
-  }, [refresh, pollMs, skip]);
+  }, [refresh, pollMs, skip, ready]);
 
   const value: BackendStatusValue = { result, refresh: () => void refresh() };
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;

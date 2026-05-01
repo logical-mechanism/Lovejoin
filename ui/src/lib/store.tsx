@@ -42,6 +42,7 @@ import {
   saveConfig,
   type RuntimeConfig,
 } from "./sdk.js";
+import { useAfterFirstPaint } from "./use-after-first-paint.js";
 import {
   scanPool,
   unlockFromPassword,
@@ -196,9 +197,18 @@ export function AppStateProvider({ children, testOverrides }: AppStateProviderPr
     [provider],
   );
 
+  // addresses.<network>.json is a static asset shipped from /public.
+  // Home doesn't need it (the hero + pillars are pure i18n strings),
+  // so we defer the fetch until after first paint — that takes the
+  // request off the LCP-critical connection pool. Other routes that
+  // depend on `addresses` already gate their UI on `addresses != null`.
+  const addressesReady = useAfterFirstPaint(
+    testOverrides?.skipAddressLoad === true || testOverrides?.addresses != null,
+  );
   useEffect(() => {
     if (testOverrides?.skipAddressLoad) return;
     if (testOverrides?.addresses) return;
+    if (!addressesReady) return;
     let cancelled = false;
     setAddresses(null);
     setAddressesError(null);
@@ -212,7 +222,12 @@ export function AppStateProvider({ children, testOverrides }: AppStateProviderPr
     return () => {
       cancelled = true;
     };
-  }, [config.network, testOverrides?.addresses, testOverrides?.skipAddressLoad]);
+  }, [
+    config.network,
+    addressesReady,
+    testOverrides?.addresses,
+    testOverrides?.skipAddressLoad,
+  ]);
 
   const setWallet = useCallback(
     (args: { wallet: BrowserWallet; walletId: string; changeAddress: string } | null) => {
