@@ -1,0 +1,6 @@
+# https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-code-owners
+#
+# CODEOWNERS for lovejoin. Until additional maintainers are added, the
+# project lead reviews everything.
+
+* @logicalmechanism
