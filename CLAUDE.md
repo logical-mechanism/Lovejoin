@@ -6,9 +6,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 M0 through M7 have landed end-to-end on Preprod. The deployed protocol is the v1 protocol — empirical caps are **N=3 via fee shard** and **N=4 via wallet collateral**, and lifting either is blocked on a Cardano `max_tx_ex_units` bump (out of our control). M4.5's "redeploy with optimized validators" path is therefore closed; the optimization landed where it could and the rest is parked under `post-v1`.
 
-**Remaining for v1.0.0**: engineering hardening — ESLint/Prettier baseline, test coverage instrumentation, Playwright E2E in CI, repo-governance docs, component READMEs, SDK TSDoc + backend OpenAPI, user-facing docs, security review + bounty, "unaudited / Preprod only" disclosure UX, custom domain (`lovejo.in` prod + `preprod.lovejo.in` staging), monitoring + runbook, semver-tag-driven releases + Dependabot, stale-doc cleanup, pre-launch verification.
+**Remaining for v1.0.0**: engineering hardening — test coverage instrumentation, Playwright E2E in CI, repo-governance docs, component READMEs, SDK TSDoc + backend OpenAPI, user-facing docs, security review + bounty, "unaudited / Preprod only" disclosure UX, custom domain (`lovejo.in` prod + `preprod.lovejo.in` staging), monitoring + runbook, semver-tag-driven releases + Dependabot, stale-doc cleanup, pre-launch verification. (ESLint/Prettier baseline + husky pre-commit + CI lint job landed in #36.)
 
-This work is tracked as 15 GitHub issues on the `v1.0.0` milestone (`gh issue list --milestone v1.0.0`), not as sub-milestones in [milestones.json](milestones.json). The plan that broke them out is at `/home/logic/.claude/plans/we-are-going-to-abundant-backus.md`. Run `/work <issue-number>` (e.g. `/work 36`) to start a session on any of them. Deferred items live under the `post-v1` label.
+This work is tracked as GitHub issues on the `v1.0.0` milestone (`gh issue list --milestone v1.0.0`), not as sub-milestones in [milestones.json](milestones.json). The plan that broke them out is at `/home/logic/.claude/plans/we-are-going-to-abundant-backus.md`. Run `/work <issue-number>` to start a session on any of them. Deferred items live under the `post-v1` label.
 
 When in doubt, treat [docs/spec/](docs/spec/) as authoritative. The README is a summary; the spec is canonical. [milestones.json](milestones.json) is the source of truth for milestone-scoped work (M0–M7); the `/milestones` slash command lists them. For v1.0.0 hardening work, GitHub issues are the source of truth and `/work <issue-number>` is the entry point.
 
@@ -55,7 +55,7 @@ config/network.{test,preprod,mainnet}.json   Read into the on-chain reference UT
 artifacts/{test,preprod}/   Compiled .plutus and addresses.json (preprod is the live alpha deployment).
 ```
 
-Workspace tool: **pnpm 10**. Top-level `Makefile` targets: `make install`, `make build`, `make test`, `make lint` (aiken fmt --check + tsc --noEmit), `make contracts`, `make ui-dev`, `make backend-dev`, `make cli`/`make deposit`/`make withdraw`/`make integration-test` (.env-driven), `make clean` (`make help` lists them all). See [README.md](README.md) §Develop for the local-dev gotcha (snap-shim `node` under VSCode breaks pnpm; use nvm node on PATH).
+Workspace tool: **pnpm 10**. Top-level `Makefile` targets: `make install`, `make build`, `make test`, `make lint` (tsc --noEmit + eslint + prettier --check across TS workspaces + aiken fmt --check), `make format` (prettier --write + eslint --fix), `make contracts`, `make ui-dev`, `make backend-dev`, `make cli`/`make deposit`/`make withdraw`/`make integration-test` (.env-driven), `make clean` (`make help` lists them all). A husky `pre-commit` hook runs `lint-staged` (prettier + eslint --fix on staged files) — fix locally rather than `--no-verify`. See [README.md](README.md) §Develop for the local-dev gotcha (snap-shim `node` under VSCode breaks pnpm; use nvm node on PATH).
 
 ## Build history (what shipped vs. what's next)
 
