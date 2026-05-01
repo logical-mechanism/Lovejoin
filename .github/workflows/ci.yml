@@ -136,3 +136,48 @@ jobs:
 
       - name: scripts/check-reproducibility.sh
         run: ./scripts/check-reproducibility.sh
+
+  coverage:
+    name: TS coverage (v8 lcov artifact)
+    # Soft target: 70% lines on offchain/src/crypto/. Numbers are tracked
+    # in docs/test-coverage.md. We do not enforce a vitest threshold here
+    # — per CLAUDE.md "no third-party telemetry", we never wired Codecov,
+    # so the lcov artifact is the audit trail. Failing CI on a coverage
+    # dip would punish unrelated PRs; the doc + artifact is the contract.
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install
+        run: pnpm install --frozen-lockfile
+
+      - name: Build SDK (for downstream resolution)
+        run: pnpm --filter @lovejoin/sdk run build
+
+      - name: Coverage — offchain
+        run: pnpm --filter @lovejoin/sdk run test -- --coverage
+
+      - name: Coverage — backend
+        run: pnpm --filter @lovejoin/backend run test -- --coverage
+
+      - name: Coverage — ui
+        run: pnpm --filter @lovejoin/ui run test -- --coverage
+
+      - name: Upload lcov reports
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-lcov
+          path: |
+            offchain/coverage/lcov.info
+            backend/coverage/lcov.info
+            ui/coverage/lcov.info
+          if-no-files-found: error
+          retention-days: 30
