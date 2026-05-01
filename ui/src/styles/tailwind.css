@@ -1022,6 +1022,10 @@
     padding: 1rem 1.25rem;
     color: var(--color-paper);
     overflow-x: auto;
+    /* Defensive: keep the block inside its parent on narrow viewports
+     * so the page itself doesn't gain a horizontal scrollbar — the
+     * math content scrolls inside this box, not the document. */
+    max-width: 100%;
   }
   .lj-math em {
     font-style: italic;
@@ -1034,6 +1038,20 @@
     font-size: 0.95rem;
     line-height: 1.65;
     max-width: 42rem;
+    /* The article is a flex child of `.lj-main` (flex column). Without
+     * `min-width: 0` the default `min-width: auto` would let any inline
+     * `<code>` token (paths like `contracts/validators/mix_logic.ak`,
+     * 48-byte hex hashes if we ever inline them) push the article's
+     * intrinsic min-width past the viewport on phones, producing the
+     * classic "page scrolls left/right" failure. `overflow-wrap` then
+     * lets long tokens wrap at any character so paragraphs reflow
+     * cleanly inside the constrained width. */
+    min-width: 0;
+    overflow-wrap: anywhere;
+  }
+  .lj-prose code,
+  .lj-prose a {
+    overflow-wrap: anywhere;
   }
   .lj-prose h2 {
     font-family: var(--font-mono);

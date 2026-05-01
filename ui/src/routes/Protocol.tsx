@@ -145,7 +145,7 @@ verify:    [s] · a ≟ t + [c] · b`}</code>
             paper: (
               <a
                 className="text-amber underline-offset-4 hover:underline"
-                href="https://github.com/logical-mechanism/Lovejoin/blob/main/papers/sigmajoin.pdf"
+                href="/papers/sigmajoin.pdf"
                 target="_blank"
                 rel="noopener noreferrer"
               />

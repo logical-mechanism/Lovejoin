@@ -11,6 +11,11 @@ build/
 ui/dist/
 ui/.vite/
 
+# Build-time mirror of the whitepaper PDFs. Source of truth is
+# `papers/` at the repo root; ui/scripts/copy-papers.mjs copies them
+# into ui/public/papers/ so vite bundles them under /papers/*.pdf.
+ui/public/papers/
+
 # Aiken
 contracts/build/
 contracts/.build/
