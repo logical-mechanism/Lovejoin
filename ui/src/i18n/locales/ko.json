@@ -44,6 +44,36 @@
     "busy_title": "잠시 후 다시 시도하세요",
     "busy_detail": "프로토콜이 혼잡합니다: 대상 UTxO가 모두 다른 트랜잭션에 의해 소비되었습니다. 몇 초 기다린 뒤 다시 제출하세요."
   },
+  "tx_progress": {
+    "deposit": {
+      "derive": "소유자 비밀키 파생 중…",
+      "shard": "수수료 샤드 선택 중…",
+      "build": "트랜잭션 구성 중…",
+      "sign": "지갑 서명 대기 중…",
+      "submit": "체인에 전송 중…"
+    },
+    "donate": {
+      "shard": "수수료 샤드 선택 중…",
+      "build": "트랜잭션 구성 중…",
+      "sign": "지갑 서명 대기 중…",
+      "submit": "체인에 전송 중…"
+    },
+    "mix": {
+      "select": "풀 박스 선택 중…",
+      "shard": "수수료 샤드 선택 중…",
+      "proof": "시그마 OR 증명 생성 중 (N={{n}})…",
+      "collateral": "담보 가져오는 중…",
+      "build": "트랜잭션 구성 중…",
+      "submit": "체인에 전송 중…"
+    },
+    "withdraw": {
+      "proof": "Schnorr 증명 생성 중…",
+      "collateral": "담보 가져오는 중…",
+      "build": "트랜잭션 구성 중…",
+      "sign": "지갑 서명 대기 중…",
+      "submit": "체인에 전송 중…"
+    }
+  },
   "errors": {
     "network": "네트워크 오류. 연결을 확인하고 다시 시도해 주세요.",
     "blockfrost_auth": "Blockfrost가 요청을 거부했습니다. 이 네트워크에서 VITE_BLOCKFROST_PROJECT_ID가 유효하지 않은 것 같습니다.",

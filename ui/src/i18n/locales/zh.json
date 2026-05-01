@@ -44,6 +44,36 @@
     "busy_title": "请稍后再试",
     "busy_detail": "协议当前繁忙：所有目标 UTxO 都被另一笔交易消耗了。等几秒后再次提交。"
   },
+  "tx_progress": {
+    "deposit": {
+      "derive": "正在推导持有者密钥…",
+      "shard": "正在选择费用分片…",
+      "build": "正在构建交易…",
+      "sign": "等待钱包签名…",
+      "submit": "正在提交到链上…"
+    },
+    "donate": {
+      "shard": "正在选择费用分片…",
+      "build": "正在构建交易…",
+      "sign": "等待钱包签名…",
+      "submit": "正在提交到链上…"
+    },
+    "mix": {
+      "select": "正在选择池中的盒子…",
+      "shard": "正在选择费用分片…",
+      "proof": "正在生成 sigma-OR 证明（N={{n}}）…",
+      "collateral": "正在获取抵押…",
+      "build": "正在构建交易…",
+      "submit": "正在提交到链上…"
+    },
+    "withdraw": {
+      "proof": "正在生成 Schnorr 证明…",
+      "collateral": "正在获取抵押…",
+      "build": "正在构建交易…",
+      "sign": "等待钱包签名…",
+      "submit": "正在提交到链上…"
+    }
+  },
   "errors": {
     "network": "网络错误。请检查连接后重试。",
     "blockfrost_auth": "Blockfrost 拒绝了请求。你的 VITE_BLOCKFROST_PROJECT_ID 在此网络下无效。",

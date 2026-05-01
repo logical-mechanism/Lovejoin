@@ -29,10 +29,12 @@ import {
 import { useAppState } from "../lib/store.js";
 import { Eyebrow } from "../components/ui/Eyebrow.js";
 import { Hash } from "../components/ui/Hash.js";
+import { TxBuildProgress } from "../components/TxBuildProgress.js";
 import { useToast } from "../components/Toaster.js";
 import { WithdrawReview } from "../components/WithdrawReview.js";
 import { formatAda } from "../lib/format.js";
 import { validateDestination } from "../lib/seedelf.js";
+import { withdrawPhases } from "../lib/tx-phases.js";
 
 export function Box() {
   const { t } = useTranslation();
@@ -301,11 +303,13 @@ export function Box() {
               </div>
             </fieldset>
           </form>
-          {submitting && (
-            <div className="lj-overlay__indicator">
-              <div className="lj-spinner" aria-label={t("withdraw.submitting")} />
-            </div>
-          )}
+          <div className="lj-overlay__indicator">
+            <TxBuildProgress
+              active={submitting}
+              phases={withdrawPhases(t)}
+              ariaLabel={t("withdraw.submitting")}
+            />
+          </div>
         </section>
       )}
     </>

@@ -44,6 +44,36 @@
     "busy_title": "Hãy thử lại sau giây lát",
     "busy_detail": "Giao thức đang bận: mọi UTxO mục tiêu đều bị một giao dịch khác tiêu thụ. Đợi vài giây rồi gửi lại."
   },
+  "tx_progress": {
+    "deposit": {
+      "derive": "Đang dẫn xuất khóa bí mật chủ sở hữu…",
+      "shard": "Đang chọn shard phí…",
+      "build": "Đang dựng giao dịch…",
+      "sign": "Đang chờ chữ ký ví…",
+      "submit": "Đang gửi lên chain…"
+    },
+    "donate": {
+      "shard": "Đang chọn shard phí…",
+      "build": "Đang dựng giao dịch…",
+      "sign": "Đang chờ chữ ký ví…",
+      "submit": "Đang gửi lên chain…"
+    },
+    "mix": {
+      "select": "Đang chọn hộp trong pool…",
+      "shard": "Đang chọn shard phí…",
+      "proof": "Đang tạo bằng chứng sigma-OR (N={{n}})…",
+      "collateral": "Đang lấy tài sản thế chấp…",
+      "build": "Đang dựng giao dịch…",
+      "submit": "Đang gửi lên chain…"
+    },
+    "withdraw": {
+      "proof": "Đang tạo bằng chứng Schnorr…",
+      "collateral": "Đang lấy tài sản thế chấp…",
+      "build": "Đang dựng giao dịch…",
+      "sign": "Đang chờ chữ ký ví…",
+      "submit": "Đang gửi lên chain…"
+    }
+  },
   "errors": {
     "network": "Lỗi mạng. Hãy kiểm tra kết nối và thử lại.",
     "blockfrost_auth": "Blockfrost đã từ chối yêu cầu. VITE_BLOCKFROST_PROJECT_ID có vẻ không hợp lệ cho mạng này.",

@@ -38,11 +38,13 @@ import {
 } from "../components/CollateralProviderStatus.js";
 import { Eyebrow } from "../components/ui/Eyebrow.js";
 import { useToast } from "../components/Toaster.js";
+import { TxBuildProgress } from "../components/TxBuildProgress.js";
 import { BackendClient } from "../lib/backend.js";
 import { formatAda } from "../lib/format.js";
 import { fetchPoolDirect, type DirectPoolEntry } from "../lib/pool.js";
 import { useAppState } from "../lib/store.js";
 import { friendlyErrorMessage } from "../lib/errors.js";
+import { mixPhases } from "../lib/tx-phases.js";
 import { useVisibleRefresh } from "../lib/use-visible-refresh.js";
 
 export function Pool() {
@@ -351,11 +353,13 @@ export function Pool() {
           )}
         </div>
 
-        {mixSubmitting && (
-          <div className="lj-overlay__indicator">
-            <div className="lj-spinner" aria-label={t("pool.mix_submitting")} />
-          </div>
-        )}
+        <div className="lj-overlay__indicator">
+          <TxBuildProgress
+            active={mixSubmitting}
+            phases={mixPhases(t, n)}
+            ariaLabel={t("pool.mix_submitting")}
+          />
+        </div>
       </section>
     </>
   );

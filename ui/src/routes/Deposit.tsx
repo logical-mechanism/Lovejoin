@@ -17,9 +17,11 @@ import { buildBulkDepositTx } from "@lovejoin/sdk";
 import { useAppState } from "../lib/store.js";
 import { Eyebrow } from "../components/ui/Eyebrow.js";
 import { RecoverPasswordPanel } from "../components/RecoverPasswordPanel.js";
+import { TxBuildProgress } from "../components/TxBuildProgress.js";
 import { useToast } from "../components/Toaster.js";
 import { deriveDepositSecret } from "../lib/vault.js";
 import { formatAda } from "../lib/format.js";
+import { depositPhases } from "../lib/tx-phases.js";
 
 export function Deposit() {
   const { t } = useTranslation();
@@ -289,11 +291,13 @@ export function Deposit() {
         </fieldset>
       </form>
 
-      {submitting && (
-        <div className="lj-overlay__indicator">
-          <div className="lj-spinner" aria-label={t("deposit.submitting")} />
-        </div>
-      )}
+      <div className="lj-overlay__indicator">
+        <TxBuildProgress
+          active={submitting}
+          phases={depositPhases(t)}
+          ariaLabel={t("deposit.submitting")}
+        />
+      </div>
     </section>
   );
 }
