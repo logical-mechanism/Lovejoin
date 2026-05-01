@@ -2,9 +2,13 @@
 
 All notable changes to this project are documented here.
 
-The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html) once v1.0.0 is tagged.
+The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
-Until v1.0.0 ships, the `Unreleased` section is the canonical record of what is on the road to the first tagged release.
+## Versioning
+
+Lovejoin is alpha on Preprod and does not yet expose a public API surface, so we don't follow [SemVer](https://semver.org/) yet. Instead, each section is dated to the day a `dev` branch rollup merged into `main`. Day-to-day work accumulates under `Unreleased` while it lives on `dev`; on rollup day we rename `Unreleased` to that day's date and open a fresh `Unreleased` section.
+
+We will switch to SemVer at v1.0.0, when the audit / mainnet boundary makes versioning a real contract with users.
 
 ## [Unreleased]
 
@@ -12,14 +16,13 @@ Until v1.0.0 ships, the `Unreleased` section is the canonical record of what is 
 
 - Repo governance and open-source artifacts: `LICENSE` (MIT), `CONTRIBUTING.md`, `SECURITY.md`, `CODE_OF_CONDUCT.md` (Contributor Covenant 2.1 by reference), `CODEOWNERS`, `.editorconfig`, GitHub issue templates (bug, feature, security pointer), GitHub PR template, and this changelog.
 
-### Notes
+### Changed
 
-- Lovejoin is **alpha on Cardano Preprod**. No real funds are at stake. The protocol has not been audited.
-- Empirical mix width is **N=3 via fee shard** and **N=4 via wallet collateral**. Lifting either ceiling depends on a Cardano `max_tx_ex_units` increase that is outside this project's control.
+- Switched the changelog versioning model from SemVer-style `[0.7.0]` to date-based `[YYYY-MM-DD]` entries, one per `dev → main` rollup, until v1.0.0.
 
-## [0.7.0] (M0 through M7, summary)
+## [2026-05-01]
 
-This summarizes the build that brought the repo from green-field to a working alpha on Preprod. Individual commits are the authoritative history; this entry gives the shape of what landed.
+Snapshot of `main` at the most recent `dev → main` rollup (PR #62). Consolidates M0 through M7 — the work that brought the repo from green-field to a working alpha on Preprod. Individual commits are the authoritative history; this entry gives the shape of what landed.
 
 ### Added
 
@@ -44,6 +47,3 @@ This summarizes the build that brought the repo from green-field to a working al
 - **N capped empirically.** Mix txs run to N=3 inside the per-tx CPU budget when paying fees from a fee shard, and to N=4 when paying via wallet collateral. The optimization branch parks the rest of the gain under `post-v1`.
 - **No audit.** A formal review must precede any mainnet deployment.
 - **Disclosure UX.** "Unaudited / Preprod only" surfaces are tracked under v1.0.0 hardening issues.
-
-[unreleased]: https://github.com/logical-mechanism/Lovejoin/compare/v0.7.0...HEAD
-[0.7.0]: https://github.com/logical-mechanism/Lovejoin/releases/tag/v0.7.0
