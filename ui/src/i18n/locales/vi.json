@@ -13,7 +13,8 @@
     "tx_hash": "Tx",
     "address": "Địa chỉ",
     "amount": "Số lượng",
-    "fee": "Phí"
+    "fee": "Phí",
+    "copy_value": "Sao chép {{value}} vào clipboard"
   },
   "page_title": {
     "app": "Lovejoin",
@@ -132,7 +133,10 @@
     "disconnect_eyebrow": "Ví",
     "disconnect_title": "Ngắt kết nối ví?",
     "disconnect_lede": "Két phiên sẽ bị khoá và lần kết nối tiếp theo sẽ yêu cầu ký lại. Các hộp không bị ảnh hưởng, chúng sống trên chuỗi.",
-    "disconnect_confirm": "Ngắt kết nối"
+    "disconnect_confirm": "Ngắt kết nối",
+    "connect_to": "Kết nối với {{name}}",
+    "list_aria_label": "Ví đã cài đặt",
+    "modal_lede": "Ví của bạn mặc định làm ba việc: một chữ ký để dẫn xuất kho lưu trữ của bạn, cộng thêm một chữ ký cho mỗi lần gửi và mỗi lần rút. Các tx Mix ẩn danh đối với ví ở chế độ shard (mặc định), nên ví của bạn hoàn toàn không xuất hiện trên tx."
   },
   "pool": {
     "section_title": "Trộn",
@@ -176,7 +180,17 @@
     "empty_cta": "Tạo một giao dịch gửi",
     "confirm_eyebrow": "Kiểm tra cuối cùng",
     "confirm_title": "Xác nhận tx Trộn",
-    "confirm_submit": "Xác nhận và gửi"
+    "confirm_submit": "Xác nhận và gửi",
+    "eyebrow": "Bước II · trộn pool",
+    "lede": "Ai cũng có thể trộn pool; không có người vận hành. Mỗi tx Mix tái-ngẫu-nhiên N box trong pool một lần, và bạn có hai cách trả phí. Trả từ fee shard chung và ví của bạn hoàn toàn không xuất hiện trên tx (ẩn danh phía ví). Hoặc trả từ ví của bạn, tx nhanh hơn nhưng mang theo danh tính ví.",
+    "fee_payer_shard_hint": "Mặc định. Phí lấy từ pool chung trên chuỗi (giới hạn {{cap}} ADA mỗi lần mix), tài sản thế chấp đến từ dịch vụ collateral đã cấu hình. Ví của bạn hoàn toàn không xuất hiện trên tx.",
+    "fee_payer_wallet_hint": "Ví của bạn trả phí và cung cấp tài sản thế chấp. Không có trần trên chuỗi, nhưng danh tính ví đi vào tx.",
+    "tx_preview_fee_wallet": "Phí do ví của bạn trả, ví cũng cung cấp tài sản thế chấp. Danh tính ví đi vào tx.",
+    "review_collateral_value_shard": "Cung cấp bởi dịch vụ collateral đã cấu hình",
+    "review_collateral_value_wallet": "Cung cấp bởi ví đã kết nối của bạn",
+    "review_linkage_value": "1/{{n}} mỗi vòng",
+    "confirm_lede_shard": "Lovejoin sẽ chọn ngẫu nhiên N box, yêu cầu collateral từ dịch vụ đã cấu hình và gửi tx Mix. Ở chế độ shard, bạn không ký gì; ví ở ngoài tx.",
+    "confirm_lede_wallet": "Lovejoin sẽ chọn ngẫu nhiên N box và gửi tx Mix. Ví của bạn sẽ trả phí, cung cấp collateral và ký."
   },
   "deposit": {
     "section_title": "Gửi",
@@ -194,7 +208,8 @@
     "tx_preview_title": "Xem trước giao dịch",
     "tx_preview_copy": "Ví của bạn trả mệnh giá {{denom}} ADA cộng một khoản nạp lại nhỏ vào fee shard. Cần chữ ký của ví.",
     "tx_preview_copy_bulk": "Ví của bạn trả {{total}} ADA ({{count}} × {{denom}} ADA) cộng một khoản nạp lại vào fee shard. Một chữ ký cho cả lô.",
-    "index_help": "Bộ đếm két cho khoá bí mật chủ sở hữu của giao dịch gửi này."
+    "index_help": "Bộ đếm két cho khoá bí mật chủ sở hữu của giao dịch gửi này.",
+    "lede": "Khoá mệnh giá cố định vào một mix-box mới. Ví của bạn dẫn xuất khoá chủ sở hữu Lovejoin ngay lần mở khoá đầu tiên, nên cùng chiếc ví đó khôi phục mọi khoản gửi trên bất kỳ trình duyệt nào. Không có cụm từ thêm nào để ghi chép."
   },
   "donate": {
     "section_title": "Quyên góp vào pool phí",
@@ -285,7 +300,11 @@
     "net_testnet": "testnet",
     "net_mainnet": "mainnet",
     "empty_title": "Không có hộp đã gửi để rút.",
-    "empty_hint": "Hãy gửi và đợi xác nhận. Hộp sẽ xuất hiện ở đây trong vòng một block."
+    "empty_hint": "Hãy gửi và đợi xác nhận. Hộp sẽ xuất hiện ở đây trong vòng một block.",
+    "column_b_long": "Khoá công khai b của box",
+    "column_index_long": "Chỉ mục kho: bộ đếm dẫn xuất cho bí mật chủ sở hữu này",
+    "column_select": "Chọn box",
+    "table_caption": "Mix-box thuộc sở hữu có thể rút."
   },
   "collateral_provider": {
     "ok": "Nhà cung cấp tài sản đảm bảo trực tuyến",
@@ -358,7 +377,14 @@
     "recover_unlocking": "Đang xuất seed…",
     "recover_strength_weak": "Quá yếu",
     "recover_strength_fair": "Tạm ổn",
-    "recover_strength_strong": "Mạnh"
+    "recover_strength_strong": "Mạnh",
+    "eyebrow": "Bước III · rời pool",
+    "eyebrow_recovery": "Bước III · rời pool (khôi phục)",
+    "pagination_aria": "Phân trang danh sách box trong kho",
+    "page_indicator": "Trang {{current}} / {{total}}",
+    "prev_page": "Trước",
+    "next_page": "Sau",
+    "recover_strength_announce_prefix": "Độ mạnh mật khẩu: "
   },
   "secret_card": {
     "title": "Lưu khoá bí mật này ngay",
@@ -382,5 +408,8 @@
     "not_found": "Không tìm thấy hộp tại ref đó. Có thể nó đã được rút, đã bị trộn đi, hoặc chưa từng được nhập.",
     "back_to_vault": "Quay lại két",
     "preconditions_missing": "Hãy kết nối ví và mở khoá két để rút."
+  },
+  "a11y": {
+    "skip_to_main": "Bỏ qua đến nội dung chính"
   }
 }

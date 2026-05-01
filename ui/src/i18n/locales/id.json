@@ -13,7 +13,8 @@
     "tx_hash": "Tx",
     "address": "Alamat",
     "amount": "Jumlah",
-    "fee": "Biaya"
+    "fee": "Biaya",
+    "copy_value": "Salin {{value}} ke clipboard"
   },
   "page_title": {
     "app": "Lovejoin",
@@ -132,7 +133,10 @@
     "disconnect_eyebrow": "Dompet",
     "disconnect_title": "Putuskan dompet?",
     "disconnect_lede": "Brankas sesi akan terkunci dan koneksi berikutnya akan meminta tanda tangan lagi. Kotak tidak terpengaruh, mereka hidup di chain.",
-    "disconnect_confirm": "Putuskan"
+    "disconnect_confirm": "Putuskan",
+    "connect_to": "Hubungkan ke {{name}}",
+    "list_aria_label": "Dompet terpasang",
+    "modal_lede": "Dompetmu secara default melakukan tiga hal: satu tanda tangan untuk menurunkan vault-mu, ditambah satu tanda tangan per setoran dan per penarikan. Tx Mix bersifat anonim bagi dompet pada mode shard (default), jadi dompetmu sama sekali tidak muncul di tx."
   },
   "pool": {
     "section_title": "Mix",
@@ -176,7 +180,17 @@
     "empty_cta": "Setor",
     "confirm_eyebrow": "Cek akhir",
     "confirm_title": "Konfirmasi tx Mix",
-    "confirm_submit": "Konfirmasi dan kirim"
+    "confirm_submit": "Konfirmasi dan kirim",
+    "eyebrow": "Langkah II · acak pool",
+    "lede": "Siapa saja boleh mengacak pool; tidak ada operator. Setiap tx Mix mengacak ulang N box pool sekaligus, dan kamu bisa membayar dengan dua cara. Bayar dari fee shard bersama dan dompetmu sama sekali tidak masuk ke tx (anonim untuk dompet). Atau bayar dari dompetmu sendiri dan tx-nya lebih cepat, tetapi membawa identitas dompetmu.",
+    "fee_payer_shard_hint": "Default. Biaya berasal dari pool bersama on-chain (dibatasi {{cap}} ADA per mix), dan jaminan datang dari layanan collateral yang dikonfigurasi. Dompetmu sepenuhnya tidak masuk ke tx.",
+    "fee_payer_wallet_hint": "Dompetmu membayar biaya dan menyediakan jaminan. Tanpa batas on-chain, tapi identitas dompetmu masuk ke tx.",
+    "tx_preview_fee_wallet": "Biaya dibayar dompetmu, dan dompetmu juga menyediakan jaminan. Identitas dompetmu masuk ke tx.",
+    "review_collateral_value_shard": "Disediakan oleh layanan collateral yang dikonfigurasi",
+    "review_collateral_value_wallet": "Disediakan oleh dompet yang terhubung",
+    "review_linkage_value": "1/{{n}} per ronde",
+    "confirm_lede_shard": "Lovejoin akan memilih N box secara acak, meminta jaminan dari layanan yang dikonfigurasi, lalu mengirim tx Mix. Dalam mode shard kamu tidak menandatangani apa pun; dompet tetap di luar tx.",
+    "confirm_lede_wallet": "Lovejoin akan memilih N box secara acak dan mengirim tx Mix. Dompetmu akan membayar biaya, menyediakan jaminan, dan menandatangani."
   },
   "deposit": {
     "section_title": "Setor",
@@ -194,7 +208,8 @@
     "tx_preview_title": "Pratinjau transaksi",
     "tx_preview_copy": "Dompet Anda membayar denominasi {{denom}} ADA plus top-up kecil ke fee shard. Tanda tangan dompet diperlukan.",
     "tx_preview_copy_bulk": "Dompet Anda membayar {{total}} ADA ({{count}} × {{denom}} ADA) plus top-up ke fee shard. Satu tanda tangan untuk seluruh batch.",
-    "index_help": "Penghitung brankas untuk owner secret setoran ini."
+    "index_help": "Penghitung brankas untuk owner secret setoran ini.",
+    "lede": "Kunci denominasi tetap ke mix-box baru. Dompetmu menurunkan kunci pemilik Lovejoin pada pembukaan kunci pertama, jadi dompet yang sama memulihkan setiap setoranmu di browser mana pun. Tidak ada frasa tambahan untuk dicatat."
   },
   "donate": {
     "section_title": "Donasi ke pool biaya",
@@ -285,7 +300,11 @@
     "net_testnet": "testnet",
     "net_mainnet": "mainnet",
     "empty_title": "Tidak ada kotak setoran untuk ditarik.",
-    "empty_hint": "Setor lalu tunggu sampai terkonfirmasi. Kotak akan muncul di sini dalam satu blok."
+    "empty_hint": "Setor lalu tunggu sampai terkonfirmasi. Kotak akan muncul di sini dalam satu blok.",
+    "column_b_long": "Kunci publik b dari box",
+    "column_index_long": "Indeks vault: penghitung penurunan untuk rahasia pemilik ini",
+    "column_select": "Pilih box",
+    "table_caption": "Mix-box milikmu yang siap untuk ditarik."
   },
   "collateral_provider": {
     "ok": "Penyedia collateral online",
@@ -358,7 +377,14 @@
     "recover_unlocking": "Menurunkan seed…",
     "recover_strength_weak": "Terlalu lemah",
     "recover_strength_fair": "Lumayan",
-    "recover_strength_strong": "Kuat"
+    "recover_strength_strong": "Kuat",
+    "eyebrow": "Langkah III · keluar dari pool",
+    "eyebrow_recovery": "Langkah III · keluar dari pool (pemulihan)",
+    "pagination_aria": "Paginasi daftar box vault",
+    "page_indicator": "Halaman {{current}} dari {{total}}",
+    "prev_page": "Sebelumnya",
+    "next_page": "Berikutnya",
+    "recover_strength_announce_prefix": "Kekuatan kata sandi: "
   },
   "secret_card": {
     "title": "Simpan secret ini sekarang",
@@ -382,5 +408,8 @@
     "not_found": "Tidak ada kotak pada ref itu. Mungkin sudah ditarik, di-mix, atau tidak pernah diimpor.",
     "back_to_vault": "Kembali ke brankas",
     "preconditions_missing": "Hubungkan dompet dan buka brankas untuk menarik."
+  },
+  "a11y": {
+    "skip_to_main": "Lewati ke konten utama"
   }
 }

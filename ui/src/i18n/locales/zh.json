@@ -13,7 +13,8 @@
     "tx_hash": "Tx",
     "address": "地址",
     "amount": "数量",
-    "fee": "手续费"
+    "fee": "手续费",
+    "copy_value": "将 {{value}} 复制到剪贴板"
   },
   "page_title": {
     "app": "Lovejoin",
@@ -132,7 +133,10 @@
     "disconnect_eyebrow": "钱包",
     "disconnect_title": "断开钱包连接？",
     "disconnect_lede": "会话保险库将被锁定，下次连接会再次请求签名。盒子不受影响，它们存在链上。",
-    "disconnect_confirm": "断开连接"
+    "disconnect_confirm": "断开连接",
+    "connect_to": "连接到 {{name}}",
+    "list_aria_label": "已安装的钱包",
+    "modal_lede": "你的钱包默认做三件事：一次签名用于派生你的金库，以及每次存款与每次取款各一次签名。Mix 交易在 shard 模式（默认）下对钱包匿名，所以你的钱包完全不在交易中出现。"
   },
   "pool": {
     "section_title": "混币",
@@ -176,7 +180,17 @@
     "empty_cta": "去做一次存入",
     "confirm_eyebrow": "最终确认",
     "confirm_title": "确认混币交易",
-    "confirm_submit": "确认并提交"
+    "confirm_submit": "确认并提交",
+    "eyebrow": "第二步 · 混合池子",
+    "lede": "任何人都可以混池；没有运营方。每笔 Mix 交易一次性把 N 个池中盒子重新随机化，付费方式有两种。从共享 fee shard 付，钱包就完全不在交易里（对钱包匿名）。或者从你自己的钱包付，交易更快，但会带上你的钱包身份。",
+    "fee_payer_shard_hint": "默认。手续费来自链上的共享池（每次混合上限 {{cap}} ADA），抵押来自所配置的抵押服务。你的钱包完全不在交易中出现。",
+    "fee_payer_wallet_hint": "你的钱包支付手续费并提供抵押。链上无上限，但你的钱包身份会出现在交易里。",
+    "tx_preview_fee_wallet": "手续费由你的钱包支付，抵押也由你的钱包提供。你的钱包身份会出现在交易里。",
+    "review_collateral_value_shard": "由所配置的抵押服务提供",
+    "review_collateral_value_wallet": "由你已连接的钱包提供",
+    "review_linkage_value": "每轮 1/{{n}}",
+    "confirm_lede_shard": "Lovejoin 会随机挑选 N 个盒子，向所配置的服务请求抵押，然后提交 Mix 交易。在 shard 模式下你不签名任何东西；钱包不出现在交易中。",
+    "confirm_lede_wallet": "Lovejoin 会随机挑选 N 个盒子并提交 Mix 交易。你的钱包将支付手续费、提供抵押并签名。"
   },
   "deposit": {
     "section_title": "存入",
@@ -194,7 +208,8 @@
     "tx_preview_title": "交易预览",
     "tx_preview_copy": "你的钱包支付 {{denom}} ADA 面额，外加少量手续费分片补充金。需要钱包签名。",
     "tx_preview_copy_bulk": "你的钱包支付 {{total}} ADA（{{count}} × {{denom}} ADA），外加手续费分片补充金。整批仅需一次签名。",
-    "index_help": "用于此存入所有者密钥的保险库计数器。"
+    "index_help": "用于此存入所有者密钥的保险库计数器。",
+    "lede": "把固定面额锁进一个新的 mix-box。你的钱包在首次解锁时派生一个 Lovejoin 所有者密钥，因此同一个钱包在任何浏览器都能恢复你做过的每一笔存款。无需额外抄写助记短语。"
   },
   "donate": {
     "section_title": "向手续费池捐赠",
@@ -285,7 +300,11 @@
     "net_testnet": "testnet",
     "net_mainnet": "mainnet",
     "empty_title": "没有可提取的已存入盒子。",
-    "empty_hint": "请做一次存入并等待确认。盒子会在一个区块内出现于此。"
+    "empty_hint": "请做一次存入并等待确认。盒子会在一个区块内出现于此。",
+    "column_b_long": "盒子的公钥 b",
+    "column_index_long": "金库索引：该所有者密钥的派生计数器",
+    "column_select": "选择盒子",
+    "table_caption": "可用于提现的、归属于你的 mix-box。"
   },
   "collateral_provider": {
     "ok": "抵押品提供方在线",
@@ -358,7 +377,14 @@
     "recover_unlocking": "派生种子中…",
     "recover_strength_weak": "太弱",
     "recover_strength_fair": "一般",
-    "recover_strength_strong": "强"
+    "recover_strength_strong": "强",
+    "eyebrow": "第三步 · 离开池子",
+    "eyebrow_recovery": "第三步 · 离开池子（恢复）",
+    "pagination_aria": "金库盒子列表分页",
+    "page_indicator": "第 {{current}} 页，共 {{total}} 页",
+    "prev_page": "上一页",
+    "next_page": "下一页",
+    "recover_strength_announce_prefix": "密码强度："
   },
   "secret_card": {
     "title": "现在保存这个密钥",
@@ -382,5 +408,8 @@
     "not_found": "找不到该 ref 的盒子。它可能已被提取、混走，或从未导入。",
     "back_to_vault": "返回保险库",
     "preconditions_missing": "请先连接钱包并解锁保险库再提取。"
+  },
+  "a11y": {
+    "skip_to_main": "跳转到主内容"
   }
 }

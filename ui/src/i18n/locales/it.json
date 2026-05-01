@@ -13,7 +13,8 @@
     "tx_hash": "Tx",
     "address": "Indirizzo",
     "amount": "Importo",
-    "fee": "Commissione"
+    "fee": "Commissione",
+    "copy_value": "Copia {{value}} negli appunti"
   },
   "page_title": {
     "app": "Lovejoin",
@@ -132,7 +133,10 @@
     "disconnect_eyebrow": "Wallet",
     "disconnect_title": "Disconnettere il wallet?",
     "disconnect_lede": "La cassaforte di sessione verrà chiusa e la prossima riconnessione richiederà di nuovo una firma. I box non sono toccati: vivono on-chain.",
-    "disconnect_confirm": "Disconnetti"
+    "disconnect_confirm": "Disconnetti",
+    "connect_to": "Connetti a {{name}}",
+    "list_aria_label": "Wallet installati",
+    "modal_lede": "Il tuo wallet fa tre cose di default: una firma per derivare il tuo vault, più una firma per ogni deposito e ogni prelievo. Le tx di Mix sono wallet-anonime in modalità shard (la predefinita), così il tuo wallet resta del tutto fuori dalla tx."
   },
   "pool": {
     "section_title": "Mix",
@@ -176,7 +180,17 @@
     "empty_cta": "Fai un deposito",
     "confirm_eyebrow": "Verifica finale",
     "confirm_title": "Conferma tx Mix",
-    "confirm_submit": "Conferma e invia"
+    "confirm_submit": "Conferma e invia",
+    "eyebrow": "Passo II · mixare il pool",
+    "lede": "Chiunque può mixare il pool; non c'è un operatore. Ogni tx di Mix re-randomizza N box del pool in una volta, e puoi pagare in due modi. Paga dal fee shard condiviso e il tuo wallet resta del tutto fuori dalla tx (wallet-anonimo). Oppure paga dal tuo wallet e la tx è più veloce, ma porta la tua identità di wallet.",
+    "fee_payer_shard_hint": "Predefinito. La commissione esce dal pool condiviso on-chain (limitata a {{cap}} ADA per mix), e il collaterale viene dal servizio di collaterale configurato. Il tuo wallet resta del tutto fuori dalla tx.",
+    "fee_payer_wallet_hint": "Il tuo wallet paga la commissione e fornisce il collaterale. Nessun tetto on-chain, ma la tua identità di wallet finisce sulla tx.",
+    "tx_preview_fee_wallet": "Commissione pagata dal tuo wallet, che fornisce anche il collaterale. La tua identità di wallet è sulla tx.",
+    "review_collateral_value_shard": "Fornito dal servizio di collaterale configurato",
+    "review_collateral_value_wallet": "Fornito dal tuo wallet connesso",
+    "review_linkage_value": "1/{{n}} per turno",
+    "confirm_lede_shard": "Lovejoin sceglierà N box casuali, richiederà collaterale al servizio configurato e invierà la tx di Mix. In modalità shard non firmi nulla; il wallet resta fuori dalla tx.",
+    "confirm_lede_wallet": "Lovejoin sceglierà N box casuali e invierà la tx di Mix. Il tuo wallet pagherà la commissione, fornirà il collaterale e firmerà."
   },
   "deposit": {
     "section_title": "Deposito",
@@ -194,7 +208,8 @@
     "tx_preview_title": "Anteprima della transazione",
     "tx_preview_copy": "Il wallet paga la denominazione di {{denom}} ADA più un piccolo top-up allo shard delle commissioni. È richiesta la firma del wallet.",
     "tx_preview_copy_bulk": "Il wallet paga {{total}} ADA ({{count}} × {{denom}} ADA) più un top-up allo shard delle commissioni. Una sola firma per tutto il batch.",
-    "index_help": "Contatore della cassaforte per l'owner secret di questo deposito."
+    "index_help": "Contatore della cassaforte per l'owner secret di questo deposito.",
+    "lede": "Blocca il taglio fisso in una nuova mix-box. Il tuo wallet deriva una chiave di proprietario Lovejoin al primo sblocco, così lo stesso wallet recupera ogni deposito su qualsiasi browser. Nessuna frase aggiuntiva da appuntare."
   },
   "donate": {
     "section_title": "Dona al pool di commissioni",
@@ -285,7 +300,11 @@
     "net_testnet": "testnet",
     "net_mainnet": "mainnet",
     "empty_title": "Nessun box depositato da prelevare.",
-    "empty_hint": "Fai un deposito e attendi la conferma. Il box comparirà qui entro un blocco."
+    "empty_hint": "Fai un deposito e attendi la conferma. Il box comparirà qui entro un blocco.",
+    "column_b_long": "Chiave pubblica b della box",
+    "column_index_long": "Indice del vault: contatore di derivazione per questo segreto di proprietario",
+    "column_select": "Seleziona box",
+    "table_caption": "Mix-box di tua proprietà disponibili al prelievo."
   },
   "collateral_provider": {
     "ok": "Provider del collaterale online",
@@ -358,7 +377,14 @@
     "recover_unlocking": "Derivazione del seed…",
     "recover_strength_weak": "Troppo debole",
     "recover_strength_fair": "Discreta",
-    "recover_strength_strong": "Forte"
+    "recover_strength_strong": "Forte",
+    "eyebrow": "Passo III · uscire dal pool",
+    "eyebrow_recovery": "Passo III · uscire dal pool (recupero)",
+    "pagination_aria": "Impaginazione della lista box del vault",
+    "page_indicator": "Pagina {{current}} di {{total}}",
+    "prev_page": "Precedente",
+    "next_page": "Successiva",
+    "recover_strength_announce_prefix": "Robustezza della password: "
   },
   "secret_card": {
     "title": "Salva ora questo secret",
@@ -382,5 +408,8 @@
     "not_found": "Nessun box trovato per quella ref. Potrebbe essere stato prelevato, mixato o mai importato.",
     "back_to_vault": "Torna alla cassaforte",
     "preconditions_missing": "Per prelevare collega un wallet e sblocca la cassaforte."
+  },
+  "a11y": {
+    "skip_to_main": "Salta al contenuto principale"
   }
 }

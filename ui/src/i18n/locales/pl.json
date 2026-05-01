@@ -13,7 +13,8 @@
     "tx_hash": "Tx",
     "address": "Adres",
     "amount": "Kwota",
-    "fee": "Opłata"
+    "fee": "Opłata",
+    "copy_value": "Skopiuj {{value}} do schowka"
   },
   "page_title": {
     "app": "Lovejoin",
@@ -132,7 +133,10 @@
     "disconnect_eyebrow": "Portfel",
     "disconnect_title": "Rozłączyć portfel?",
     "disconnect_lede": "Sejf sesji zostanie zablokowany, a kolejne połączenie znów poprosi o podpis. Boxy nie są ruszane, żyją na chainie.",
-    "disconnect_confirm": "Rozłącz"
+    "disconnect_confirm": "Rozłącz",
+    "connect_to": "Połącz z {{name}}",
+    "list_aria_label": "Zainstalowane portfele",
+    "modal_lede": "Twój portfel domyślnie robi trzy rzeczy: jeden podpis do wyprowadzenia twojego sejfu plus po jednym podpisie na każdy depozyt i każdą wypłatę. Tx Mix w trybie shard (domyślnym) są anonimowe dla portfela, więc twój portfel całkowicie pozostaje poza tx."
   },
   "pool": {
     "section_title": "Mix",
@@ -176,7 +180,17 @@
     "empty_cta": "Wpłać",
     "confirm_eyebrow": "Ostatnie sprawdzenie",
     "confirm_title": "Potwierdź tx Mix",
-    "confirm_submit": "Potwierdź i wyślij"
+    "confirm_submit": "Potwierdź i wyślij",
+    "eyebrow": "Krok II · zmiksować pulę",
+    "lede": "Każdy może mieszać pulę; nie ma operatora. Każda tx Mix re-randomizuje N boxów puli za jednym razem, a zapłacić można na dwa sposoby. Zapłać z dzielonego fee shard i twój portfel zostanie całkowicie poza tx (anonimowo). Albo zapłać z portfela, a tx jest szybsza, ale niesie tożsamość portfela.",
+    "fee_payer_shard_hint": "Domyślnie. Opłata idzie z dzielonej puli on-chain (limit {{cap}} ADA na miks), a kolateral pochodzi ze skonfigurowanej usługi kolateralu. Twój portfel zostaje całkowicie poza tx.",
+    "fee_payer_wallet_hint": "Twój portfel płaci opłatę i dostarcza kolateral. Brak limitu on-chain, ale tożsamość portfela trafia na tx.",
+    "tx_preview_fee_wallet": "Opłatę płaci twój portfel, on też dostarcza kolateral. Tożsamość portfela jest na tx.",
+    "review_collateral_value_shard": "Dostarczany przez skonfigurowaną usługę kolateralu",
+    "review_collateral_value_wallet": "Dostarczany przez twój podłączony portfel",
+    "review_linkage_value": "1/{{n}} na rundę",
+    "confirm_lede_shard": "Lovejoin wybierze N losowych boxów, poprosi o kolateral ze skonfigurowanej usługi i wyśle tx Mix. W trybie shard niczego nie podpisujesz; portfel pozostaje poza tx.",
+    "confirm_lede_wallet": "Lovejoin wybierze N losowych boxów i wyśle tx Mix. Twój portfel zapłaci opłatę, dostarczy kolateral i podpisze."
   },
   "deposit": {
     "section_title": "Wpłata",
@@ -194,7 +208,8 @@
     "tx_preview_title": "Podgląd transakcji",
     "tx_preview_copy": "Twój portfel płaci nominał {{denom}} ADA plus małe doładowanie fee shardu. Wymagany podpis portfela.",
     "tx_preview_copy_bulk": "Twój portfel płaci {{total}} ADA ({{count}} × {{denom}} ADA) plus doładowanie fee shardu. Jeden podpis na całą partię.",
-    "index_help": "Licznik sejfu dla sekretu właściciela tej wpłaty."
+    "index_help": "Licznik sejfu dla sekretu właściciela tej wpłaty.",
+    "lede": "Zablokuj stały nominał w świeżej mix-box. Twój portfel wyprowadza klucz właściciela Lovejoin przy pierwszym odblokowaniu, więc ten sam portfel odzyskuje każdy depozyt w dowolnej przeglądarce. Żadnej dodatkowej frazy do zapisania."
   },
   "donate": {
     "section_title": "Wsparcie puli opłat",
@@ -285,7 +300,11 @@
     "net_testnet": "testnet",
     "net_mainnet": "mainnet",
     "empty_title": "Brak wpłaconych boxów do wypłaty.",
-    "empty_hint": "Wpłać i poczekaj na potwierdzenie. Box pojawi się tu w ciągu bloku."
+    "empty_hint": "Wpłać i poczekaj na potwierdzenie. Box pojawi się tu w ciągu bloku.",
+    "column_b_long": "Klucz publiczny b boxu",
+    "column_index_long": "Indeks sejfu: licznik wyprowadzania dla tego sekretu właściciela",
+    "column_select": "Wybierz box",
+    "table_caption": "Posiadane mix-boxy dostępne do wypłaty."
   },
   "collateral_provider": {
     "ok": "Dostawca collateralu online",
@@ -358,7 +377,14 @@
     "recover_unlocking": "Wyprowadzam seed…",
     "recover_strength_weak": "Zbyt słabe",
     "recover_strength_fair": "Średnie",
-    "recover_strength_strong": "Silne"
+    "recover_strength_strong": "Silne",
+    "eyebrow": "Krok III · opuścić pulę",
+    "eyebrow_recovery": "Krok III · opuścić pulę (odzyskiwanie)",
+    "pagination_aria": "Stronicowanie listy boxów sejfu",
+    "page_indicator": "Strona {{current}} z {{total}}",
+    "prev_page": "Poprzednia",
+    "next_page": "Następna",
+    "recover_strength_announce_prefix": "Siła hasła: "
   },
   "secret_card": {
     "title": "Zapisz teraz ten sekret",
@@ -382,5 +408,8 @@
     "not_found": "Nie znaleziono boxa pod tą ref. Mógł zostać wypłacony, zmiksowany albo nigdy zaimportowany.",
     "back_to_vault": "Powrót do sejfu",
     "preconditions_missing": "Aby wypłacić, połącz portfel i odblokuj sejf."
+  },
+  "a11y": {
+    "skip_to_main": "Przejdź do głównej treści"
   }
 }

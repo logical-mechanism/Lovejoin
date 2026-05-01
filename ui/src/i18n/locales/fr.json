@@ -13,7 +13,8 @@
     "tx_hash": "Tx",
     "address": "Adresse",
     "amount": "Montant",
-    "fee": "Frais"
+    "fee": "Frais",
+    "copy_value": "Copier {{value}} dans le presse-papiers"
   },
   "page_title": {
     "app": "Lovejoin",
@@ -132,7 +133,10 @@
     "disconnect_eyebrow": "Portefeuille",
     "disconnect_title": "Déconnecter le portefeuille ?",
     "disconnect_lede": "Le coffre de session sera verrouillé et la prochaine reconnexion redemandera une signature. Les boîtes ne sont pas affectées. Elles restent on-chain.",
-    "disconnect_confirm": "Déconnecter"
+    "disconnect_confirm": "Déconnecter",
+    "connect_to": "Connecter à {{name}}",
+    "list_aria_label": "Portefeuilles installés",
+    "modal_lede": "Votre portefeuille fait trois choses par défaut : une signature pour dériver votre coffre, puis une signature pour chaque dépôt et chaque retrait. Les txs de Mix sont anonymes côté portefeuille en mode shard (par défaut), donc votre portefeuille reste totalement hors de la tx."
   },
   "pool": {
     "section_title": "Mix",
@@ -176,7 +180,17 @@
     "empty_cta": "Faire un dépôt",
     "confirm_eyebrow": "Vérification finale",
     "confirm_title": "Confirmer la tx Mix",
-    "confirm_submit": "Confirmer et envoyer"
+    "confirm_submit": "Confirmer et envoyer",
+    "eyebrow": "Étape II · mixer le pool",
+    "lede": "Tout le monde peut mixer le pool ; il n'y a pas d'opérateur. Chaque tx de Mix re-randomise N boxes du pool d'un coup, et vous pouvez payer de deux manières. Payez depuis le fee shard partagé et votre portefeuille reste totalement hors de la tx (anonyme côté portefeuille). Ou payez depuis votre portefeuille et la tx est plus rapide, mais elle porte votre identité de portefeuille.",
+    "fee_payer_shard_hint": "Par défaut. Les frais viennent du pool partagé on-chain (plafonnés à {{cap}} ADA par mix), et le collatéral vient du service de collatéral configuré. Votre portefeuille reste totalement hors de la tx.",
+    "fee_payer_wallet_hint": "Votre portefeuille paie les frais et fournit le collatéral. Pas de plafond on-chain, mais votre identité de portefeuille est sur la tx.",
+    "tx_preview_fee_wallet": "Frais payés par votre portefeuille, qui fournit aussi le collatéral. Votre identité de portefeuille est sur la tx.",
+    "review_collateral_value_shard": "Fourni par le service de collatéral configuré",
+    "review_collateral_value_wallet": "Fourni par votre portefeuille connecté",
+    "review_linkage_value": "1/{{n}} par tour",
+    "confirm_lede_shard": "Lovejoin choisira N boxes au hasard, demandera du collatéral au service configuré et soumettra la tx de Mix. En mode shard, vous ne signez rien ; le portefeuille reste hors de la tx.",
+    "confirm_lede_wallet": "Lovejoin choisira N boxes au hasard et soumettra la tx de Mix. Votre portefeuille paiera les frais, fournira le collatéral et signera."
   },
   "deposit": {
     "section_title": "Dépôt",
@@ -194,7 +208,8 @@
     "tx_preview_title": "Aperçu de la transaction",
     "tx_preview_copy": "Votre portefeuille paie la dénomination de {{denom}} ADA plus un petit complément au shard de frais. Une signature du portefeuille est requise.",
     "tx_preview_copy_bulk": "Votre portefeuille paie {{total}} ADA ({{count}} × {{denom}} ADA) plus un complément au shard de frais. Une seule signature pour tout le lot.",
-    "index_help": "Compteur du coffre pour le secret propriétaire de ce dépôt."
+    "index_help": "Compteur du coffre pour le secret propriétaire de ce dépôt.",
+    "lede": "Verrouillez la dénomination fixe dans une nouvelle mix-box. Votre portefeuille dérive une clé propriétaire Lovejoin au premier déverrouillage, donc le même portefeuille récupère chaque dépôt sur n'importe quel navigateur. Aucune phrase supplémentaire à noter."
   },
   "donate": {
     "section_title": "Don au pool de frais",
@@ -285,7 +300,11 @@
     "net_testnet": "testnet",
     "net_mainnet": "mainnet",
     "empty_title": "Aucune boîte déposée à retirer.",
-    "empty_hint": "Faites un dépôt et attendez qu'il soit confirmé. La boîte apparaîtra ici en moins d'un bloc."
+    "empty_hint": "Faites un dépôt et attendez qu'il soit confirmé. La boîte apparaîtra ici en moins d'un bloc.",
+    "column_b_long": "Clé publique b de la box",
+    "column_index_long": "Index du coffre : compteur de dérivation pour ce secret propriétaire",
+    "column_select": "Sélectionner la box",
+    "table_caption": "Mix-boxes possédées disponibles au retrait."
   },
   "collateral_provider": {
     "ok": "Fournisseur de collatéral en ligne",
@@ -358,7 +377,14 @@
     "recover_unlocking": "Dérivation de la graine…",
     "recover_strength_weak": "Trop faible",
     "recover_strength_fair": "Correct",
-    "recover_strength_strong": "Fort"
+    "recover_strength_strong": "Fort",
+    "eyebrow": "Étape III · quitter le pool",
+    "eyebrow_recovery": "Étape III · quitter le pool (récupération)",
+    "pagination_aria": "Pagination de la liste des boxes du coffre",
+    "page_indicator": "Page {{current}} sur {{total}}",
+    "prev_page": "Précédent",
+    "next_page": "Suivant",
+    "recover_strength_announce_prefix": "Force du mot de passe : "
   },
   "secret_card": {
     "title": "Sauvegardez ce secret maintenant",
@@ -382,5 +408,8 @@
     "not_found": "Aucune boîte trouvée pour cette ref. Elle a peut-être été retirée, mixée ou jamais importée.",
     "back_to_vault": "Retour au coffre",
     "preconditions_missing": "Connectez un portefeuille et déverrouillez le coffre pour retirer."
+  },
+  "a11y": {
+    "skip_to_main": "Passer au contenu principal"
   }
 }

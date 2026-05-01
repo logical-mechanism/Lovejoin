@@ -13,7 +13,8 @@
     "tx_hash": "Tx",
     "address": "Endereço",
     "amount": "Quantia",
-    "fee": "Taxa"
+    "fee": "Taxa",
+    "copy_value": "Copiar {{value}} para a área de transferência"
   },
   "page_title": {
     "app": "Lovejoin",
@@ -132,7 +133,10 @@
     "disconnect_eyebrow": "Carteira",
     "disconnect_title": "Desconectar a carteira?",
     "disconnect_lede": "O cofre da sessão será trancado e a próxima reconexão pedirá assinatura novamente. Caixas não são afetadas; vivem on-chain.",
-    "disconnect_confirm": "Desconectar"
+    "disconnect_confirm": "Desconectar",
+    "connect_to": "Conectar com {{name}}",
+    "list_aria_label": "Carteiras instaladas",
+    "modal_lede": "Sua carteira faz três coisas por padrão: uma assinatura para derivar seu cofre, mais uma assinatura para cada depósito e cada saque. As txs de Mix são anônimas para a carteira no modo shard (o padrão), então sua carteira fica totalmente fora da tx."
   },
   "pool": {
     "section_title": "Mix",
@@ -176,7 +180,17 @@
     "empty_cta": "Fazer um depósito",
     "confirm_eyebrow": "Verificação final",
     "confirm_title": "Confirmar tx Mix",
-    "confirm_submit": "Confirmar e enviar"
+    "confirm_submit": "Confirmar e enviar",
+    "eyebrow": "Passo II · misturar o pool",
+    "lede": "Qualquer um pode misturar o pool; não há operador. Cada tx de Mix re-aleatoriza N boxes do pool de uma vez, e você pode pagar de duas formas. Pague pelo fee shard compartilhado e sua carteira fica totalmente fora da tx (anônima para a carteira). Ou pague pela sua carteira e a tx fica mais rápida, mas leva sua identidade de carteira.",
+    "fee_payer_shard_hint": "Padrão. A taxa sai do pool compartilhado on-chain (limitada a {{cap}} ADA por mix), e o colateral vem do serviço de colateral configurado. Sua carteira fica totalmente fora da tx.",
+    "fee_payer_wallet_hint": "Sua carteira paga a taxa e fornece o colateral. Sem teto on-chain, mas sua identidade de carteira fica na tx.",
+    "tx_preview_fee_wallet": "Taxa paga pela sua carteira, que também fornece o colateral. Sua identidade de carteira fica na tx.",
+    "review_collateral_value_shard": "Fornecido pelo serviço de colateral configurado",
+    "review_collateral_value_wallet": "Fornecido pela sua carteira conectada",
+    "review_linkage_value": "1/{{n}} por rodada",
+    "confirm_lede_shard": "Lovejoin vai escolher N boxes ao acaso, pedir colateral ao serviço configurado e enviar a tx de Mix. No modo shard você não assina nada; a carteira fica fora da tx.",
+    "confirm_lede_wallet": "Lovejoin vai escolher N boxes ao acaso e enviar a tx de Mix. Sua carteira vai pagar a taxa, fornecer o colateral e assinar."
   },
   "deposit": {
     "section_title": "Depósito",
@@ -194,7 +208,8 @@
     "tx_preview_title": "Pré-visualização da transação",
     "tx_preview_copy": "Sua carteira paga a denominação de {{denom}} ADA mais um pequeno top-up de reposição ao shard de taxa. Assinatura da carteira é obrigatória.",
     "tx_preview_copy_bulk": "Sua carteira paga {{total}} ADA ({{count}} × {{denom}} ADA) mais um top-up de reposição ao shard de taxa. Uma assinatura para todo o lote.",
-    "index_help": "Contador do cofre para o secret de owner deste depósito."
+    "index_help": "Contador do cofre para o secret de owner deste depósito.",
+    "lede": "Trave a denominação fixa numa mix-box nova. Sua carteira deriva uma chave de proprietário Lovejoin no primeiro desbloqueio, então a mesma carteira recupera cada depósito em qualquer navegador. Sem frase extra para anotar."
   },
   "donate": {
     "section_title": "Doar para o pool de taxas",
@@ -285,7 +300,11 @@
     "net_testnet": "testnet",
     "net_mainnet": "mainnet",
     "empty_title": "Nenhuma caixa depositada para sacar.",
-    "empty_hint": "Faça um depósito e espere ele confirmar. A caixa aparecerá aqui em menos de um bloco."
+    "empty_hint": "Faça um depósito e espere ele confirmar. A caixa aparecerá aqui em menos de um bloco.",
+    "column_b_long": "Chave pública b da box",
+    "column_index_long": "Índice do cofre: contador de derivação para este segredo de proprietário",
+    "column_select": "Selecionar box",
+    "table_caption": "Mix-boxes próprias disponíveis para saque."
   },
   "collateral_provider": {
     "ok": "Provedor de colateral online",
@@ -358,7 +377,14 @@
     "recover_unlocking": "Derivando a seed…",
     "recover_strength_weak": "Fraca demais",
     "recover_strength_fair": "Razoável",
-    "recover_strength_strong": "Forte"
+    "recover_strength_strong": "Forte",
+    "eyebrow": "Passo III · sair do pool",
+    "eyebrow_recovery": "Passo III · sair do pool (recuperação)",
+    "pagination_aria": "Paginação da lista de boxes do cofre",
+    "page_indicator": "Página {{current}} de {{total}}",
+    "prev_page": "Anterior",
+    "next_page": "Próxima",
+    "recover_strength_announce_prefix": "Força da senha: "
   },
   "secret_card": {
     "title": "Salve este secret agora",
@@ -382,5 +408,8 @@
     "not_found": "Nenhuma caixa encontrada para essa ref. Pode ter sido sacada, misturada ou nunca importada.",
     "back_to_vault": "Voltar ao cofre",
     "preconditions_missing": "Conecte uma carteira e desbloqueie o cofre para sacar."
+  },
+  "a11y": {
+    "skip_to_main": "Pular para o conteúdo principal"
   }
 }
