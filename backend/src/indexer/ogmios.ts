@@ -93,6 +93,7 @@ export interface OgmiosClientConfig {
 export class OgmiosClient {
   private socket: OgmiosSocket | null = null;
   private connectedResolver: (() => void) | null = null;
+  private connectedRejector: ((err: Error) => void) | null = null;
   private connectedPromise: Promise<void>;
   private nextRequestId = 1;
   private inflight: PendingRequest | null = null;
@@ -100,12 +101,21 @@ export class OgmiosClient {
   private fatalError: Error | null = null;
 
   constructor(private readonly config: OgmiosClientConfig) {
-    this.connectedPromise = new Promise((resolve) => {
+    this.connectedPromise = new Promise((resolve, reject) => {
       this.connectedResolver = resolve;
+      this.connectedRejector = reject;
     });
   }
 
-  /** Open the WebSocket; resolves when the `open` event fires. */
+  /**
+   * Open the WebSocket; resolves when the `open` event fires.
+   *
+   * Rejects if the socket emits `error` or `close` before `open` —
+   * otherwise a TCP refusal or DNS failure would leave the caller
+   * awaiting forever. After `open` fires the connect promise is
+   * settled and subsequent error/close events are handled through
+   * `failInflight` instead.
+   */
   async connect(): Promise<void> {
     if (this.socket) return this.connectedPromise;
     const factory =
@@ -113,19 +123,30 @@ export class OgmiosClient {
       ((url: string) => new WebSocket(url) as unknown as OgmiosSocket);
     const sock = factory(this.config.url);
     this.socket = sock;
+    let opened = false;
+    const rejectIfPreOpen = (err: Error) => {
+      if (opened) return;
+      this.connectedRejector?.(err);
+      this.connectedResolver = null;
+      this.connectedRejector = null;
+    };
     sock.on("message", (data) => this.onMessage(data));
     sock.on("close", () => {
       this.fatalError ??= new Error("ogmios websocket closed");
       this.failInflight(this.fatalError);
+      rejectIfPreOpen(this.fatalError);
     });
     sock.on("error", (err) => {
       this.fatalError = err;
       this.failInflight(err);
+      rejectIfPreOpen(err);
     });
     sock.on("open", () => {
+      opened = true;
       this.config.onOpen?.(this.config.url);
       this.connectedResolver?.();
       this.connectedResolver = null;
+      this.connectedRejector = null;
     });
     return this.connectedPromise;
   }
