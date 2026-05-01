@@ -415,7 +415,18 @@
     "page_indicator": "Trang {{current}} / {{total}}",
     "prev_page": "Trước",
     "next_page": "Sau",
-    "recover_strength_announce_prefix": "Độ mạnh mật khẩu: "
+    "recover_strength_announce_prefix": "Độ mạnh mật khẩu: ",
+    "column_rounds": "vòng",
+    "column_rounds_long": "Vòng trộn: số lần hộp này được ngẫu nhiên hoá lại kể từ khi gửi vào.",
+    "column_action": "Hành động hộp",
+    "mix_row": "Trộn",
+    "mix_row_submitting": "Đang trộn…",
+    "mix_row_confirm_eyebrow": "Tiến một hộp",
+    "mix_row_confirm_title": "Trộn hộp này",
+    "mix_row_confirm_lede": "Gửi một tx trộn theo phí shard, bao gồm hộp này cộng thêm {{n}} - 1 hộp khác được chọn ngẫu nhiên từ pool đang hoạt động. Ví không tham gia tx; phí do một fee shard chi trả. Bộ đếm vòng của hộp này tăng thêm một khi tx được xác nhận.",
+    "mix_row_confirm_submit": "Trộn hộp này",
+    "mix_disabled_collateral": "Không thể kết nối tới nhà cung cấp tài sản đảm bảo. Việc gửi trộn bị tắt.",
+    "mix_disabled_pool": "Pool quá nhỏ để trộn hộp này. Cần {{need}} hộp đang hoạt động; có {{have}}."
   },
   "secret_card": {
     "title": "Lưu khoá bí mật này ngay",

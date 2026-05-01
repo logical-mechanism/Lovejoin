@@ -415,7 +415,18 @@
     "page_indicator": "{{total}} ページ中 {{current}} ページ目",
     "prev_page": "前へ",
     "next_page": "次へ",
-    "recover_strength_announce_prefix": "パスワード強度："
+    "recover_strength_announce_prefix": "パスワード強度：",
+    "column_rounds": "ラウンド",
+    "column_rounds_long": "ミックスラウンド：このボックスがデポジット以降に再ランダム化された回数。",
+    "column_action": "ボックスのアクション",
+    "mix_row": "ミックス",
+    "mix_row_submitting": "ミックス中…",
+    "mix_row_confirm_eyebrow": "ボックスを1つ進める",
+    "mix_row_confirm_title": "このボックスをミックス",
+    "mix_row_confirm_lede": "このボックスに加えて、ライブプールからランダムに選んだ {{n}} - 1 個のボックスを含むシャード手数料ミックストランザクションを送信します。ウォレットはトランザクションに含まれず、手数料は fee shard が支払います。トランザクションが確定すると、このボックスのラウンドカウンタが1増えます。",
+    "mix_row_confirm_submit": "このボックスをミックス",
+    "mix_disabled_collateral": "コラテラルプロバイダーに到達できません。ミックスの送信は無効です。",
+    "mix_disabled_pool": "このボックスをミックスするにはプールが小さすぎます。ライブボックスが {{need}} 個必要で、現在 {{have}} 個です。"
   },
   "secret_card": {
     "title": "このシークレットを今すぐ保存",

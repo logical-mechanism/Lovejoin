@@ -415,7 +415,18 @@
     "page_indicator": "صفحہ {{current}} از {{total}}",
     "prev_page": "پچھلا",
     "next_page": "اگلا",
-    "recover_strength_announce_prefix": "پاس ورڈ کی مضبوطی: "
+    "recover_strength_announce_prefix": "پاس ورڈ کی مضبوطی: ",
+    "column_rounds": "راؤنڈز",
+    "column_rounds_long": "مکس راؤنڈز: یہ باکس جمع ہونے کے بعد سے کتنی بار دوبارہ رینڈمائز کیا گیا ہے۔",
+    "column_action": "باکس کا عمل",
+    "mix_row": "مکس",
+    "mix_row_submitting": "مکس ہو رہا ہے…",
+    "mix_row_confirm_eyebrow": "ایک باکس آگے بڑھائیں",
+    "mix_row_confirm_title": "یہ باکس مکس کریں",
+    "mix_row_confirm_lede": "ایک شارڈ فی مکس tx جمع کراتا ہے جس میں یہ باکس اور لائیو pool سے بے ترتیب چنے گئے {{n}} - 1 دیگر باکس شامل ہوتے ہیں۔ والیٹ tx سے باہر رہتا ہے؛ فیس ایک fee shard ادا کرتا ہے۔ tx کی تصدیق ہونے پر اس باکس کا راؤنڈز کاؤنٹر ایک بڑھ جاتا ہے۔",
+    "mix_row_confirm_submit": "یہ باکس مکس کریں",
+    "mix_disabled_collateral": "کولیٹرل فراہم کنندہ تک رسائی نہیں۔ مکس جمع کرانا غیر فعال ہے۔",
+    "mix_disabled_pool": "اس باکس کو مکس کرنے کے لیے Pool بہت چھوٹا ہے۔ {{need}} لائیو باکس درکار؛ موجود {{have}}۔"
   },
   "secret_card": {
     "title": "یہ secret ابھی محفوظ کریں",

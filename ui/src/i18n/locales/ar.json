@@ -415,7 +415,18 @@
     "page_indicator": "الصفحة {{current}} من {{total}}",
     "prev_page": "السابق",
     "next_page": "التالي",
-    "recover_strength_announce_prefix": "قوّة كلمة المرور: "
+    "recover_strength_announce_prefix": "قوّة كلمة المرور: ",
+    "column_rounds": "جولات",
+    "column_rounds_long": "جولات الخلط: عدد المرات التي أُعيد فيها تعشية هذا الصندوق منذ إيداعه.",
+    "column_action": "إجراء الصندوق",
+    "mix_row": "اخلط",
+    "mix_row_submitting": "جارٍ الخلط…",
+    "mix_row_confirm_eyebrow": "تقدّم بصندوق واحد",
+    "mix_row_confirm_title": "اخلط هذا الصندوق",
+    "mix_row_confirm_lede": "يرسل معاملة خلط برسوم شريحة تتضمّن هذا الصندوق إلى جانب {{n}} - 1 صناديق أخرى تُختار عشوائيًا من الـpool الحيّة. تبقى المحفظة خارج المعاملة، وتُدفع الرسوم من شريحة رسوم. يزداد عدّاد الجولات لهذا الصندوق بواحد بمجرّد تأكيد المعاملة.",
+    "mix_row_confirm_submit": "اخلط هذا الصندوق",
+    "mix_disabled_collateral": "موفِّر الضمان غير متاح. إرسال الخلط معطّل.",
+    "mix_disabled_pool": "الـpool أصغر من أن تخلط هذا الصندوق. مطلوب {{need}} صناديق حيّة، المتوفّر {{have}}."
   },
   "secret_card": {
     "title": "احفظ هذا السرّ الآن",

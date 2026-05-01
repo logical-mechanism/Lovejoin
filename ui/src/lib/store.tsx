@@ -35,6 +35,7 @@ import {
 import type { BrowserWallet } from "@meshsdk/core";
 import type { LovejoinAddresses, ChainProvider } from "@lovejoin/sdk";
 
+import { BackendClient } from "./backend.js";
 import {
   loadAddresses,
   loadConfig,
@@ -281,7 +282,32 @@ export function AppStateProvider({ children, testOverrides }: AppStateProviderPr
       setScanError(null);
       try {
         const result = await scanPool({ seed, provider, addresses });
-        setScan(result);
+        // Merge per-box `generation` from the indexer when a backend URL
+        // is configured. The counter is indexer-only (the on-chain datum
+        // has no room for it — see CLAUDE.md M4.5), so we degrade
+        // silently when no backend is reachable: the Vault row just
+        // hides the rounds column. One concurrent /box/:tx/:idx
+        // request per owned box; small enough at typical vault sizes
+        // that batching isn't worth the wire-shape churn.
+        if (config.backendUrl && result.ownedBoxes.length > 0) {
+          try {
+            const client = new BackendClient(config.backendUrl);
+            const enriched = await Promise.all(
+              result.ownedBoxes.map(async (b) => {
+                const lookup = await client.box(b.entry.ref);
+                if (lookup && typeof lookup.generation === "number") {
+                  return { ...b, generation: lookup.generation };
+                }
+                return b;
+              }),
+            );
+            setScan({ ...result, ownedBoxes: enriched });
+          } catch {
+            setScan(result);
+          }
+        } else {
+          setScan(result);
+        }
         // Reconcile pending-tx refs against the fresh scan: any ref
         // that's no longer in the owned set is confirmed-spent (the
         // chain accepted the user's submit), and we drop the pending
@@ -308,7 +334,7 @@ export function AppStateProvider({ children, testOverrides }: AppStateProviderPr
         setScanError((e as Error).message);
       }
     },
-    [provider, addresses, pendingTxRefs],
+    [provider, addresses, pendingTxRefs, config.backendUrl],
   );
 
   // Safety timer: prune expired pending refs every 10 s. Only matters

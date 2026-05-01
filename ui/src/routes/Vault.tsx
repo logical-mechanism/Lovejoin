@@ -26,11 +26,17 @@ import { useTranslation } from "react-i18next";
 import {
   GivemeMyProvider,
   buildBulkWithdrawTx,
+  buildMixTx,
   isInputCollisionError,
+  pickRandomNTuple,
   type BulkWithdrawEntry,
+  type MixInput,
+  type Utxo,
 } from "@lovejoin/sdk";
 
 import { useAppState } from "../lib/store.js";
+import { useCollateralStatus } from "../components/CollateralProviderStatus.js";
+import { useBackendStatus } from "../components/BackendStatus.js";
 import { Eyebrow } from "../components/ui/Eyebrow.js";
 import { Hash } from "../components/ui/Hash.js";
 import { Modal } from "../components/ui/Modal.js";
@@ -38,10 +44,12 @@ import { RecoverPasswordPanel } from "../components/RecoverPasswordPanel.js";
 import { TxBuildProgress } from "../components/TxBuildProgress.js";
 import { useToast } from "../components/Toaster.js";
 import { WithdrawReview } from "../components/WithdrawReview.js";
+import { BackendClient } from "../lib/backend.js";
 import { friendlyErrorMessage } from "../lib/errors.js";
 import { formatAda } from "../lib/format.js";
+import { fetchPoolDirect, type DirectPoolEntry } from "../lib/pool.js";
 import { validateDestination } from "../lib/seedelf.js";
-import { withdrawPhases } from "../lib/tx-phases.js";
+import { mixPhases, withdrawPhases } from "../lib/tx-phases.js";
 import { useVisibleRefresh } from "../lib/use-visible-refresh.js";
 import type { OwnedBox } from "../lib/vault.js";
 
@@ -129,6 +137,19 @@ function UnlockedVault() {
     walletLovelace,
     refreshWalletBalance,
   } = useAppState();
+  const collateral = useCollateralStatus();
+  const backend = useBackendStatus();
+  // Per-row "Mix this box" — the active ref while a build is in flight,
+  // so the row can show a spinner without lighting up every other Mix
+  // button at the same time. `mixError` surfaces inline next to the
+  // button on failure (the success path is already handled by the
+  // toast + pending-row dim). N is taken from the runtime
+  // max_n_shard cap so the user gets the strongest privacy gain the
+  // deployed validator allows.
+  const [rowMixingRef, setRowMixingRef] = useState<string | null>(null);
+  const [confirmMixRef, setConfirmMixRef] = useState<string | null>(null);
+  const maxNShard =
+    addresses?.protocol.max_n_shard ?? addresses?.protocol.max_n ?? 2;
 
   const [selectedRefs, setSelectedRefs] = useState<Set<string>>(() => new Set());
   const [destination, setDestination] = useState("");
@@ -214,6 +235,194 @@ function UnlockedVault() {
           .filter((ref) => !pendingTxRefs.has(ref)),
       ),
     );
+
+  // "Mix this box" — shard-mode Mix tx that force-includes the selected
+  // owned box. The protocol's pure-random shared path can take many
+  // rounds to actually move a specific box; this surfaces "advance THIS
+  // box" as an explicit user action. We pick the remaining N-1 inputs
+  // uniformly at random from the live pool (excluding in-flight refs and
+  // the box itself). Wallet anonymity is preserved — feePayer="shard"
+  // means no wallet input or signature, just like the Pool screen's
+  // shared-mix path.
+  const collateralOk = collateral?.status === "online";
+  const mixThisBox = async (box: OwnedBox) => {
+    if (!provider || !addresses) return;
+    const refKey = `${box.entry.ref.txId.toLowerCase()}#${box.entry.ref.outputIndex}`;
+    if (rowMixingRef) return;
+    if (pendingTxRefs.has(refKey)) return;
+    if (!collateralOk) {
+      toast.push({
+        tone: "error",
+        title: t("vault.mix_disabled_collateral"),
+      });
+      return;
+    }
+    setRowMixingRef(refKey);
+    try {
+      // Fetch the live pool. Same backend-first / Blockfrost-fallback
+      // pattern the Pool screen uses; we want the freshest data here
+      // since we're about to spend specific UTxOs.
+      const useBackend =
+        !!config.backendUrl &&
+        (backend?.status === "synced" || backend?.status === "syncing");
+      let entries: DirectPoolEntry[] | null = null;
+      if (useBackend) {
+        try {
+          const client = new BackendClient(config.backendUrl);
+          const page = await client.pool({ limit: 500 });
+          if (page) {
+            const fromBackend = page.boxes.map((b) => ({
+              ref: { txId: b.txHash.toLowerCase(), outputIndex: b.outputIndex },
+              a: hexToBytes(b.a),
+              b: hexToBytes(b.b),
+            }));
+            if (backend?.status === "synced" || fromBackend.length > 0) {
+              entries = fromBackend;
+            }
+          }
+        } catch {
+          /* fall through to Blockfrost */
+        }
+      }
+      if (!entries) {
+        entries = await fetchPoolDirect({ provider, addresses });
+      }
+
+      // Mempool-aware in-flight set so we don't accidentally pick a box
+      // that's already an input to another pending tx — same union the
+      // Pool screen's MixButton uses.
+      const inFlightRefs = new Set<string>(pendingTxRefs);
+      if (useBackend) {
+        try {
+          const client = new BackendClient(config.backendUrl);
+          const snap = await client.mempoolInputs();
+          if (snap) {
+            for (const r of snap.inputs) {
+              inFlightRefs.add(
+                `${r.txHash.toLowerCase()}#${r.outputIndex}`,
+              );
+            }
+          }
+        } catch {
+          /* mempool fetch failed; rely on retry path */
+        }
+      }
+
+      // Eligible "fillers" = pool minus the chosen box minus in-flight.
+      const otherEligible = entries.filter((e) => {
+        const k = `${e.ref.txId.toLowerCase()}#${e.ref.outputIndex}`;
+        return k !== refKey && !inFlightRefs.has(k);
+      });
+      if (otherEligible.length < maxNShard - 1) {
+        toast.push({
+          tone: "error",
+          title: t("vault.mix_disabled_pool", {
+            have: otherEligible.length + 1,
+            need: maxNShard,
+          }),
+        });
+        return;
+      }
+      // Re-shape entries into the SDK's PoolEntry-compatible form for
+      // the random sampler (ref + a + b is enough — `pickRandomNTuple`
+      // doesn't read the rest).
+      const pickFrom = otherEligible.map((e) => ({
+        ref: e.ref,
+        a: e.a,
+        b: e.b,
+        utxo: {
+          ref: e.ref,
+          address: "",
+          lovelace: BigInt(addresses.protocol.denom_lovelace),
+          assets: {},
+          inlineDatum: null,
+          referenceScript: null,
+        } satisfies Utxo,
+      }));
+      const fillers = pickRandomNTuple({ pool: pickFrom, n: maxNShard - 1 });
+      const denom = BigInt(addresses.protocol.denom_lovelace);
+      const ownerInput: MixInput = {
+        ref: box.entry.ref,
+        a: box.entry.a,
+        b: box.entry.b,
+        utxo: {
+          ref: box.entry.ref,
+          address: "",
+          lovelace: denom,
+          assets: {},
+          inlineDatum: null,
+          referenceScript: null,
+        },
+      };
+      const inputs: MixInput[] = [
+        ownerInput,
+        ...fillers.map<MixInput>((e) => ({
+          ref: e.ref,
+          a: e.a,
+          b: e.b,
+          utxo: e.utxo,
+        })),
+      ];
+      const excludeFeeShardRefs = inFlightRefs.size
+        ? Array.from(inFlightRefs).flatMap((k) => {
+            const hash = k.indexOf("#");
+            if (hash <= 0) return [];
+            const idx = Number(k.slice(hash + 1));
+            return Number.isInteger(idx) && idx >= 0
+              ? [{ txId: k.slice(0, hash), outputIndex: idx }]
+              : [];
+          })
+        : undefined;
+      const result = await buildMixTx({
+        network: config.network as "preprod" | "preview" | "mainnet",
+        inputs,
+        ...(wallet ? { wallet } : {}),
+        provider,
+        addresses,
+        feePayer: "shard",
+        ...(excludeFeeShardRefs ? { excludeFeeShardRefs } : {}),
+        retry: { maxAttempts: 3, delayBetweenAttemptsMs: 2_000 },
+      });
+      // Mark every owned box that ended up on this tx as pending so
+      // the rows dim out + lock until the rescan confirms the spend.
+      // The clicked box is always one. In a small / test pool the
+      // random fillers can also land on the user's own boxes (the
+      // pool may even be mostly theirs); marking those too prevents
+      // them from getting double-selected for a parallel mix or
+      // withdraw before this tx confirms.
+      const ownedRefSet = new Set(
+        ownedBoxes.map(
+          (b) =>
+            `${b.entry.ref.txId.toLowerCase()}#${b.entry.ref.outputIndex}`,
+        ),
+      );
+      const ownedFillerRefs = fillers
+        .map(
+          (e) => `${e.ref.txId.toLowerCase()}#${e.ref.outputIndex}`,
+        )
+        .filter((k) => ownedRefSet.has(k));
+      markTxPending([refKey, ...ownedFillerRefs]);
+      toast.push({
+        tone: "success",
+        title: t("toast.mix_success", { n: maxNShard }),
+        txHash: result.txId,
+        network: config.network,
+      });
+      window.setTimeout(() => void rescan(), 12_000);
+    } catch (err) {
+      const busy = isInputCollisionError(err);
+      toast.push({
+        tone: "error",
+        title: busy ? t("tx.busy_title") : t("toast.mix_failed"),
+        detail: busy
+          ? t("tx.busy_detail")
+          : friendlyErrorMessage((err as Error).message, t),
+      });
+    } finally {
+      setRowMixingRef(null);
+      void refreshWalletBalance();
+    }
+  };
 
   const selectedBoxes: OwnedBox[] = useMemo(
     () =>
@@ -337,7 +546,11 @@ function UnlockedVault() {
   };
 
   return (
-    <section className={`lj-card lj-overlay ${submitting ? "lj-overlay--busy" : ""}`}>
+    <section
+      className={`lj-card lj-overlay ${
+        submitting || rowMixingRef !== null ? "lj-overlay--busy" : ""
+      }`}
+    >
       <header className="lj-card__head">
         <div>
           <Eyebrow>
@@ -435,17 +648,20 @@ function UnlockedVault() {
                       </th>
                       <th scope="col">{t("common.tx_hash")}</th>
                       <th scope="col" className="lj-table__num">
-                        <abbr title={t("withdraw.column_b_long")}>b</abbr>
+                        <abbr title={t("vault.column_rounds_long")}>
+                          {t("vault.column_rounds")}
+                        </abbr>
                       </th>
                       <th scope="col" className="lj-table__num">
-                        {t("common.amount")}
+                        <span className="sr-only">
+                          {t("vault.column_action")}
+                        </span>
                       </th>
                     </tr>
                   </thead>
                   <tbody>
                     {visibleBoxes.map((box) => {
                       const ref = `${box.entry.ref.txId.toLowerCase()}#${box.entry.ref.outputIndex}`;
-                      const ada = formatAda(box.entry.utxo.lovelace);
                       const checked = selectedRefs.has(ref);
                       // Pending = in flight from a Withdraw or owned-input
                       // Mix this session. We dim the row, lock the
@@ -500,13 +716,43 @@ function UnlockedVault() {
                             </span>
                           </td>
                           <td className="lj-table__num">
-                            <Hash
-                              value={bytesToHexShort(box.entry.b)}
-                              edge={4}
-                              copyable={false}
-                            />
+                            {typeof box.generation === "number"
+                              ? box.generation
+                              : "—"}
                           </td>
-                          <td className="lj-table__num">{ada} ₳</td>
+                          <td className="lj-table__num">
+                            <button
+                              type="button"
+                              className="lj-btn lj-btn--quiet lj-btn--sm"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setConfirmMixRef(ref);
+                              }}
+                              disabled={
+                                pending ||
+                                submitting ||
+                                rowMixingRef !== null ||
+                                !provider ||
+                                !addresses ||
+                                !collateralOk
+                              }
+                              title={
+                                !collateralOk
+                                  ? t("vault.mix_disabled_collateral")
+                                  : undefined
+                              }
+                            >
+                              {rowMixingRef === ref && (
+                                <span
+                                  className="lj-spinner lj-spinner--sm"
+                                  aria-hidden="true"
+                                />
+                              )}
+                              {rowMixingRef === ref
+                                ? t("vault.mix_row_submitting")
+                                : t("vault.mix_row")}
+                            </button>
+                          </td>
                         </tr>
                       );
                     })}
@@ -678,7 +924,54 @@ function UnlockedVault() {
           phases={withdrawPhases(t)}
           ariaLabel={t("withdraw.submitting")}
         />
+        <TxBuildProgress
+          active={rowMixingRef !== null}
+          phases={mixPhases(t, maxNShard)}
+          ariaLabel={t("vault.mix_row_submitting")}
+        />
       </div>
+
+      <Modal
+        open={confirmMixRef !== null}
+        onClose={() => setConfirmMixRef(null)}
+        title={t("vault.mix_row_confirm_title")}
+      >
+        <header className="mb-5">
+          <p className="lj-eyebrow">{t("vault.mix_row_confirm_eyebrow")}</p>
+          <h2 className="mt-2 font-display text-2xl font-light tracking-tight text-paper">
+            {t("vault.mix_row_confirm_title")}
+          </h2>
+          <p className="mt-2 text-sm text-muted">
+            {t("vault.mix_row_confirm_lede", { n: maxNShard })}
+          </p>
+        </header>
+        <footer className="mt-6 flex justify-end gap-2">
+          <button
+            type="button"
+            className="lj-btn lj-btn--quiet"
+            onClick={() => setConfirmMixRef(null)}
+          >
+            {t("common.cancel")}
+          </button>
+          <button
+            type="button"
+            className="lj-btn lj-btn--primary"
+            onClick={() => {
+              const ref = confirmMixRef;
+              setConfirmMixRef(null);
+              if (!ref) return;
+              const target = ownedBoxes.find(
+                (b) =>
+                  `${b.entry.ref.txId.toLowerCase()}#${b.entry.ref.outputIndex}` ===
+                  ref,
+              );
+              if (target) void mixThisBox(target);
+            }}
+          >
+            {t("vault.mix_row_confirm_submit")}
+          </button>
+        </footer>
+      </Modal>
 
       <Modal
         open={confirmOpen}
@@ -732,8 +1025,12 @@ function UnlockedVault() {
   );
 }
 
-function bytesToHexShort(b: Uint8Array): string {
-  let s = "";
-  for (const x of b) s += x.toString(16).padStart(2, "0");
-  return s;
+function hexToBytes(hex: string): Uint8Array {
+  const cleaned = hex.replace(/^0x/i, "");
+  if (cleaned.length % 2 !== 0) throw new Error("hex must have even length");
+  const out = new Uint8Array(cleaned.length / 2);
+  for (let i = 0; i < out.length; i++) {
+    out[i] = Number.parseInt(cleaned.slice(i * 2, i * 2 + 2), 16);
+  }
+  return out;
 }

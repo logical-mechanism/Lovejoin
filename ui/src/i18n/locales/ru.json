@@ -415,7 +415,18 @@
     "page_indicator": "Страница {{current}} из {{total}}",
     "prev_page": "Назад",
     "next_page": "Вперёд",
-    "recover_strength_announce_prefix": "Стойкость пароля: "
+    "recover_strength_announce_prefix": "Стойкость пароля: ",
+    "column_rounds": "раунды",
+    "column_rounds_long": "Раунды микса: сколько раз этот бокс был повторно рандомизирован с момента депозита.",
+    "column_action": "Действие бокса",
+    "mix_row": "Микс",
+    "mix_row_submitting": "Микс…",
+    "mix_row_confirm_eyebrow": "Продвинуть один бокс",
+    "mix_row_confirm_title": "Смикшировать этот бокс",
+    "mix_row_confirm_lede": "Отправляет tx микса с платой по шарду, включающую этот бокс плюс ещё {{n}} - 1 боксов, выбранных случайно из живого pool. Кошелёк остаётся вне tx; комиссию оплачивает fee shard. Счётчик раундов этого бокса увеличится на один после подтверждения tx.",
+    "mix_row_confirm_submit": "Смикшировать этот бокс",
+    "mix_disabled_collateral": "Провайдер залога недоступен. Отправка микса отключена.",
+    "mix_disabled_pool": "Пул слишком мал, чтобы смикшировать этот бокс. Нужно {{need}} живых боксов; есть {{have}}."
   },
   "secret_card": {
     "title": "Сохраните этот secret сейчас",

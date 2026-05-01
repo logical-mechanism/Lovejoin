@@ -415,7 +415,18 @@
     "page_indicator": "Sayfa {{current}} / {{total}}",
     "prev_page": "Önceki",
     "next_page": "Sonraki",
-    "recover_strength_announce_prefix": "Parola gücü: "
+    "recover_strength_announce_prefix": "Parola gücü: ",
+    "column_rounds": "tur",
+    "column_rounds_long": "Mix turu: bu kutu yatırıldığından beri kaç kez yeniden rastgeleleştirildi.",
+    "column_action": "Kutu eylemi",
+    "mix_row": "Karıştır",
+    "mix_row_submitting": "Karıştırılıyor…",
+    "mix_row_confirm_eyebrow": "Bir kutu ilerlet",
+    "mix_row_confirm_title": "Bu kutuyu karıştır",
+    "mix_row_confirm_lede": "Bu kutuyu ve aktif pool'dan rastgele seçilmiş {{n}} - 1 başka kutuyu içeren bir shard ücretli mix tx'i gönderir. Cüzdan tx'in dışında kalır; ücreti bir fee shard öder. Tx onaylandığında bu kutunun tur sayacı bir artar.",
+    "mix_row_confirm_submit": "Bu kutuyu karıştır",
+    "mix_disabled_collateral": "Teminat sağlayıcısına ulaşılamıyor. Mix gönderimi devre dışı.",
+    "mix_disabled_pool": "Bu kutuyu karıştırmak için pool çok küçük. {{need}} aktif kutu gerekli; {{have}} mevcut."
   },
   "secret_card": {
     "title": "Bu sırrı şimdi kaydedin",

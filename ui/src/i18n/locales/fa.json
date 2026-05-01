@@ -415,7 +415,18 @@
     "page_indicator": "صفحهٔ {{current}} از {{total}}",
     "prev_page": "قبلی",
     "next_page": "بعدی",
-    "recover_strength_announce_prefix": "قدرت گذرواژه: "
+    "recover_strength_announce_prefix": "قدرت گذرواژه: ",
+    "column_rounds": "دورها",
+    "column_rounds_long": "دورهای میکس: تعداد دفعاتی که این باکس از زمان واریز دوباره تصادفی‌سازی شده است.",
+    "column_action": "اقدام باکس",
+    "mix_row": "میکس",
+    "mix_row_submitting": "در حال میکس…",
+    "mix_row_confirm_eyebrow": "یک باکس جلو ببرید",
+    "mix_row_confirm_title": "این باکس را میکس کنید",
+    "mix_row_confirm_lede": "یک تراکنش میکس با کارمزد شارد ارسال می‌کند که این باکس به‌همراه {{n}} - 1 باکس دیگر را شامل می‌شود که به‌طور تصادفی از pool زنده انتخاب می‌شوند. کیف پول خارج از تراکنش می‌ماند؛ کارمزد توسط یک fee shard پرداخت می‌شود. شمارنده دورهای این باکس پس از تأیید تراکنش یک واحد افزایش می‌یابد.",
+    "mix_row_confirm_submit": "این باکس را میکس کنید",
+    "mix_disabled_collateral": "ارائه‌دهنده تضمین در دسترس نیست. ارسال میکس غیرفعال است.",
+    "mix_disabled_pool": "Pool برای میکس این باکس کوچک است. {{need}} باکس زنده لازم است؛ {{have}} موجود است."
   },
   "secret_card": {
     "title": "این راز را همین حالا ذخیره کنید",

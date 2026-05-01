@@ -415,7 +415,18 @@
     "page_indicator": "Página {{current}} de {{total}}",
     "prev_page": "Anterior",
     "next_page": "Siguiente",
-    "recover_strength_announce_prefix": "Fortaleza de la contraseña: "
+    "recover_strength_announce_prefix": "Fortaleza de la contraseña: ",
+    "column_rounds": "rondas",
+    "column_rounds_long": "Rondas de mezcla: cuántas veces se ha re-randomizado esta caja desde el depósito.",
+    "column_action": "Acción de la caja",
+    "mix_row": "Mezclar",
+    "mix_row_submitting": "Mezclando…",
+    "mix_row_confirm_eyebrow": "Avanza una caja",
+    "mix_row_confirm_title": "Mezclar esta caja",
+    "mix_row_confirm_lede": "Envía una tx de mezcla con tarifa por shard que incluye esta caja más otras {{n}} - 1 cajas elegidas al azar de la pool activa. La wallet queda fuera de la tx; la tarifa la paga un fee shard. El contador de rondas de esta caja sube en uno cuando la tx se confirma.",
+    "mix_row_confirm_submit": "Mezclar esta caja",
+    "mix_disabled_collateral": "Proveedor de colateral inaccesible. El envío de mezcla está deshabilitado.",
+    "mix_disabled_pool": "Pool demasiado pequeña para mezclar esta caja. Se necesitan {{need}} cajas activas; hay {{have}}."
   },
   "secret_card": {
     "title": "Guarda este secreto ahora",

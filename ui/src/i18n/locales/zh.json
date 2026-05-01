@@ -415,7 +415,18 @@
     "page_indicator": "第 {{current}} 页，共 {{total}} 页",
     "prev_page": "上一页",
     "next_page": "下一页",
-    "recover_strength_announce_prefix": "密码强度："
+    "recover_strength_announce_prefix": "密码强度：",
+    "column_rounds": "轮次",
+    "column_rounds_long": "混币轮次：自存入以来此盒子被重新随机化的次数。",
+    "column_action": "盒子操作",
+    "mix_row": "混币",
+    "mix_row_submitting": "正在混币…",
+    "mix_row_confirm_eyebrow": "推进一个盒子",
+    "mix_row_confirm_title": "混币此盒子",
+    "mix_row_confirm_lede": "提交一笔分片手续费混币交易，其中包含此盒子以及从活跃资金池中随机选取的另外 {{n}} - 1 个盒子。钱包不参与该交易；手续费由一个 fee shard 支付。交易确认后，此盒子的轮次计数器增加一。",
+    "mix_row_confirm_submit": "混币此盒子",
+    "mix_disabled_collateral": "抵押品提供方无法访问。混币提交已禁用。",
+    "mix_disabled_pool": "资金池太小，无法混币此盒子。需要 {{need}} 个活跃盒子；当前 {{have}} 个。"
   },
   "secret_card": {
     "title": "现在保存这个密钥",

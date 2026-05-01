@@ -415,7 +415,18 @@
     "page_indicator": "Pagina {{current}} di {{total}}",
     "prev_page": "Precedente",
     "next_page": "Successiva",
-    "recover_strength_announce_prefix": "Robustezza della password: "
+    "recover_strength_announce_prefix": "Robustezza della password: ",
+    "column_rounds": "round",
+    "column_rounds_long": "Round di mix: quante volte questo box è stato re-randomizzato dal deposito.",
+    "column_action": "Azione box",
+    "mix_row": "Mix",
+    "mix_row_submitting": "Mix in corso…",
+    "mix_row_confirm_eyebrow": "Avanza un box",
+    "mix_row_confirm_title": "Mixa questo box",
+    "mix_row_confirm_lede": "Invia una tx di mix a fee shard che include questo box più altri {{n}} - 1 box scelti a caso dalla pool attiva. La wallet resta fuori dalla tx; la fee la paga un fee shard. Il contatore dei round di questo box aumenta di uno una volta confermata la tx.",
+    "mix_row_confirm_submit": "Mixa questo box",
+    "mix_disabled_collateral": "Provider del collaterale irraggiungibile. Invio del mix disabilitato.",
+    "mix_disabled_pool": "Pool troppo piccola per mixare questo box. Servono {{need}} box attivi; disponibili {{have}}."
   },
   "secret_card": {
     "title": "Salva ora questo secret",
