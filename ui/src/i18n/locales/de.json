@@ -164,7 +164,6 @@
     "review_title": "Transaktionsvorschau",
     "review_width": "Mix-Breite",
     "review_linkage": "Verknüpfung",
-    "review_linkage_value": "1/{{n}} pro Runde → (1/{{n}})^k nach k Runden",
     "review_selection": "Pool-Auswahl",
     "review_selection_loading": "Pool wird durchsucht…",
     "review_selection_value": "{{n}} Boxes zufällig aus {{pool}} aktiven gewählt",

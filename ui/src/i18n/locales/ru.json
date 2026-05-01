@@ -164,7 +164,6 @@
     "review_title": "Предпросмотр транзакции",
     "review_width": "Ширина микса",
     "review_linkage": "Связь",
-    "review_linkage_value": "1/{{n}} за раунд → (1/{{n}})^k после k раундов",
     "review_selection": "Выбор из пула",
     "review_selection_loading": "Сканирование пула…",
     "review_selection_value": "{{n}} боксов выбраны случайно из {{pool}} активных",

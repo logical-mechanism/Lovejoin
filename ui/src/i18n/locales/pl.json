@@ -164,7 +164,6 @@
     "review_title": "Podgląd transakcji",
     "review_width": "Szerokość mixu",
     "review_linkage": "Powiązanie",
-    "review_linkage_value": "1/{{n}} na rundę → po k rundach (1/{{n}})^k",
     "review_selection": "Wybór z poolu",
     "review_selection_loading": "Skanowanie poolu…",
     "review_selection_value": "{{n}} boxów wybranych losowo z {{pool}} aktywnych",

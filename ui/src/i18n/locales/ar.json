@@ -164,7 +164,6 @@
     "review_title": "معاينة المعاملة",
     "review_width": "عرض الخلط",
     "review_linkage": "الربط",
-    "review_linkage_value": "1/{{n}} لكل جولة → (1/{{n}})^k بعد k جولة",
     "review_selection": "اختيار الـpool",
     "review_selection_loading": "جارٍ مسح الـpool…",
     "review_selection_value": "{{n}} صناديق اختيرت عشوائياً من {{pool}} نشطة",

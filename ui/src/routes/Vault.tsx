@@ -34,7 +34,6 @@ import { useAppState } from "../lib/store.js";
 import { Eyebrow } from "../components/ui/Eyebrow.js";
 import { Hash } from "../components/ui/Hash.js";
 import { Modal } from "../components/ui/Modal.js";
-import { StatusDot } from "../components/ui/StatusDot.js";
 import { RecoverPasswordPanel } from "../components/RecoverPasswordPanel.js";
 import { useToast } from "../components/Toaster.js";
 import { WithdrawReview } from "../components/WithdrawReview.js";
@@ -62,7 +61,6 @@ export function Vault() {
             <Eyebrow>{t("vault.eyebrow")}</Eyebrow>
             <h2 className="lj-card__title">{t("vault.locked_title")}</h2>
           </div>
-          <StatusDot tone="neutral" hollow label="locked" />
         </header>
         <p className="text-sm text-muted leading-relaxed max-w-prose">
           {t("vault.locked_lede")}
@@ -134,6 +132,11 @@ function UnlockedVault() {
   const [submitting, setSubmitting] = useState(false);
   const [retryAttempt, setRetryAttempt] = useState<number | null>(null);
   const [confirmOpen, setConfirmOpen] = useState(false);
+  // Pagination keeps the destination input + Withdraw button in view when
+  // the vault holds more than one page of boxes. Selection state is keyed
+  // by ref, so it survives page changes without extra plumbing.
+  const PAGE_SIZE = 10;
+  const [boxPage, setBoxPage] = useState(0);
   // Track rescan-in-flight locally so the "Scan again" button can
   // disable + show a spinner. The initial unlock-time scan is already
   // awaited inside `unlockWithWallet`, so by the time we render here
@@ -222,6 +225,15 @@ function UnlockedVault() {
   const totalLovelace = useMemo(
     () => selectedBoxes.reduce((acc, b) => acc + b.entry.utxo.lovelace, 0n),
     [selectedBoxes],
+  );
+
+  // Clamp the page index when the vault shrinks (withdraw confirmed,
+  // rescan removed a box) so we don't render a blank page past the end.
+  const totalPages = Math.max(1, Math.ceil(ownedBoxes.length / PAGE_SIZE));
+  const safeBoxPage = Math.min(boxPage, totalPages - 1);
+  const visibleBoxes = ownedBoxes.slice(
+    safeBoxPage * PAGE_SIZE,
+    (safeBoxPage + 1) * PAGE_SIZE,
   );
 
   const validation = useMemo(
@@ -333,7 +345,6 @@ function UnlockedVault() {
           <h2 className="lj-card__title">{t("vault.title")}</h2>
         </div>
         <div className="flex items-center gap-2">
-          <StatusDot tone="ok" label="unlocked" />
           <button
             type="button"
             className="lj-btn lj-btn--quiet"
@@ -429,7 +440,7 @@ function UnlockedVault() {
                     </tr>
                   </thead>
                   <tbody>
-                    {ownedBoxes.map((box) => {
+                    {visibleBoxes.map((box) => {
                       const ref = `${box.entry.ref.txId.toLowerCase()}#${box.entry.ref.outputIndex}`;
                       const ada = formatAda(box.entry.utxo.lovelace);
                       const checked = selectedRefs.has(ref);
@@ -499,6 +510,37 @@ function UnlockedVault() {
                   </tbody>
                 </table>
               </div>
+              {totalPages > 1 && (
+                <nav
+                  className="mt-3 flex items-center justify-between gap-3"
+                  aria-label={t("vault.pagination_aria")}
+                >
+                  <button
+                    type="button"
+                    className="lj-btn lj-btn--quiet"
+                    onClick={() => setBoxPage((p) => Math.max(0, p - 1))}
+                    disabled={safeBoxPage === 0}
+                  >
+                    ← {t("vault.prev_page")}
+                  </button>
+                  <span className="text-xs text-muted" aria-live="polite">
+                    {t("vault.page_indicator", {
+                      current: safeBoxPage + 1,
+                      total: totalPages,
+                    })}
+                  </span>
+                  <button
+                    type="button"
+                    className="lj-btn lj-btn--quiet"
+                    onClick={() =>
+                      setBoxPage((p) => Math.min(totalPages - 1, p + 1))
+                    }
+                    disabled={safeBoxPage >= totalPages - 1}
+                  >
+                    {t("vault.next_page")} →
+                  </button>
+                </nav>
+              )}
               {selectedBoxes.length > 0 && (
                 <p className="text-xs text-muted">
                   {t("withdraw.selection_summary", {

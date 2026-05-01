@@ -164,7 +164,6 @@
     "review_title": "트랜잭션 미리보기",
     "review_width": "믹스 폭",
     "review_linkage": "연결성",
-    "review_linkage_value": "라운드당 1/{{n}} → k 라운드 후 (1/{{n}})^k",
     "review_selection": "풀 선택",
     "review_selection_loading": "풀을 스캔 중…",
     "review_selection_value": "{{pool}}개의 활성 박스에서 {{n}}개를 무작위로 선택",

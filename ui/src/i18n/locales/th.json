@@ -164,7 +164,6 @@
     "review_title": "ตัวอย่างธุรกรรม",
     "review_width": "ความกว้างมิกซ์",
     "review_linkage": "การเชื่อมโยง",
-    "review_linkage_value": "ต่อรอบ 1/{{n}} → หลัง k รอบเป็น (1/{{n}})^k",
     "review_selection": "การเลือกจาก pool",
     "review_selection_loading": "กำลังสแกน pool…",
     "review_selection_value": "เลือกแบบสุ่ม {{n}} กล่องจาก {{pool}} กล่องที่ยังใช้งานได้",

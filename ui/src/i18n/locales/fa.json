@@ -164,7 +164,6 @@
     "review_title": "پیش‌نمایش تراکنش",
     "review_width": "عرض میکس",
     "review_linkage": "پیوند",
-    "review_linkage_value": "هر دور 1/{{n}} → پس از k دور (1/{{n}})^k",
     "review_selection": "انتخاب از pool",
     "review_selection_loading": "در حال اسکن pool…",
     "review_selection_value": "{{n}} باکس به‌صورت تصادفی از {{pool}} باکس فعال انتخاب شد",

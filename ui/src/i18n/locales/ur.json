@@ -164,7 +164,6 @@
     "review_title": "ٹرانزیکشن پیش نظر",
     "review_width": "مکس چوڑائی",
     "review_linkage": "ربط",
-    "review_linkage_value": "فی راؤنڈ 1/{{n}} → k راؤنڈ بعد (1/{{n}})^k",
     "review_selection": "Pool انتخاب",
     "review_selection_loading": "Pool اسکین ہو رہا ہے…",
     "review_selection_value": "{{pool}} فعال میں سے بے ترتیب {{n}} باکس",

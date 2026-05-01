@@ -164,7 +164,6 @@
     "review_title": "İşlem önizlemesi",
     "review_width": "Karıştırma genişliği",
     "review_linkage": "Bağlanma",
-    "review_linkage_value": "Tur başına 1/{{n}} → k tur sonra (1/{{n}})^k",
     "review_selection": "Pool seçimi",
     "review_selection_loading": "Pool taranıyor…",
     "review_selection_value": "{{pool}} aktif arasından rastgele {{n}} kutu",

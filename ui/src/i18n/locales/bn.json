@@ -164,7 +164,6 @@
     "review_title": "ট্রানজ্যাকশন প্রিভিউ",
     "review_width": "মিক্স প্রস্থ",
     "review_linkage": "লিঙ্কেজ",
-    "review_linkage_value": "প্রতি রাউন্ডে 1/{{n}} → k রাউন্ড পর (1/{{n}})^k",
     "review_selection": "Pool নির্বাচন",
     "review_selection_loading": "Pool স্ক্যান করা হচ্ছে…",
     "review_selection_value": "{{pool}}টি সক্রিয় থেকে র‍্যান্ডম {{n}}টি বক্স",

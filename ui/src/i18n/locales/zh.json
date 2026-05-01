@@ -164,7 +164,6 @@
     "review_title": "交易预览",
     "review_width": "混币宽度",
     "review_linkage": "可链接性",
-    "review_linkage_value": "每轮 1/{{n}} → 经过 k 轮后 (1/{{n}})^k",
     "review_selection": "资金池选择",
     "review_selection_loading": "正在扫描资金池…",
     "review_selection_value": "从 {{pool}} 个活跃盒子中随机选取 {{n}} 个",

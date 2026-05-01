@@ -164,7 +164,6 @@
     "review_title": "Aperçu de la transaction",
     "review_width": "Largeur de mix",
     "review_linkage": "Liaison",
-    "review_linkage_value": "1/{{n}} par tour → (1/{{n}})^k après k tours",
     "review_selection": "Sélection dans la pool",
     "review_selection_loading": "Analyse de la pool…",
     "review_selection_value": "{{n}} boîtes choisies au hasard parmi {{pool}} actives",

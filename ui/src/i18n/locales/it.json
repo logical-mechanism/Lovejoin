@@ -164,7 +164,6 @@
     "review_title": "Anteprima della transazione",
     "review_width": "Larghezza mix",
     "review_linkage": "Collegamento",
-    "review_linkage_value": "1/{{n}} per round → (1/{{n}})^k dopo k round",
     "review_selection": "Selezione dalla pool",
     "review_selection_loading": "Scansione della pool…",
     "review_selection_value": "{{n}} box scelti a caso tra {{pool}} attivi",

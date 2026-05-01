@@ -164,7 +164,6 @@
     "review_title": "Vista previa de la transacción",
     "review_width": "Ancho de mezcla",
     "review_linkage": "Enlace",
-    "review_linkage_value": "1/{{n}} por ronda → (1/{{n}})^k tras k rondas",
     "review_selection": "Selección de la pool",
     "review_selection_loading": "Escaneando la pool…",
     "review_selection_value": "{{n}} cajas elegidas al azar de {{pool}} activas",

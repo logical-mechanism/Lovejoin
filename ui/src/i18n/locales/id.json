@@ -164,7 +164,6 @@
     "review_title": "Pratinjau transaksi",
     "review_width": "Lebar mix",
     "review_linkage": "Keterhubungan",
-    "review_linkage_value": "1/{{n}} per ronde → (1/{{n}})^k setelah k ronde",
     "review_selection": "Seleksi pool",
     "review_selection_loading": "Memindai pool…",
     "review_selection_value": "{{n}} kotak diambil acak dari {{pool}} yang aktif",

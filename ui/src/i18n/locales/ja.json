@@ -164,7 +164,6 @@
     "review_title": "トランザクションプレビュー",
     "review_width": "ミックス幅",
     "review_linkage": "紐付け",
-    "review_linkage_value": "1 ラウンドあたり 1/{{n}} → k ラウンド後 (1/{{n}})^k",
     "review_selection": "プール選択",
     "review_selection_loading": "プールをスキャン中…",
     "review_selection_value": "{{pool}} 個の有効ボックスから {{n}} 個をランダムに選択",

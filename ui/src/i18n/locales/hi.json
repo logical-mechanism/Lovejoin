@@ -164,7 +164,6 @@
     "review_title": "लेन-देन पूर्वावलोकन",
     "review_width": "मिक्स चौड़ाई",
     "review_linkage": "लिंकेज",
-    "review_linkage_value": "प्रति राउंड 1/{{n}} → k राउंड बाद (1/{{n}})^k",
     "review_selection": "पूल चयन",
     "review_selection_loading": "पूल स्कैन हो रहा है…",
     "review_selection_value": "{{pool}} सक्रिय में से रैंडम चुने गए {{n}} बॉक्स",
