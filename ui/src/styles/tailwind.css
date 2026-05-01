@@ -113,6 +113,19 @@
     min-height: 100vh;
     display: grid;
     grid-template-rows: auto 1fr auto;
+    /* Without an explicit columns rule, the implicit grid column sizes
+     * to the widest descendant's intrinsic content, so a single
+     * non-wrapping `<pre>` deep inside the Protocol page would expand
+     * the whole page past the viewport on mobile. `minmax(0, 1fr)` is
+     * the standard escape hatch: 1fr keeps the column at the available
+     * width, the 0 floor lets it shrink below content size, and the
+     * inner overflow-x: auto on `.lj-math` keeps math scrollable
+     * inside its own box. `overflow-x: clip` is the belt-and-suspenders
+     * safety net for any other element that someday refuses to shrink;
+     * `clip` (vs `hidden`) does not create a scroll container, so the
+     * sticky header keeps working. */
+    grid-template-columns: minmax(0, 1fr);
+    overflow-x: clip;
   }
   /* Skip-to-main link. Off-screen until focused; on focus, slides into
    * the top-left as a high-contrast paper-on-ink pill. The link is the
@@ -150,6 +163,11 @@
     display: flex;
     flex-direction: column;
     gap: 2rem;
+    /* Match the `.lj-shell` rationale: as a flex container with column
+     * direction, the cross-axis (width) defaults to fitting the widest
+     * child. `min-width: 0` lets it shrink so children with their own
+     * `min-width: 0` (e.g. `.lj-prose`) actually take effect. */
+    min-width: 0;
   }
   /* Programmatic focus on <main> after skip-link click leaves a visible
    * outline by default; we don't want it to look like the page is
@@ -1215,6 +1233,25 @@
       padding: 0.7rem 1rem;
       letter-spacing: 0.04em;
       font-size: 0.66rem;
+    }
+
+    /* Protocol page on phones: math blocks get a smaller monospace size
+     * so more characters fit per line before the inner overflow-x kicks
+     * in (the long Schnorr challenge line is ~50 chars; at the desktop
+     * 1rem mono that overflows a 360px viewport even after padding).
+     * Heading letter-spacing eased so uppercase mono h2s don't visually
+     * spill at narrow widths. Body type drops a hair for better fit
+     * without sacrificing legibility. */
+    .lj-prose {
+      font-size: 0.9rem;
+    }
+    .lj-prose h2 {
+      letter-spacing: 0.12em;
+    }
+    .lj-math {
+      font-size: 0.8rem;
+      padding: 0.75rem 0.85rem;
+      line-height: 1.45;
     }
   }
 }
