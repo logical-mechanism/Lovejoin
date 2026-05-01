@@ -44,6 +44,36 @@
     "busy_title": "Birazdan tekrar deneyin",
     "busy_detail": "Protokol şu anda meşgul: hedeflenen her UTxO başka bir işlemce harcandı. Birkaç saniye bekleyip tekrar gönderin."
   },
+  "tx_progress": {
+    "deposit": {
+      "derive": "Sahip sırları türetiliyor…",
+      "shard": "Ücret parçası seçiliyor…",
+      "build": "İşlem oluşturuluyor…",
+      "sign": "Cüzdan imzası bekleniyor…",
+      "submit": "Zincire gönderiliyor…"
+    },
+    "donate": {
+      "shard": "Ücret parçası seçiliyor…",
+      "build": "İşlem oluşturuluyor…",
+      "sign": "Cüzdan imzası bekleniyor…",
+      "submit": "Zincire gönderiliyor…"
+    },
+    "mix": {
+      "select": "Havuz kutuları seçiliyor…",
+      "shard": "Ücret parçası seçiliyor…",
+      "proof": "sigma-OR kanıtı oluşturuluyor (N={{n}})…",
+      "collateral": "Teminat alınıyor…",
+      "build": "İşlem oluşturuluyor…",
+      "submit": "Zincire gönderiliyor…"
+    },
+    "withdraw": {
+      "proof": "Schnorr kanıtı oluşturuluyor…",
+      "collateral": "Teminat alınıyor…",
+      "build": "İşlem oluşturuluyor…",
+      "sign": "Cüzdan imzası bekleniyor…",
+      "submit": "Zincire gönderiliyor…"
+    }
+  },
   "errors": {
     "network": "Ağ hatası. Bağlantınızı kontrol edip tekrar deneyin.",
     "blockfrost_auth": "Blockfrost isteği reddetti. Bu ağ için VITE_BLOCKFROST_PROJECT_ID geçersiz görünüyor.",
@@ -52,6 +82,7 @@
     "cbor": "İşlem kodlaması başarısız oldu. Bu bir hata, lütfen bildirin.",
     "script_eval": "Zincir üstü betik işlemi reddetti. Sayfayı yüklediğinizden bu yana pool veya ücret shard'ı değişmiş olabilir. Yenileyip tekrar deneyin.",
     "no_utxos": "Cüzdanınızda bu işlem için harcanabilir UTxO yok.",
+    "no_fee_shards": "Tüm ücret shard'ları şu anda harcanıyor. Birkaç saniye bekleyip tekrar deneyin.",
     "user_rejected": "Cüzdan istemini reddettiniz.",
     "collateral_unreachable": "Teminat sağlayıcısına ulaşılamıyor. Toparlanmasını bekleyip tekrar deneyin."
   },

@@ -313,6 +313,45 @@
         { "description": "Deploy guide exists", "check": "test -f docs/deploy.md" },
         { "description": "Backend exposes a start script", "check": "node -e \"const p=require('./backend/package.json'); if (!p.scripts.start) { process.exit(1); }\"" }
       ]
+    },
+    {
+      "id": "v1",
+      "name": "Road to v1.0.0 (production-ready Preprod release)",
+      "status": "in-progress",
+      "depends_on": ["M0", "M1", "M2", "M3", "M3.5", "M4", "M5", "M6", "M6.5", "M7"],
+      "spec": "/home/logic/.claude/plans/we-are-going-to-abundant-backus.md",
+      "notes": [
+        "v1 is tracked as 15 GitHub issues under the v1.0.0 milestone, not as sub-milestones in this file. Run `gh issue list --milestone v1.0.0` for the live list. Each issue body has Goal / Deliverables / Verification copied from the plan file.",
+        "Post-v1 backlog (deferred items: ChainProvider mesh dedup, Logger unification, typed LovejoinError, third-party audit, mainnet, self-host docker-compose, lifting N past 4) is tracked under the `post-v1` label. Do not pull these into v1 scope.",
+        "Cardano protocol cap: empirical N=3 via fee shard, N=4 via wallet collateral. Lifting beyond is blocked on a Cardano `max_tx_ex_units` bump (out of our control). M4.5 is effectively closed — the deployed protocol IS the v1 protocol.",
+        "Hosting target: lovejo.in (prod, auto-deploy from main) + preprod.lovejo.in (staging, auto-deploy from a release branch). Dev = local. Both connect to Cardano Preprod; the split is software environments, not Cardano networks.",
+        "Security posture: self-review + bounty for v1, third-party audit deferred to post-v1 mainnet-prep."
+      ],
+      "deliverables": [
+        "Step 2: ESLint + Prettier + commit hooks + CI lint (issue #36)",
+        "Step 3: Test coverage instrumentation (issue #37)",
+        "Step 4: Playwright E2E in CI (issue #38)",
+        "Step 5: Repo governance + open-source artifacts (issue #39)",
+        "Step 6: Component READMEs (issue #40)",
+        "Step 7: SDK TSDoc + Backend OpenAPI documentation (issue #41)",
+        "Step 8: User-facing docs / FAQ / /help route (issue #42)",
+        "Step 9: README overhaul + ARCHITECTURE overview (issue #43)",
+        "Step 10: Security review pass (issue #44)",
+        "Step 11: Unaudited / Preprod-only disclosure UX (issue #45)",
+        "Step 12: Domain registration + dev/prod split deployment (issue #46)",
+        "Step 13: Monitoring, alerting, runbook (issue #47)",
+        "Step 14: Release automation (semver tag-driven) + Dependabot (issue #48)",
+        "Step 15: Stale-doc + milestone cleanup (issue #49)",
+        "Step 16: Pre-launch verification + tag v1.0.0 (issue #50)"
+      ],
+      "exit_criteria": [
+        { "description": "All v1 milestone issues closed", "check": "test \"$(gh issue list --milestone v1.0.0 --state open --json number --jq 'length')\" = 0" },
+        { "description": "v1.0.0 tag exists", "check": "git tag --list 'v1.0.0' | grep -q '^v1.0.0$'" },
+        { "description": "GitHub Release v1.0.0 published", "check": "gh release view v1.0.0 --json tagName --jq .tagName | grep -q '^v1.0.0$'" },
+        { "description": "lovejo.in serves the production UI", "check": "curl -sf -o /dev/null -w '%{http_code}' https://lovejo.in/ | grep -q '^200$'" },
+        { "description": "lovejo.in backend health check passes", "check": "curl -sf -o /dev/null -w '%{http_code}' https://lovejo.in/api/health | grep -q '^200$'" },
+        { "description": "preprod.lovejo.in staging is up", "check": "curl -sf -o /dev/null -w '%{http_code}' https://preprod.lovejo.in/ | grep -q '^200$'" }
+      ]
     }
   ]
 }

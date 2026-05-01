@@ -5,21 +5,36 @@
 // `useAppState`. The collateral-provider status is hoisted to App-level so
 // the polling fires once and every screen reads from the same context.
 
+import { lazy, Suspense } from "react";
 import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 
 import { BackendStatusProvider } from "./components/BackendStatus.js";
 import { CollateralStatusProvider } from "./components/CollateralProviderStatus.js";
 import { ErrorBoundary } from "./components/ErrorBoundary.js";
 import { ToasterProvider } from "./components/Toaster.js";
-import { Box } from "./routes/Box.js";
-import { Deposit } from "./routes/Deposit.js";
-import { Donate } from "./routes/Donate.js";
 import { Home } from "./routes/Home.js";
 import { Layout } from "./routes/Layout.js";
-import { Pool } from "./routes/Pool.js";
-import { Protocol } from "./routes/Protocol.js";
-import { Vault } from "./routes/Vault.js";
 import { AppStateProvider, useAppState } from "./lib/store.js";
+
+// Non-Home routes are code-split. The home/landing path is the only one
+// reachable on first paint — every other screen requires either a wallet
+// connection or an unlocked vault, both of which take user action. Lazy
+// chunks shave hundreds of KB off the entry bundle and let the LCP-
+// critical hero render without waiting on Vault/Pool/Box etc. to parse.
+//
+// ErrorBoundary above each <Suspense> swallows chunk-load failures so a
+// flaky network on a stale tab doesn't blank the whole app — see the
+// route fallback below.
+const Box = lazy(() => import("./routes/Box.js").then((m) => ({ default: m.Box })));
+const Deposit = lazy(() =>
+  import("./routes/Deposit.js").then((m) => ({ default: m.Deposit })),
+);
+const Donate = lazy(() => import("./routes/Donate.js").then((m) => ({ default: m.Donate })));
+const Pool = lazy(() => import("./routes/Pool.js").then((m) => ({ default: m.Pool })));
+const Protocol = lazy(() =>
+  import("./routes/Protocol.js").then((m) => ({ default: m.Protocol })),
+);
+const Vault = lazy(() => import("./routes/Vault.js").then((m) => ({ default: m.Vault })));
 
 export function App() {
   // ErrorBoundary wraps the entire tree below the providers so:
@@ -39,16 +54,58 @@ export function App() {
                 <Routes>
                   <Route element={<Layout />}>
                     <Route index element={<Home />} />
-                    <Route path="deposit" element={<Deposit />} />
-                    <Route path="donate" element={<Donate />} />
-                    <Route path="pool" element={<Pool />} />
-                    <Route path="vault" element={<Vault />} />
-                    <Route path="vault/:txid/:idx" element={<Box />} />
+                    <Route
+                      path="deposit"
+                      element={
+                        <Suspense fallback={<RouteFallback />}>
+                          <Deposit />
+                        </Suspense>
+                      }
+                    />
+                    <Route
+                      path="donate"
+                      element={
+                        <Suspense fallback={<RouteFallback />}>
+                          <Donate />
+                        </Suspense>
+                      }
+                    />
+                    <Route
+                      path="pool"
+                      element={
+                        <Suspense fallback={<RouteFallback />}>
+                          <Pool />
+                        </Suspense>
+                      }
+                    />
+                    <Route
+                      path="vault"
+                      element={
+                        <Suspense fallback={<RouteFallback />}>
+                          <Vault />
+                        </Suspense>
+                      }
+                    />
+                    <Route
+                      path="vault/:txid/:idx"
+                      element={
+                        <Suspense fallback={<RouteFallback />}>
+                          <Box />
+                        </Suspense>
+                      }
+                    />
                     {/* /withdraw was a parallel multi-select flow that
                      * duplicated the Vault list. Folded into Vault; keep
                      * a redirect so external links + bookmarks still land. */}
                     <Route path="withdraw" element={<Navigate to="/vault" replace />} />
-                    <Route path="protocol" element={<Protocol />} />
+                    <Route
+                      path="protocol"
+                      element={
+                        <Suspense fallback={<RouteFallback />}>
+                          <Protocol />
+                        </Suspense>
+                      }
+                    />
                   </Route>
                 </Routes>
               </BrowserRouter>
@@ -58,6 +115,16 @@ export function App() {
       </ToasterProvider>
     </AppStateProvider>
   );
+}
+
+/**
+ * Minimal placeholder shown while a lazy route chunk is in flight.
+ * Intentionally non-translated and class-only — the route bundle owns
+ * its own copy + i18n keys. Keeping this tiny so it doesn't add to the
+ * entry chunk weight we're trying to reduce.
+ */
+function RouteFallback() {
+  return <div className="lj-route-fallback" aria-hidden="true" />;
 }
 
 /**

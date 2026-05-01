@@ -2,13 +2,15 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-## Status: alpha on Preprod; M4.5 + M7 remain
+## Status: alpha on Preprod; v1.0.0 hardening in flight
 
-M0 through M6.5 have landed end-to-end on Preprod. Done: foundations and tooling (M0), TS+Aiken+Rust crypto with KAT parity (M1), validators + bootstrap + Blockfrost-backed `ChainProvider` abstraction (M2), SDK deposit/withdraw + collateral provider client + CLI (M3), browser-wallet UI vertical slice (M3.5), variable-N Mix tx builder + Mix UI (M4), backend ogmios+db-sync indexer + Fastify API (M5), full UI v1 — Home/Pool/Vault/Box/Withdraw/Mix screens, i18n lint, Playwright E2E (M6), and the design + UX pass with wallet-derived vault as the default identity flow (M6.5).
+M0 through M7 have landed end-to-end on Preprod. The deployed protocol is the v1 protocol — empirical caps are **N=3 via fee shard** and **N=4 via wallet collateral**, and lifting either is blocked on a Cardano `max_tx_ex_units` bump (out of our control). M4.5's "redeploy with optimized validators" path is therefore closed; the optimization landed where it could and the rest is parked under `post-v1`.
 
-**Remaining**: M4.5 (Mix tx CPU/mem optimization — live Preprod testing showed N=4 overshoots the per-tx CPU budget; the deployed protocol is currently usable at N=3, and M4.5 redeploys an optimised validator set + re-calibrates) and M7 (CI/CD + release engineering). See [milestones.json](milestones.json) for the canonical list.
+**Remaining for v1.0.0**: engineering hardening — ESLint/Prettier baseline, test coverage instrumentation, Playwright E2E in CI, repo-governance docs, component READMEs, SDK TSDoc + backend OpenAPI, user-facing docs, security review + bounty, "unaudited / Preprod only" disclosure UX, custom domain (`lovejo.in` prod + `preprod.lovejo.in` staging), monitoring + runbook, semver-tag-driven releases + Dependabot, stale-doc cleanup, pre-launch verification.
 
-When in doubt, treat [docs/spec/](docs/spec/) as authoritative. The README is a summary; the spec is canonical. [milestones.json](milestones.json) is the source of truth for what's done vs. pending; the slash commands `/milestones` and `/work <id>` read and update it.
+This work is tracked as 15 GitHub issues on the `v1.0.0` milestone (`gh issue list --milestone v1.0.0`), not as sub-milestones in [milestones.json](milestones.json). The plan that broke them out is at `/home/logic/.claude/plans/we-are-going-to-abundant-backus.md`. Run `/work <issue-number>` (e.g. `/work 36`) to start a session on any of them. Deferred items live under the `post-v1` label.
+
+When in doubt, treat [docs/spec/](docs/spec/) as authoritative. The README is a summary; the spec is canonical. [milestones.json](milestones.json) is the source of truth for milestone-scoped work (M0–M7); the `/milestones` slash command lists them. For v1.0.0 hardening work, GitHub issues are the source of truth and `/work <issue-number>` is the entry point.
 
 ## What this project is
 

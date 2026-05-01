@@ -100,6 +100,48 @@ export default defineConfig(({ mode }) => {
     // a hint pointing at sources. This closes the Lighthouse "Missing
     // source maps for large first-party JavaScript" Best-Practices flag.
     sourcemap: "hidden",
+    // CSS code-splitting per dynamic import — keeps the route bundles'
+    // styles out of the initial render-blocking sheet. Vite defaults
+    // this on for entry CSS but explicitly setting it documents intent.
+    cssCodeSplit: true,
+    // esbuild is Vite's default minifier; pin it explicitly. esbuild
+    // strips whitespace + mangles locals on every chunk, which the
+    // PageSpeed "Minify JavaScript" diagnostic confirmed was happening
+    // (the 80 KB savings in that diagnostic comes from per-chunk dead
+    // code Rollup leaves behind, addressed via tree-shaking + the
+    // route code-split above).
+    minify: "esbuild",
+    rollupOptions: {
+      output: {
+        // Carve the entry chunk into stable vendor groups so the React
+        // runtime + i18next don't get re-hashed on every product change.
+        // Mesh + cardano-sdk are deliberately *not* bucketed here: they
+        // already sit behind a dynamic `import()` (lib/sdk.ts), the
+        // top-level-await plugin needs full control over the chunk
+        // boundary it emits for the Wasm initialiser, and overriding
+        // that boundary trips a "legacy octal escape" transform error
+        // mid-build.
+        manualChunks(id) {
+          if (!id.includes("node_modules")) return undefined;
+          if (
+            id.includes("/react/") ||
+            id.includes("/react-dom/") ||
+            id.includes("/scheduler/") ||
+            id.includes("/react-router") ||
+            id.includes("/react-router-dom/")
+          ) {
+            return "vendor-react";
+          }
+          if (
+            id.includes("/i18next/") ||
+            id.includes("/react-i18next/")
+          ) {
+            return "vendor-i18n";
+          }
+          return undefined;
+        },
+      },
+    },
   },
   optimizeDeps: {
     // Only the package that actually trips the wasm + top-level-await

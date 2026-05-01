@@ -17,9 +17,14 @@ import { buildBulkDepositTx } from "@lovejoin/sdk";
 import { useAppState } from "../lib/store.js";
 import { Eyebrow } from "../components/ui/Eyebrow.js";
 import { RecoverPasswordPanel } from "../components/RecoverPasswordPanel.js";
+import { TxBuildProgress } from "../components/TxBuildProgress.js";
+import { useBackendStatus } from "../components/BackendStatus.js";
 import { useToast } from "../components/Toaster.js";
 import { deriveDepositSecret } from "../lib/vault.js";
+import { BackendClient } from "../lib/backend.js";
+import { friendlyErrorMessage } from "../lib/errors.js";
 import { formatAda } from "../lib/format.js";
+import { depositPhases } from "../lib/tx-phases.js";
 
 export function Deposit() {
   const { t } = useTranslation();
@@ -38,6 +43,7 @@ export function Deposit() {
     walletLovelace,
     refreshWalletBalance,
   } = useAppState();
+  const backend = useBackendStatus();
   const [rounds, setRounds] = useState<number>(30);
   const [count, setCount] = useState<number>(1);
   const [submitting, setSubmitting] = useState(false);
@@ -153,6 +159,29 @@ export function Deposit() {
       const ownerSecrets = Array.from({ length: count }, (_, i) =>
         deriveDepositSecret(vault.seed, nextDepositIndex + i).secret,
       );
+      // Best-effort mempool snapshot so we don't pick a fee shard that's
+      // already an input to an in-flight tx. Backend-only feature; on
+      // Blockfrost-only deploys the snapshot stays empty and the SDK's
+      // pickFeeShardOptional falls back to uniform-random across all
+      // live shards.
+      let excludeFeeShardRefs: Array<{ txId: string; outputIndex: number }> | undefined;
+      const useBackend =
+        !!config.backendUrl &&
+        (backend?.status === "synced" || backend?.status === "syncing");
+      if (useBackend) {
+        try {
+          const client = new BackendClient(config.backendUrl);
+          const snap = await client.mempoolInputs();
+          if (snap && snap.inputs.length > 0) {
+            excludeFeeShardRefs = snap.inputs.map((r) => ({
+              txId: r.txHash,
+              outputIndex: r.outputIndex,
+            }));
+          }
+        } catch {
+          /* mempool fetch failed; fall through to retry-only */
+        }
+      }
       const result = await buildBulkDepositTx({
         network: config.network as "preprod" | "preview" | "mainnet",
         rounds,
@@ -160,6 +189,7 @@ export function Deposit() {
         wallet,
         provider,
         addresses,
+        ...(excludeFeeShardRefs ? { excludeFeeShardRefs } : {}),
       });
       toast.push({
         tone: "success",
@@ -172,7 +202,7 @@ export function Deposit() {
       toast.push({
         tone: "error",
         title: t("toast.deposit_failed"),
-        detail: (err as Error).message,
+        detail: friendlyErrorMessage((err as Error).message, t),
       });
     } finally {
       setSubmitting(false);
@@ -289,11 +319,13 @@ export function Deposit() {
         </fieldset>
       </form>
 
-      {submitting && (
-        <div className="lj-overlay__indicator">
-          <div className="lj-spinner" aria-label={t("deposit.submitting")} />
-        </div>
-      )}
+      <div className="lj-overlay__indicator">
+        <TxBuildProgress
+          active={submitting}
+          phases={depositPhases(t)}
+          ariaLabel={t("deposit.submitting")}
+        />
+      </div>
     </section>
   );
 }

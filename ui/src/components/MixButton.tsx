@@ -105,8 +105,14 @@ export function MixButton({
   onSubmittingChange,
 }: MixButtonProps) {
   const { t } = useTranslation();
-  const { config, ownedBoxes, markTxPending, walletLovelace, refreshWalletBalance } =
-    useAppState();
+  const {
+    config,
+    ownedBoxes,
+    markTxPending,
+    pendingTxRefs,
+    walletLovelace,
+    refreshWalletBalance,
+  } = useAppState();
   const backend = useBackendStatus();
   const [submitting, setSubmitting] = useState(false);
   const [retryAttempt, setRetryAttempt] = useState<number | null>(null);
@@ -175,24 +181,31 @@ export function MixButton({
     setRetryAttempt(null);
     onSubmittingChange?.(true);
     try {
-      // Best-effort mempool snapshot. We use it for two filters:
-      //   1. Pool-box exclusion: drop any box that's already an input to
-      //      an in-flight tx (someone else's Mix consuming the same box).
-      //   2. Fee-shard exclusion: forwarded to the SDK so pickRandomFeeShard
-      //      avoids in-flight shards (passed as excludeFeeShardRefs).
-      // Backend-only feature; on Blockfrost-only deploys this stays empty
-      // and the retry path absorbs collisions.
+      // In-flight refs come from two sources:
+      //   1. Backend mempool snapshot — every input to every pending tx
+      //      currently sitting in the node's mempool, regardless of who
+      //      submitted it. Backend-only.
+      //   2. Local `pendingTxRefs` — owned-box refs the user themselves
+      //      just submitted (Withdraw or a previous Mix that picked one
+      //      of their boxes). Surfaces locally-known spends that haven't
+      //      hit the chain yet, and works on Blockfrost-only deploys
+      //      where the mempool snapshot is unavailable.
+      // We use the union for two filters:
+      //   * Pool-box exclusion: drop any box already in flight.
+      //   * Fee-shard exclusion: forwarded to the SDK so
+      //     pickRandomFeeShard avoids in-flight shards (passed as
+      //     excludeFeeShardRefs).
       const useBackend =
         !!config.backendUrl &&
         (backend?.status === "synced" || backend?.status === "syncing");
-      let mempoolRefs = new Set<string>();
+      const inFlightRefs = new Set<string>(pendingTxRefs);
       if (useBackend) {
         try {
           const client = new BackendClient(config.backendUrl);
           const snap = await client.mempoolInputs();
           if (snap) {
             for (const r of snap.inputs) {
-              mempoolRefs.add(`${r.txHash.toLowerCase()}#${r.outputIndex}`);
+              inFlightRefs.add(`${r.txHash.toLowerCase()}#${r.outputIndex}`);
             }
           }
         } catch {
@@ -200,8 +213,8 @@ export function MixButton({
         }
       }
       const poolForPicking =
-        mempoolRefs.size > 0
-          ? poolEntries.filter((e) => !mempoolRefs.has(refKey(e.ref)))
+        inFlightRefs.size > 0
+          ? poolEntries.filter((e) => !inFlightRefs.has(refKey(e.ref)))
           : poolEntries;
       // If filtering left too few boxes for the chosen N, fall back to
       // the full pool. The retry path will catch the resulting collision
@@ -215,8 +228,8 @@ export function MixButton({
         ownedRefs: ownedRefSet,
       });
       const excludeFeeShardRefs =
-        feePayer === "shard" && mempoolRefs.size > 0
-          ? Array.from(mempoolRefs).flatMap((key) => {
+        feePayer === "shard" && inFlightRefs.size > 0
+          ? Array.from(inFlightRefs).flatMap((key) => {
               const hash = key.indexOf("#");
               if (hash <= 0) return [];
               const idx = Number(key.slice(hash + 1));

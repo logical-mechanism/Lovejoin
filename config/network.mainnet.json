@@ -7,7 +7,7 @@
   "fee_shard_target": 10,
   "min_mix_rounds": 5,
   "default_mix_rounds": 30,
-  "dapp_stake_key_hash": "07ac7dee6c82177096b70ccf21cfb8965c1fb08e079f9ca4af4b2b3e",
+  "dapp_stake_key_hash": "fcfc7701b1df42061202efa9c96968a481bbd6a0676efb7afa87ebf1",
   "mix_script_hash": null,
   "fee_script_hash": null,
   "reference_nft_policy": null,

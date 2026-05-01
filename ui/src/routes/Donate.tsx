@@ -18,10 +18,13 @@ import { buildDonateTx, isInputCollisionError } from "@lovejoin/sdk";
 import { useAppState } from "../lib/store.js";
 import { Eyebrow } from "../components/ui/Eyebrow.js";
 import { Hash } from "../components/ui/Hash.js";
+import { TxBuildProgress } from "../components/TxBuildProgress.js";
 import { useToast } from "../components/Toaster.js";
 import { useBackendStatus } from "../components/BackendStatus.js";
 import { BackendClient, type FeeShard } from "../lib/backend.js";
+import { friendlyErrorMessage } from "../lib/errors.js";
 import { formatAda } from "../lib/format.js";
+import { donatePhases } from "../lib/tx-phases.js";
 
 const DEFAULT_AMOUNT_ADA = 5;
 const MIN_AMOUNT_ADA = 1;
@@ -173,7 +176,7 @@ export function Donate() {
       toast.push({
         tone: "error",
         title: busy ? t("tx.busy_title") : t("toast.donate_failed"),
-        ...(busy ? { detail: t("tx.busy_detail") } : { detail: (err as Error).message }),
+        detail: busy ? t("tx.busy_detail") : friendlyErrorMessage((err as Error).message, t),
       });
     } finally {
       setSubmitting(false);
@@ -303,11 +306,13 @@ export function Donate() {
         </fieldset>
       </form>
 
-      {submitting && (
-        <div className="lj-overlay__indicator">
-          <div className="lj-spinner" aria-label={t("donate.submitting")} />
-        </div>
-      )}
+      <div className="lj-overlay__indicator">
+        <TxBuildProgress
+          active={submitting}
+          phases={donatePhases(t)}
+          ariaLabel={t("donate.submitting")}
+        />
+      </div>
     </section>
   );
 }

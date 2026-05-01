@@ -44,6 +44,36 @@
     "busy_title": "Spróbuj ponownie za chwilę",
     "busy_detail": "Protokół jest zajęty: każdy wybrany UTxO został zużyty przez inną transakcję. Poczekaj kilka sekund i wyślij ponownie."
   },
+  "tx_progress": {
+    "deposit": {
+      "derive": "Wyprowadzanie sekretów właściciela…",
+      "shard": "Wybór fragmentu opłaty…",
+      "build": "Budowanie transakcji…",
+      "sign": "Oczekiwanie na podpis portfela…",
+      "submit": "Wysyłanie do łańcucha…"
+    },
+    "donate": {
+      "shard": "Wybór fragmentu opłaty…",
+      "build": "Budowanie transakcji…",
+      "sign": "Oczekiwanie na podpis portfela…",
+      "submit": "Wysyłanie do łańcucha…"
+    },
+    "mix": {
+      "select": "Wybór skrzynek z puli…",
+      "shard": "Wybór fragmentu opłaty…",
+      "proof": "Generowanie dowodu sigma-OR (N={{n}})…",
+      "collateral": "Pobieranie zabezpieczenia…",
+      "build": "Budowanie transakcji…",
+      "submit": "Wysyłanie do łańcucha…"
+    },
+    "withdraw": {
+      "proof": "Generowanie dowodu Schnorra…",
+      "collateral": "Pobieranie zabezpieczenia…",
+      "build": "Budowanie transakcji…",
+      "sign": "Oczekiwanie na podpis portfela…",
+      "submit": "Wysyłanie do łańcucha…"
+    }
+  },
   "errors": {
     "network": "Błąd sieci. Sprawdź połączenie i spróbuj ponownie.",
     "blockfrost_auth": "Blockfrost odrzucił żądanie. Twoje VITE_BLOCKFROST_PROJECT_ID wygląda na nieprawidłowe dla tej sieci.",
@@ -52,6 +82,7 @@
     "cbor": "Kodowanie transakcji nie powiodło się. To bug, zgłoś proszę.",
     "script_eval": "Skrypt on-chain odrzucił transakcję. Pool albo fee shard mogły się zmienić od czasu wczytania strony. Odśwież i spróbuj ponownie.",
     "no_utxos": "Twój portfel nie ma wydatkowalnych UTxO dla tej transakcji.",
+    "no_fee_shards": "Wszystkie shardy opłat są obecnie wydawane. Poczekaj kilka sekund i spróbuj ponownie.",
     "user_rejected": "Odrzuciłeś prośbę portfela.",
     "collateral_unreachable": "Dostawca collateralu nieosiągalny. Poczekaj na powrót i spróbuj ponownie."
   },

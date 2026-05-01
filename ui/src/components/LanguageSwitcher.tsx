@@ -10,6 +10,7 @@
 import { useTranslation } from "react-i18next";
 
 import { LANGUAGES, isSupportedLang } from "../i18n/languages.js";
+import { changeLanguage } from "../i18n/index.js";
 
 export function LanguageSwitcher() {
   const { t, i18n } = useTranslation();
@@ -25,7 +26,7 @@ export function LanguageSwitcher() {
         value={current}
         onChange={(e) => {
           const next = e.target.value;
-          if (isSupportedLang(next)) void i18n.changeLanguage(next);
+          if (isSupportedLang(next)) void changeLanguage(next);
         }}
         aria-label={t("language.aria_label")}
       >
