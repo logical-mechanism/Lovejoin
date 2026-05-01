@@ -179,6 +179,12 @@ describe("API: /health", () => {
         chainTip: () => null,
         isRunning: () => false,
         fatalError: () => fatal,
+        reconnecting: () => ({
+          inProgress: false,
+          attempts: 0,
+          lastErrorAt: 0,
+          lastErrorMessage: "",
+        }),
         // Untyped extras: the route doesn't read them but the type
         // wants the full shape. Cast through any to keep the test
         // narrow.
@@ -194,6 +200,43 @@ describe("API: /health", () => {
       expect(body.runtimeError).toBe("ogmios connection lost");
     } finally {
       await errored.close();
+    }
+  });
+
+  it("stays 200 while chainsync is reconnecting and surfaces attempt count", async () => {
+    // While the runtime is mid-reconnect (no fatal yet), /health must
+    // stay 200 so the orchestrator doesn't recycle the container —
+    // cached state still serves /params, /pool, /box/*, /fee.
+    const reconnecting = await buildServer({
+      state,
+      runtime: {
+        chainTip: () => null,
+        isRunning: () => true,
+        fatalError: () => null,
+        reconnecting: () => ({
+          inProgress: true,
+          attempts: 3,
+          lastErrorAt: 1_700_000_000_000,
+          lastErrorMessage: "ogmios websocket closed",
+        }),
+      } as unknown as Parameters<typeof buildServer>[0]["runtime"],
+      config: CONFIG,
+      dbsync: null,
+    });
+    try {
+      const res = await reconnecting.inject({ method: "GET", url: "/health" });
+      expect(res.statusCode).toBe(200);
+      const body = res.json();
+      expect(body.ok).toBe(true);
+      expect(body.runtimeError).toBeNull();
+      expect(body.chainsyncReconnect).toEqual({
+        inProgress: true,
+        attempts: 3,
+        lastErrorAt: 1_700_000_000_000,
+        lastErrorMessage: "ogmios websocket closed",
+      });
+    } finally {
+      await reconnecting.close();
     }
   });
 });
