@@ -29,6 +29,19 @@ describe("tx/retry isInputCollisionError", () => {
     expect(isInputCollisionError(new Error("Unknown input txid#0"))).toBe(true);
   });
 
+  it("matches ogmios JSON-RPC error 3117 (unknown UTxO references)", () => {
+    const err = new Error(
+      "BackendChainProvider.submitTx (400): ogmios JSON-RPC error 3117: The transaction contains unknown UTxO references as inputs. This can happen if the inputs you're trying to spend have already been spent, or if you've simply referred to non-existing UTxO altogether. The field 'data.unknownOutputReferences' indicates all unknown inputs.",
+    );
+    expect(isInputCollisionError(err)).toBe(true);
+  });
+
+  it("matches the bare `unknownOutputReferences` token (ogmios data field)", () => {
+    expect(
+      isInputCollisionError(new Error('{"data":{"unknownOutputReferences":[...]}}')),
+    ).toBe(true);
+  });
+
   it("does not match unrelated errors", () => {
     expect(
       isInputCollisionError(new Error("ScriptEvaluationFailure: validator returned False")),

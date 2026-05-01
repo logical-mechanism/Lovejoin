@@ -82,6 +82,7 @@
     "cbor": "L'encodage de la transaction a échoué. C'est un bug, merci de le signaler.",
     "script_eval": "Le script on-chain a rejeté la transaction. La pool ou le shard de frais a peut-être changé depuis le chargement de la page. Rechargez et réessayez.",
     "no_utxos": "Votre portefeuille n'a aucun UTxO dépensable pour cette transaction.",
+    "no_fee_shards": "Tous les shards de frais sont en cours de dépense. Patientez quelques secondes et réessayez.",
     "user_rejected": "Vous avez refusé la demande du portefeuille.",
     "collateral_unreachable": "Fournisseur de collatéral injoignable. Attendez son rétablissement et réessayez."
   },

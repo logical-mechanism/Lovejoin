@@ -22,7 +22,7 @@
     "mix_logic": "bfef1be624a5d15bd4065102449e02a0350dce0b365f12d3e26c4cb9b6da4997#0",
     "fee_contract": "1a63a3f5c932752df8d63b2c936fe89a93ccbbfb07a454920a520401811ed6fa#0"
   },
-  "dappStakeKeyHashHex": "1e3105f23f2ac91b3fb4c35fa4fe301421028e356e114944e902005b",
+  "dappStakeKeyHashHex": "86c769419aaa673c963da04e4b5bae448d490e2ceac902cb82e4da76",
   "stage1ChangeUtxo": "1a63a3f5c932752df8d63b2c936fe89a93ccbbfb07a454920a520401811ed6fa#1",
   "mixLogicRegisterTx": "6256cd77589e73ea5ff454f3177fae8a48b1d98fcd994406916cb519b20159e9",
   "referenceScriptSizes": {

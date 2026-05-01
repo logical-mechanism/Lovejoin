@@ -82,6 +82,7 @@
     "cbor": "Transaktionscodierung fehlgeschlagen. Das ist ein Bug, bitte melden.",
     "script_eval": "Das On-Chain-Skript hat die Transaktion abgelehnt. Pool oder Fee-Shard haben sich seit dem Laden der Seite vermutlich geändert. Neu laden und erneut versuchen.",
     "no_utxos": "In deiner Wallet sind keine ausgabefähigen UTxOs für diese Transaktion vorhanden.",
+    "no_fee_shards": "Alle Fee-Shards werden gerade verbraucht. Warte ein paar Sekunden und versuche es erneut.",
     "user_rejected": "Du hast die Wallet-Anfrage abgelehnt.",
     "collateral_unreachable": "Collateral-Anbieter nicht erreichbar. Auf Wiederherstellung warten und erneut versuchen."
   },

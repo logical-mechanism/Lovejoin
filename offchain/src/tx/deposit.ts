@@ -424,6 +424,15 @@ export interface BuildDepositArgs {
    * to shard-less when none are available on chain.
    */
   feeShard?: Utxo | null;
+  /**
+   * Optional UTxO refs to skip when auto-picking a fee shard. Lets the
+   * caller forward a mempool snapshot so deposits don't pick a shard
+   * that's already an input to an in-flight tx. Ignored when `feeShard`
+   * is supplied explicitly. If excluding leaves zero candidates the
+   * picker falls back to the full set rather than refusing — concurrency
+   * hint, not a hard constraint.
+   */
+  excludeFeeShardRefs?: ReadonlyArray<UtxoRef>;
   /** Optional collateral provider. Default: WalletProvider(wallet). */
   collateralProvider?: CollateralProvider;
   /**
@@ -457,6 +466,9 @@ export async function buildDepositTx(args: BuildDepositArgs): Promise<DepositRes
     : await pickFeeShardOptional({
         provider: args.provider,
         feeScriptAddressBech32: feeAddress,
+        ...(args.excludeFeeShardRefs && args.excludeFeeShardRefs.length > 0
+          ? { excludeRefs: args.excludeFeeShardRefs }
+          : {}),
       });
 
   const plan = planDepositTx({
@@ -837,6 +849,11 @@ export interface BuildBulkDepositArgs {
    * fall back to shard-less when no shards exist on chain.
    */
   feeShard?: Utxo | null;
+  /**
+   * Optional UTxO refs to skip when auto-picking a fee shard. Same
+   * semantics as `BuildDepositArgs.excludeFeeShardRefs`.
+   */
+  excludeFeeShardRefs?: ReadonlyArray<UtxoRef>;
   collateralProvider?: CollateralProvider;
   signOnly?: boolean;
 }
@@ -879,6 +896,9 @@ export async function buildBulkDepositTx(
     : await pickFeeShardOptional({
         provider: args.provider,
         feeScriptAddressBech32: feeAddress,
+        ...(args.excludeFeeShardRefs && args.excludeFeeShardRefs.length > 0
+          ? { excludeRefs: args.excludeFeeShardRefs }
+          : {}),
       });
 
   const plan = planBulkDepositTx({

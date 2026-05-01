@@ -47,6 +47,16 @@ interface ToasterApi {
 
 const Ctx = createContext<ToasterApi | null>(null);
 const DEFAULT_TTL = 7000;
+// Errors hang around longer than success toasts (more text, typically
+// more important to read), but they no longer stick. Sticky errors
+// were piling up — a fresh "tx failed" would land behind two stale
+// errors the user had already seen. 12s is enough to read 1–2 lines
+// without forcing a manual dismiss.
+const ERROR_TTL = 12_000;
+// Hard cap on simultaneously-visible toasts. Beyond this, the oldest
+// toast is evicted when a new one pushes — same rationale as above:
+// new info shouldn't get hidden behind stale alerts.
+const MAX_VISIBLE = 4;
 
 export function ToasterProvider({ children }: { children: ReactNode }) {
   const [toasts, setToasts] = useState<Toast[]>([]);
@@ -60,13 +70,18 @@ export function ToasterProvider({ children }: { children: ReactNode }) {
     (t: Omit<Toast, "id">) => {
       idRef.current += 1;
       const id = idRef.current;
-      // Errors stick by default — a 7-second flash for "deposit failed:
-      // CBOR decode" loses the message before the user finishes reading
-      // it, which leads to blind retries. Caller can still pass an
-      // explicit ttl to override.
-      const effectiveTtl = t.ttl ?? (t.tone === "error" ? 0 : DEFAULT_TTL);
+      const effectiveTtl =
+        t.ttl ?? (t.tone === "error" ? ERROR_TTL : DEFAULT_TTL);
       const queued: Toast = { ...t, id, ttl: effectiveTtl };
-      setToasts((cur) => [...cur, queued]);
+      setToasts((cur) => {
+        const next = [...cur, queued];
+        // Evict the oldest entries past the cap so a flurry of
+        // failures (e.g. multiple retry collisions) doesn't bury the
+        // newest message under a wall of stale ones.
+        return next.length > MAX_VISIBLE
+          ? next.slice(next.length - MAX_VISIBLE)
+          : next;
+      });
       if (effectiveTtl > 0) {
         window.setTimeout(() => dismiss(id), effectiveTtl);
       }

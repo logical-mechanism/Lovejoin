@@ -82,6 +82,7 @@
     "cbor": "Codifica della transazione non riuscita. È un bug, segnalalo per favore.",
     "script_eval": "Lo script on-chain ha rifiutato la transazione. La pool o lo shard delle commissioni potrebbero essere cambiati dopo il caricamento della pagina. Aggiorna e riprova.",
     "no_utxos": "Il tuo wallet non ha UTxO spendibili per questa transazione.",
+    "no_fee_shards": "Tutti gli shard di commissione sono in spesa. Aspetta qualche secondo e riprova.",
     "user_rejected": "Hai rifiutato la richiesta del wallet.",
     "collateral_unreachable": "Provider del collaterale irraggiungibile. Aspetta che si riprenda e riprova."
   },

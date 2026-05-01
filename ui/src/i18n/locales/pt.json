@@ -82,6 +82,7 @@
     "cbor": "Falha ao codificar a transação. Isso é um bug, por favor reporte.",
     "script_eval": "O script on-chain rejeitou a transação. O pool ou o shard de taxa podem ter mudado desde que você abriu a página. Recarregue e tente novamente.",
     "no_utxos": "Sua carteira não tem UTxOs gastáveis para esta transação.",
+    "no_fee_shards": "Todos os shards de taxa estão sendo gastos agora. Aguarde alguns segundos e tente novamente.",
     "user_rejected": "Você recusou o pedido da carteira.",
     "collateral_unreachable": "Provedor de colateral inacessível. Aguarde a recuperação e tente novamente."
   },

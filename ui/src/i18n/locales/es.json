@@ -82,6 +82,7 @@
     "cbor": "Falló la codificación de la transacción. Esto es un bug, repórtalo por favor.",
     "script_eval": "El script en cadena rechazó la transacción. La pool o el shard de comisión pueden haber cambiado desde que cargaste la página. Recarga y vuelve a intentar.",
     "no_utxos": "Tu cartera no tiene UTxOs gastables para esta transacción.",
+    "no_fee_shards": "Todos los shards de comisión se están gastando ahora mismo. Espera unos segundos e inténtalo de nuevo.",
     "user_rejected": "Rechazaste la solicitud de la cartera.",
     "collateral_unreachable": "Proveedor de colateral inaccesible. Espera a que se recupere y vuelve a intentar."
   },

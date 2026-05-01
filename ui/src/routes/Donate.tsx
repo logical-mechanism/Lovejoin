@@ -22,6 +22,7 @@ import { TxBuildProgress } from "../components/TxBuildProgress.js";
 import { useToast } from "../components/Toaster.js";
 import { useBackendStatus } from "../components/BackendStatus.js";
 import { BackendClient, type FeeShard } from "../lib/backend.js";
+import { friendlyErrorMessage } from "../lib/errors.js";
 import { formatAda } from "../lib/format.js";
 import { donatePhases } from "../lib/tx-phases.js";
 
@@ -175,7 +176,7 @@ export function Donate() {
       toast.push({
         tone: "error",
         title: busy ? t("tx.busy_title") : t("toast.donate_failed"),
-        ...(busy ? { detail: t("tx.busy_detail") } : { detail: (err as Error).message }),
+        detail: busy ? t("tx.busy_detail") : friendlyErrorMessage((err as Error).message, t),
       });
     } finally {
       setSubmitting(false);

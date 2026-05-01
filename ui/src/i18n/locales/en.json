@@ -85,6 +85,7 @@
     "cbor": "Transaction encoding failed. This is a bug, please report it.",
     "script_eval": "On-chain script rejected the transaction. The pool or fee shard may have changed since you loaded the page. Refresh and retry.",
     "no_utxos": "Your wallet has no spendable UTxOs for this transaction.",
+    "no_fee_shards": "Every fee shard is currently being spent. Wait a few seconds for them to settle and try again.",
     "user_rejected": "You declined the wallet prompt.",
     "collateral_unreachable": "Collateral provider unreachable. Wait for it to recover and try again."
   },
