@@ -35,10 +35,12 @@ import { Eyebrow } from "../components/ui/Eyebrow.js";
 import { Hash } from "../components/ui/Hash.js";
 import { Modal } from "../components/ui/Modal.js";
 import { RecoverPasswordPanel } from "../components/RecoverPasswordPanel.js";
+import { TxBuildProgress } from "../components/TxBuildProgress.js";
 import { useToast } from "../components/Toaster.js";
 import { WithdrawReview } from "../components/WithdrawReview.js";
 import { formatAda } from "../lib/format.js";
 import { validateDestination } from "../lib/seedelf.js";
+import { withdrawPhases } from "../lib/tx-phases.js";
 import { useVisibleRefresh } from "../lib/use-visible-refresh.js";
 import type { OwnedBox } from "../lib/vault.js";
 
@@ -669,11 +671,13 @@ function UnlockedVault() {
         </form>
       )}
 
-      {submitting && (
-        <div className="lj-overlay__indicator">
-          <div className="lj-spinner" aria-label={t("withdraw.submitting")} />
-        </div>
-      )}
+      <div className="lj-overlay__indicator">
+        <TxBuildProgress
+          active={submitting}
+          phases={withdrawPhases(t)}
+          ariaLabel={t("withdraw.submitting")}
+        />
+      </div>
 
       <Modal
         open={confirmOpen}
