@@ -11,6 +11,7 @@ v1 ships through M7. M8+ is post-v1.
 **Scope:** repo skeleton, dev environment, CI scaffolding, i18n bootstrap. No protocol code.
 
 **Deliverables:**
+
 - `contracts/` Aiken project scaffolded; **Aiken 1.1.21** pinned in `aiken.toml`.
 - `offchain/` TS package with vitest configured.
 - `backend/` Node project with Fastify + ogmios stub.
@@ -32,6 +33,7 @@ v1 ships through M7. M8+ is post-v1.
 **Scope:** the three sigma primitives — including **N-way sigma-OR for variable N** — RFC 6979 nonce derivation, fully implemented in TS and Aiken with KAT vectors.
 
 **Deliverables:**
+
 - TS: `offchain/src/crypto/{bls,hash,nonce,schnorr,dhtuple,sigma_or,verify}.ts`. The sigma-OR module supports **arbitrary N**.
 - Aiken: `contracts/lib/lovejoin/{bls,hash,schnorr,dhtuple,sigma_or}.ak` verifiers; sigma-OR is **N-generic**, taking the proof's branches as a list.
 - Rust reference: `crypto/ref/` using `blst` for KAT generation at varied N.
@@ -39,6 +41,7 @@ v1 ships through M7. M8+ is post-v1.
 - Encoding-parity test: same inputs hashed in TS and Aiken yield identical bytes.
 
 **Exit criteria:**
+
 - All KAT vectors verify in TS, Aiken, and Rust ref at every supported N.
 - All negative vectors are rejected.
 - Encoding parity passes for 1000 random inputs across N values.
@@ -55,6 +58,7 @@ v1 ships through M7. M8+ is post-v1.
 **Scope:** all validators, bootstrapped to Preprod, **with `max_n` empirically calibrated**.
 
 **Deliverables:**
+
 - `contracts/validators/{reference_holder,one_shot_mint,mix_box,mix_logic,fee_contract}.ak`. `mix_box` is the cheap spend-side delegator; `mix_logic` is the withdraw-zero validator that handles **variable N** at runtime. See [03-contracts.md](03-contracts.md) §0 for the design rationale.
 - `contracts/test/{reference_test,mix_box_test,mix_logic_test,fee_contract_test}.ak`. Mix tests cover N ∈ {2, 3, 4, 6, 8} positive + negative.
 - `contracts/build.sh`.
@@ -71,6 +75,7 @@ v1 ships through M7. M8+ is post-v1.
 - Results committed to `docs/perf.md` and `network.preprod.json`.
 
 **Exit criteria:**
+
 - Every rule from [03-contracts.md](03-contracts.md) §1–§3 has positive + negative tests, all passing.
 - Mix tx total script cost at recommended `max_n` < 70% mainnet limits.
 - Reference NFT minted on Preprod; 10 fee shards funded; reference scripts published.
@@ -88,6 +93,7 @@ v1 ships through M7. M8+ is post-v1.
 **Scope:** TS SDK for Deposit and Withdraw, plus the **collateral provider client** used by Mix in M4.
 
 **Deliverables:**
+
 - `offchain/src/tx/{deposit,withdraw,fee,params,collateral}.ts`.
 - `offchain/src/wallet/cip30.ts` mesh integration.
 - CLI: `lovejoin deposit` and `lovejoin withdraw`.
@@ -96,6 +102,7 @@ v1 ships through M7. M8+ is post-v1.
 - Integration test on Preprod: deposit (with Replenish), confirm, withdraw to a different address, assert arrival.
 
 **Exit criteria:**
+
 - Deposit + withdraw integration test passes ten consecutive runs on Preprod.
 - Mesh viability decision documented; if mesh blocks the externally-supplied collateral path, switch to lucid-evolution before M4.
 - `GivemeMyProvider` confirmed working against the production giveme.my endpoint on Preprod.
@@ -111,6 +118,7 @@ v1 ships through M7. M8+ is post-v1.
 **Scope:** the variable-N mixing logic; users submit Mix txs with N ∈ {2..max_n} from the SDK or UI, fully wallet-anonymous via the collateral provider.
 
 **Deliverables:**
+
 - `offchain/src/tx/mix.ts` — variable-N Mix tx builder using fee shard + collateral provider.
 - `offchain/src/pool/{identify,select}.ts` — local pool scanner; uniform random N-tuple selector.
 - CLI: `lovejoin mix` (uses max_n) and `lovejoin mix --n N --rounds K`.
@@ -134,6 +142,7 @@ v1 ships through M7. M8+ is post-v1.
 **Scope:** chainsync indexer for pool, fee shards, reference UTxO; REST API.
 
 **Deliverables:**
+
 - `backend/src/indexer/{ogmios,pool,fee,reference,reorg}.ts`.
 - `backend/src/api/` complete with all routes.
 - `backend/Dockerfile`.
@@ -142,6 +151,7 @@ v1 ships through M7. M8+ is post-v1.
 - Reference-UTxO sanity alarm: simulate "reference UTxO consumed" event; indexer raises and degrades.
 
 **Exit criteria:**
+
 - Backend syncs from a Preprod-aligned db-sync snapshot in < 5 minutes.
 - API tests pass.
 - Recovery test passes.
@@ -157,6 +167,7 @@ v1 ships through M7. M8+ is post-v1.
 **Scope:** React UI with i18n, encrypted IndexedDB key storage, user-as-mixer flow, **N-width slider**, **collateral provider status indicator**.
 
 **Deliverables:**
+
 - All screens from [06-ui.md](06-ui.md).
 - Wallet integration via mesh + CIP-30.
 - IndexedDB encrypted-storage (Argon2id passphrase).
@@ -179,6 +190,7 @@ v1 ships through M7. M8+ is post-v1.
 **Scope:** automated build & test pipeline from `main`. Reproducible builds. No automated deploy yet (Preprod only until audit).
 
 **Deliverables:**
+
 - GitHub Actions workflow on PR + merge:
   1. Builds all packages.
   2. Unit + validator + property tests on every PR.

@@ -11,10 +11,7 @@
 
 import { loadConfig } from "./config.js";
 import { PostgresDbSyncClient } from "./db/dbsync.js";
-import {
-  BlockfrostHistoryClient,
-  defaultBlockfrostBaseUrl,
-} from "./db/blockfrost-history.js";
+import { BlockfrostHistoryClient, defaultBlockfrostBaseUrl } from "./db/blockfrost-history.js";
 import { IndexerRuntime } from "./indexer/runtime.js";
 import { IndexerState } from "./indexer/state.js";
 import { MempoolPoller } from "./indexer/mempool.js";
@@ -42,13 +39,10 @@ export async function main(): Promise<void> {
     filter,
     BigInt(config.addresses.protocol.max_fee_per_mix_lovelace),
   );
-  const dbsync = config.dbsyncUrl
-    ? new PostgresDbSyncClient(config.dbsyncUrl)
-    : null;
+  const dbsync = config.dbsyncUrl ? new PostgresDbSyncClient(config.dbsyncUrl) : null;
   const historyFallback = config.blockfrostProjectId
     ? new BlockfrostHistoryClient({
-        baseUrl:
-          config.blockfrostBaseUrl ?? defaultBlockfrostBaseUrl(config.network),
+        baseUrl: config.blockfrostBaseUrl ?? defaultBlockfrostBaseUrl(config.network),
         projectId: config.blockfrostProjectId,
       })
     : null;
@@ -127,7 +121,7 @@ export async function main(): Promise<void> {
   mempoolPoller.start();
 
   await server.listen({ port: config.port, host: config.host });
-   
+
   console.log(
     `lovejoin backend ${BACKEND_VERSION} listening on http://${config.host}:${config.port} (network=${config.network})`,
   );

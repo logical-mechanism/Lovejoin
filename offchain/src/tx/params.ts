@@ -14,14 +14,7 @@
 
 import { decode as cborDecode } from "cbor-x";
 
-import type {
-  ChainProvider,
-  Hex28,
-  Hex32,
-  Lovelace,
-  Utxo,
-  UtxoRef,
-} from "../chain/provider.js";
+import type { ChainProvider, Hex28, Hex32, Lovelace, Utxo, UtxoRef } from "../chain/provider.js";
 
 /// Lovejoin protocol parameters, mirroring the on-chain `ReferenceDatum`
 /// struct in [contracts/lib/lovejoin/types.ak].
@@ -132,7 +125,9 @@ export function parseUtxoRef(s: string): UtxoRef {
   }
   const outputIndex = Number(idxStr);
   if (!Number.isInteger(outputIndex) || outputIndex < 0) {
-    throw new Error(`malformed UTxO ref ${JSON.stringify(s)}; index must be a non-negative integer`);
+    throw new Error(
+      `malformed UTxO ref ${JSON.stringify(s)}; index must be a non-negative integer`,
+    );
   }
   return { txId, outputIndex };
 }
@@ -160,17 +155,20 @@ export function decodeReferenceDatum(cborHex: string): ProtocolParams {
   const tag = (decoded as { tag?: number }).tag;
   const fields = (decoded as { value?: unknown }).value;
   if (tag !== 121) {
-    throw new Error(
-      `reference datum: expected Plutus Constr 0 (CBOR tag 121), got tag ${tag}`,
-    );
+    throw new Error(`reference datum: expected Plutus Constr 0 (CBOR tag 121), got tag ${tag}`);
   }
   if (!Array.isArray(fields) || fields.length !== 5) {
     throw new Error(
       `reference datum: expected 5 fields, got ${Array.isArray(fields) ? fields.length : typeof fields}`,
     );
   }
-  const [denom, maxFee, mixScriptHash, mixLogicScriptHash, feeScriptHash] =
-    fields as [unknown, unknown, unknown, unknown, unknown];
+  const [denom, maxFee, mixScriptHash, mixLogicScriptHash, feeScriptHash] = fields as [
+    unknown,
+    unknown,
+    unknown,
+    unknown,
+    unknown,
+  ];
 
   return {
     denomLovelace: toBigInt(denom, "denom_lovelace"),

@@ -56,10 +56,7 @@ import { formatAda } from "../lib/format.js";
 import type { Network } from "../lib/sdk.js";
 import { useAppState } from "../lib/store.js";
 import { useBackendStatus } from "./BackendStatus.js";
-import {
-  useCollateralStatus,
-  useRefreshCollateralStatus,
-} from "./CollateralProviderStatus.js";
+import { useCollateralStatus, useRefreshCollateralStatus } from "./CollateralProviderStatus.js";
 import { Modal } from "./ui/Modal.js";
 
 /** Pool-size cutoff for wallet-mode owned-box biasing. See header comment. */
@@ -78,7 +75,11 @@ export interface MixButtonProps {
    */
   wallet: BrowserWallet | null;
   /** Pool of boxes to pick from (already filtered to mix-script address). */
-  poolEntries: ReadonlyArray<{ ref: { txId: string; outputIndex: number }; a: Uint8Array; b: Uint8Array }>;
+  poolEntries: ReadonlyArray<{
+    ref: { txId: string; outputIndex: number };
+    a: Uint8Array;
+    b: Uint8Array;
+  }>;
   n: number;
   /** Who pays the tx fee. "shard" pulls from the on-chain pool; "wallet" charges the submitter. */
   feePayer: MixFeePayer;
@@ -105,14 +106,8 @@ export function MixButton({
   onSubmittingChange,
 }: MixButtonProps) {
   const { t } = useTranslation();
-  const {
-    config,
-    ownedBoxes,
-    markTxPending,
-    pendingTxRefs,
-    walletLovelace,
-    refreshWalletBalance,
-  } = useAppState();
+  const { config, ownedBoxes, markTxPending, pendingTxRefs, walletLovelace, refreshWalletBalance } =
+    useAppState();
   const backend = useBackendStatus();
   const [submitting, setSubmitting] = useState(false);
   const [retryAttempt, setRetryAttempt] = useState<number | null>(null);
@@ -155,11 +150,7 @@ export function MixButton({
     walletLovelace !== null &&
     walletLovelace < mixWalletRequiredLovelace;
   const disabled =
-    submitting ||
-    cooldown > 0 ||
-    !collateralOk ||
-    !enoughBoxes ||
-    walletModeNeedsWallet;
+    submitting || cooldown > 0 || !collateralOk || !enoughBoxes || walletModeNeedsWallet;
 
   const onRequestSubmit = () => {
     if (disabled) return;
@@ -196,8 +187,7 @@ export function MixButton({
       //     pickRandomFeeShard avoids in-flight shards (passed as
       //     excludeFeeShardRefs).
       const useBackend =
-        !!config.backendUrl &&
-        (backend?.status === "synced" || backend?.status === "syncing");
+        !!config.backendUrl && (backend?.status === "synced" || backend?.status === "syncing");
       const inFlightRefs = new Set<string>(pendingTxRefs);
       if (useBackend) {
         try {
@@ -219,8 +209,7 @@ export function MixButton({
       // If filtering left too few boxes for the chosen N, fall back to
       // the full pool. The retry path will catch the resulting collision
       // if it happens; better than refusing to mix at all.
-      const effectivePool =
-        poolForPicking.length >= n ? poolForPicking : poolEntries;
+      const effectivePool = poolForPicking.length >= n ? poolForPicking : poolEntries;
       const picked = pickMixInputs({
         pool: effectivePool,
         n,
@@ -273,9 +262,7 @@ export function MixButton({
       // confirms the spend. Only relevant when wallet-mode + bias hit
       // (or shard-mode pure-random happened to grab one), so most
       // submits write zero refs here.
-      const ownedInputs = picked
-        .map((e) => refKey(e.ref))
-        .filter((key) => ownedRefSet.has(key));
+      const ownedInputs = picked.map((e) => refKey(e.ref)).filter((key) => ownedRefSet.has(key));
       if (ownedInputs.length > 0) {
         markTxPending(ownedInputs);
       }
@@ -314,27 +301,21 @@ export function MixButton({
         disabled={disabled}
         className="lj-btn lj-btn--primary lj-btn--lg"
       >
-        {submitting && (
-          <span className="lj-spinner lj-spinner--sm" aria-hidden="true" />
-        )}
+        {submitting && <span className="lj-spinner lj-spinner--sm" aria-hidden="true" />}
         {submitting
           ? t("pool.mix_submitting")
           : cooldown > 0
             ? t("pool.mix_cooldown", { s: cooldown })
             : t("pool.mix_n_random_boxes", { n })}
       </button>
-      {!collateralOk && (
-        <p className="text-xs text-amber">{t("pool.mix_disabled_collateral")}</p>
-      )}
+      {!collateralOk && <p className="text-xs text-amber">{t("pool.mix_disabled_collateral")}</p>}
       {collateralOk && !enoughBoxes && (
         <p className="text-xs text-whisper">
           {t("pool.mix_disabled_pool", { have: poolEntries.length, need: n })}
         </p>
       )}
       {collateralOk && enoughBoxes && walletModeNeedsWallet && (
-        <p className="text-xs text-whisper">
-          {t("pool.mix_disabled_wallet_needed")}
-        </p>
+        <p className="text-xs text-whisper">{t("pool.mix_disabled_wallet_needed")}</p>
       )}
       {walletModeBalanceShort && walletLovelace !== null && (
         <p className="text-xs text-amber">
@@ -361,9 +342,7 @@ export function MixButton({
             {t("pool.confirm_title")}
           </h2>
           <p className="mt-2 text-sm text-muted">
-            {feePayer === "shard"
-              ? t("pool.confirm_lede_shard")
-              : t("pool.confirm_lede_wallet")}
+            {feePayer === "shard" ? t("pool.confirm_lede_shard") : t("pool.confirm_lede_wallet")}
           </p>
         </header>
         <dl className="lj-banner lj-banner--signal flex-col items-stretch gap-3">
@@ -433,20 +412,15 @@ function refKey(ref: { txId: string; outputIndex: number }): string {
  *     - if non-owned has ≥ n-1 entries → 1 random owned + (n-1) random non-owned
  *     - else (owned dominates the pool) → uniform random over the whole pool
  */
-export function pickMixInputs<T extends { ref: { txId: string; outputIndex: number } }>(
-  args: {
-    pool: ReadonlyArray<T>;
-    n: number;
-    feePayer: MixFeePayer;
-    ownedRefs: ReadonlySet<string>;
-  },
-): T[] {
+export function pickMixInputs<T extends { ref: { txId: string; outputIndex: number } }>(args: {
+  pool: ReadonlyArray<T>;
+  n: number;
+  feePayer: MixFeePayer;
+  ownedRefs: ReadonlySet<string>;
+}): T[] {
   const { pool, n, feePayer, ownedRefs } = args;
 
-  const useBias =
-    feePayer === "wallet" &&
-    ownedRefs.size > 0 &&
-    pool.length < POOL_BIAS_THRESHOLD;
+  const useBias = feePayer === "wallet" && ownedRefs.size > 0 && pool.length < POOL_BIAS_THRESHOLD;
 
   if (!useBias) {
     return pickRandomBoxes(pool, n);

@@ -130,9 +130,7 @@ describe("tx/mix — encodeAdaOnlyValueCbor", () => {
     expect(bytesToHex(encodeAdaOnlyValueCbor(65_535n))).toBe("a140a14019ffff");
     expect(bytesToHex(encodeAdaOnlyValueCbor(65_536n))).toBe("a140a1401a00010000");
     expect(bytesToHex(encodeAdaOnlyValueCbor(4_294_967_295n))).toBe("a140a1401affffffff");
-    expect(bytesToHex(encodeAdaOnlyValueCbor(4_294_967_296n))).toBe(
-      "a140a1401b0000000100000000",
-    );
+    expect(bytesToHex(encodeAdaOnlyValueCbor(4_294_967_296n))).toBe("a140a1401b0000000100000000");
   });
 
   it("rejects negative input", () => {
@@ -254,9 +252,7 @@ describe("tx/mix — planMixTx", () => {
     expect(verifyMixPlanWithHash(plan, PARAMS.mixScriptHash)).toBe(-1);
 
     // Fee shard balance: in - out = tx.fee.
-    expect(plan.feeShardOutput.lovelace).toBe(
-      makeFeeShard().lovelace - plan.txFeeLovelace,
-    );
+    expect(plan.feeShardOutput.lovelace).toBe(makeFeeShard().lovelace - plan.txFeeLovelace);
   });
 
   it("produces output (a', b') = ([y_i]·a_i, [y_i]·b_i) at permutation[i]", () => {
@@ -292,10 +288,7 @@ describe("tx/mix — planMixTx", () => {
   it("sorts inputs lexicographically by (txId, outputIndex)", () => {
     // Same txId, indices flipped — the validator sees them sorted by index.
     const txId = "ab".repeat(32);
-    const inputs = [
-      makeMixInput(txId, 5, 11n, 13n),
-      makeMixInput(txId, 2, 7n, 9n),
-    ];
+    const inputs = [makeMixInput(txId, 5, 11n, 13n), makeMixInput(txId, 2, 7n, 9n)];
     const plan = planMixTx({
       inputs,
       ySecrets: [3n, 5n],
@@ -572,9 +565,7 @@ describe("tx/mix — sigma-OR cross-verification", () => {
     // cbor-x-derived `inlineDatumHex` is the *stored* form, which
     // differs by 1 byte (definite-length array header) — fine for
     // storage, wrong for ctx reconstruction.
-    const datums = plan.outputs.map((o) =>
-      serialiseMixDatumCanonical({ a: o.a, b: o.b }),
-    );
+    const datums = plan.outputs.map((o) => serialiseMixDatumCanonical({ a: o.a, b: o.b }));
     const values = plan.outputs.map(() => encodeAdaOnlyValueCbor(PARAMS.denomLovelace));
     const ctx = computeMixCtx({
       outputDatums: datums,
@@ -608,7 +599,6 @@ function bytesToHex(bytes: Uint8Array): string {
   for (const b of bytes) s += b.toString(16).padStart(2, "0");
   return s;
 }
-
 
 // Suppress unused-import warnings for symbols kept for readability.
 void G1_COMPRESSED_BYTES;

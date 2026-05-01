@@ -79,16 +79,14 @@ export class BlockfrostHistoryClient implements HistoryClient {
     if (!Number.isFinite(limit) || limit <= 0 || limit > 500) {
       throw new Error(`addressHistory: limit must be 1..500, got ${limit}`);
     }
-    const txs = (await this.get(
-      `/addresses/${address}/transactions?count=${limit}&order=desc`,
-    )) as AddressTxRow[] | null;
+    const txs = (await this.get(`/addresses/${address}/transactions?count=${limit}&order=desc`)) as
+      | AddressTxRow[]
+      | null;
     if (!Array.isArray(txs)) return [];
 
     const out: AddressTxHistoryEntry[] = [];
     for (const tx of txs) {
-      const utxos = (await this.get(`/txs/${tx.tx_hash}/utxos`)) as
-        | TxUtxosResponse
-        | null;
+      const utxos = (await this.get(`/txs/${tx.tx_hash}/utxos`)) as TxUtxosResponse | null;
       let lovelace = 0n;
       if (utxos && Array.isArray(utxos.outputs)) {
         for (const o of utxos.outputs) {
@@ -144,9 +142,7 @@ export class BlockfrostHistoryClient implements HistoryClient {
  * still pass an explicit `BLOCKFROST_BASE_URL` to override (e.g. for a
  * self-hosted Blockfrost mirror).
  */
-export function defaultBlockfrostBaseUrl(
-  network: "preprod" | "preview" | "mainnet",
-): string {
+export function defaultBlockfrostBaseUrl(network: "preprod" | "preview" | "mainnet"): string {
   switch (network) {
     case "preprod":
       return "https://cardano-preprod.blockfrost.io/api/v0";

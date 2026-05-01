@@ -17,6 +17,7 @@ Common errors and solutions when using `@meshsdk/transaction`.
 ### "Change address is not set"
 
 **Error:**
+
 ```
 Error: Change address is not set, utxo selection cannot be done without this
 ```
@@ -24,6 +25,7 @@ Error: Change address is not set, utxo selection cannot be done without this
 **Cause:** `complete()` requires a change address for coin selection.
 
 **Solution:**
+
 ```typescript
 txBuilder
   .txOut(...)
@@ -37,6 +39,7 @@ txBuilder
 ### "Transaction information is incomplete while no fetcher instance is provided"
 
 **Error:**
+
 ```
 Error: Transaction information is incomplete while no fetcher instance is provided. Provide a `fetcher`.
 ```
@@ -46,19 +49,21 @@ Error: Transaction information is incomplete while no fetcher instance is provid
 **Solutions:**
 
 1. **Provide complete input info:**
+
 ```typescript
 txBuilder.txIn(
   txHash,
   txIndex,
-  [{ unit: 'lovelace', quantity: '5000000' }],  // amount
-  'addr_test1...'  // address
+  [{ unit: "lovelace", quantity: "5000000" }], // amount
+  "addr_test1...", // address
 );
 ```
 
 2. **Or provide a fetcher:**
+
 ```typescript
 const txBuilder = new MeshTxBuilder({
-  fetcher: new BlockfrostProvider('api-key')
+  fetcher: new BlockfrostProvider("api-key"),
 });
 ```
 
@@ -67,6 +72,7 @@ const txBuilder = new MeshTxBuilder({
 ### "Only KeyHash address is supported for utxo selection"
 
 **Error:**
+
 ```
 Error: Only KeyHash address is supported for utxo selection
 ```
@@ -74,8 +80,9 @@ Error: Only KeyHash address is supported for utxo selection
 **Cause:** `selectUtxosFrom()` received UTxOs with script addresses.
 
 **Solution:** Filter to only include pubkey-controlled UTxOs:
+
 ```typescript
-const pubKeyUtxos = utxos.filter(utxo => {
+const pubKeyUtxos = utxos.filter((utxo) => {
   // Only include UTxOs you can sign for
   return !utxo.output.scriptRef && !utxo.output.dataHash;
 });
@@ -87,6 +94,7 @@ txBuilder.selectUtxosFrom(pubKeyUtxos);
 ### "Couldn't find value information for txHash#txIndex"
 
 **Error:**
+
 ```
 Error: Couldn't find value information for abc123...#0
 ```
@@ -94,16 +102,18 @@ Error: Couldn't find value information for abc123...#0
 **Cause:** The fetcher couldn't find the specified UTxO on-chain.
 
 **Possible causes:**
+
 1. Wrong txHash or txIndex
 2. UTxO already spent
 3. Transaction not yet confirmed
 4. Wrong network
 
 **Solution:**
+
 ```typescript
 // Verify UTxO exists
 const utxos = await provider.fetchUTxOs(txHash);
-console.log(utxos);  // Check if it exists and has correct index
+console.log(utxos); // Check if it exists and has correct index
 ```
 
 ---
@@ -113,6 +123,7 @@ console.log(utxos);  // Check if it exists and has correct index
 ### "Script input does not contain datum information"
 
 **Error:**
+
 ```
 Error: queueInput: Script input does not contain datum information
 ```
@@ -120,14 +131,15 @@ Error: queueInput: Script input does not contain datum information
 **Cause:** Plutus script inputs require datum but none was provided.
 
 **Solution:**
+
 ```typescript
 txBuilder
   .spendingPlutusScriptV3()
   .txIn(txHash, txIndex)
   .txInScript(scriptCbor)
-  .txInDatumValue(datum)  // Provide datum
+  .txInDatumValue(datum) // Provide datum
   // OR
-  .txInInlineDatumPresent()  // If UTxO has inline datum
+  .txInInlineDatumPresent() // If UTxO has inline datum
   .txInRedeemerValue(redeemer);
 ```
 
@@ -136,6 +148,7 @@ txBuilder
 ### "Script input does not contain redeemer information"
 
 **Error:**
+
 ```
 Error: queueInput: Script input does not contain redeemer information
 ```
@@ -143,13 +156,14 @@ Error: queueInput: Script input does not contain redeemer information
 **Cause:** Plutus script inputs require redeemer.
 
 **Solution:**
+
 ```typescript
 txBuilder
   .spendingPlutusScriptV3()
   .txIn(txHash, txIndex)
   .txInScript(scriptCbor)
   .txInDatumValue(datum)
-  .txInRedeemerValue(redeemer)  // Add this
+  .txInRedeemerValue(redeemer); // Add this
 ```
 
 ---
@@ -157,6 +171,7 @@ txBuilder
 ### "Script input does not contain script information"
 
 **Error:**
+
 ```
 Error: queueInput: Script input does not contain script information
 ```
@@ -164,13 +179,14 @@ Error: queueInput: Script input does not contain script information
 **Cause:** Plutus script input missing the script itself.
 
 **Solution:**
+
 ```typescript
 txBuilder
   .spendingPlutusScriptV3()
   .txIn(txHash, txIndex)
-  .txInScript(scriptCbor)  // Add inline script
+  .txInScript(scriptCbor) // Add inline script
   // OR
-  .spendingTxInReference(refTxHash, refIndex, size, hash)  // Use reference script
+  .spendingTxInReference(refTxHash, refIndex, size, hash); // Use reference script
 ```
 
 ---
@@ -178,11 +194,13 @@ txBuilder
 ### "Evaluate redeemers failed"
 
 **Error:**
+
 ```
 Error: Evaluate redeemers failed: <message>
 ```
 
 **Causes:**
+
 1. Script validation failed (logic error in script)
 2. Wrong datum or redeemer format
 3. Missing required signer
@@ -191,6 +209,7 @@ Error: Evaluate redeemers failed: <message>
 **Debug steps:**
 
 1. **Check datum/redeemer format:**
+
 ```typescript
 // Ensure correct format
 .txInDatumValue(datum, 'Mesh')  // or 'JSON' or 'CBOR'
@@ -198,20 +217,23 @@ Error: Evaluate redeemers failed: <message>
 ```
 
 2. **Add required signers:**
+
 ```typescript
 .requiredSignerHash(pubKeyHash)
 ```
 
 3. **Check time constraints:**
+
 ```typescript
 .invalidBefore(startSlot)
 .invalidHereafter(endSlot)
 ```
 
 4. **Enable verbose logging:**
+
 ```typescript
 const txBuilder = new MeshTxBuilder({
-  verbose: true,  // See detailed logs
+  verbose: true, // See detailed logs
   // ...
 });
 ```
@@ -223,6 +245,7 @@ const txBuilder = new MeshTxBuilder({
 **Cause:** Script transactions require collateral.
 
 **Solution:**
+
 ```typescript
 txBuilder
   .spendingPlutusScriptV3()
@@ -237,6 +260,7 @@ txBuilder
 ```
 
 **Collateral requirements:**
+
 - Must be pure ADA (no native assets)
 - Usually 150% of estimated script execution cost
 - Typically 5 ADA is enough for most scripts
@@ -248,11 +272,13 @@ txBuilder
 ### "Insufficient funds"
 
 **Error:**
+
 ```
 InputSelectionError: Insufficient funds
 ```
 
 **Causes:**
+
 1. Not enough ADA to cover outputs + fees
 2. Not enough native assets
 3. Min UTxO requirements not met
@@ -260,16 +286,18 @@ InputSelectionError: Insufficient funds
 **Solutions:**
 
 1. **Check your UTxOs:**
+
 ```typescript
 const utxos = await provider.fetchAddressUTxOs(address);
 const totalAda = utxos.reduce((sum, u) => {
-  const lovelace = u.output.amount.find(a => a.unit === 'lovelace');
+  const lovelace = u.output.amount.find((a) => a.unit === "lovelace");
   return sum + BigInt(lovelace?.quantity || 0);
 }, 0n);
-console.log('Total ADA:', totalAda / 1_000_000n);
+console.log("Total ADA:", totalAda / 1_000_000n);
 ```
 
 2. **Ensure outputs meet min UTxO:**
+
 ```typescript
 // Each output needs minimum ~1 ADA + more for assets
 .txOut(address, [
@@ -285,6 +313,7 @@ console.log('Total ADA:', totalAda / 1_000_000n);
 ### "Token bundle size exceeds limit"
 
 **Error:**
+
 ```
 Error: Token bundle size exceeds limit
 ```
@@ -292,6 +321,7 @@ Error: Token bundle size exceeds limit
 **Cause:** Too many native assets in a single output.
 
 **Solution:** Split assets across multiple outputs:
+
 ```typescript
 // Instead of one output with 50 tokens:
 .txOut(address, [
@@ -309,11 +339,13 @@ Error: Token bundle size exceeds limit
 ### "Max tx size exceeded"
 
 **Error:**
+
 ```
 Error: Max tx size exceeded
 ```
 
 **Causes:**
+
 1. Too many inputs/outputs
 2. Large inline datums
 3. Large scripts (use reference scripts instead)
@@ -321,6 +353,7 @@ Error: Max tx size exceeded
 **Solutions:**
 
 1. **Use reference scripts:**
+
 ```typescript
 // Instead of inline script
 .txInScript(largePlutusScript)
@@ -330,6 +363,7 @@ Error: Max tx size exceeded
 ```
 
 2. **Use datum hash instead of inline:**
+
 ```typescript
 .txOutDatumHashValue(datum)  // Instead of inline
 ```
@@ -343,6 +377,7 @@ Error: Max tx size exceeded
 ### "BadInputsUTxO"
 
 **Error:**
+
 ```
 SubmitTxError: BadInputsUTxO
 ```
@@ -350,6 +385,7 @@ SubmitTxError: BadInputsUTxO
 **Cause:** One or more inputs don't exist on-chain.
 
 **Possible reasons:**
+
 1. Transaction already submitted (inputs spent)
 2. Wrong network
 3. Transaction that created the UTxO not yet confirmed
@@ -361,6 +397,7 @@ SubmitTxError: BadInputsUTxO
 ### "ValueNotConservedUTxO"
 
 **Error:**
+
 ```
 SubmitTxError: ValueNotConservedUTxO
 ```
@@ -368,6 +405,7 @@ SubmitTxError: ValueNotConservedUTxO
 **Cause:** Inputs don't equal outputs + fee (value conservation violated).
 
 **Usually indicates:**
+
 1. Missing mint operation
 2. Wrong fee calculation
 3. Bug in coin selection
@@ -379,6 +417,7 @@ SubmitTxError: ValueNotConservedUTxO
 ### "FeeTooSmallUTxO"
 
 **Error:**
+
 ```
 SubmitTxError: FeeTooSmallUTxO
 ```
@@ -386,6 +425,7 @@ SubmitTxError: FeeTooSmallUTxO
 **Cause:** Manually set fee is too low.
 
 **Solution:** Let `complete()` calculate fee, or increase manual fee:
+
 ```typescript
 .setFee('300000')  // Increase fee
 ```
@@ -395,6 +435,7 @@ SubmitTxError: FeeTooSmallUTxO
 ### "OutsideValidityIntervalUTxO"
 
 **Error:**
+
 ```
 SubmitTxError: OutsideValidityIntervalUTxO
 ```
@@ -402,11 +443,12 @@ SubmitTxError: OutsideValidityIntervalUTxO
 **Cause:** Current slot is outside the transaction's validity interval.
 
 **Solution:** Adjust validity interval:
+
 ```typescript
 const currentSlot = await provider.fetchLatestSlot();
 txBuilder
-  .invalidBefore(currentSlot - 100)  // Buffer for propagation
-  .invalidHereafter(currentSlot + 3600)  // Valid for ~1 hour
+  .invalidBefore(currentSlot - 100) // Buffer for propagation
+  .invalidHereafter(currentSlot + 3600); // Valid for ~1 hour
 ```
 
 ---
@@ -416,17 +458,19 @@ txBuilder
 ### Wrong Order of Method Calls
 
 **Wrong:**
+
 ```typescript
 txBuilder
-  .txIn(hash, index)  // Too late - already a PubKey input
-  .spendingPlutusScriptV3()  // This won't work!
+  .txIn(hash, index) // Too late - already a PubKey input
+  .spendingPlutusScriptV3(); // This won't work!
 ```
 
 **Correct:**
+
 ```typescript
 txBuilder
-  .spendingPlutusScriptV3()  // FIRST - signals script input
-  .txIn(hash, index)          // THEN - add the input
+  .spendingPlutusScriptV3() // FIRST - signals script input
+  .txIn(hash, index); // THEN - add the input
 ```
 
 Same applies to `mintPlutusScriptV2()` before `mint()`, etc.
@@ -436,6 +480,7 @@ Same applies to `mintPlutusScriptV2()` before `mint()`, etc.
 ### Forgetting to Complete
 
 **Wrong:**
+
 ```typescript
 const tx = txBuilder
   .txIn(...)
@@ -444,6 +489,7 @@ const tx = txBuilder
 ```
 
 **Correct:**
+
 ```typescript
 const tx = await txBuilder
   .txIn(...)
@@ -457,13 +503,15 @@ const tx = await txBuilder
 ### Mixing Sync and Async
 
 **Wrong:**
+
 ```typescript
-const tx = txBuilder.complete();  // Missing await!
+const tx = txBuilder.complete(); // Missing await!
 ```
 
 **Correct:**
+
 ```typescript
-const tx = await txBuilder.complete();  // complete() is async
+const tx = await txBuilder.complete(); // complete() is async
 // OR for sync (no balancing)
 const tx = txBuilder.completeSync();
 ```
@@ -475,6 +523,7 @@ const tx = txBuilder.completeSync();
 **Issue:** Reusing builder without reset includes previous state.
 
 **Solution:**
+
 ```typescript
 txBuilder.reset();  // Clear state before new transaction
 // Or create new instance
@@ -488,6 +537,7 @@ const newTxBuilder = new MeshTxBuilder({ ... });
 **Issue:** Script expects different datum format.
 
 **Check your script's datum type and match it:**
+
 ```typescript
 import { mConStr0 } from '@meshsdk/common';
 
@@ -508,19 +558,21 @@ const datum = {
 
 **Cause:** The Mesh SDK has THREE datum formats. The **default is `"Mesh"`**, which uses `alternative` — NOT `constructor`:
 
-| Format | Keyword | Field Values | Example |
-|--------|---------|-------------|---------|
-| `"Mesh"` (default) | `alternative` | Primitives directly | `{ alternative: 0, fields: [42, "hex"] }` |
-| `"JSON"` (cardano-cli) | `constructor` | Typed wrappers | `{ constructor: 0, fields: [{ int: 42 }, { bytes: "hex" }] }` |
-| `"CBOR"` | N/A | Hex string | `"d8799f182aff"` |
+| Format                 | Keyword       | Field Values        | Example                                                       |
+| ---------------------- | ------------- | ------------------- | ------------------------------------------------------------- |
+| `"Mesh"` (default)     | `alternative` | Primitives directly | `{ alternative: 0, fields: [42, "hex"] }`                     |
+| `"JSON"` (cardano-cli) | `constructor` | Typed wrappers      | `{ constructor: 0, fields: [{ int: 42 }, { bytes: "hex" }] }` |
+| `"CBOR"`               | N/A           | Hex string          | `"d8799f182aff"`                                              |
 
 **Wrong:**
+
 ```typescript
 // WRONG - "constructor" with default Mesh type
 .txOutInlineDatumValue({ constructor: 0, fields: [{ int: 42 }] })
 ```
 
 **Correct:**
+
 ```typescript
 import { mConStr0 } from '@meshsdk/common';
 
@@ -543,6 +595,7 @@ import { mConStr0 } from '@meshsdk/common';
 **Cause:** Using JSON-format datum helpers (`conStr0()`, `integer()`, etc.) without specifying `"JSON"` as the type parameter. The default type is `"Mesh"`, which interprets the structure differently.
 
 **Wrong:**
+
 ```typescript
 import { conStr0, integer } from '@meshsdk/common';
 
@@ -551,6 +604,7 @@ const datum = conStr0([integer(42)]);
 ```
 
 **Correct:**
+
 ```typescript
 import { conStr0, integer } from '@meshsdk/common';
 
@@ -568,12 +622,13 @@ const datum = conStr0([integer(42)]);
 
 **Cause:** Two parallel helper systems exist in `@meshsdk/common`:
 
-| Helpers | Format | Type Param | Used For |
-|---------|--------|------------|----------|
-| `conStr0()`, `integer()`, `byteString()`, `pubKeyAddress()` | JSON | `"JSON"` | Datums (convention) |
-| `mConStr0()`, `mConStr1()`, raw primitives | Mesh | `"Mesh"` (default) | Redeemers (convention) |
+| Helpers                                                     | Format | Type Param         | Used For               |
+| ----------------------------------------------------------- | ------ | ------------------ | ---------------------- |
+| `conStr0()`, `integer()`, `byteString()`, `pubKeyAddress()` | JSON   | `"JSON"`           | Datums (convention)    |
+| `mConStr0()`, `mConStr1()`, raw primitives                  | Mesh   | `"Mesh"` (default) | Redeemers (convention) |
 
 **Wrong combinations:**
+
 ```typescript
 // WRONG: Mesh helper with "JSON" type
 .txOutInlineDatumValue(mConStr0([42]), "JSON")
@@ -583,6 +638,7 @@ const datum = conStr0([integer(42)]);
 ```
 
 **Correct combinations:**
+
 ```typescript
 // Datum: JSON helpers + "JSON" type
 .txOutInlineDatumValue(conStr0([integer(42)]), "JSON")
@@ -600,6 +656,7 @@ const datum = conStr0([integer(42)]);
 **Cause:** Some scripts accept a generic `Data` type redeemer and don't validate it. Real MeshJS contracts use an empty string `""` for these.
 
 **Solution:**
+
 ```typescript
 // When the script ignores the redeemer (e.g., _redeemer: Data)
 .txInRedeemerValue("")   // Empty string — valid for unused redeemers
@@ -608,11 +665,11 @@ const datum = conStr0([integer(42)]);
 
 **When to use each redeemer approach:**
 
-| Script Redeemer Type | What to Pass | Example |
-|---------------------|-------------|---------|
-| Named enum, no fields (e.g., `Cancel`, `Buy`) | `mConStr0([])`, `mConStr1([])` | `mConStr1([])` for 2nd variant |
-| Named enum with fields (e.g., `Update { price: Int }`) | `conStr0([integer(n)])` + `"JSON"` + `DEFAULT_REDEEMER_BUDGET` | Complex redeemer |
-| `_redeemer: Data` (unused/ignored) | `""` (empty string) | Script doesn't check it |
+| Script Redeemer Type                                   | What to Pass                                                   | Example                        |
+| ------------------------------------------------------ | -------------------------------------------------------------- | ------------------------------ |
+| Named enum, no fields (e.g., `Cancel`, `Buy`)          | `mConStr0([])`, `mConStr1([])`                                 | `mConStr1([])` for 2nd variant |
+| Named enum with fields (e.g., `Update { price: Int }`) | `conStr0([integer(n)])` + `"JSON"` + `DEFAULT_REDEEMER_BUDGET` | Complex redeemer               |
+| `_redeemer: Data` (unused/ignored)                     | `""` (empty string)                                            | Script doesn't check it        |
 
 ---
 
@@ -621,27 +678,32 @@ const datum = conStr0([integer(42)]);
 When transactions fail:
 
 1. **Enable verbose mode:**
+
    ```typescript
    new MeshTxBuilder({ verbose: true, ... })
    ```
 
 2. **Check the built transaction:**
+
    ```typescript
    const tx = await txBuilder.complete();
    console.log(txBuilder.meshTxBuilderBody);
    ```
 
 3. **Verify UTxOs exist:**
+
    ```typescript
    const utxos = await provider.fetchUTxOs(txHash);
    ```
 
 4. **Check wallet balance:**
+
    ```typescript
    const balance = await provider.fetchAddressUTxOs(address);
    ```
 
 5. **Verify script hash matches:**
+
    ```typescript
    // Ensure you're spending to/from the correct script address
    ```

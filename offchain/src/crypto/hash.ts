@@ -53,14 +53,7 @@ export function fsInputSchnorr(
   t: Uint8Array,
   ctx: Uint8Array,
 ): Uint8Array {
-  return concat([
-    DOMAIN_TAG_V1_BYTES,
-    new Uint8Array([STATEMENT_ID_PROVE_DLOG]),
-    g,
-    u,
-    t,
-    ctx,
-  ]);
+  return concat([DOMAIN_TAG_V1_BYTES, new Uint8Array([STATEMENT_ID_PROVE_DLOG]), g, u, t, ctx]);
 }
 
 /// Schnorr Fiat-Shamir hash. Caller is responsible for `mod r` reduction — this

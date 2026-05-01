@@ -108,7 +108,10 @@ describe("crypto/hash — fsInput* layout", () => {
       fsInputSigmaOr(
         a,
         b,
-        [{ ap: ABYTE(48), bp: ABYTE(48) }, { ap: ABYTE(48), bp: ABYTE(48) }],
+        [
+          { ap: ABYTE(48), bp: ABYTE(48) },
+          { ap: ABYTE(48), bp: ABYTE(48) },
+        ],
         [{ t0: ABYTE(48), t1: ABYTE(48) }],
         new Uint8Array(0),
       ),

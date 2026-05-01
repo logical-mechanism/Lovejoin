@@ -8,9 +8,9 @@
 # Apply with:   doctl apps create --spec .do/app.<network>.yaml
 # Diff with:    doctl apps spec get <app-id> | diff - .do/app.<network>.yaml
 
-name: <APP_NAME>            # e.g. lovejoin-preprod, lovejoin-mainnet
+name: <APP_NAME> # e.g. lovejoin-preprod, lovejoin-mainnet
 
-region: <DO_REGION>          # e.g. nyc, sfo3, lon1
+region: <DO_REGION> # e.g. nyc, sfo3, lon1
 
 # domains:
 #   - domain: <CUSTOM_DOMAIN>
@@ -72,14 +72,15 @@ services:
       - key: DBSYNC_URL
         scope: RUN_TIME
         type: SECRET
-        value: <POSTGRES_DBSYNC_URL>       # postgres://USER:PASS@127.0.0.1:5432/DBNAME (with CF tunnel)
-                                           #   or "" to disable address-keyed routes
+        value:
+          <POSTGRES_DBSYNC_URL> # postgres://USER:PASS@127.0.0.1:5432/DBNAME (with CF tunnel)
+          #   or "" to disable address-keyed routes
       - key: CF_TUNNEL_OGMIOS_HOSTNAME
         scope: RUN_TIME
-        value: <OGMIOS_HOSTNAME>           # e.g. ogmios-preprod.example.com; "" to skip
+        value: <OGMIOS_HOSTNAME> # e.g. ogmios-preprod.example.com; "" to skip
       - key: CF_TUNNEL_DBSYNC_HOSTNAME
         scope: RUN_TIME
-        value: <DBSYNC_HOSTNAME>           # e.g. dbsync-preprod.example.com; "" to skip
+        value: <DBSYNC_HOSTNAME> # e.g. dbsync-preprod.example.com; "" to skip
       - key: CF_TUNNEL_SERVICE_TOKEN_ID
         scope: RUN_TIME
         type: SECRET
@@ -91,7 +92,7 @@ services:
       - key: BLOCKFROST_PROJECT_ID_<NETWORK_UPPER>
         scope: RUN_TIME
         type: SECRET
-        value: <BLOCKFROST_PROJECT_ID>     # "" to disable history fallback
+        value: <BLOCKFROST_PROJECT_ID> # "" to disable history fallback
 
   - name: ui
     github:
@@ -130,4 +131,4 @@ services:
         value: <BLOCKFROST_PROJECT_ID>
       - key: VITE_COLLATERAL_ENDPOINT
         scope: BUILD_TIME
-        value: ""                          # "" → SDK's per-network default
+        value: "" # "" → SDK's per-network default

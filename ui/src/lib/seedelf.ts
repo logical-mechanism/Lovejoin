@@ -131,10 +131,7 @@ export function looksLikeCardanoAddress(bech32: string): boolean {
  * because they can't receive payments — the tx builder would fail
  * later anyway.
  */
-export function validateDestination(
-  bech32: string,
-  expectedNetwork: Network,
-): DestinationStatus {
+export function validateDestination(bech32: string, expectedNetwork: Network): DestinationStatus {
   const trimmed = bech32.trim();
   if (!trimmed) return { status: "empty" };
   const decoded = bech32Decode(trimmed);
@@ -149,8 +146,7 @@ export function validateDestination(
     return { status: "invalid", reason: `unrecognised prefix "${hrp}"` };
   }
   const isTestnet = hrp.startsWith("addr_test");
-  const expectIsTestnet =
-    expectedNetwork === "preprod" || expectedNetwork === "preview";
+  const expectIsTestnet = expectedNetwork === "preprod" || expectedNetwork === "preview";
   if (isTestnet !== expectIsTestnet) {
     return {
       status: "wrong-network",

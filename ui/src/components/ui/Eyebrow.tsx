@@ -12,5 +12,9 @@ export interface EyebrowProps {
 }
 
 export function Eyebrow({ id, children }: EyebrowProps) {
-  return <span className="lj-eyebrow" id={id}>{children}</span>;
+  return (
+    <span className="lj-eyebrow" id={id}>
+      {children}
+    </span>
+  );
 }

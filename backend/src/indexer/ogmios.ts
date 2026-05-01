@@ -25,15 +25,8 @@
 import WebSocket from "ws";
 
 import type { Hex32 } from "../config.js";
-import type {
-  AddressFilter,
-} from "./state.js";
-import type {
-  BlockDiff,
-  ChainTip,
-  ProducedUtxo,
-  UtxoRef,
-} from "./types.js";
+import type { AddressFilter } from "./state.js";
+import type { BlockDiff, ChainTip, ProducedUtxo, UtxoRef } from "./types.js";
 
 /** Ogmios "Point" — chain identity at a slot. */
 export interface OgmiosPoint {
@@ -119,8 +112,7 @@ export class OgmiosClient {
   async connect(): Promise<void> {
     if (this.socket) return this.connectedPromise;
     const factory =
-      this.config.socketFactory ??
-      ((url: string) => new WebSocket(url) as unknown as OgmiosSocket);
+      this.config.socketFactory ?? ((url: string) => new WebSocket(url) as unknown as OgmiosSocket);
     const sock = factory(this.config.url);
     this.socket = sock;
     let opened = false;
@@ -245,9 +237,7 @@ export class OgmiosClient {
     this.inflight = null;
     if (parsed.error) {
       inflight.reject(
-        new Error(
-          `ogmios JSON-RPC error ${parsed.error.code}: ${parsed.error.message}`,
-        ),
+        new Error(`ogmios JSON-RPC error ${parsed.error.code}: ${parsed.error.message}`),
       );
       return;
     }

@@ -132,15 +132,11 @@ export class BlockfrostProvider implements ChainProvider {
     // Lazy import — see file-header comment on the libsodium / bundle cost.
     // We pull from `@meshsdk/core` (which re-exports `@meshsdk/provider`)
     // so we don't need a separate workspace dep on the provider package.
-    const { BlockfrostProvider: MeshBlockfrost } = await import(
-      "@meshsdk/core"
-    );
+    const { BlockfrostProvider: MeshBlockfrost } = await import("@meshsdk/core");
     // Mesh's BlockfrostProvider(projectId) infers the network from the
     // project id prefix ("preprod...", "preview...", "mainnet..."), which
     // matches what we already require callers to set.
-    const meshBf = new MeshBlockfrost(
-      this.projectId,
-    ) as MeshFetcherSubmitter & {
+    const meshBf = new MeshBlockfrost(this.projectId) as MeshFetcherSubmitter & {
       evaluateTx: (tx: string) => Promise<unknown>;
       fetchProtocolParameters: (epoch?: number) => Promise<MeshProtocolParameters>;
     };
@@ -157,20 +153,16 @@ export class BlockfrostProvider implements ChainProvider {
     //
     // Re-fetch the raw Blockfrost response and patch the field through.
     // Same shape as the evaluateTx override above.
-    const originalFetchParams =
-      meshBf.fetchProtocolParameters.bind(meshBf);
+    const originalFetchParams = meshBf.fetchProtocolParameters.bind(meshBf);
     const get = this.get.bind(this);
     meshBf.fetchProtocolParameters = async (epoch?: number) => {
       const params = await originalFetchParams(epoch);
       const path = `/epochs/${epoch === undefined || Number.isNaN(epoch) ? "latest" : epoch}/parameters`;
-      const raw = (await get(path)) as
-        | Record<string, unknown>
-        | null;
+      const raw = (await get(path)) as Record<string, unknown> | null;
       // Blockfrost has shipped this field under both conventions across
       // versions; accept either. Also tolerate stringified numbers.
       const rawRefScriptCost =
-        raw?.["min_fee_ref_script_cost_per_byte"] ??
-        raw?.["minFeeRefScriptCostPerByte"];
+        raw?.["min_fee_ref_script_cost_per_byte"] ?? raw?.["minFeeRefScriptCostPerByte"];
       const refScriptCost =
         typeof rawRefScriptCost === "number"
           ? rawRefScriptCost
@@ -179,20 +171,18 @@ export class BlockfrostProvider implements ChainProvider {
             : undefined;
       if (typeof refScriptCost === "number" && refScriptCost > 0 && !Number.isNaN(refScriptCost)) {
         params.minFeeRefScriptCostPerByte = refScriptCost;
-         
+
         console.log(
           `[lovejoin/params] patched minFeeRefScriptCostPerByte=${refScriptCost} ` +
             `into mesh protocol params (mesh's caster drops this Conway field)`,
         );
       } else if (refScriptCost !== undefined) {
-         
         console.warn(
           `[lovejoin/params] Blockfrost returned min_fee_ref_script_cost_per_byte=` +
             `${JSON.stringify(refScriptCost)}; expected a positive number — ` +
             `tx fee may under-count Conway reference-script cost.`,
         );
       } else {
-         
         console.warn(
           `[lovejoin/params] Blockfrost did not return min_fee_ref_script_cost_per_byte; ` +
             `mesh will fall back to its built-in default (likely 15 lovelace/byte).`,
@@ -216,7 +206,6 @@ export class BlockfrostProvider implements ChainProvider {
     const projectId = this.projectId;
     const fetchFn = this.fetchFn;
     meshBf.evaluateTx = async (tx: string) => {
-       
       console.log(
         `[lovejoin/evaluator] POST ${baseUrl}/utils/txs/evaluate?version=6 (txHex ${tx.length / 2} bytes)`,
       );
@@ -228,27 +217,22 @@ export class BlockfrostProvider implements ChainProvider {
         error?: { code: number; message: string; data?: unknown };
       };
       try {
-        const res = await fetchFn(
-          `${baseUrl}/utils/txs/evaluate?version=6`,
-          {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/cbor",
-              project_id: projectId,
-            },
-            body: tx,
+        const res = await fetchFn(`${baseUrl}/utils/txs/evaluate?version=6`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/cbor",
+            project_id: projectId,
           },
-        );
-         
+          body: tx,
+        });
+
         console.log(`[lovejoin/evaluator] HTTP ${res.status} ${res.statusText}`);
         body = (await res.json()) as typeof body;
       } catch (networkErr) {
-         
         console.error(`[lovejoin/evaluator] network error:`, networkErr);
         throw networkErr;
       }
       if (body.error) {
-         
         console.error(
           `[lovejoin/evaluator] BLOCKFROST RETURNED ERROR — populate-time exUnits will ride into the final tx:`,
           body.error,
@@ -260,7 +244,6 @@ export class BlockfrostProvider implements ChainProvider {
         );
       }
       if (!body.result) {
-         
         console.error(
           `[lovejoin/evaluator] BLOCKFROST RETURNED NO RESULT — populate-time exUnits will ride:`,
           body,
@@ -269,7 +252,7 @@ export class BlockfrostProvider implements ChainProvider {
           `Blockfrost ogmios v6 evaluator returned no result: ${JSON.stringify(body).slice(0, 300)}`,
         );
       }
-       
+
       console.log(
         `[lovejoin/evaluator] BLOCKFROST RETURNED ${body.result.length} redeemer budget(s):`,
         body.result.map((e) => ({
@@ -305,11 +288,11 @@ export class BlockfrostProvider implements ChainProvider {
     // and let `fetch` send it; the browser UTF-8-encoded the string and
     // mangled the CBOR (Blockfrost rejected with "expected list len or
     // indef" on the first byte). Decode the hex to bytes here.
-     
+
     console.log(
       `[lovejoin/submit] POST ${this.baseUrl}/tx/submit (txCbor=${signedTxCborHex.length / 2} bytes)`,
     );
-     
+
     console.log(`[lovejoin/submit] signed tx hex: ${signedTxCborHex}`);
     const res = await this.fetchFn(`${this.baseUrl}/tx/submit`, {
       method: "POST",
@@ -319,11 +302,11 @@ export class BlockfrostProvider implements ChainProvider {
       },
       body: hexToBytes(signedTxCborHex),
     });
-     
+
     console.log(`[lovejoin/submit] HTTP ${res.status} ${res.statusText}`);
     if (!res.ok) {
       const body = await res.text();
-       
+
       console.error(`[lovejoin/submit] body:`, body);
       throw new Error(
         `BlockfrostProvider.submitTx failed (${res.status} ${res.statusText}): ${body}`,
@@ -343,9 +326,7 @@ export class BlockfrostProvider implements ChainProvider {
     const utxos: Utxo[] = [];
     let page = 1;
     while (true) {
-      const res = await this.get(
-        `/addresses/${address}/utxos?page=${page}&order=asc`,
-      );
+      const res = await this.get(`/addresses/${address}/utxos?page=${page}&order=asc`);
       if (res === null) {
         // 404 means the address has never been used — empty UTxO set.
         return [];
@@ -388,22 +369,15 @@ export class BlockfrostProvider implements ChainProvider {
     );
   }
 
-  async getReferenceUtxo(
-    nftPolicy: Hex28,
-    nftAssetNameHex: string,
-  ): Promise<Utxo> {
+  async getReferenceUtxo(nftPolicy: Hex28, nftAssetNameHex: string): Promise<Utxo> {
     const asset = `${nftPolicy}${nftAssetNameHex}`;
     const res = await this.get(`/assets/${asset}/addresses`);
     if (res === null) {
-      throw new Error(
-        `BlockfrostProvider.getReferenceUtxo: NFT ${asset} not found`,
-      );
+      throw new Error(`BlockfrostProvider.getReferenceUtxo: NFT ${asset} not found`);
     }
     const arr = expectArray(res, "asset addresses");
     if (arr.length === 0) {
-      throw new Error(
-        `BlockfrostProvider.getReferenceUtxo: NFT ${asset} not held anywhere`,
-      );
+      throw new Error(`BlockfrostProvider.getReferenceUtxo: NFT ${asset} not held anywhere`);
     }
     if (arr.length !== 1) {
       throw new Error(
@@ -492,9 +466,7 @@ function parseBlockfrostUtxo(raw: unknown): Utxo {
     lovelace,
     assets,
     inlineDatum:
-      typeof o.inline_datum === "string" && o.inline_datum.length > 0
-        ? o.inline_datum
-        : null,
+      typeof o.inline_datum === "string" && o.inline_datum.length > 0 ? o.inline_datum : null,
     referenceScript:
       typeof o.reference_script_hash === "string" && o.reference_script_hash.length > 0
         ? o.reference_script_hash
@@ -508,11 +480,7 @@ function parseCostModels(raw: unknown): Record<string, number[]> {
   for (const [k, v] of Object.entries(raw as Record<string, unknown>)) {
     if (Array.isArray(v) && v.every((n) => typeof n === "number")) {
       out[k] = v;
-    } else if (
-      v !== null &&
-      typeof v === "object" &&
-      !Array.isArray(v)
-    ) {
+    } else if (v !== null && typeof v === "object" && !Array.isArray(v)) {
       // Some Blockfrost shapes return per-op named maps; leave them empty for now.
       out[k] = [];
     }

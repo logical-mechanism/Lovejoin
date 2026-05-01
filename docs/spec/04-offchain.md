@@ -40,22 +40,22 @@ Published as `@lovejoin/sdk`.
 
 ## Dependencies
 
-| Package | Purpose |
-|---|---|
-| `@noble/curves` | BLS12-381 G1 ops |
-| `@noble/hashes` | blake2b, hmac (RFC 6979) |
-| `@meshsdk/core` | tx building, CIP-30 |
-| `@cardano-ogmios/client` | optional direct chain access |
-| `cbor-x` | datum CBOR (must match Aiken's) |
-| `vitest` | tests |
+| Package                  | Purpose                         |
+| ------------------------ | ------------------------------- |
+| `@noble/curves`          | BLS12-381 G1 ops                |
+| `@noble/hashes`          | blake2b, hmac (RFC 6979)        |
+| `@meshsdk/core`          | tx building, CIP-30             |
+| `@cardano-ogmios/client` | optional direct chain access    |
+| `cbor-x`                 | datum CBOR (must match Aiken's) |
+| `vitest`                 | tests                           |
 
 ## Crypto module
 
 ### `bls.ts`
 
 ```ts
-export type Scalar = Uint8Array;       // 32 bytes, < r
-export type G1Point = Uint8Array;      // 48 bytes, compressed
+export type Scalar = Uint8Array; // 32 bytes, < r
+export type G1Point = Uint8Array; // 48 bytes, compressed
 
 export const G: G1Point;
 export function randomScalar(): Scalar;
@@ -69,7 +69,11 @@ export function isOnCurveAndInSubgroup(p: G1Point): boolean;
 ### `nonce.ts`
 
 ```ts
-export function deriveNonce(secretKey: Scalar, message: Uint8Array, counter: number): Scalar;
+export function deriveNonce(
+  secretKey: Scalar,
+  message: Uint8Array,
+  counter: number,
+): Scalar;
 ```
 
 RFC 6979 HMAC-SHA256-DRBG. Per-proof nonces, simulator challenges, and simulator responses are all derived deterministically.
@@ -84,14 +88,15 @@ export type SigmaOrProof = {
 export function proveSigmaOr(args: {
   a: G1Point;
   b: G1Point;
-  outputs: Array<{ a: G1Point; b: G1Point }>;   // length = N
-  realBranchIndex: number;                       // which branch the prover knows
-  witness: Scalar;                               // y_i for the real branch
+  outputs: Array<{ a: G1Point; b: G1Point }>; // length = N
+  realBranchIndex: number; // which branch the prover knows
+  witness: Scalar; // y_i for the real branch
   ctx: Uint8Array;
 }): SigmaOrProof;
 
 export function verifySigmaOr(args: {
-  a: G1Point; b: G1Point;
+  a: G1Point;
+  b: G1Point;
   outputs: Array<{ a: G1Point; b: G1Point }>;
   proof: SigmaOrProof;
   ctx: Uint8Array;
@@ -119,12 +124,17 @@ type LovejoinAddresses = {
 type ProtocolParams = {
   denomLovelace: bigint;
   maxFeePerMixLovelace: bigint;
-  maxN: number;                  // 2 ≤ N ≤ maxN per Mix tx
+  maxN: number; // 2 ≤ N ≤ maxN per Mix tx
   feeShardTarget: number;
 };
 
-export async function loadAddresses(network: string): Promise<LovejoinAddresses>;
-export async function fetchProtocolParams(addresses: LovejoinAddresses, provider: Provider): Promise<ProtocolParams>;
+export async function loadAddresses(
+  network: string,
+): Promise<LovejoinAddresses>;
+export async function fetchProtocolParams(
+  addresses: LovejoinAddresses,
+  provider: Provider,
+): Promise<ProtocolParams>;
 ```
 
 The reference UTxO is immutable; `fetchProtocolParams` caches for the SDK session.
@@ -181,9 +191,13 @@ export function ownsBox(myX: Scalar, datum: MixDatum): boolean {
 ### Random N-tuple selection
 
 ```ts
-export function pickRandomNTuple(pool: PoolEntry[], n: number, options?: {
-  excludeRefs?: TxOutRef[];
-}): PoolEntry[];
+export function pickRandomNTuple(
+  pool: PoolEntry[],
+  n: number,
+  options?: {
+    excludeRefs?: TxOutRef[];
+  },
+): PoolEntry[];
 ```
 
 `n` clamped to `min(n, pool.size)`. Uniform random sample without replacement.
@@ -211,20 +225,21 @@ Collateral: from the user's wallet.
 ```ts
 export async function buildMixTx(args: {
   network: "preprod" | "mainnet";
-  n?: number;                                  // default = max_n from config (clamped to pool.size)
-  boxes?: Array<{ ref: TxOutRef; datum: MixDatum }>;  // optional explicit selection; otherwise random
+  n?: number; // default = max_n from config (clamped to pool.size)
+  boxes?: Array<{ ref: TxOutRef; datum: MixDatum }>; // optional explicit selection; otherwise random
   provider: ChainProvider;
-  collateralProvider?: CollateralProvider;     // default = GivemeMyProvider
+  collateralProvider?: CollateralProvider; // default = GivemeMyProvider
 }): Promise<TxComplete>;
 ```
 
 Internally:
+
 1. If `boxes` is omitted, pick `n` random pool boxes.
 2. Pick a fee shard.
 3. Generate fresh `y_0, ..., y_{n-1}`.
 4. Compute output datums: `out_i = ([y_i]a_i, [y_i]b_i)` for each input `i`. Then permute the output indices uniformly at random.
 5. Compute `mixCtx` from output datums and values + script hash.
-6. Construct n-way sigma-OR proof for *each* of the n inputs (each prover knows the witness for the branch where its input went).
+6. Construct n-way sigma-OR proof for _each_ of the n inputs (each prover knows the witness for the branch where its input went).
 7. Build tx skeleton: n mix-box inputs + 1 fee shard input → n mix outputs + 1 fee shard output.
 8. Request collateral from provider; insert collateral input + collateral return.
 9. Submit. The collateral provider's signature is the only key witness.
@@ -239,7 +254,7 @@ export async function buildWithdrawTx(args: {
   ownerSecret: Scalar;
   myBoxRef: TxOutRef;
   myBoxDatum: MixDatum;
-  destinationAddress: string;       // can be a Seedelf address
+  destinationAddress: string; // can be a Seedelf address
   feeWalletInputs: UTxO[];
   changeAddress: string;
   provider: ChainProvider;

@@ -10,13 +10,7 @@
 
 import { describe, expect, it } from "vitest";
 
-import {
-  fetchProtocolParams,
-  loadAddresses,
-  makeProvider,
-  NETWORK,
-  skipReason,
-} from "./_lib.js";
+import { fetchProtocolParams, loadAddresses, makeProvider, NETWORK, skipReason } from "./_lib.js";
 import { planMixTx, generateOwnerSecret } from "@lovejoin/sdk";
 import {
   G1_COMPRESSED_BYTES,
@@ -116,6 +110,5 @@ void generateOwnerSecret;
 void G1_COMPRESSED_BYTES;
 
 if (reason) {
-   
   console.log(`[m4 fee-exhaustion] SKIP — ${reason}`);
 }

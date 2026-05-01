@@ -9,8 +9,7 @@ import { bech32Decode } from "../src/lib/bech32.js";
 // for the canonical Preprod mix-box script hash, no stake key. Kept here
 // rather than calling the SDK builder at test time so a regression in this
 // decoder surfaces independently of the SDK's encoder.
-const VALID_ADDR =
-  "addr_test1wzapw6nkqne7qc48a5c40qyqzj276rlmqxgud788mzpk9csxv0enu";
+const VALID_ADDR = "addr_test1wzapw6nkqne7qc48a5c40qyqzj276rlmqxgud788mzpk9csxv0enu";
 
 describe("bech32Decode", () => {
   it("decodes a valid testnet enterprise-script address", () => {

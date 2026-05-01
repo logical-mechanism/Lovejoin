@@ -1,6 +1,6 @@
 # 12 — Build guide
 
-A practical, opinionated execution plan. Pairs with [09-milestones.md](09-milestones.md), which is the high-level structure. This document is about *order of attack*, risk management, and avoiding the dead-ends.
+A practical, opinionated execution plan. Pairs with [09-milestones.md](09-milestones.md), which is the high-level structure. This document is about _order of attack_, risk management, and avoiding the dead-ends.
 
 ## TL;DR
 
@@ -18,9 +18,10 @@ These are the things that, if they fail, invalidate downstream work. Tackle them
 
 ### Risk 1: TS-Aiken encoding parity
 
-The Fiat-Shamir hash is computed in *both* TS (when proving) and Aiken (when verifying). If the byte-level CBOR encoding of the same logical datum differs by even one byte, every proof will fail verification on chain — and the failure mode is silent and confusing because the math is right but the inputs differ.
+The Fiat-Shamir hash is computed in _both_ TS (when proving) and Aiken (when verifying). If the byte-level CBOR encoding of the same logical datum differs by even one byte, every proof will fail verification on chain — and the failure mode is silent and confusing because the math is right but the inputs differ.
 
 **Mitigation:** before writing any sigma-protocol code, write a parity test that:
+
 - Generates a `MixDatum { a, b }` with random bytes in TS.
 - Serializes it via cbor-x.
 - In an Aiken test, generates the same logical `MixDatum`.
@@ -124,19 +125,23 @@ Even if these targets don't do anything meaningful yet, having them wired up mea
 The order matters. Each layer depends on the one below working.
 
 ### Layer 0: BLS12-381 wrappers
+
 - `offchain/src/crypto/bls.ts` over `@noble/curves`. Compressed encoding, scalar ops, point ops. ~50 lines.
 - `contracts/lib/lovejoin/bls.ak` thin wrappers around `bls12_381_g1_*` builtins.
 - Verify both: encode the generator, scalar-mul by 2, decode, compare. Should match.
 
 ### Layer 1: blake2b + FS challenge construction
+
 - `offchain/src/crypto/hash.ts` and `contracts/lib/lovejoin/hash.ak`.
 - The exact same byte-construction logic in both. **Run the encoding parity test now** — before any sigma protocol code.
 
 ### Layer 2: RFC 6979 nonce derivation
+
 - `offchain/src/crypto/nonce.ts`. TS-only; Aiken doesn't need this (it only verifies, doesn't generate).
 - HMAC-SHA256-DRBG.
 
 ### Layer 3: Schnorr / proveDlog
+
 - `offchain/src/crypto/schnorr.ts`: prove + verify.
 - `contracts/lib/lovejoin/schnorr.ak`: verify only.
 - TS test: generate a proof, verify with the TS verifier — passes.
@@ -144,21 +149,25 @@ The order matters. Each layer depends on the one below working.
 - Negative test: tamper one byte, both verifiers reject.
 
 ### Layer 4: proveDHTuple
+
 - Same shape as Schnorr but two parallel runs.
 - Same testing: TS prove + verify, cross-verify with Aiken, negative cases.
 
 ### Layer 5: 2-way sigma-OR
+
 - The simplest OR composition. Get this right before going generic.
 - TS prove + verify.
 - Aiken verifier.
 - KAT vectors at N=2.
 
 ### Layer 6: N-way sigma-OR
+
 - Generalize the 2-way case. Loop over branches.
 - Important detail: the XOR-completion of challenges. Test at N ∈ {2, 3, 4, 6, 8}.
 - KAT vectors at each N.
 
 ### Layer 7: Rust reference
+
 - Last. Built using `blst`. Generates the canonical KAT vectors from a separate codebase.
 - TS prover + Aiken verifier should both agree with the Rust reference.
 
@@ -167,38 +176,47 @@ By the end of M1, you have three independent implementations agreeing on bytes. 
 ## Within M2: build the validators bottom-up
 
 ### Layer 0: types + helpers
+
 - `contracts/lib/lovejoin/types.ak`, `reference.ak`, `mixbox.ak`, `fee.ak`.
 - `read_protocol_params` helper: takes the NFT identifier, returns the protocol params from `tx.reference_inputs`.
 - `try_decode_well_formed_mix_datum` helper: returns `Option<MixDatum>`; the `None` arm drives Rule 2 (hyperstructure datum tolerance, see [03-contracts.md](03-contracts.md) §0).
 
 ### Layer 1: one_shot_mint
+
 - Simplest possible validator. ~10 lines. Get it deployed and minting on Preprod first.
 
 ### Layer 2: reference_holder
+
 - 1 line of logic (`False`). The interesting part is the bootstrap tx that locks the NFT and datum.
 - Run `infra/bootstrap/01-mint-and-lock.sh` on Preprod and verify the reference UTxO is queryable via ogmios / Blockfrost.
 
 ### Layer 3: mix_logic Owner branch
+
 - The withdraw-zero withdrawal validator (see [03-contracts.md](03-contracts.md) §0/§2).
 - Owner mode: filter mix-script inputs, drop malformed-datum ones, expect exactly 1 well-formed input, Schnorr verify against `(a, b)`.
 - Test in the Aiken simulator with KAT-derived test cases.
 
 ### Layer 4: mix_box (spend; pass-through)
+
 - Trivial: decode the datum; if well-formed require `pairs.has_key(self.withdrawals, mix_logic_credential)`; else True.
 - Smoke test: deposit a box on Preprod, spend it via Owner — the spend succeeds only when withdraw-zero is present.
 
 ### Layer 5: mix_logic Mix branch at N=2
+
 - Hard-code N=2 first while you stabilize the rule list (value preservation, datum well-formedness, output positions, ctx, OR-proof verification).
 
 ### Layer 6: fee_contract
+
 - Both PayMixFee and Replenish paths. Rule 2 applies to its datum (`()` only; bad datum → True).
 - Test in isolation with synthetic Mix-tx contexts.
 
 ### Layer 7: Generalize mix_logic Mix to variable N
+
 - Replace the hard-coded N=2 with `N = length(well_formed_mix_inputs)` and loop the OR-proof verification.
 - Test at N ∈ {2, 3, 4, 6}.
 
 ### Layer 8: Bootstrap scripts
+
 - `00-build-reference.sh`: derives all hashes from config (note the dependency order: `mix_logic` before `mix_box`).
 - `01a-publish.sh`: recursive 3-tx chain via `transaction build-raw`. Publishes mix_box, mix_logic, fee_contract as CIP-33 reference scripts (one tx per script — keeps per-tx size predictable as validators grow). Each tx after the first spends the previous tx's change output as funding; the chain's final change UTxO is recorded in `addresses.json` for `01b` to consume.
 - `01b-register.sh`: registers the `mix_logic` Plutus stake credential. Run after `01a` confirms (so `transaction build` can resolve on-chain UTxOs and auto-compute fee + change). The cert references the script via `--certificate-tx-in-reference` against the publish-mix-logic output, with the redeemer attached via `--certificate-reference-tx-in-redeemer-file`. Without the registration, `mix_box` spends can never satisfy the withdraw-zero check.
@@ -207,6 +225,7 @@ By the end of M1, you have three independent implementations agreeing on bytes. 
 - `addresses.preprod.json` committed after the run.
 
 ### Layer 9: Stress test
+
 - `max-n-calibration.ts`. Determine real `max_n`.
 - `fee-calibration.ts`. Determine real `MAX_FEE_PER_MIX`.
 - Update `network.preprod.json`.
@@ -223,6 +242,7 @@ Before going wide on M4-M6, get a vertical slice working end-to-end on Preprod. 
 ```
 
 No mixing in the slice. Just the deposit + withdraw cycle. If this works, you've validated:
+
 - Aiken validators compile and run on real Preprod.
 - mesh handles the tx shape.
 - Schnorr proof verification works for real, not just in tests.
@@ -259,25 +279,32 @@ Drive from the user's first action backward.
 ## Common pitfalls
 
 ### "My proof verifies in TS but fails in Aiken"
+
 99% of the time this is encoding parity. Diff the byte sequences.
 
 ### "My validator passes the test but fails on Preprod"
+
 Test simulator vs real chain differences:
+
 - Reference inputs handling.
 - CBOR datum decoding edge cases.
 - Plutus version mismatch.
 - Cost model differences.
 
 ### "My Mix tx has the right outputs but mesh refuses to build it"
+
 Could be:
+
 - mesh expecting a wallet input (use the collateral provider correctly).
 - The exact-fee constraint not converging (iterate fee computation).
 - Reference inputs not being passed.
 
 ### "All my proofs fail but the math looks right"
-Check the FS challenge `ctx`. If you're hashing `tx.outputs` and the outputs include the fee-contract output, and the fee-contract output's value depends on `tx.fee`, you have a circular dependency. Solution: only hash the *mix outputs* (positions 0 through N-1), not the fee-contract output.
+
+Check the FS challenge `ctx`. If you're hashing `tx.outputs` and the outputs include the fee-contract output, and the fee-contract output's value depends on `tx.fee`, you have a circular dependency. Solution: only hash the _mix outputs_ (positions 0 through N-1), not the fee-contract output.
 
 ### "I can't get cardano-cli to recognize my reference script"
+
 CIP-33 reference scripts have specific tx-formatting requirements. Use cardano-cli 8.x and pass `--reference-tx-in <txid#idx>` correctly. Test with a simple validator first.
 
 ## Optimizations (if Aiken is too expensive)

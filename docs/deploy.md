@@ -3,7 +3,7 @@
 This guide is the operator's reference for shipping the Lovejoin UI +
 backend to **DigitalOcean App Platform**. The protocol itself is a
 hyperstructure — once bootstrapped on a network it lives on chain
-forever — so what we deploy here is the *frontend* (UI + indexer/API),
+forever — so what we deploy here is the _frontend_ (UI + indexer/API),
 not the protocol.
 
 The committed [`.do/app.yaml`](../.do/app.yaml) is the live Preprod
@@ -47,17 +47,18 @@ top-level paths (`/health`, `/pool`, `/params`, etc. — see
 DO App Platform can't run a Cardano node, so the backend points at
 external infrastructure for chain access:
 
-| Service | Required? | Used for | Suggested provider |
-| --- | --- | --- | --- |
-| Ogmios (WebSocket) | **yes** | Chainsync (indexer), tx submission, tx evaluation | [Demeter](https://demeter.run/), [DRI](https://dri.io/), self-hosted via Cloudflare Tunnel |
-| db-sync (Postgres) | optional | `/history/:address`, `/utxos/:address`, `/tx/:hash` | [Demeter](https://demeter.run/) postgres extension, or your own |
-| Blockfrost (HTTPS) | optional | Fallback for `/history` when db-sync is down or absent | [blockfrost.io](https://blockfrost.io/) (free tier covers Preprod) |
+| Service            | Required? | Used for                                               | Suggested provider                                                                         |
+| ------------------ | --------- | ------------------------------------------------------ | ------------------------------------------------------------------------------------------ |
+| Ogmios (WebSocket) | **yes**   | Chainsync (indexer), tx submission, tx evaluation      | [Demeter](https://demeter.run/), [DRI](https://dri.io/), self-hosted via Cloudflare Tunnel |
+| db-sync (Postgres) | optional  | `/history/:address`, `/utxos/:address`, `/tx/:hash`    | [Demeter](https://demeter.run/) postgres extension, or your own                            |
+| Blockfrost (HTTPS) | optional  | Fallback for `/history` when db-sync is down or absent | [blockfrost.io](https://blockfrost.io/) (free tier covers Preprod)                         |
 
 Without Ogmios the backend won't start (the indexer needs chainsync).
 Without db-sync the address-keyed routes 503 — set
 `BLOCKFROST_PROJECT_ID_<NETWORK>` to keep `/history` working; the SDK
-+ UI fall back to `BlockfrostProvider` for `/utxos` + `/tx`-style
-queries.
+
+- UI fall back to `BlockfrostProvider` for `/utxos` + `/tx`-style
+  queries.
 
 ## Connecting App Platform to home-hosted infrastructure
 
@@ -68,15 +69,15 @@ options, ordered by what we use:
 
 ### 1. Cloudflare Tunnel + Cloudflare Access (recommended, free)
 
-`cloudflared` runs on the home box and dials *outbound* to Cloudflare,
+`cloudflared` runs on the home box and dials _outbound_ to Cloudflare,
 which exposes the services on hostnames you control. No inbound port
 at home, no DDNS, no allowlist, TLS handled by CF. Two transport modes
 matter:
 
-| Mode | Works for | How the consumer reaches it | Used here for |
-| --- | --- | --- | --- |
-| Public hostname (HTTP/HTTPS/WS) | Ogmios | Plain HTTPS/WSS to the public hostname | Optional alternative for Ogmios |
-| Cloudflare Access (TCP) | Ogmios + Postgres | A `cloudflared access tcp` client opens a local TCP relay | **Both** Ogmios + db-sync in our setup |
+| Mode                            | Works for         | How the consumer reaches it                               | Used here for                          |
+| ------------------------------- | ----------------- | --------------------------------------------------------- | -------------------------------------- |
+| Public hostname (HTTP/HTTPS/WS) | Ogmios            | Plain HTTPS/WSS to the public hostname                    | Optional alternative for Ogmios        |
+| Cloudflare Access (TCP)         | Ogmios + Postgres | A `cloudflared access tcp` client opens a local TCP relay | **Both** Ogmios + db-sync in our setup |
 
 We use the **Access TCP path for both Ogmios and db-sync**: it's the
 only way Postgres works through CF Tunnel (raw TCP doesn't ride a
@@ -98,7 +99,7 @@ fine.
 ##### Option A — dashboard-managed (token, headless-friendly)
 
 1. Cloudflare Zero Trust dashboard → **Networks → Tunnels → Create
-   a tunnel**. Connector: *Cloudflared*. Name: `lovejoin-preprod`.
+   a tunnel**. Connector: _Cloudflared_. Name: `lovejoin-preprod`.
 2. CF gives you a one-line install command for every common OS,
    embedding a JWT token. On the headless box:
    ```bash
@@ -186,7 +187,7 @@ During CF onboarding you'll see a recommendation along the lines of:
 users running a public-facing origin behind CF's reverse proxy, who
 want to make sure attackers can't bypass the proxy by hitting the
 origin's public IP directly. With Cloudflare Tunnel there is no
-inbound traffic to the origin at all — `cloudflared` dials *outbound*
+inbound traffic to the origin at all — `cloudflared` dials _outbound_
 to CF and proxies traffic back through that outbound connection. So:
 
 - Keep your existing UFW default-deny inbound posture.
@@ -224,14 +225,14 @@ corresponding env vars.
 
 Set these on the backend service (via DO dashboard or [.do/app.yaml](../.do/app.yaml)):
 
-| Env var | Type | Example | Notes |
-| --- | --- | --- | --- |
-| `CF_TUNNEL_OGMIOS_HOSTNAME` | plaintext | `ogmios-preprod.yourdomain.com` | Empty = skip the Ogmios sidecar; `OGMIOS_URL` then has to be a directly-reachable URL. |
-| `CF_TUNNEL_DBSYNC_HOSTNAME` | plaintext | `dbsync-preprod.yourdomain.com` | Empty = skip the db-sync sidecar. |
-| `CF_TUNNEL_SERVICE_TOKEN_ID` | **SECRET** | `<uuid>.access` | Service-token Client ID from CF Zero Trust. |
-| `CF_TUNNEL_SERVICE_TOKEN_SECRET` | **SECRET** | (long opaque string) | Service-token Client Secret. |
-| `OGMIOS_URL` | plaintext | `ws://127.0.0.1:1337` | Loopback when the sidecar is in play. |
-| `DBSYNC_URL` | **SECRET** | `postgres://user:pass@127.0.0.1:5432/cexplorer` | Loopback host; user/pass are the home-side Postgres creds. |
+| Env var                          | Type       | Example                                         | Notes                                                                                  |
+| -------------------------------- | ---------- | ----------------------------------------------- | -------------------------------------------------------------------------------------- |
+| `CF_TUNNEL_OGMIOS_HOSTNAME`      | plaintext  | `ogmios-preprod.yourdomain.com`                 | Empty = skip the Ogmios sidecar; `OGMIOS_URL` then has to be a directly-reachable URL. |
+| `CF_TUNNEL_DBSYNC_HOSTNAME`      | plaintext  | `dbsync-preprod.yourdomain.com`                 | Empty = skip the db-sync sidecar.                                                      |
+| `CF_TUNNEL_SERVICE_TOKEN_ID`     | **SECRET** | `<uuid>.access`                                 | Service-token Client ID from CF Zero Trust.                                            |
+| `CF_TUNNEL_SERVICE_TOKEN_SECRET` | **SECRET** | (long opaque string)                            | Service-token Client Secret.                                                           |
+| `OGMIOS_URL`                     | plaintext  | `ws://127.0.0.1:1337`                           | Loopback when the sidecar is in play.                                                  |
+| `DBSYNC_URL`                     | **SECRET** | `postgres://user:pass@127.0.0.1:5432/cexplorer` | Loopback host; user/pass are the home-side Postgres creds.                             |
 
 The committed `.do/app.yaml` already has these as placeholders;
 filling them in via the DO dashboard is the path described under
@@ -329,7 +330,7 @@ of cloud sync, shared dotfiles, etc.
   `wss://ogmios-preprod.yourdomain.com` if the auth is at the CF
   Access layer, not in the URL).
 - `${APP_URL}` interpolations.
-- All `scope: BUILD_TIME` UI envs *except* tokens — but remember
+- All `scope: BUILD_TIME` UI envs _except_ tokens — but remember
   build-time UI envs end up in the bundle anyway (see "UI build-time
   secrets" below), so a free-tier Blockfrost project ID is fine
   there even though it's marked SECRET.
@@ -344,24 +345,24 @@ of cloud sync, shared dotfiles, etc.
 
 ### Backend (runtime — read by `backend/src/config.ts` + `backend/entrypoint.sh`)
 
-| Var | Required | Type | Default | Notes |
-| --- | --- | --- | --- | --- |
-| `NETWORK` | yes | plaintext | `preprod` | Must match the `NETWORK` build-arg used to bake `addresses.json`. |
-| `PORT` | yes | plaintext | `3001` | Fastify listens here. DO health-checks the same port. |
-| `HOST` | no | plaintext | `0.0.0.0` | Container-friendly default; do not set `127.0.0.1`. |
-| `OGMIOS_URL` | yes | plaintext | `ws://127.0.0.1:1337` | Loopback when the CF Tunnel sidecar runs; otherwise a directly-reachable URL. |
-| `DBSYNC_URL` | no | **secret** | – | `postgres://user:pass@127.0.0.1:5432/cexplorer` (CF Tunnel) or any direct postgres URL. |
-| `BLOCKFROST_PROJECT_ID_PREPROD` | no | **secret** | – | History fallback when db-sync is down. Suffix matches the network. |
-| `BLOCKFROST_BASE_URL` | no | plaintext | per-network public Blockfrost | Override only if you proxy. |
-| `ADDRESSES_PATH` | no | plaintext | `/srv/lovejoin/addresses.json` | Matches the `COPY` in `backend/Dockerfile`. |
-| `CORS_ORIGINS` | yes | plaintext | – | Comma-separated allowlist; `${APP_URL}` works on DO. `*` allows all. |
-| `RATE_LIMIT_PER_MIN` | no | plaintext | `600` | Per-IP rate limit on every Fastify route. |
-| `BOOTSTRAP_START_SLOT` | no | plaintext | `addresses.bootstrapStartPoint.slot` | Override the chainsync intersection. |
-| `BOOTSTRAP_START_BLOCKHASH` | no | plaintext | `addresses.bootstrapStartPoint.blockHash` | Required iff `BOOTSTRAP_START_SLOT` is set. |
-| `CF_TUNNEL_OGMIOS_HOSTNAME` | no | plaintext | – | If set, entrypoint runs `cloudflared access tcp` for it on 127.0.0.1:1337. |
-| `CF_TUNNEL_DBSYNC_HOSTNAME` | no | plaintext | – | Same, on 127.0.0.1:5432. |
-| `CF_TUNNEL_SERVICE_TOKEN_ID` | iff a CF tunnel hostname is set | **secret** | – | CF Access service-token Client ID. |
-| `CF_TUNNEL_SERVICE_TOKEN_SECRET` | iff a CF tunnel hostname is set | **secret** | – | CF Access service-token Client Secret. |
+| Var                              | Required                        | Type       | Default                                   | Notes                                                                                   |
+| -------------------------------- | ------------------------------- | ---------- | ----------------------------------------- | --------------------------------------------------------------------------------------- |
+| `NETWORK`                        | yes                             | plaintext  | `preprod`                                 | Must match the `NETWORK` build-arg used to bake `addresses.json`.                       |
+| `PORT`                           | yes                             | plaintext  | `3001`                                    | Fastify listens here. DO health-checks the same port.                                   |
+| `HOST`                           | no                              | plaintext  | `0.0.0.0`                                 | Container-friendly default; do not set `127.0.0.1`.                                     |
+| `OGMIOS_URL`                     | yes                             | plaintext  | `ws://127.0.0.1:1337`                     | Loopback when the CF Tunnel sidecar runs; otherwise a directly-reachable URL.           |
+| `DBSYNC_URL`                     | no                              | **secret** | –                                         | `postgres://user:pass@127.0.0.1:5432/cexplorer` (CF Tunnel) or any direct postgres URL. |
+| `BLOCKFROST_PROJECT_ID_PREPROD`  | no                              | **secret** | –                                         | History fallback when db-sync is down. Suffix matches the network.                      |
+| `BLOCKFROST_BASE_URL`            | no                              | plaintext  | per-network public Blockfrost             | Override only if you proxy.                                                             |
+| `ADDRESSES_PATH`                 | no                              | plaintext  | `/srv/lovejoin/addresses.json`            | Matches the `COPY` in `backend/Dockerfile`.                                             |
+| `CORS_ORIGINS`                   | yes                             | plaintext  | –                                         | Comma-separated allowlist; `${APP_URL}` works on DO. `*` allows all.                    |
+| `RATE_LIMIT_PER_MIN`             | no                              | plaintext  | `600`                                     | Per-IP rate limit on every Fastify route.                                               |
+| `BOOTSTRAP_START_SLOT`           | no                              | plaintext  | `addresses.bootstrapStartPoint.slot`      | Override the chainsync intersection.                                                    |
+| `BOOTSTRAP_START_BLOCKHASH`      | no                              | plaintext  | `addresses.bootstrapStartPoint.blockHash` | Required iff `BOOTSTRAP_START_SLOT` is set.                                             |
+| `CF_TUNNEL_OGMIOS_HOSTNAME`      | no                              | plaintext  | –                                         | If set, entrypoint runs `cloudflared access tcp` for it on 127.0.0.1:1337.              |
+| `CF_TUNNEL_DBSYNC_HOSTNAME`      | no                              | plaintext  | –                                         | Same, on 127.0.0.1:5432.                                                                |
+| `CF_TUNNEL_SERVICE_TOKEN_ID`     | iff a CF tunnel hostname is set | **secret** | –                                         | CF Access service-token Client ID.                                                      |
+| `CF_TUNNEL_SERVICE_TOKEN_SECRET` | iff a CF tunnel hostname is set | **secret** | –                                         | CF Access service-token Client Secret.                                                  |
 
 ### UI (build-time — read by Vite from the workspace `.env`)
 
@@ -370,18 +371,18 @@ of cloud sync, shared dotfiles, etc.
 > `VITE_*` values. There is no runtime way to swap them — the values
 > become string literals in `dist/assets/*.js`.
 
-| Var | Required | Type | Default | Notes |
-| --- | --- | --- | --- | --- |
-| `VITE_NETWORK` | yes | plaintext | `preprod` | Drives the SDK's per-network code paths. |
-| `VITE_BACKEND_URL` | yes | plaintext | `http://localhost:3001` | Full URL incl. scheme. On DO use `${APP_URL}/api` so the same hostname serves both UI + backend. |
-| `VITE_BLOCKFROST_PROJECT_ID` | no | **secret-ish** | – | Optional client-side Blockfrost fallback. See "UI build-time secrets". |
-| `VITE_COLLATERAL_ENDPOINT` | no | plaintext | SDK per-network default | Override only when proxying or testing locally. |
+| Var                          | Required | Type           | Default                 | Notes                                                                                            |
+| ---------------------------- | -------- | -------------- | ----------------------- | ------------------------------------------------------------------------------------------------ |
+| `VITE_NETWORK`               | yes      | plaintext      | `preprod`               | Drives the SDK's per-network code paths.                                                         |
+| `VITE_BACKEND_URL`           | yes      | plaintext      | `http://localhost:3001` | Full URL incl. scheme. On DO use `${APP_URL}/api` so the same hostname serves both UI + backend. |
+| `VITE_BLOCKFROST_PROJECT_ID` | no       | **secret-ish** | –                       | Optional client-side Blockfrost fallback. See "UI build-time secrets".                           |
+| `VITE_COLLATERAL_ENDPOINT`   | no       | plaintext      | SDK per-network default | Override only when proxying or testing locally.                                                  |
 
 #### UI build-time secrets
 
 Anything passed as `VITE_*` ends up in the JavaScript bundle that ships
-to every browser — *that includes secrets you mark as `type: SECRET`
-in the App spec*. The `SECRET` flag only masks the value in the DO
+to every browser — _that includes secrets you mark as `type: SECRET`
+in the App spec_. The `SECRET` flag only masks the value in the DO
 spec audit log + dashboard; the resulting bundle is still
 human-readable. Implications:
 
@@ -390,7 +391,7 @@ human-readable. Implications:
   scrape it from the bundle either way.
 - The collateral provider endpoint is non-sensitive (it's a public
   HTTPS host); leaving it as plaintext is fine.
-- The backend's `OGMIOS_URL` and `DBSYNC_URL` *are* secrets and live
+- The backend's `OGMIOS_URL` and `DBSYNC_URL` _are_ secrets and live
   in the **runtime** envs of the backend service — they never reach
   the UI bundle.
 
@@ -412,6 +413,7 @@ it at; the build passing is the deploy-readiness signal.)
 ## First-time deploy
 
 1. **Authenticate doctl** (one-time per workstation):
+
    ```bash
    sudo snap install doctl     # or `brew install doctl`
    doctl auth init             # paste a personal access token
@@ -424,14 +426,17 @@ it at; the build passing is the deploy-readiness signal.)
    - Adjust `region:` if NYC isn't where you want it.
 
 3. **Apply**:
+
    ```bash
    make do-deploy
    ```
+
    `doctl` returns the new app's UUID and a build URL. The first build
    takes 5–10 minutes; subsequent pushes to `main` redeploy
    automatically (`deploy_on_push: true`).
 
 4. **Smoke test** once the app reports as `ACTIVE`:
+
    ```bash
    APP_URL=https://lovejoin-preprod-XXXX.ondigitalocean.app
    curl -fsS "$APP_URL/api/health" | jq
@@ -497,7 +502,7 @@ never reach disk on the frontend tier.
 
 - Container registries, CDNs, custom worker pools — DO App Platform
   bundles all of that.
-- A staging environment — Preprod *is* staging until mainnet is live
+- A staging environment — Preprod _is_ staging until mainnet is live
   (post-audit).
 - Horizontal scaling — `instance_count: 1` is fine for the alpha.
   Bumping it requires sticky sessions or moving the indexer state to

@@ -11,12 +11,7 @@
 
 import { describe, expect, it } from "vitest";
 
-import {
-  type Scalar,
-  generator,
-  pointToBytes,
-  scalarMul,
-} from "../../src/crypto/index.js";
+import { type Scalar, generator, pointToBytes, scalarMul } from "../../src/crypto/index.js";
 import {
   decodeMixDatumInline,
   filterPoolEntries,
@@ -27,7 +22,8 @@ import {
 import { encodeMixDatum } from "../../src/tx/deposit.js";
 import type { Utxo } from "../../src/chain/provider.js";
 
-const MIX_BOX_ADDR = "addr_test1zr6st458sf8czp2nayx9wqgqg9hd58lmqyguda3e7csdju8repagljh249nrlmgvxhfah6mvyq6sg2xkmgnzcjpsqzckqz3ahz5";
+const MIX_BOX_ADDR =
+  "addr_test1zr6st458sf8czp2nayx9wqgqg9hd58lmqyguda3e7csdju8repagljh249nrlmgvxhfah6mvyq6sg2xkmgnzcjpsqzckqz3ahz5";
 const DENOM = 10_000_000n;
 
 function makeAB(secret: bigint, dScalar: bigint = 1n): { a: Uint8Array; b: Uint8Array } {
@@ -81,7 +77,8 @@ describe("pool/identify — decodeMixDatumInline", () => {
     // Constr 0 [bytes(48 zeros), bytes(31 zeros)] — b is 1 byte short.
     // Hand-craft minimal CBOR: tag 121 (d879), array(2) = 82,
     // bytes(48): 5830 + 48 zeros, bytes(31): 581f + 31 zeros.
-    const cbor = "d8798258300000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000581f00000000000000000000000000000000000000000000000000000000000000";
+    const cbor =
+      "d8798258300000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000581f00000000000000000000000000000000000000000000000000000000000000";
     expect(decodeMixDatumInline(cbor)).toBeNull();
   });
 

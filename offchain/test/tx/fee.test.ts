@@ -85,9 +85,9 @@ describe("tx/fee — listFeeShards", () => {
 
   it("throws when no shards exist", async () => {
     const provider = makeProvider(FEE_ADDR, []);
-    await expect(
-      listFeeShards({ provider, feeScriptAddressBech32: FEE_ADDR }),
-    ).rejects.toThrow(/no fee shards/);
+    await expect(listFeeShards({ provider, feeScriptAddressBech32: FEE_ADDR })).rejects.toThrow(
+      /no fee shards/,
+    );
   });
 });
 
@@ -139,9 +139,9 @@ describe("tx/fee — pickRandomShard", () => {
       utxo({ txId: "1".repeat(64), idx: 0, lovelace: 1_500_000n }),
       utxo({ txId: "2".repeat(64), idx: 0, lovelace: 2_500_000n }),
     ];
-    expect(() =>
-      pickRandomShard({ shards: lows, minLovelace: 3_000_000n }),
-    ).toThrow(/at least 3000000 lovelace/);
+    expect(() => pickRandomShard({ shards: lows, minLovelace: 3_000_000n })).toThrow(
+      /at least 3000000 lovelace/,
+    );
   });
 
   it("applies minLovelace before excludeRefs", () => {
@@ -213,9 +213,9 @@ describe("tx/fee — replenishOutputLovelace", () => {
 
   it("enforces minRounds when set", () => {
     const shard = utxo({ txId: "x".repeat(64) });
-    expect(() =>
-      replenishOutputLovelace({ shard, rounds: 3, params, minRounds: 5 }),
-    ).toThrow(/below minRounds/);
+    expect(() => replenishOutputLovelace({ shard, rounds: 3, params, minRounds: 5 })).toThrow(
+      /below minRounds/,
+    );
   });
 });
 
@@ -249,6 +249,6 @@ function makeProvider(addr: string, utxos: Utxo[]) {
     getReferenceUtxo: async () => {
       throw new Error("not implemented in fakeProvider");
     },
-    getProtocolParameters: async () => ({} as never),
+    getProtocolParameters: async () => ({}) as never,
   };
 }

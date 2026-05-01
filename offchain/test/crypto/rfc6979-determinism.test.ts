@@ -53,26 +53,22 @@ describe("crypto/nonce — RFC 6979 deterministic derivation", () => {
       {
         x: 1n,
         msg: "",
-        expected:
-          "484e4ea71cfd582c0ae5aa71900ae5168453317f34cd85910727a5bb78972a95",
+        expected: "484e4ea71cfd582c0ae5aa71900ae5168453317f34cd85910727a5bb78972a95",
       },
       {
         x: 2n,
         msg: "00",
-        expected:
-          "20ed3145641ec58c7e2abca3d36fe429fc3667d7e300390c554e690e3e15f5ce",
+        expected: "20ed3145641ec58c7e2abca3d36fe429fc3667d7e300390c554e690e3e15f5ce",
       },
       {
         x: 0xffffffff_ffffffffn,
         msg: "deadbeef",
-        expected:
-          "4dd5f82a82d649423803ee6c5bcda28019bdd33b4b0813cecad49f78203d159e",
+        expected: "4dd5f82a82d649423803ee6c5bcda28019bdd33b4b0813cecad49f78203d159e",
       },
       {
         x: SCALAR_ORDER - 1n,
         msg: "lovejoin",
-        expected:
-          "2309914cefda8343c5586566758e381459132584b3f2360af4e3ae8104bc22f6",
+        expected: "2309914cefda8343c5586566758e381459132584b3f2360af4e3ae8104bc22f6",
       },
     ];
     for (const c of cases) {

@@ -88,18 +88,18 @@ describe("tx/collateral — WalletProvider", () => {
     ];
     for (const wallet of cases) {
       const p = new WalletProvider(wallet);
-      await expect(
-        p.prepareCollateral({ collateralAmountLovelace: 1n }),
-      ).rejects.toThrow(/no collateral/);
+      await expect(p.prepareCollateral({ collateralAmountLovelace: 1n })).rejects.toThrow(
+        /no collateral/,
+      );
     }
   });
 
   it("throws when wallet collateral is below the requested amount", async () => {
     const wallet = fakeWallet({ collateral: [utxoEntry({ lovelace: 1_000_000n })] });
     const p = new WalletProvider(wallet);
-    await expect(
-      p.prepareCollateral({ collateralAmountLovelace: 5_000_000n }),
-    ).rejects.toThrow(/Top up/);
+    await expect(p.prepareCollateral({ collateralAmountLovelace: 5_000_000n })).rejects.toThrow(
+      /Top up/,
+    );
   });
 
   it("rejects CBOR-hex collateral with an actionable error", async () => {
@@ -112,9 +112,7 @@ describe("tx/collateral — WalletProvider", () => {
       submitTx: async () => "",
     };
     const p = new WalletProvider(wallet);
-    await expect(
-      p.prepareCollateral({ collateralAmountLovelace: 1n }),
-    ).rejects.toThrow(/CBOR-hex/);
+    await expect(p.prepareCollateral({ collateralAmountLovelace: 1n })).rejects.toThrow(/CBOR-hex/);
   });
 
   it("uses an explicit changeAddress when provided", async () => {
@@ -127,12 +125,9 @@ describe("tx/collateral — WalletProvider", () => {
 
 describe("tx/collateral — GivemeMyProvider", () => {
   // Pinned giveme.my preprod entry — see known-collateral-hosts.ts.
-  const HOST_PKH =
-    "7c24c22d1dc252d31f6022ff22ccc838c2ab83a461172d7c2dae61f4";
-  const HOST_PUBKEY =
-    "fa2025e788fae01ce10deffff386f992f62a311758819e4e3792887396c171ba";
-  const HOST_UTXO_TXID =
-    "1d388e615da2dca607e28f704130d04e39da6f251d551d66d054b75607e0393f";
+  const HOST_PKH = "7c24c22d1dc252d31f6022ff22ccc838c2ab83a461172d7c2dae61f4";
+  const HOST_PUBKEY = "fa2025e788fae01ce10deffff386f992f62a311758819e4e3792887396c171ba";
+  const HOST_UTXO_TXID = "1d388e615da2dca607e28f704130d04e39da6f251d551d66d054b75607e0393f";
   const HOST_UTXO_IDX = 0;
   const HOST_ADDRESS = "addr_test1q_host_address";
   const HOST_UTXO_LOVELACE = 50_000_000n;
@@ -142,10 +137,7 @@ describe("tx/collateral — GivemeMyProvider", () => {
       submitTx: async () => "00",
       getUtxos: async () => [],
       getUtxoByRef: async (ref) => {
-        if (
-          ref.txId.toLowerCase() === HOST_UTXO_TXID &&
-          ref.outputIndex === HOST_UTXO_IDX
-        ) {
+        if (ref.txId.toLowerCase() === HOST_UTXO_TXID && ref.outputIndex === HOST_UTXO_IDX) {
           const utxo: Utxo = {
             ref: { txId: HOST_UTXO_TXID, outputIndex: HOST_UTXO_IDX },
             address: HOST_ADDRESS,
@@ -377,10 +369,7 @@ describe("tx/collateral — parseGivemeMyWitnessResponse", () => {
 
   it("rejects when the inner array isn't [bytes(32), bytes(64)]", () => {
     // Replace the bytes(32) tag with bytes(31).
-    const malformed = `8200825820${"01".repeat(32)}5840${"ff".repeat(64)}`.replace(
-      "5820",
-      "581f",
-    );
+    const malformed = `8200825820${"01".repeat(32)}5840${"ff".repeat(64)}`.replace("5820", "581f");
     expect(() => parseGivemeMyWitnessResponse({ witness: malformed })).toThrow();
   });
 });

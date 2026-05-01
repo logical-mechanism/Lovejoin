@@ -8,20 +8,20 @@ of changes that lifts `max_n` past 3 on Preprod.
 
 Implemented and merged on the M4.5 branch:
 
-| Item | Status | Notes |
-|------|--------|-------|
-| 1 + 5 — single-pass `validate_mix` | **Shipped (3rd attempt)** | First two attempts (full single-pass tail-rec; `list.foldr` over the prefix) regressed the all-negative `mix_logic.test.ak` suite — the negative-test setup paid for partial positive-path work that the old code's `list.all` short-circuited past. Adding positive-prologue benchmark tests at N ∈ {2,3,4,6,8} gave us a real positive-path measurement. The shipped version keeps the cheap `list.all(at_script)` structural pre-checks AND collapses the four heavy walks (`list.map(decode)` + 2 `compute_mix_ctx` folds + `precompute_statements`) into one tail-recursive walk with a tuple accumulator. Saves 8M-40M CPU per positive Mix tx (1.7%-2.3% of `validate_mix` prologue), 22k-127k mem. |
-| 2 — drop wrapper-list allocs in `verify_pre` | **Shipped** | -2.37B CPU, -7.36M mem cumulatively across the sigma_or KAT suite (combined with item 3). Per-tx ~390M CPU saved at N=8. |
-| 3 — drop `list.length` redundancy in `verify_pre` | **Shipped** | Combined into the item-2 commit's measurement. |
-| 4 — `list.count` over `list.filter` in fee_contract | **Shipped** | Net negative CPU; tiny mem +1.6k on N=6 fee_contract path is rounding error. |
-| 6 — drop `fee_shard_target` from `ReferenceDatum` | **Shipped** | Coordinated SDK + backend + bootstrap script + stress-tests change. Schema break vs. M4 deployment. |
-| 7 — move `dhtuple` / `fs_hash_dh_tuple` to test-only | **Skipped** | Pure code-org cleanup; Aiken tree-shakes unused pub functions, so no on-chain bytes change. Out of scope for an "if we can prove CPU/mem savings" pass. |
-| 8 — hoist `ada_only` to shared `lovejoin/value` | **Shipped** | Pure refactor; no on-chain cost change. |
-| 9 — unify `parallel_all` / `pairs_match_and_all` via generics | **Skipped** | Speculative; no measurable CPU win. |
-| 10 — soft-decode without redundant `choose_data` round-trip | **Skipped** | Aiken's `choose_data` is strict in all branches in compiled UPLC; the laziness this would have required is not safe. |
-| 11 — combine OR-branch equality checks into one | **Skipped** | Speculative; large soundness re-derivation; out of scope. |
-| 12 — drop scalar canonical-length check | **Rejected** | Would weaken validation. |
-| 13 — skip per-input datum re-decode | **Rejected** | Different UPLC scopes; structurally required for Rule 2. |
+| Item                                                          | Status                    | Notes                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
+| ------------------------------------------------------------- | ------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1 + 5 — single-pass `validate_mix`                            | **Shipped (3rd attempt)** | First two attempts (full single-pass tail-rec; `list.foldr` over the prefix) regressed the all-negative `mix_logic.test.ak` suite — the negative-test setup paid for partial positive-path work that the old code's `list.all` short-circuited past. Adding positive-prologue benchmark tests at N ∈ {2,3,4,6,8} gave us a real positive-path measurement. The shipped version keeps the cheap `list.all(at_script)` structural pre-checks AND collapses the four heavy walks (`list.map(decode)` + 2 `compute_mix_ctx` folds + `precompute_statements`) into one tail-recursive walk with a tuple accumulator. Saves 8M-40M CPU per positive Mix tx (1.7%-2.3% of `validate_mix` prologue), 22k-127k mem. |
+| 2 — drop wrapper-list allocs in `verify_pre`                  | **Shipped**               | -2.37B CPU, -7.36M mem cumulatively across the sigma_or KAT suite (combined with item 3). Per-tx ~390M CPU saved at N=8.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
+| 3 — drop `list.length` redundancy in `verify_pre`             | **Shipped**               | Combined into the item-2 commit's measurement.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
+| 4 — `list.count` over `list.filter` in fee_contract           | **Shipped**               | Net negative CPU; tiny mem +1.6k on N=6 fee_contract path is rounding error.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
+| 6 — drop `fee_shard_target` from `ReferenceDatum`             | **Shipped**               | Coordinated SDK + backend + bootstrap script + stress-tests change. Schema break vs. M4 deployment.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
+| 7 — move `dhtuple` / `fs_hash_dh_tuple` to test-only          | **Skipped**               | Pure code-org cleanup; Aiken tree-shakes unused pub functions, so no on-chain bytes change. Out of scope for an "if we can prove CPU/mem savings" pass.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
+| 8 — hoist `ada_only` to shared `lovejoin/value`               | **Shipped**               | Pure refactor; no on-chain cost change.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
+| 9 — unify `parallel_all` / `pairs_match_and_all` via generics | **Skipped**               | Speculative; no measurable CPU win.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
+| 10 — soft-decode without redundant `choose_data` round-trip   | **Skipped**               | Aiken's `choose_data` is strict in all branches in compiled UPLC; the laziness this would have required is not safe.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
+| 11 — combine OR-branch equality checks into one               | **Skipped**               | Speculative; large soundness re-derivation; out of scope.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
+| 12 — drop scalar canonical-length check                       | **Rejected**              | Would weaken validation.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
+| 13 — skip per-input datum re-decode                           | **Rejected**              | Different UPLC scopes; structurally required for Rule 2.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
 
 See [`docs/perf.md`](perf.md) §"M4.5 — validator optimisation pass" for
 the per-N delta tables.
@@ -38,12 +38,12 @@ Preprod numbers will quantify the gap.
 
 Cost model (rough, from `docs/perf.md` + observation):
 
-| Op | CPU |
-|---|---|
-| `bls12_381_g1_uncompress` | 25–30M |
-| `bls12_381_g1_scalar_mul` | ~10M |
-| `blake2b_256` (typical preimage) | ~4M |
-| `bls12_381_g1_add` / `_equal` | ~1M |
+| Op                                    | CPU          |
+| ------------------------------------- | ------------ |
+| `bls12_381_g1_uncompress`             | 25–30M       |
+| `bls12_381_g1_scalar_mul`             | ~10M         |
+| `blake2b_256` (typical preimage)      | ~4M          |
+| `bls12_381_g1_add` / `_equal`         | ~1M          |
 | ledger list traversal / pattern match | ~1M per step |
 
 Per Mix tx the dominant cost is **2N²** uncompresses + **4N²** scalar muls
@@ -90,10 +90,10 @@ field requested in the audit brief.
      accumulate `serialise_data(datum)` and `serialise_data(value)`
      into two `ByteArray` accumulators in canonical order.
   2. For indices ≥ N: validate **not** `output_at_script`.
-  Return `(statements, datums_acc, values_acc)`. Then concat
-  `datums_acc || values_acc || mix_script_hash` and `blake2b_256` once.
-  Drops 6 traversals → 1; drops 5 N-element list allocations to 1
-  (the statements list, which is needed by the verifier loop).
+     Return `(statements, datums_acc, values_acc)`. Then concat
+     `datums_acc || values_acc || mix_script_hash` and `blake2b_256` once.
+     Drops 6 traversals → 1; drops 5 N-element list allocations to 1
+     (the statements list, which is needed by the verifier loop).
 - **Behaviour change**: No. The byte layout of the FS preimage stays
   identical (datums in order 0..N-1 then values in order 0..N-1 then
   mix_script_hash). All structural rules stay enforced.
@@ -130,7 +130,7 @@ field requested in the audit brief.
   [`hash.fs_hash_sigma_or`](../contracts/lib/lovejoin/hash.ak#L80) to
   accept the original lists and projection functions, OR add a
   parallel `fs_hash_sigma_or_pre(a, b, statements: List<DHTupleStatementPt>,
-  branches: List<SigmaOrBranch>, ctx)` that walks the same lists
+branches: List<SigmaOrBranch>, ctx)` that walks the same lists
   directly using the `.ap` / `.bp` / `.t0` / `.t1` fields. The hash
   preimage is byte-identical because we read the same bytes.
 - **Behaviour change**: No. Same preimage bytes, same hash.
@@ -216,7 +216,7 @@ field requested in the audit brief.
 - **Location**: [`contracts/validators/mix_logic.ak:177-206`](../contracts/validators/mix_logic.ak#L177-L206)
 - **Current issue**: two `list.foldl` passes over `outputs` — one for
   datums, one for values. The second concat (`datums_bytes |>
-  bytearray.concat(values_bytes) |> bytearray.concat(...)`) does one
+bytearray.concat(values_bytes) |> bytearray.concat(...)`) does one
   extra full copy of `datums_bytes`.
 - **Why it costs**: one extra O(N) list traversal + an extra full-buffer
   concat. At N=4 with 48-byte datum bytes, that's ~200 bytes copied
@@ -246,7 +246,7 @@ field requested in the audit brief.
   blocked on a redeploy — which M4.5 is.
 - **Why it costs**: every `read_reference_datum` decode walks all
   `ReferenceDatum` fields via `expect parsed: ReferenceDatum =
-  datum_data`. Removing one Int field shaves one decode step from
+datum_data`. Removing one Int field shaves one decode step from
   every Mix and Fee tx. Also shaves a few CBOR bytes from the
   reference UTxO datum (the only reason we'd care: bigger reference
   inputs cost more script-rent over time — irrelevant on Cardano,
@@ -260,10 +260,10 @@ field requested in the audit brief.
   reference UTxOs (the M4 deployment) won't parse. M4.5 is a fresh
   bootstrap, so this is the right time. The CLAUDE.md already calls
   this out: `fee_shard_target … is similarly off-chain coordination —
-  kept on-chain today but slated for removal post-redeploy`.
+kept on-chain today but slated for removal post-redeploy`.
 - **Risk level**: Medium. The change must land in the bootstrap path
-  + SDK + reference-datum encoder simultaneously, otherwise the
-  bootstrap will panic.
+  - SDK + reference-datum encoder simultaneously, otherwise the
+    bootstrap will panic.
 - **Test cases needed**:
   - `aiken check` (validator tests use fixtures from
     `test_fixtures.ak` — update the fixture).
@@ -327,7 +327,7 @@ field requested in the audit brief.
   obvious cost difference (Aiken monomorphises).
 - **Recommended change** (speculative — Aiken's generics are limited;
   must verify): write one `pub fn pairs_all<a, b>(xs: List<a>, ys:
-  List<b>, pred: fn(a, b) -> Bool) -> Bool` in a shared module. If
+List<b>, pred: fn(a, b) -> Bool) -> Bool` in a shared module. If
   Aiken's monomorphisation introduces extra wrapping, skip this
   cleanup. Otherwise cleanup ~20 lines.
 - **Behaviour change**: No.
@@ -371,7 +371,7 @@ field requested in the audit brief.
   defeating the soft-fail. Need to verify on the compiled UPLC (e.g.
   via `aiken build --trace-level verbose` and `uplc decompile`) that
   the branch is lazy in practice. If it isn't, keep the current `if
-  is_constr(d)` guard.
+is_constr(d)` guard.
 - **Behaviour change**: Must be No. If the lazy-branch verification
   fails, abandon this item.
 - **Risk level**: Medium (only because of the laziness verification
@@ -389,19 +389,19 @@ field requested in the audit brief.
 - **Location**: [`sigma_or.ak:159-163`](../contracts/lib/lovejoin/sigma_or.ak#L159-L163)
 - **Current issue**: per branch we compute `[z]a`, `[z]b`,
   `[c]a'_i`, `[c]b'_i` and assert `[z]a == t0 + [c]a'_i` AND `[z]b ==
-  t1 + [c]b'_i`. Five group ops + two equality tests per branch.
+t1 + [c]b'_i`. Five group ops + two equality tests per branch.
 - **Why it costs**: per-tx: 4N² scalar muls dominate, but the 2N²
   point_equal calls are also non-trivial.
 - **Recommended change** (speculative): replace the two equalities
   with a single equality on a random linear combination — pick
   `α = blake2b_256(domain || a_pt || b_pt || stmt.ap_pt || stmt.bp_pt
-  || br.t0 || br.t1)` (or similar transcript-derived scalar) and check
+|| br.t0 || br.t1)` (or similar transcript-derived scalar) and check
   `[z]([1]a + [α]b) == ([1]t0 + [α]t1) + [c]([1]a'_i + [α]b'_i)`.
   Saves 2 scalar muls + 2 adds per branch (we're gaining 1 add inside
   the combined check), maybe 1 equality per branch.
 - **Why marked speculative**: the soundness analysis is a real chunk
   of work — the standard sigma-OR security argument relies on the two
-  equations holding *separately* (you're proving the same `x` opens
+  equations holding _separately_ (you're proving the same `x` opens
   both). A random-combo check is sound under the Schwartz–Zippel
   argument **provided** `α` is unpredictable to the prover (transcript-
   bound, not redeemer-supplied). Even then, the change is large

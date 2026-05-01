@@ -11,16 +11,16 @@ These are deliberately deferred from the initial M2 work; they are blockers
 for marking M2 fully `done`.
 
 1. **Run `infra/bootstrap/{00,01,02,03}-*.sh` against Preprod.** Needs:
-   * a Preprod wallet seeded with ~50 ADA for the bootstrap + reference
+   - a Preprod wallet seeded with ~50 ADA for the bootstrap + reference
      scripts + fee shards,
-   * `BLOCKFROST_PROJECT_ID_PREPROD` for `cardano-cli` submission and SDK
+   - `BLOCKFROST_PROJECT_ID_PREPROD` for `cardano-cli` submission and SDK
      queries,
-   * a stake key for the `mix_logic` credential (the same address's stake
+   - a stake key for the `mix_logic` credential (the same address's stake
      key is fine).
-   On success, commit the populated `artifacts/preprod/addresses.json`
-   (referenceNftPolicy, referenceUtxoRef, all four script hashes, the fee
-   shard array, the reference-script UTxO map). Until this happens M2's
-   exit criteria #5 (`addresses.json has reference NFT info`) cannot pass.
+     On success, commit the populated `artifacts/preprod/addresses.json`
+     (referenceNftPolicy, referenceUtxoRef, all four script hashes, the fee
+     shard array, the reference-script UTxO map). Until this happens M2's
+     exit criteria #5 (`addresses.json has reference NFT info`) cannot pass.
 
 2. **Run `stress-tests/max-n-calibration.ts` once M4's Mix tx builder lands.**
    Until M4 the runner is a stub that aborts with a clear "needs M4" notice;
@@ -60,10 +60,10 @@ test's job, not the SDK module's.
 
 **Findings:**
 
-| Shape             | mesh fit | Notes |
-|-------------------|----------|-------|
-| Deposit           | clean    | `txIn` (script, fee shard, Replenish) + `txOut` (mix-box, fee replen) + `selectUtxosFrom` (wallet) + `txInCollateral` (wallet) covers it. Reference inputs via `readOnlyTxInReference`. CIP-33 reference scripts via `spendingTxInReference`. |
-| Withdraw          | clean    | Adds the withdraw-zero leg (`withdrawalPlutusScriptV3` + `withdrawal(rewardAddr, "0")` + `withdrawalRedeemerValue` + `withdrawalTxInReference`). Mix-box spend uses an unused `Void`-shaped redeemer (mesh requires *some* CBOR; we pass `d87980`). Two-pass build to bind the Schnorr proof to final outputs is straightforward — same redeemer size on both passes keeps fee + outputs stable. |
+| Shape             | mesh fit                           | Notes                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
+| ----------------- | ---------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Deposit           | clean                              | `txIn` (script, fee shard, Replenish) + `txOut` (mix-box, fee replen) + `selectUtxosFrom` (wallet) + `txInCollateral` (wallet) covers it. Reference inputs via `readOnlyTxInReference`. CIP-33 reference scripts via `spendingTxInReference`.                                                                                                                                                                                                                                                                                                                                                                                                                            |
+| Withdraw          | clean                              | Adds the withdraw-zero leg (`withdrawalPlutusScriptV3` + `withdrawal(rewardAddr, "0")` + `withdrawalRedeemerValue` + `withdrawalTxInReference`). Mix-box spend uses an unused `Void`-shaped redeemer (mesh requires _some_ CBOR; we pass `d87980`). Two-pass build to bind the Schnorr proof to final outputs is straightforward — same redeemer size on both passes keeps fee + outputs stable.                                                                                                                                                                                                                                                                         |
 | Mix (deferred M4) | **unverified — biggest open risk** | The unconventional shape (no submitter wallet input, externally-supplied collateral input + key witness, exact-fee constraint linking shard input value to shard output value via `tx.fee`) is exactly the case spec build-guide §Risk 2 calls out. mesh's `txInCollateral` accepts a UTxO ref + amount + address but the witness for the collateral input must come via the wallet's `signTx` path; we need a way to inject an externally-pre-signed `VkeyWitness` directly. Path forward: (a) check whether mesh's `appendWitness` / `setSigners` accepts a raw vkey witness; (b) if not, switch to lucid-evolution before going deep on M4 Mix. Resolved at M4 start. |
 
 **Decision (M3 close):** mesh stays. Deposit + withdraw are buildable
@@ -107,13 +107,13 @@ fee_contract validator and mix_box pass-throughs.
 Estimated using Plutus V3 cost-model defaults (subject to confirmation
 on Preprod):
 
-| N | est. CPU steps | est. mem bytes | cpu_pct | mem_pct |
-|---|----------------|-----------------|---------|---------|
-| 2 |    600_000_000 |       1_400_000 |    6.00 |   10.00 |
-| 3 |  1_200_000_000 |       2_500_000 |   12.00 |   17.85 |
-| 4 |  2_100_000_000 |       4_100_000 |   21.00 |   29.28 |
-| 6 |  4_500_000_000 |       8_700_000 |   45.00 |   62.14 |
-| 8 |  7_900_000_000 |      14_300_000 |   79.00 |  102.14 |
+| N   | est. CPU steps | est. mem bytes | cpu_pct | mem_pct |
+| --- | -------------- | -------------- | ------- | ------- |
+| 2   | 600_000_000    | 1_400_000      | 6.00    | 10.00   |
+| 3   | 1_200_000_000  | 2_500_000      | 12.00   | 17.85   |
+| 4   | 2_100_000_000  | 4_100_000      | 21.00   | 29.28   |
+| 6   | 4_500_000_000  | 8_700_000      | 45.00   | 62.14   |
+| 8   | 7_900_000_000  | 14_300_000     | 79.00   | 102.14  |
 
 Mainnet Conway limits: 10_000_000_000 CPU, 14_000_000 mem. The 70%
 headroom rule (M2 exit criterion §"Mix tx CPU at max_n is under 70% of
@@ -215,36 +215,36 @@ collapse).
 Per-N savings on the `sigma_or` KAT suite — items 2 + 3 alone
 (8 vectors per N, summed):
 
-| N | baseline CPU | post items 2+3 CPU | delta CPU | delta % |
-|---|--------------|--------------------|-----------|---------|
-| 2 | 11,519,063,450 | 11,402,060,442 | −117,003,008 | −1.02% |
-| 3 | 16,801,051,469 | 16,638,481,029 | −162,570,440 | −0.97% |
-| 4 | 22,083,112,649 | 21,874,974,777 | −208,137,872 | −0.94% |
-| 6 | 32,647,753,007 | 32,348,480,271 | −299,272,736 | −0.92% |
-| 8 | 43,212,848,233 | 42,822,440,633 | −390,407,600 | −0.90% |
+| N   | baseline CPU   | post items 2+3 CPU | delta CPU    | delta % |
+| --- | -------------- | ------------------ | ------------ | ------- |
+| 2   | 11,519,063,450 | 11,402,060,442     | −117,003,008 | −1.02%  |
+| 3   | 16,801,051,469 | 16,638,481,029     | −162,570,440 | −0.97%  |
+| 4   | 22,083,112,649 | 21,874,974,777     | −208,137,872 | −0.94%  |
+| 6   | 32,647,753,007 | 32,348,480,271     | −299,272,736 | −0.92%  |
+| 8   | 43,212,848,233 | 42,822,440,633     | −390,407,600 | −0.90%  |
 
 Per-Mix-tx-prologue savings on the new
 `mix_full_prologue_then_proof_fails_n*` benchmarks — item 1+5
 (walk-collapse) standalone:
 
-| N | pre-collapse CPU | post-collapse CPU | delta CPU | delta % | mem delta |
-|---|------------------|-------------------|-----------|---------|-----------|
-| 2 | 484,112,329 | 475,922,780 | −8,189,549 | −1.69% | −21,572 (−2.7%) |
-| 3 | 690,074,627 | 676,013,646 | −14,060,981 | −2.04% | −42,534 (−4.0%) |
-| 4 | 899,545,451 | 879,613,038 | −19,932,413 | −2.22% | −63,496 (−4.7%) |
-| 6 | 1,313,021,033 | 1,287,745,756 | −25,275,277 | −1.92% | −65,420 (−3.5%) |
-| 8 | 1,734,122,363 | 1,693,904,222 | −40,218,141 | −2.32% | −127,344 (−5.1%) |
+| N   | pre-collapse CPU | post-collapse CPU | delta CPU   | delta % | mem delta        |
+| --- | ---------------- | ----------------- | ----------- | ------- | ---------------- |
+| 2   | 484,112,329      | 475,922,780       | −8,189,549  | −1.69%  | −21,572 (−2.7%)  |
+| 3   | 690,074,627      | 676,013,646       | −14,060,981 | −2.04%  | −42,534 (−4.0%)  |
+| 4   | 899,545,451      | 879,613,038       | −19,932,413 | −2.22%  | −63,496 (−4.7%)  |
+| 6   | 1,313,021,033    | 1,287,745,756     | −25,275,277 | −1.92%  | −65,420 (−3.5%)  |
+| 8   | 1,734,122,363    | 1,693,904,222     | −40,218,141 | −2.32%  | −127,344 (−5.1%) |
 
 **Combined per-Mix-tx implication** (sigma-OR + walk-collapse,
 estimated from suite numbers):
 
-| N | per-tx CPU saved | as % of mainnet 10G budget |
-|---|--------------------|------------------------------|
-| 2 |  ~37M  | ~0.4% |
-| 3 |  ~75M  | ~0.7% |
-| 4 | ~125M  | ~1.2% |
-| 6 | ~250M  | ~2.5% |
-| 8 | ~430M  | ~4.3% |
+| N   | per-tx CPU saved | as % of mainnet 10G budget |
+| --- | ---------------- | -------------------------- |
+| 2   | ~37M             | ~0.4%                      |
+| 3   | ~75M             | ~0.7%                      |
+| 4   | ~125M            | ~1.2%                      |
+| 6   | ~250M            | ~2.5%                      |
+| 8   | ~430M            | ~4.3%                      |
 
 The validator at N=4 was overshooting by an unquantified amount in
 the M4 deployment ([milestones.json M4.5 notes][m45]); whether the
@@ -332,13 +332,13 @@ mechanical) optimisations on top of M4.5:
 
 ### Measured CPU vs main (the `mix_full_prologue_then_proof_fails_n*` benchmark)
 
-| N | Main (post-M4.5) | M4.6 | delta | delta % |
-|---|------------------|---------|-------|---------|
-| 2 |  475,922,780 |  453,564,761 |  −22,358,019 | −4.7% |
-| 3 |  676,013,646 |  641,340,427 |  −34,673,219 | −5.1% |
-| 4 |  879,613,038 |  829,424,619 |  −50,188,419 | −5.7% |
-| 6 | 1,287,745,756 | 1,209,726,937 |  −78,018,819 | −6.1% |
-| 8 | 1,693,904,222 | 1,591,255,003 | −102,649,219 | −6.1% |
+| N   | Main (post-M4.5) | M4.6          | delta        | delta % |
+| --- | ---------------- | ------------- | ------------ | ------- |
+| 2   | 475,922,780      | 453,564,761   | −22,358,019  | −4.7%   |
+| 3   | 676,013,646      | 641,340,427   | −34,673,219  | −5.1%   |
+| 4   | 879,613,038      | 829,424,619   | −50,188,419  | −5.7%   |
+| 6   | 1,287,745,756    | 1,209,726,937 | −78,018,819  | −6.1%   |
+| 8   | 1,693,904,222    | 1,591,255,003 | −102,649,219 | −6.1%   |
 
 Mem also drops ~120K at N=4 (1,290,157 → 1,167,041).
 
@@ -353,4 +353,3 @@ Same as M4.5: re-bootstrap on Preprod, run
 `stress-tests/max-n-calibration.ts`, update
 `config/network.preprod.json`'s `max_n` to the empirical maximum, re-run
 the M4 integration suite ten consecutive times.
-

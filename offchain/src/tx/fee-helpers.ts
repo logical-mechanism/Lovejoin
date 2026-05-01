@@ -123,22 +123,12 @@ export function computeMinTxFee(args: {
     minFeeRefScriptCostPerByte: number;
   };
 }): bigint {
-  const witnessPad = BigInt(
-    (args.expectedVkeyWitnesses ?? 0) * VKEY_WITNESS_BYTES_APPROX,
-  );
+  const witnessPad = BigInt((args.expectedVkeyWitnesses ?? 0) * VKEY_WITNESS_BYTES_APPROX);
   const txSize = BigInt(args.txCborHex.length / 2) + witnessPad;
-  const sizeFee =
-    BigInt(args.params.minFeeA) * txSize + BigInt(args.params.minFeeB);
-  const stepFee = BigInt(
-    Math.ceil(Number(args.totalExUnits.steps) * args.params.priceStep),
-  );
-  const memFee = BigInt(
-    Math.ceil(Number(args.totalExUnits.mem) * args.params.priceMem),
-  );
-  const refFee = computeRefScriptFee(
-    args.refScriptBytes,
-    args.params.minFeeRefScriptCostPerByte,
-  );
+  const sizeFee = BigInt(args.params.minFeeA) * txSize + BigInt(args.params.minFeeB);
+  const stepFee = BigInt(Math.ceil(Number(args.totalExUnits.steps) * args.params.priceStep));
+  const memFee = BigInt(Math.ceil(Number(args.totalExUnits.mem) * args.params.priceMem));
+  const refFee = computeRefScriptFee(args.refScriptBytes, args.params.minFeeRefScriptCostPerByte);
   return sizeFee + stepFee + memFee + refFee;
 }
 

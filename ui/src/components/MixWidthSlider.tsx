@@ -19,12 +19,7 @@ export interface MixWidthSliderProps {
   disabled?: boolean;
 }
 
-export function MixWidthSlider({
-  value,
-  maxN,
-  onChange,
-  disabled = false,
-}: MixWidthSliderProps) {
+export function MixWidthSlider({ value, maxN, onChange, disabled = false }: MixWidthSliderProps) {
   const { t } = useTranslation();
   const min = 2;
   const max = Math.max(min, maxN);
@@ -72,9 +67,7 @@ export function MixWidthSlider({
         {segments.map((seg) => (
           <span
             key={seg}
-            className={
-              "lj-meter__seg" + (seg <= safeValue ? " lj-meter__seg--lit" : "")
-            }
+            className={"lj-meter__seg" + (seg <= safeValue ? " lj-meter__seg--lit" : "")}
           />
         ))}
       </div>

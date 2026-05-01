@@ -4,9 +4,9 @@ Preprod-only end-to-end tests for the Lovejoin SDK.
 
 ## What's here
 
-| File                              | Milestone | What it does                                          |
-|-----------------------------------|-----------|--------------------------------------------------------|
-| `test/deposit-withdraw.test.ts`   | M3        | Deposit a mix-box + withdraw it back to a fresh address. Skipped without env vars. |
+| File                            | Milestone | What it does                                                                       |
+| ------------------------------- | --------- | ---------------------------------------------------------------------------------- |
+| `test/deposit-withdraw.test.ts` | M3        | Deposit a mix-box + withdraw it back to a fresh address. Skipped without env vars. |
 
 The M4 tests (mix, full lifecycle, fee exhaustion, collateral failure)
 land when M4 ships.

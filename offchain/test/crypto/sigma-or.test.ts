@@ -1,15 +1,6 @@
 import { describe, expect, it } from "vitest";
-import {
-  G1_COMPRESSED_BYTES,
-  SCALAR_BYTES,
-  generator,
-  scalarMul,
-} from "../../src/crypto/bls.js";
-import {
-  type DHTupleStatement,
-  proveSigmaOr,
-  verifySigmaOr,
-} from "../../src/crypto/sigma_or.js";
+import { G1_COMPRESSED_BYTES, SCALAR_BYTES, generator, scalarMul } from "../../src/crypto/bls.js";
+import { type DHTupleStatement, proveSigmaOr, verifySigmaOr } from "../../src/crypto/sigma_or.js";
 
 const hex = (b: Uint8Array): string =>
   Array.from(b, (x) => x.toString(16).padStart(2, "0")).join("");
@@ -112,9 +103,7 @@ describe("crypto/sigma_or — negative cases (verifier rejects malformed/tampere
   it("rejects when a per-branch c_i has wrong length", () => {
     const { a, b, ctx, stmts, proof } = setup(3, 1);
     const malformed = {
-      branches: proof.branches.map((br, i) =>
-        i === 0 ? { ...br, c: new Uint8Array(31) } : br,
-      ),
+      branches: proof.branches.map((br, i) => (i === 0 ? { ...br, c: new Uint8Array(31) } : br)),
     };
     expect(verifySigmaOr(a, b, stmts, malformed, ctx)).toBe(false);
   });

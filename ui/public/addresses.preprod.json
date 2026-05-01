@@ -14,9 +14,7 @@
   "mixLogicScriptHash": "ebfd633af2d483762bb217b17d4f527713c487e9f496e4763c17f234",
   "mixBoxScriptHash": "9c50ce8ab2816ce5e2d6789e2918cd5a4abe0b18b6fda979a4efb9c5",
   "feeScriptHash": "f27c0202e7e2c7a62ce476acd28b9497669e3a8ab7c94658382c6c03",
-  "feeShardUtxos": [
-    "bb6bab8f24ed457c2cb3488f1d714e3c35c9812d5421064e831e88354927566d#0"
-  ],
+  "feeShardUtxos": ["bb6bab8f24ed457c2cb3488f1d714e3c35c9812d5421064e831e88354927566d#0"],
   "referenceScriptUtxos": {
     "mix_box": "9b6bd243b41520447af2b51815bc0e8e123e9baeb8ff81c91478af13243687e2#0",
     "mix_logic": "bfef1be624a5d15bd4065102449e02a0350dce0b365f12d3e26c4cb9b6da4997#0",

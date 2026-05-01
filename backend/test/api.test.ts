@@ -135,10 +135,7 @@ beforeAll(async () => {
     blockHash: txHash("blk-110"),
     height: 2,
     consumed: [],
-    produced: [
-      mixBoxOutput(txHash("d4"), 0, 7, 8),
-      mixBoxOutput(txHash("d5"), 0, 9, 10),
-    ],
+    produced: [mixBoxOutput(txHash("d4"), 0, 7, 8), mixBoxOutput(txHash("d5"), 0, 9, 10)],
   });
 
   server = await buildServer({
@@ -366,10 +363,7 @@ describe("API: /mempool/inputs", () => {
       snapshot: () => ({
         slot: 12345,
         acquiredAtMs: 100_000,
-        inputs: new Set([
-          `${"aa".repeat(32)}#0`,
-          `${"bb".repeat(32)}#3`,
-        ]),
+        inputs: new Set([`${"aa".repeat(32)}#0`, `${"bb".repeat(32)}#3`]),
         txCount: 2,
       }),
     };
@@ -390,8 +384,8 @@ describe("API: /mempool/inputs", () => {
       expect(body.ageMs).toBe(2500);
       expect(body.txCount).toBe(2);
       expect(body.inputs).toHaveLength(2);
-      const refs = body.inputs.map((r: { txHash: string; outputIndex: number }) =>
-        `${r.txHash}#${r.outputIndex}`,
+      const refs = body.inputs.map(
+        (r: { txHash: string; outputIndex: number }) => `${r.txHash}#${r.outputIndex}`,
       );
       expect(refs).toContain(`${"aa".repeat(32)}#0`);
       expect(refs).toContain(`${"bb".repeat(32)}#3`);

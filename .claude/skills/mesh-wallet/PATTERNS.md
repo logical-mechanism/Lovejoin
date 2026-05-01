@@ -16,19 +16,22 @@ Common wallet patterns and recipes for `@meshsdk/wallet`.
 ### List and Connect to Wallet
 
 ```typescript
-import { MeshCardanoBrowserWallet } from '@meshsdk/wallet';
+import { MeshCardanoBrowserWallet } from "@meshsdk/wallet";
 
 // Get installed wallets
 const installedWallets = MeshCardanoBrowserWallet.getInstalledWallets();
-console.log('Available wallets:', installedWallets.map(w => w.name));
+console.log(
+  "Available wallets:",
+  installedWallets.map((w) => w.name),
+);
 
 // Let user choose, then connect
-const walletName = 'eternl';  // From user selection
+const walletName = "eternl"; // From user selection
 const wallet = await MeshCardanoBrowserWallet.enable(walletName);
 
 // Check network
 const networkId = await wallet.getNetworkId();
-console.log('Network:', networkId === 0 ? 'Testnet' : 'Mainnet');
+console.log("Network:", networkId === 0 ? "Testnet" : "Mainnet");
 ```
 
 ### Get Wallet Info
@@ -39,24 +42,24 @@ const usedAddresses = await wallet.getUsedAddressesBech32();
 const changeAddress = await wallet.getChangeAddressBech32();
 const stakeAddresses = await wallet.getRewardAddressesBech32();
 
-console.log('Payment address:', usedAddresses[0]);
-console.log('Change address:', changeAddress);
-console.log('Stake address:', stakeAddresses[0]);
+console.log("Payment address:", usedAddresses[0]);
+console.log("Change address:", changeAddress);
+console.log("Stake address:", stakeAddresses[0]);
 
 // Get balance
 const balance = await wallet.getBalanceMesh();
-const adaBalance = balance.find(a => a.unit === 'lovelace');
-console.log('ADA Balance:', Number(adaBalance?.quantity || 0) / 1_000_000);
+const adaBalance = balance.find((a) => a.unit === "lovelace");
+console.log("ADA Balance:", Number(adaBalance?.quantity || 0) / 1_000_000);
 
 // Get UTxOs
 const utxos = await wallet.getUtxosMesh();
-console.log('UTxO count:', utxos.length);
+console.log("UTxO count:", utxos.length);
 ```
 
 ### Build and Sign Transaction
 
 ```typescript
-import { MeshTxBuilder } from '@meshsdk/transaction';
+import { MeshTxBuilder } from "@meshsdk/transaction";
 
 // Get wallet data
 const utxos = await wallet.getUtxosMesh();
@@ -65,7 +68,7 @@ const changeAddress = await wallet.getChangeAddressBech32();
 // Build transaction
 const txBuilder = new MeshTxBuilder();
 const unsignedTx = await txBuilder
-  .txOut('addr_test1qp...', [{ unit: 'lovelace', quantity: '5000000' }])
+  .txOut("addr_test1qp...", [{ unit: "lovelace", quantity: "5000000" }])
   .changeAddress(changeAddress)
   .selectUtxosFrom(utxos)
   .complete();
@@ -75,7 +78,7 @@ const signedTx = await wallet.signTxReturnFullTx(unsignedTx);
 
 // Submit
 const txHash = await wallet.submitTx(signedTx);
-console.log('Transaction submitted:', txHash);
+console.log("Transaction submitted:", txHash);
 ```
 
 ### Sign Data (CIP-8 Authentication)
@@ -83,16 +86,16 @@ console.log('Transaction submitted:', txHash);
 ```typescript
 // Sign a message for authentication
 const address = await wallet.getChangeAddressBech32();
-const message = 'Sign in to MyDApp at ' + new Date().toISOString();
+const message = "Sign in to MyDApp at " + new Date().toISOString();
 
 const signature = await wallet.signData(address, message);
 
-console.log('Signature:', signature);
+console.log("Signature:", signature);
 // { key: 'a401...', signature: '845846...' }
 
 // Send signature to backend for verification
-await fetch('/api/authenticate', {
-  method: 'POST',
+await fetch("/api/authenticate", {
+  method: "POST",
   body: JSON.stringify({ address, message, signature }),
 });
 ```
@@ -101,9 +104,7 @@ await fetch('/api/authenticate', {
 
 ```typescript
 // Connect with governance extension (CIP-95)
-const wallet = await MeshCardanoBrowserWallet.enable('eternl', [
-  { cip: 95 }
-]);
+const wallet = await MeshCardanoBrowserWallet.enable("eternl", [{ cip: 95 }]);
 
 // Now governance methods are available (if wallet supports)
 ```
@@ -115,29 +116,49 @@ const wallet = await MeshCardanoBrowserWallet.enable('eternl', [
 ### Create from Mnemonic
 
 ```typescript
-import { MeshCardanoHeadlessWallet } from '@meshsdk/wallet';
-import { BlockfrostProvider } from '@meshsdk/core';
+import { MeshCardanoHeadlessWallet } from "@meshsdk/wallet";
+import { BlockfrostProvider } from "@meshsdk/core";
 
-const provider = new BlockfrostProvider('your-api-key');
+const provider = new BlockfrostProvider("your-api-key");
 
 // 24-word mnemonic
 const mnemonic = [
-  'abandon', 'beauty', 'clever', 'double', 'energy', 'favorite',
-  'garden', 'humble', 'ivory', 'jungle', 'kitchen', 'liberty',
-  'monkey', 'noble', 'orange', 'puzzle', 'quantum', 'ribbon',
-  'sunset', 'travel', 'useful', 'violin', 'window', 'yellow'
+  "abandon",
+  "beauty",
+  "clever",
+  "double",
+  "energy",
+  "favorite",
+  "garden",
+  "humble",
+  "ivory",
+  "jungle",
+  "kitchen",
+  "liberty",
+  "monkey",
+  "noble",
+  "orange",
+  "puzzle",
+  "quantum",
+  "ribbon",
+  "sunset",
+  "travel",
+  "useful",
+  "violin",
+  "window",
+  "yellow",
 ];
 
 const wallet = await MeshCardanoHeadlessWallet.fromMnemonic({
   mnemonic,
-  networkId: 0,  // Testnet
-  walletAddressType: 'Base',
+  networkId: 0, // Testnet
+  walletAddressType: "Base",
   fetcher: provider,
   submitter: provider,
 });
 
 const address = await wallet.getChangeAddressBech32();
-console.log('Wallet address:', address);
+console.log("Wallet address:", address);
 ```
 
 ### Create with BIP39 Password
@@ -146,9 +167,9 @@ console.log('Wallet address:', address);
 // Add extra security with BIP39 password
 const wallet = await MeshCardanoHeadlessWallet.fromMnemonic({
   mnemonic,
-  password: 'my-secret-passphrase',  // Extra security
-  networkId: 1,  // Mainnet
-  walletAddressType: 'Base',
+  password: "my-secret-passphrase", // Extra security
+  networkId: 1, // Mainnet
+  walletAddressType: "Base",
   fetcher: provider,
   submitter: provider,
 });
@@ -161,7 +182,7 @@ const wallet = await MeshCardanoHeadlessWallet.fromMnemonic({
 const wallet = await MeshCardanoHeadlessWallet.fromMnemonic({
   mnemonic,
   networkId: 0,
-  walletAddressType: 'Enterprise',  // No stake key
+  walletAddressType: "Enterprise", // No stake key
   fetcher: provider,
   submitter: provider,
 });
@@ -203,18 +224,18 @@ console.log('TX submitted:', txHash);
 ```typescript
 // From bech32-encoded root key
 const wallet = await MeshCardanoHeadlessWallet.fromBip32Root({
-  bech32: 'xprv1...',  // BIP32 root private key
+  bech32: "xprv1...", // BIP32 root private key
   networkId: 0,
-  walletAddressType: 'Base',
+  walletAddressType: "Base",
   fetcher: provider,
   submitter: provider,
 });
 
 // Or from hex
 const wallet = await MeshCardanoHeadlessWallet.fromBip32RootHex({
-  hex: 'a4b2c3...',  // BIP32 root private key hex
+  hex: "a4b2c3...", // BIP32 root private key hex
   networkId: 0,
-  walletAddressType: 'Base',
+  walletAddressType: "Base",
   fetcher: provider,
   submitter: provider,
 });
@@ -250,8 +271,8 @@ const txHash = await wallet1.submitTx(fullySigned);
 ### Low-Level Signing with CardanoSigner
 
 ```typescript
-import { CardanoSigner } from '@meshsdk/wallet';
-import { InMemoryBip32 } from '@meshsdk/wallet';
+import { CardanoSigner } from "@meshsdk/wallet";
+import { InMemoryBip32 } from "@meshsdk/wallet";
 
 // Create BIP32 instance
 const bip32 = await InMemoryBip32.fromMnemonic(mnemonic);
@@ -263,28 +284,28 @@ const paymentSigner = await bip32.getSigner("m/1852'/1815'/0'/0/0");
 const signedTx = await CardanoSigner.signTx(
   unsignedTxHex,
   [paymentSigner],
-  true  // Return full transaction
+  true, // Return full transaction
 );
 ```
 
 ### Sign Data with Specific Key
 
 ```typescript
-import { CardanoSigner, InMemoryBip32 } from '@meshsdk/wallet';
-import { Cardano } from '@cardano-sdk/core';
+import { CardanoSigner, InMemoryBip32 } from "@meshsdk/wallet";
+import { Cardano } from "@cardano-sdk/core";
 
 const bip32 = await InMemoryBip32.fromMnemonic(mnemonic);
 const signer = await bip32.getSigner("m/1852'/1815'/0'/0/0");
 
 // Get address hex
-const address = Cardano.Address.fromBech32('addr_test1...');
+const address = Cardano.Address.fromBech32("addr_test1...");
 const addressHex = address.toBytes();
 
 // Sign data
 const signature = await CardanoSigner.signData(
-  'Hello Cardano!',
+  "Hello Cardano!",
   addressHex,
-  signer
+  signer,
 );
 ```
 
@@ -295,13 +316,13 @@ const signature = await CardanoSigner.signData(
 ### React Hook for Wallet Connection
 
 ```typescript
-import { useState, useCallback } from 'react';
-import { MeshCardanoBrowserWallet } from '@meshsdk/wallet';
+import { useState, useCallback } from "react";
+import { MeshCardanoBrowserWallet } from "@meshsdk/wallet";
 
 function useWallet() {
   const [wallet, setWallet] = useState<MeshCardanoBrowserWallet | null>(null);
   const [connected, setConnected] = useState(false);
-  const [address, setAddress] = useState<string>('');
+  const [address, setAddress] = useState<string>("");
 
   const connect = useCallback(async (walletName: string) => {
     try {
@@ -311,13 +332,13 @@ function useWallet() {
       setAddress(addr);
       setConnected(true);
     } catch (error) {
-      console.error('Failed to connect:', error);
+      console.error("Failed to connect:", error);
     }
   }, []);
 
   const disconnect = useCallback(() => {
     setWallet(null);
-    setAddress('');
+    setAddress("");
     setConnected(false);
   }, []);
 
@@ -328,9 +349,9 @@ function useWallet() {
 ### Express.js Endpoint with Headless Wallet
 
 ```typescript
-import express from 'express';
-import { MeshCardanoHeadlessWallet } from '@meshsdk/wallet';
-import { MeshTxBuilder, BlockfrostProvider } from '@meshsdk/core';
+import express from "express";
+import { MeshCardanoHeadlessWallet } from "@meshsdk/wallet";
+import { MeshTxBuilder, BlockfrostProvider } from "@meshsdk/core";
 
 const app = express();
 const provider = new BlockfrostProvider(process.env.BLOCKFROST_KEY!);
@@ -340,23 +361,26 @@ let wallet: MeshCardanoHeadlessWallet;
 
 async function initWallet() {
   wallet = await MeshCardanoHeadlessWallet.fromMnemonic({
-    mnemonic: process.env.WALLET_MNEMONIC!.split(' '),
+    mnemonic: process.env.WALLET_MNEMONIC!.split(" "),
     networkId: 0,
-    walletAddressType: 'Base',
+    walletAddressType: "Base",
     fetcher: provider,
     submitter: provider,
   });
 }
 
-app.post('/api/send', async (req, res) => {
+app.post("/api/send", async (req, res) => {
   const { recipient, amount } = req.body;
 
   const utxos = await wallet.getUtxosMesh();
   const changeAddress = await wallet.getChangeAddressBech32();
 
-  const txBuilder = new MeshTxBuilder({ fetcher: provider, submitter: provider });
+  const txBuilder = new MeshTxBuilder({
+    fetcher: provider,
+    submitter: provider,
+  });
   const unsignedTx = await txBuilder
-    .txOut(recipient, [{ unit: 'lovelace', quantity: amount }])
+    .txOut(recipient, [{ unit: "lovelace", quantity: amount }])
     .changeAddress(changeAddress)
     .selectUtxosFrom(utxos)
     .complete();
@@ -373,12 +397,12 @@ initWallet().then(() => app.listen(3000));
 ### Verify CIP-8 Signature
 
 ```typescript
-import { CoseSign1 } from '@meshsdk/wallet';
+import { CoseSign1 } from "@meshsdk/wallet";
 
 function verifySignature(
   message: string,
   signature: { key: string; signature: string },
-  expectedAddress: string
+  expectedAddress: string,
 ): boolean {
   try {
     const coseSign1 = CoseSign1.fromCbor(signature.signature);
@@ -387,7 +411,7 @@ function verifySignature(
     const isValid = coseSign1.verifySignature();
 
     // Verify the address matches
-    const signedAddress = coseSign1.getAddress().toString('hex');
+    const signedAddress = coseSign1.getAddress().toString("hex");
     // Compare with expected address
 
     return isValid;
@@ -400,7 +424,7 @@ function verifySignature(
 ### Wallet with Custom Provider
 
 ```typescript
-import { MeshCardanoHeadlessWallet } from '@meshsdk/wallet';
+import { MeshCardanoHeadlessWallet } from "@meshsdk/wallet";
 
 // Custom fetcher implementation
 const customFetcher = {
@@ -419,14 +443,14 @@ const customFetcher = {
 const customSubmitter = {
   async submitTx(tx: string) {
     // Your custom implementation
-    return 'tx-hash';
+    return "tx-hash";
   },
 };
 
 const wallet = await MeshCardanoHeadlessWallet.fromMnemonic({
   mnemonic,
   networkId: 0,
-  walletAddressType: 'Base',
+  walletAddressType: "Base",
   fetcher: customFetcher,
   submitter: customSubmitter,
 });

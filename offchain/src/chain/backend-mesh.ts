@@ -31,10 +31,7 @@
 //     own BlockfrostProvider drops; we populate it from ogmios v6's
 //     `minFeeReferenceScripts.base`.
 
-import type {
-  MeshFetcherSubmitter,
-  MeshProtocolParameters,
-} from "./blockfrost.js";
+import type { MeshFetcherSubmitter, MeshProtocolParameters } from "./blockfrost.js";
 
 /**
  * Fetch surface — kept structurally identical to BackendChainProvider's
@@ -124,9 +121,7 @@ export class BackendMeshProvider implements MeshFetcherSubmitter {
 
   constructor(config: BackendMeshProviderConfig) {
     if (!/^https?:\/\//.test(config.baseUrl)) {
-      throw new Error(
-        `BackendMeshProvider: baseUrl must include scheme, got ${config.baseUrl}`,
-      );
+      throw new Error(`BackendMeshProvider: baseUrl must include scheme, got ${config.baseUrl}`);
     }
     this.baseUrl = config.baseUrl.replace(/\/$/, "");
     const injected = config.fetchFn;
@@ -166,9 +161,7 @@ export class BackendMeshProvider implements MeshFetcherSubmitter {
         }
         const utxos = (body as { utxos?: UtxoWire[] }).utxos ?? [];
         const filtered =
-          typeof index === "number"
-            ? utxos.filter((u) => u.outputIndex === index)
-            : utxos;
+          typeof index === "number" ? utxos.filter((u) => u.outputIndex === index) : utxos;
         return filtered.map(wireToMeshUtxo);
       },
       (fb) => fb.fetchUTxOs(txHash, index) as Promise<MeshUtxo[]>,
@@ -198,8 +191,9 @@ export class BackendMeshProvider implements MeshFetcherSubmitter {
       // The fallback's IFetcher uses the same name; cast keeps us out of
       // the wider IFetcher type so callers don't need to import it.
       (fb) =>
-        (fb as unknown as { fetchAddressUTxOs(a: string): Promise<MeshUtxo[]> })
-          .fetchAddressUTxOs(address),
+        (fb as unknown as { fetchAddressUTxOs(a: string): Promise<MeshUtxo[]> }).fetchAddressUTxOs(
+          address,
+        ),
     );
   }
 
@@ -267,9 +261,7 @@ export class BackendMeshProvider implements MeshFetcherSubmitter {
    */
   async evaluateTx(
     cborHex: string,
-  ): Promise<
-    Array<{ tag: string; index: number; budget: { mem: number; steps: number } }>
-  > {
+  ): Promise<Array<{ tag: string; index: number; budget: { mem: number; steps: number } }>> {
     return this.tryWithFallback(
       "evaluateTx",
       async () => {
@@ -295,9 +287,7 @@ export class BackendMeshProvider implements MeshFetcherSubmitter {
           }
         ).redeemers;
         if (!Array.isArray(redeemers)) {
-          throw new Error(
-            `BackendMeshProvider.evaluateTx: malformed response (no redeemers)`,
-          );
+          throw new Error(`BackendMeshProvider.evaluateTx: malformed response (no redeemers)`);
         }
         return redeemers.map((r) => ({
           tag: PURPOSE_TO_TAG[r.validator.purpose] ?? r.validator.purpose,
@@ -327,7 +317,7 @@ export class BackendMeshProvider implements MeshFetcherSubmitter {
       return await primary();
     } catch (err) {
       if (!this.fallback) throw err;
-       
+
       console.warn(
         `[BackendMeshProvider] ${method} fell back to Blockfrost: ${(err as Error).message}`,
       );
@@ -351,9 +341,7 @@ const PURPOSE_TO_TAG: Record<string, string> = {
 };
 
 function wireToMeshUtxo(w: UtxoWire): MeshUtxo {
-  const amount: { unit: string; quantity: string }[] = [
-    { unit: "lovelace", quantity: w.lovelace },
-  ];
+  const amount: { unit: string; quantity: string }[] = [{ unit: "lovelace", quantity: w.lovelace }];
   for (const [unit, qty] of Object.entries(w.assets)) {
     amount.push({ unit, quantity: qty });
   }

@@ -6,11 +6,7 @@ import {
   generator,
   scalarMul,
 } from "../../src/crypto/bls.js";
-import {
-  dhPair,
-  proveDHTuple,
-  verifyDHTuple,
-} from "../../src/crypto/dhtuple.js";
+import { dhPair, proveDHTuple, verifyDHTuple } from "../../src/crypto/dhtuple.js";
 
 const hex = (b: Uint8Array): string =>
   Array.from(b, (x) => x.toString(16).padStart(2, "0")).join("");

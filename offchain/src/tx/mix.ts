@@ -73,18 +73,8 @@ import {
   scalarMul,
   verifySigmaOr,
 } from "../crypto/index.js";
-import type {
-  ChainProvider,
-  Hex32,
-  Lovelace,
-  Utxo,
-  UtxoRef,
-} from "../chain/provider.js";
-import {
-  type CollateralProvider,
-  GivemeMyProvider,
-  WalletProvider,
-} from "./collateral.js";
+import type { ChainProvider, Hex32, Lovelace, Utxo, UtxoRef } from "../chain/provider.js";
+import { type CollateralProvider, GivemeMyProvider, WalletProvider } from "./collateral.js";
 import { appendVkeyWitness } from "./witness-merge.js";
 import { encodeMixDatum, generateOwnerSecret as drawScalar } from "./deposit.js";
 import {
@@ -286,12 +276,7 @@ export function encodeMixRedeemer(proofs: ReadonlyArray<MixProofPlan>): string {
       }
       // Constr 0 [bytes, bytes, bytes, bytes]
       return new Tag(
-        [
-          Buffer.from(br.t0),
-          Buffer.from(br.t1),
-          Buffer.from(br.c),
-          Buffer.from(br.z),
-        ],
+        [Buffer.from(br.t0), Buffer.from(br.t1), Buffer.from(br.c), Buffer.from(br.z)],
         121,
       );
     });
@@ -322,10 +307,7 @@ export function encodeMixRedeemer(proofs: ReadonlyArray<MixProofPlan>): string {
  *
  * Layout: `D8 79 9F 58 30 <a, 48 bytes> 58 30 <b, 48 bytes> FF` = 104 bytes.
  */
-export function serialiseMixDatumCanonical(args: {
-  a: Uint8Array;
-  b: Uint8Array;
-}): Uint8Array {
+export function serialiseMixDatumCanonical(args: { a: Uint8Array; b: Uint8Array }): Uint8Array {
   if (args.a.length !== G1_COMPRESSED_BYTES) {
     throw new Error(
       `serialiseMixDatumCanonical: a must be ${G1_COMPRESSED_BYTES} bytes, got ${args.a.length}`,
@@ -396,13 +378,7 @@ function encodeCborUInt(n: bigint): Uint8Array {
   }
   if (n < 4_294_967_296n) {
     const v = Number(n);
-    return new Uint8Array([
-      0x1a,
-      (v >>> 24) & 0xff,
-      (v >>> 16) & 0xff,
-      (v >>> 8) & 0xff,
-      v & 0xff,
-    ]);
+    return new Uint8Array([0x1a, (v >>> 24) & 0xff, (v >>> 16) & 0xff, (v >>> 8) & 0xff, v & 0xff]);
   }
   if (n < 18_446_744_073_709_551_616n) {
     const out = new Uint8Array(9);
@@ -509,9 +485,7 @@ export function planMixTx(args: PlanMixArgs): MixPlan {
     throw new Error(`Mix needs N >= 2 inputs, got ${n}`);
   }
   if (args.ySecrets && args.ySecrets.length !== n) {
-    throw new Error(
-      `ySecrets.length (${args.ySecrets.length}) must equal inputs.length (${n})`,
-    );
+    throw new Error(`ySecrets.length (${args.ySecrets.length}) must equal inputs.length (${n})`);
   }
   if (args.permutation && args.permutation.length !== n) {
     throw new Error(
@@ -527,9 +501,7 @@ export function planMixTx(args: PlanMixArgs): MixPlan {
     const a = sortedInputs[i - 1]!.ref;
     const b = sortedInputs[i]!.ref;
     if (a.txId === b.txId && a.outputIndex === b.outputIndex) {
-      throw new Error(
-        `Mix inputs include duplicate ref ${a.txId}#${a.outputIndex}`,
-      );
+      throw new Error(`Mix inputs include duplicate ref ${a.txId}#${a.outputIndex}`);
     }
   }
 
@@ -539,9 +511,7 @@ export function planMixTx(args: PlanMixArgs): MixPlan {
     }
     return y;
   });
-  const permutation = args.permutation
-    ? args.permutation.slice()
-    : defaultPermutation(n);
+  const permutation = args.permutation ? args.permutation.slice() : defaultPermutation(n);
   validatePermutation(permutation);
 
   // For each sorted-input i, compute output[permutation[i]] = ([y_i]·a_i, [y_i]·b_i).
@@ -569,12 +539,8 @@ export function planMixTx(args: PlanMixArgs): MixPlan {
   // form before hashing, so we must do the same off-chain to get a
   // matching ctx. See `serialiseMixDatumCanonical` for the byte layout
   // and the rabbit hole that led us here.
-  const datumBytes = outputs.map((o) =>
-    serialiseMixDatumCanonical({ a: o.a, b: o.b }),
-  );
-  const valueBytes = outputs.map(() =>
-    encodeAdaOnlyValueCbor(args.params.denomLovelace),
-  );
+  const datumBytes = outputs.map((o) => serialiseMixDatumCanonical({ a: o.a, b: o.b }));
+  const valueBytes = outputs.map(() => encodeAdaOnlyValueCbor(args.params.denomLovelace));
   const ctx = computeMixCtx({
     outputDatums: datumBytes,
     outputValues: valueBytes,
@@ -612,11 +578,7 @@ export function planMixTx(args: PlanMixArgs): MixPlan {
   // bootstrap funded them there. Mix-box outputs keep the dApp stake key
   // (single-stake-credential discoverability for the indexer); fee
   // outputs do not, because that's where the on-chain UTxOs already are.
-  const feeAddress = buildScriptAddress(
-    args.addresses.feeScriptHash,
-    args.networkId,
-    null,
-  );
+  const feeAddress = buildScriptAddress(args.addresses.feeScriptHash, args.networkId, null);
 
   const feePayer: MixFeePayer = args.feePayer ?? "shard";
 
@@ -697,9 +659,7 @@ export function verifyMixPlanWithHash(plan: MixPlan, mixScriptHashHex: string): 
   // Use canonical (indef-length-array) Plutus Data form — same as the
   // on-chain `serialise_data(inline_data)` produces. See
   // `serialiseMixDatumCanonical` for context.
-  const datumBytes = plan.outputs.map((o) =>
-    serialiseMixDatumCanonical({ a: o.a, b: o.b }),
-  );
+  const datumBytes = plan.outputs.map((o) => serialiseMixDatumCanonical({ a: o.a, b: o.b }));
   const denom = plan.inputs[0]!.utxo.lovelace;
   const valueBytes = plan.outputs.map(() => encodeAdaOnlyValueCbor(denom));
   const ctx = computeMixCtx({
@@ -710,15 +670,7 @@ export function verifyMixPlanWithHash(plan: MixPlan, mixScriptHashHex: string): 
   for (let i = 0; i < plan.inputs.length; i++) {
     const inp = plan.inputs[i]!;
     const proof: SigmaOrProof = { branches: plan.proofs[i]!.branches };
-    if (
-      !verifySigmaOr(
-        pointFromBytes(inp.a),
-        pointFromBytes(inp.b),
-        orStatements,
-        proof,
-        ctx,
-      )
-    ) {
+    if (!verifySigmaOr(pointFromBytes(inp.a), pointFromBytes(inp.b), orStatements, proof, ctx)) {
       return i;
     }
   }
@@ -854,7 +806,7 @@ export async function buildMixTx(args: BuildMixArgs): Promise<MixResult> {
   // selectUtxosFrom() with an obscure stack.
   if (feePayer === "wallet" && !args.wallet) {
     throw new Error(
-      "Mix tx: wallet-fee mode requires a connected wallet (the wallet pays the tx fee + signs). Pass `args.wallet` or switch `feePayer` to \"shard\".",
+      'Mix tx: wallet-fee mode requires a connected wallet (the wallet pays the tx fee + signs). Pass `args.wallet` or switch `feePayer` to "shard".',
     );
   }
 
@@ -864,413 +816,393 @@ export async function buildMixTx(args: BuildMixArgs): Promise<MixResult> {
   // BadInputsUTxO). Pool-box collisions aren't auto-fixed; the retry
   // would build the same tx and fail again, exhausting maxAttempts.
   return withInputCollisionRetry(async (attempt) => {
-  // Resolve the fee shard. Shard mode picks one if not supplied; wallet
-  // mode skips this entirely (no shard input on the tx). The 3-ADA floor
-  // skips depleted shards. Mix recreates the shard output minus tx.fee,
-  // and going below min-utxo on the new shard is an unrecoverable submit
-  // failure. Donate / Deposit don't pass this floor on purpose: they top
-  // shards up and MUST be allowed to target depleted ones.
-  const MIN_FEE_SHARD_LOVELACE = 3_000_000n;
-  let feeShard: Utxo | undefined;
-  if (feePayer === "shard") {
-    feeShard = (attempt === 1 && args.feeShard)
-      ? args.feeShard
-      : (await pickRandomFeeShard({
-          provider: args.provider,
-          feeScriptAddressBech32: buildScriptAddress(
-            args.addresses.feeScriptHash,
-            networkId,
-            null,
-          ),
-          minLovelace: MIN_FEE_SHARD_LOVELACE,
-          ...(args.excludeFeeShardRefs && args.excludeFeeShardRefs.length > 0
-            ? { excludeRefs: args.excludeFeeShardRefs }
-            : {}),
-        }));
-  }
-
-  const plan = planMixTx({
-    inputs: args.inputs,
-    ...(args.ySecrets ? { ySecrets: args.ySecrets } : {}),
-    ...(args.permutation ? { permutation: args.permutation } : {}),
-    params,
-    addresses: args.addresses,
-    ...(feeShard ? { feeShard } : {}),
-    feePayer,
-    networkId,
-    ...(args.txFeeLovelace !== undefined ? { txFeeLovelace: args.txFeeLovelace } : {}),
-  });
-
-  // Cross-check: every proof must verify locally. If any fail it's a
-  // critical encoding-parity bug — abort before we burn fees.
-  const failingProof = verifyMixPlanWithHash(plan, params.mixScriptHash);
-  if (failingProof >= 0) {
-    throw new Error(
-      `Mix plan: proof for input ${failingProof} (${plan.inputs[failingProof]!.ref.txId}#` +
-        `${plan.inputs[failingProof]!.ref.outputIndex}) fails local sigma-OR verification. ` +
-        `This is an encoding-parity bug — see docs/spec/12-build-guide.md §Risk 1.`,
-    );
-  }
-
-  // Collateral. Default to GivemeMyProvider (wallet-anonymous Mix is the
-  // protocol's whole point; see BuildMixArgs.collateralProvider doc). Fall
-  // back to WalletProvider only when the network has no pinned host.
-  const collateralProvider = args.collateralProvider ?? defaultMixCollateralProvider(args);
-  // Cardano's collateralPercent is 150 — required collateral covers
-  // 1.5x the tx fee. We pin to 5_000_000 lovelace as a generous default
-  // (max_fee is sub-1-ADA so 5 ADA is well over).
-  const preparedCollateral = await collateralProvider.prepareCollateral({
-    provider: args.provider,
-    collateralAmountLovelace: 5_000_000n,
-  });
-
-  const meshCore = await import("@meshsdk/core");
-  const { MeshTxBuilder } = meshCore;
-  const meshProvider = await getMeshProvider(args.provider);
-  const meshParams = await getMeshProtocolParams(args.provider);
-
-  // Evaluator wiring. The chain provider's `evaluateTx` populates real
-  // exec-unit budgets into every redeemer during `complete()`. There is
-  // no fallback: a missing or failing evaluator throws here so callers
-  // see the actual root cause (Blockfrost's ogmios-v6 routing, network
-  // outage, validator UPLC mismatch, etc.) instead of submitting a tx
-  // whose claimed budgets are made up.
-  //
-  // Do NOT swap to mesh's OfflineEvaluator (`@meshsdk/core-csl`). Its
-  // bundled UPLC machine predates Conway's bitwise builtins and aborts
-  // with "Default Function not found - 77".
-
-  // Mesh requires a change address even when no change will ever be
-  // emitted (shard mode runs `selectUtxosFrom([])`, so the builder won't
-  // touch any UTxO that could produce change). When a wallet is present
-  // we use its change address as before; when it isn't, we fall back to
-  // the collateral input's address — guaranteed to exist on this tx and
-  // always a valid bech32. In the (impossible-on-shard-mode) event mesh
-  // emits change anyway, it lands back at the collateral provider rather
-  // than vanishing.
-  const changeAddress = args.wallet
-    ? await args.wallet.getChangeAddress()
-    : preparedCollateral.inputs[0]!.address;
-  const walletUtxos =
-    feePayer === "wallet" && args.wallet
-      ? normalizeWalletUtxos(await args.wallet.getUtxos())
-      : [];
-
-  // Tiny populate-time placeholder per redeemer. Overwritten by the
-  // evaluator before the final tx body is emitted. Sized small enough
-  // that mesh's pre-evaluator min_fee check fits under any reasonable
-  // `max_fee_per_mix_lovelace`.
-  const exUnits = POPULATE_TIME_EXUNITS_PLACEHOLDER;
-
-  const populate = (
-    tx: InstanceType<typeof MeshTxBuilder>,
-    feeOverride?: bigint,
-  ) => {
-    // Effective tx fee for this build pass:
-    //   - shard mode: feeOverride (post-discovery actual fee) ?? plan.txFeeLovelace
-    //                 (initial = max_fee_per_mix_lovelace).
-    //   - wallet mode: feeOverride if set (Conway ref-script-fee correction);
-    //                  otherwise mesh auto-computes during complete().
-    const effectiveFee: bigint | null =
-      feeOverride !== undefined
-        ? feeOverride
-        : plan.feePayer === "shard"
-          ? plan.txFeeLovelace
-          : null;
-    // Effective fee_shard_output lovelace: feeIn - effectiveFee. Validator's
-    // `fee_in - fee_out == tx.fee` invariant requires this to be coherent
-    // with `effectiveFee`.
-    const effectiveFeeOutLovelace: bigint | null =
-      plan.feePayer === "shard" &&
-      plan.feeShardInput !== null &&
-      plan.feeShardOutput !== null &&
-      effectiveFee !== null
-        ? plan.feeShardInput.lovelace - effectiveFee
-        : null;
-
-    tx.readOnlyTxInReference(
-      plan.referenceUtxoRef.txId,
-      plan.referenceUtxoRef.outputIndex,
-    );
-
-    // Spend each mix-box. mesh adds them in call order; the ledger sorts
-    // at tx-finalization time, so the on-chain order is the lex-sorted
-    // input order from the plan (matches the redeemer's proof order).
-    for (const inp of plan.inputs) {
-      tx.spendingPlutusScriptV3()
-        .txIn(
-          inp.ref.txId,
-          inp.ref.outputIndex,
-          [{ unit: "lovelace", quantity: inp.utxo.lovelace.toString() }],
-          inp.utxo.address,
-        )
-        .txInInlineDatumPresent()
-        // mix_box's spend redeemer is irrelevant data — it doesn't dispatch.
-        .txInRedeemerValue("d87980", "CBOR", { ...exUnits })
-        .spendingTxInReference(
-          plan.mixBoxRefScriptUtxoRef.txId,
-          plan.mixBoxRefScriptUtxoRef.outputIndex,
-          sizeStr(args.addresses.referenceScriptSizes?.mix_box),
-          args.addresses.mixBoxScriptHash,
-        );
+    // Resolve the fee shard. Shard mode picks one if not supplied; wallet
+    // mode skips this entirely (no shard input on the tx). The 3-ADA floor
+    // skips depleted shards. Mix recreates the shard output minus tx.fee,
+    // and going below min-utxo on the new shard is an unrecoverable submit
+    // failure. Donate / Deposit don't pass this floor on purpose: they top
+    // shards up and MUST be allowed to target depleted ones.
+    const MIN_FEE_SHARD_LOVELACE = 3_000_000n;
+    let feeShard: Utxo | undefined;
+    if (feePayer === "shard") {
+      feeShard =
+        attempt === 1 && args.feeShard
+          ? args.feeShard
+          : await pickRandomFeeShard({
+              provider: args.provider,
+              feeScriptAddressBech32: buildScriptAddress(
+                args.addresses.feeScriptHash,
+                networkId,
+                null,
+              ),
+              minLovelace: MIN_FEE_SHARD_LOVELACE,
+              ...(args.excludeFeeShardRefs && args.excludeFeeShardRefs.length > 0
+                ? { excludeRefs: args.excludeFeeShardRefs }
+                : {}),
+            });
     }
 
-    // Spend the fee shard with PayMixFee — only in shard mode.
-    if (
-      plan.feePayer === "shard" &&
-      plan.feeShardInput &&
-      plan.feeShardOutput &&
-      plan.payMixFeeRedeemerCborHex
-    ) {
-      tx.spendingPlutusScriptV3()
-        .txIn(
-          plan.feeShardInput.ref.txId,
-          plan.feeShardInput.ref.outputIndex,
-          [
-            {
-              unit: "lovelace",
-              quantity: plan.feeShardInput.lovelace.toString(),
-            },
-          ],
-          plan.feeShardOutput.addressBech32,
-        )
-        .txInInlineDatumPresent()
-        .txInRedeemerValue(plan.payMixFeeRedeemerCborHex, "CBOR", { ...exUnits })
-        .spendingTxInReference(
-          plan.feeContractRefScriptUtxoRef.txId,
-          plan.feeContractRefScriptUtxoRef.outputIndex,
-          sizeStr(args.addresses.referenceScriptSizes?.fee_contract),
-          args.addresses.feeScriptHash,
-        );
-    }
-
-    // mix_logic withdraw-zero with the Mix redeemer.
-    tx.withdrawalPlutusScriptV3()
-      .withdrawal(plan.mixLogicRewardAddressBech32, "0")
-      .withdrawalRedeemerValue(plan.mixRedeemerCborHex, "CBOR", { ...exUnits })
-      .withdrawalTxInReference(
-        plan.mixLogicRefScriptUtxoRef.txId,
-        plan.mixLogicRefScriptUtxoRef.outputIndex,
-        sizeStr(args.addresses.referenceScriptSizes?.mix_logic),
-        params.mixLogicScriptHash,
-      );
-
-    // Outputs 0..N-1: mix-boxes. The validator asserts this slot is
-    // populated by mix-script outputs and that the tail is NOT.
-    for (const o of plan.outputs) {
-      tx
-        .txOut(plan.mixBoxAddressBech32, [
-          { unit: "lovelace", quantity: params.denomLovelace.toString() },
-        ])
-        .txOutInlineDatumValue(o.inlineDatumHex, "CBOR");
-    }
-    // Output N: fee shard (shard mode) or wallet change (wallet mode,
-    // emitted by mesh during balancing).
-    if (
-      plan.feePayer === "shard" &&
-      plan.feeShardOutput &&
-      effectiveFeeOutLovelace !== null
-    ) {
-      tx
-        .txOut(plan.feeShardOutput.addressBech32, [
-          { unit: "lovelace", quantity: effectiveFeeOutLovelace.toString() },
-        ])
-        .txOutInlineDatumValue(plan.feeShardOutput.inlineDatumHex, "CBOR");
-    }
-
-    // Pin the tx fee in shard mode (validator forces inputs - outputs ==
-    // tx.fee), or when a wallet-mode override is provided (Conway
-    // ref-script-fee correction). Wallet mode without override lets mesh
-    // auto-compute.
-    if (effectiveFee !== null) {
-      tx.setFee(effectiveFee.toString());
-    }
-
-    // Collateral input + return. mesh derives `collateral_return` from the
-    // input's address when the input value exceeds the protocol-required
-    // collateral (= 1.5x fee), so we don't set it explicitly.
-    for (const utxo of preparedCollateral.inputs) {
-      tx.txInCollateral(
-        utxo.ref.txId,
-        utxo.ref.outputIndex,
-        [{ unit: "lovelace", quantity: utxo.lovelace.toString() }],
-        utxo.address,
-      );
-    }
-    // Required signer for an external host. The host's server-side
-    // validators reject any tx that doesn't list its pkh under
-    // required_signers — see Collateral-Provider's
-    // `api/validators/cbor.py::check_signers`.
-    if (preparedCollateral.requiredSignerPkhHex) {
-      tx.requiredSignerHash(preparedCollateral.requiredSignerPkhHex);
-    }
-
-    tx.changeAddress(changeAddress);
-    if (plan.feePayer === "shard") {
-      // Shard mode preserves wallet anonymity — no wallet input.
-      tx.selectUtxosFrom([]);
-    } else {
-      tx.selectUtxosFrom(walletUtxos);
-    }
-  };
-
-  const buildOnce = async (feeOverride?: bigint): Promise<string> => {
-    const tx = new MeshTxBuilder({
-      fetcher: meshProvider as never,
-      submitter: meshProvider as never,
-      evaluator: meshProvider as never,
-      params: meshParams as never,
-      verbose: false,
+    const plan = planMixTx({
+      inputs: args.inputs,
+      ...(args.ySecrets ? { ySecrets: args.ySecrets } : {}),
+      ...(args.permutation ? { permutation: args.permutation } : {}),
+      params,
+      addresses: args.addresses,
+      ...(feeShard ? { feeShard } : {}),
+      feePayer,
+      networkId,
+      ...(args.txFeeLovelace !== undefined ? { txFeeLovelace: args.txFeeLovelace } : {}),
     });
-    // mesh's default 1.1× safety buffer pushes evaluator-real budgets
-    // further over the chain's per-tx exec cap at high N. We trust the
-    // evaluator's numbers exactly — they're the chain's own values.
-    tx.txEvaluationMultiplier = 1;
-    populate(tx, feeOverride);
-    return tx.complete();
-  };
 
-  // Build pass(es).
-  //
-  // Shard mode: pass 1 sets fee = max_fee_per_mix_lovelace (plan.txFeeLovelace)
-  // and runs mesh's internal evaluator. We then read the per-redeemer
-  // exec units from the chain's evaluator, recompute the actual minimum
-  // fee from Cardano's formula (size + script + ref-script), and re-build
-  // with that pinned. The validator's `fee_in - fee_out == tx.fee` invariant
-  // means populate() also adjusts feeShardOutput.lovelace = feeIn - actualFee
-  // in lockstep. Mix outputs at positions 0..N-1 are unchanged across passes
-  // (the proofs are bound to those bytes), so the OR proofs stay valid.
-  //
-  // Wallet mode: mesh-csl @1.8.14 doesn't compute Conway's
-  // reference-script-fee component (`set_ref_script_coins_per_byte` is
-  // unwired), so the chain rejects with `FeeTooSmallUTxO`. We mirror the
-  // withdraw flow's workaround: read mesh's auto-fee, add the missing
-  // ref-script-fee, re-build with that pinned via `setFee`.
-  let unsignedTxHex: string;
-  try {
-    unsignedTxHex = await buildOnce();
-  } catch (evalErr) {
-    const errMsg = evalErr instanceof Error ? evalErr.message : String(evalErr);
-    throw new Error(
-      `Mix tx: evaluator failed and there is no fallback. The chain provider's ` +
-        `evaluateTx must return refined exec units for every redeemer. ` +
-        `Original error: ${errMsg}`,
-    );
-  }
+    // Cross-check: every proof must verify locally. If any fail it's a
+    // critical encoding-parity bug — abort before we burn fees.
+    const failingProof = verifyMixPlanWithHash(plan, params.mixScriptHash);
+    if (failingProof >= 0) {
+      throw new Error(
+        `Mix plan: proof for input ${failingProof} (${plan.inputs[failingProof]!.ref.txId}#` +
+          `${plan.inputs[failingProof]!.ref.outputIndex}) fails local sigma-OR verification. ` +
+          `This is an encoding-parity bug — see docs/spec/12-build-guide.md §Risk 1.`,
+      );
+    }
 
-  const refScriptSize = computeMixRefScriptBytes(args.addresses, feePayer);
-  const refScriptCostPerByte = Number(
-    meshParams.minFeeRefScriptCostPerByte ?? 15,
-  );
+    // Collateral. Default to GivemeMyProvider (wallet-anonymous Mix is the
+    // protocol's whole point; see BuildMixArgs.collateralProvider doc). Fall
+    // back to WalletProvider only when the network has no pinned host.
+    const collateralProvider = args.collateralProvider ?? defaultMixCollateralProvider(args);
+    // Cardano's collateralPercent is 150 — required collateral covers
+    // 1.5x the tx fee. We pin to 5_000_000 lovelace as a generous default
+    // (max_fee is sub-1-ADA so 5 ADA is well over).
+    const preparedCollateral = await collateralProvider.prepareCollateral({
+      provider: args.provider,
+      collateralAmountLovelace: 5_000_000n,
+    });
 
-  if (feePayer === "shard" && plan.feeShardInput && plan.txFeeLovelace !== null) {
-    // Discovery pass: ask the chain's evaluator for the real per-redeemer
-    // exec units now that pass 1 produced a complete tx body, then compute
-    // Cardano's actual minimum fee. Re-build with that fee pinned so the
-    // shard pays only what the chain will actually charge — instead of
-    // over-paying max_fee_per_mix_lovelace every tx.
+    const meshCore = await import("@meshsdk/core");
+    const { MeshTxBuilder } = meshCore;
+    const meshProvider = await getMeshProvider(args.provider);
+    const meshParams = await getMeshProtocolParams(args.provider);
+
+    // Evaluator wiring. The chain provider's `evaluateTx` populates real
+    // exec-unit budgets into every redeemer during `complete()`. There is
+    // no fallback: a missing or failing evaluator throws here so callers
+    // see the actual root cause (Blockfrost's ogmios-v6 routing, network
+    // outage, validator UPLC mismatch, etc.) instead of submitting a tx
+    // whose claimed budgets are made up.
     //
-    // Mix shard tx witness shape: zero wallet vkey witnesses (the whole
-    // point of shard mode is wallet-anonymous submission) + one external
-    // host vkey witness (collateral signer + required_signer_hash, both
-    // satisfied by the giveme.my host's single key). mesh-csl's min-fee
-    // check counts those expected witnesses against tx size; pass the
-    // count through so our number lines up with mesh's check.
-    const expectedVkeyWitnesses = 1;
-    const evalRaw = await meshProvider.evaluateTx(unsignedTxHex);
-    if (Array.isArray(evalRaw)) {
-      const totalExUnits = sumEvaluatorExUnits(
-        evalRaw as Array<{ budget?: { mem?: number; steps?: number } }>,
-      );
-      const realParams = await args.provider.getProtocolParameters();
-      const minFee = computeMinTxFee({
-        txCborHex: unsignedTxHex,
-        totalExUnits,
-        refScriptBytes: refScriptSize,
-        expectedVkeyWitnesses,
-        params: {
-          minFeeA: realParams.minFeeA,
-          minFeeB: realParams.minFeeB,
-          priceStep: realParams.pricesStep,
-          priceMem: realParams.pricesMem,
-          minFeeRefScriptCostPerByte: refScriptCostPerByte,
-        },
-      });
-      // Cap at the on-chain max so the validator's
-      // `tx.fee <= max_fee_per_mix_lovelace` rule still passes if the
-      // network is unusually expensive (defensive — under normal Conway
-      // params minFee << max).
-      const capped = minFee > plan.txFeeLovelace ? plan.txFeeLovelace : minFee;
-       
-      console.log(
-        `[lovejoin/mix] shard-mode fee discovery: minFee=${minFee} ` +
-          `(size+script+ref) cap=${plan.txFeeLovelace} → setFee(${capped}); ` +
-          `feeOut=${plan.feeShardInput.lovelace - capped}`,
-      );
-      if (capped !== plan.txFeeLovelace) {
-        unsignedTxHex = await buildWithFeeBumpRetry(
-          buildOnce,
-          capped,
-          plan.txFeeLovelace,
+    // Do NOT swap to mesh's OfflineEvaluator (`@meshsdk/core-csl`). Its
+    // bundled UPLC machine predates Conway's bitwise builtins and aborts
+    // with "Default Function not found - 77".
+
+    // Mesh requires a change address even when no change will ever be
+    // emitted (shard mode runs `selectUtxosFrom([])`, so the builder won't
+    // touch any UTxO that could produce change). When a wallet is present
+    // we use its change address as before; when it isn't, we fall back to
+    // the collateral input's address — guaranteed to exist on this tx and
+    // always a valid bech32. In the (impossible-on-shard-mode) event mesh
+    // emits change anyway, it lands back at the collateral provider rather
+    // than vanishing.
+    const changeAddress = args.wallet
+      ? await args.wallet.getChangeAddress()
+      : preparedCollateral.inputs[0]!.address;
+    const walletUtxos =
+      feePayer === "wallet" && args.wallet
+        ? normalizeWalletUtxos(await args.wallet.getUtxos())
+        : [];
+
+    // Tiny populate-time placeholder per redeemer. Overwritten by the
+    // evaluator before the final tx body is emitted. Sized small enough
+    // that mesh's pre-evaluator min_fee check fits under any reasonable
+    // `max_fee_per_mix_lovelace`.
+    const exUnits = POPULATE_TIME_EXUNITS_PLACEHOLDER;
+
+    const populate = (tx: InstanceType<typeof MeshTxBuilder>, feeOverride?: bigint) => {
+      // Effective tx fee for this build pass:
+      //   - shard mode: feeOverride (post-discovery actual fee) ?? plan.txFeeLovelace
+      //                 (initial = max_fee_per_mix_lovelace).
+      //   - wallet mode: feeOverride if set (Conway ref-script-fee correction);
+      //                  otherwise mesh auto-computes during complete().
+      const effectiveFee: bigint | null =
+        feeOverride !== undefined
+          ? feeOverride
+          : plan.feePayer === "shard"
+            ? plan.txFeeLovelace
+            : null;
+      // Effective fee_shard_output lovelace: feeIn - effectiveFee. Validator's
+      // `fee_in - fee_out == tx.fee` invariant requires this to be coherent
+      // with `effectiveFee`.
+      const effectiveFeeOutLovelace: bigint | null =
+        plan.feePayer === "shard" &&
+        plan.feeShardInput !== null &&
+        plan.feeShardOutput !== null &&
+        effectiveFee !== null
+          ? plan.feeShardInput.lovelace - effectiveFee
+          : null;
+
+      tx.readOnlyTxInReference(plan.referenceUtxoRef.txId, plan.referenceUtxoRef.outputIndex);
+
+      // Spend each mix-box. mesh adds them in call order; the ledger sorts
+      // at tx-finalization time, so the on-chain order is the lex-sorted
+      // input order from the plan (matches the redeemer's proof order).
+      for (const inp of plan.inputs) {
+        tx.spendingPlutusScriptV3()
+          .txIn(
+            inp.ref.txId,
+            inp.ref.outputIndex,
+            [{ unit: "lovelace", quantity: inp.utxo.lovelace.toString() }],
+            inp.utxo.address,
+          )
+          .txInInlineDatumPresent()
+          // mix_box's spend redeemer is irrelevant data — it doesn't dispatch.
+          .txInRedeemerValue("d87980", "CBOR", { ...exUnits })
+          .spendingTxInReference(
+            plan.mixBoxRefScriptUtxoRef.txId,
+            plan.mixBoxRefScriptUtxoRef.outputIndex,
+            sizeStr(args.addresses.referenceScriptSizes?.mix_box),
+            args.addresses.mixBoxScriptHash,
+          );
+      }
+
+      // Spend the fee shard with PayMixFee — only in shard mode.
+      if (
+        plan.feePayer === "shard" &&
+        plan.feeShardInput &&
+        plan.feeShardOutput &&
+        plan.payMixFeeRedeemerCborHex
+      ) {
+        tx.spendingPlutusScriptV3()
+          .txIn(
+            plan.feeShardInput.ref.txId,
+            plan.feeShardInput.ref.outputIndex,
+            [
+              {
+                unit: "lovelace",
+                quantity: plan.feeShardInput.lovelace.toString(),
+              },
+            ],
+            plan.feeShardOutput.addressBech32,
+          )
+          .txInInlineDatumPresent()
+          .txInRedeemerValue(plan.payMixFeeRedeemerCborHex, "CBOR", { ...exUnits })
+          .spendingTxInReference(
+            plan.feeContractRefScriptUtxoRef.txId,
+            plan.feeContractRefScriptUtxoRef.outputIndex,
+            sizeStr(args.addresses.referenceScriptSizes?.fee_contract),
+            args.addresses.feeScriptHash,
+          );
+      }
+
+      // mix_logic withdraw-zero with the Mix redeemer.
+      tx.withdrawalPlutusScriptV3()
+        .withdrawal(plan.mixLogicRewardAddressBech32, "0")
+        .withdrawalRedeemerValue(plan.mixRedeemerCborHex, "CBOR", { ...exUnits })
+        .withdrawalTxInReference(
+          plan.mixLogicRefScriptUtxoRef.txId,
+          plan.mixLogicRefScriptUtxoRef.outputIndex,
+          sizeStr(args.addresses.referenceScriptSizes?.mix_logic),
+          params.mixLogicScriptHash,
+        );
+
+      // Outputs 0..N-1: mix-boxes. The validator asserts this slot is
+      // populated by mix-script outputs and that the tail is NOT.
+      for (const o of plan.outputs) {
+        tx.txOut(plan.mixBoxAddressBech32, [
+          { unit: "lovelace", quantity: params.denomLovelace.toString() },
+        ]).txOutInlineDatumValue(o.inlineDatumHex, "CBOR");
+      }
+      // Output N: fee shard (shard mode) or wallet change (wallet mode,
+      // emitted by mesh during balancing).
+      if (plan.feePayer === "shard" && plan.feeShardOutput && effectiveFeeOutLovelace !== null) {
+        tx.txOut(plan.feeShardOutput.addressBech32, [
+          { unit: "lovelace", quantity: effectiveFeeOutLovelace.toString() },
+        ]).txOutInlineDatumValue(plan.feeShardOutput.inlineDatumHex, "CBOR");
+      }
+
+      // Pin the tx fee in shard mode (validator forces inputs - outputs ==
+      // tx.fee), or when a wallet-mode override is provided (Conway
+      // ref-script-fee correction). Wallet mode without override lets mesh
+      // auto-compute.
+      if (effectiveFee !== null) {
+        tx.setFee(effectiveFee.toString());
+      }
+
+      // Collateral input + return. mesh derives `collateral_return` from the
+      // input's address when the input value exceeds the protocol-required
+      // collateral (= 1.5x fee), so we don't set it explicitly.
+      for (const utxo of preparedCollateral.inputs) {
+        tx.txInCollateral(
+          utxo.ref.txId,
+          utxo.ref.outputIndex,
+          [{ unit: "lovelace", quantity: utxo.lovelace.toString() }],
+          utxo.address,
         );
       }
+      // Required signer for an external host. The host's server-side
+      // validators reject any tx that doesn't list its pkh under
+      // required_signers — see Collateral-Provider's
+      // `api/validators/cbor.py::check_signers`.
+      if (preparedCollateral.requiredSignerPkhHex) {
+        tx.requiredSignerHash(preparedCollateral.requiredSignerPkhHex);
+      }
+
+      tx.changeAddress(changeAddress);
+      if (plan.feePayer === "shard") {
+        // Shard mode preserves wallet anonymity — no wallet input.
+        tx.selectUtxosFrom([]);
+      } else {
+        tx.selectUtxosFrom(walletUtxos);
+      }
+    };
+
+    const buildOnce = async (feeOverride?: bigint): Promise<string> => {
+      const tx = new MeshTxBuilder({
+        fetcher: meshProvider as never,
+        submitter: meshProvider as never,
+        evaluator: meshProvider as never,
+        params: meshParams as never,
+        verbose: false,
+      });
+      // mesh's default 1.1× safety buffer pushes evaluator-real budgets
+      // further over the chain's per-tx exec cap at high N. We trust the
+      // evaluator's numbers exactly — they're the chain's own values.
+      tx.txEvaluationMultiplier = 1;
+      populate(tx, feeOverride);
+      return tx.complete();
+    };
+
+    // Build pass(es).
+    //
+    // Shard mode: pass 1 sets fee = max_fee_per_mix_lovelace (plan.txFeeLovelace)
+    // and runs mesh's internal evaluator. We then read the per-redeemer
+    // exec units from the chain's evaluator, recompute the actual minimum
+    // fee from Cardano's formula (size + script + ref-script), and re-build
+    // with that pinned. The validator's `fee_in - fee_out == tx.fee` invariant
+    // means populate() also adjusts feeShardOutput.lovelace = feeIn - actualFee
+    // in lockstep. Mix outputs at positions 0..N-1 are unchanged across passes
+    // (the proofs are bound to those bytes), so the OR proofs stay valid.
+    //
+    // Wallet mode: mesh-csl @1.8.14 doesn't compute Conway's
+    // reference-script-fee component (`set_ref_script_coins_per_byte` is
+    // unwired), so the chain rejects with `FeeTooSmallUTxO`. We mirror the
+    // withdraw flow's workaround: read mesh's auto-fee, add the missing
+    // ref-script-fee, re-build with that pinned via `setFee`.
+    let unsignedTxHex: string;
+    try {
+      unsignedTxHex = await buildOnce();
+    } catch (evalErr) {
+      const errMsg = evalErr instanceof Error ? evalErr.message : String(evalErr);
+      throw new Error(
+        `Mix tx: evaluator failed and there is no fallback. The chain provider's ` +
+          `evaluateTx must return refined exec units for every redeemer. ` +
+          `Original error: ${errMsg}`,
+      );
+    }
+
+    const refScriptSize = computeMixRefScriptBytes(args.addresses, feePayer);
+    const refScriptCostPerByte = Number(meshParams.minFeeRefScriptCostPerByte ?? 15);
+
+    if (feePayer === "shard" && plan.feeShardInput && plan.txFeeLovelace !== null) {
+      // Discovery pass: ask the chain's evaluator for the real per-redeemer
+      // exec units now that pass 1 produced a complete tx body, then compute
+      // Cardano's actual minimum fee. Re-build with that fee pinned so the
+      // shard pays only what the chain will actually charge — instead of
+      // over-paying max_fee_per_mix_lovelace every tx.
+      //
+      // Mix shard tx witness shape: zero wallet vkey witnesses (the whole
+      // point of shard mode is wallet-anonymous submission) + one external
+      // host vkey witness (collateral signer + required_signer_hash, both
+      // satisfied by the giveme.my host's single key). mesh-csl's min-fee
+      // check counts those expected witnesses against tx size; pass the
+      // count through so our number lines up with mesh's check.
+      const expectedVkeyWitnesses = 1;
+      const evalRaw = await meshProvider.evaluateTx(unsignedTxHex);
+      if (Array.isArray(evalRaw)) {
+        const totalExUnits = sumEvaluatorExUnits(
+          evalRaw as Array<{ budget?: { mem?: number; steps?: number } }>,
+        );
+        const realParams = await args.provider.getProtocolParameters();
+        const minFee = computeMinTxFee({
+          txCborHex: unsignedTxHex,
+          totalExUnits,
+          refScriptBytes: refScriptSize,
+          expectedVkeyWitnesses,
+          params: {
+            minFeeA: realParams.minFeeA,
+            minFeeB: realParams.minFeeB,
+            priceStep: realParams.pricesStep,
+            priceMem: realParams.pricesMem,
+            minFeeRefScriptCostPerByte: refScriptCostPerByte,
+          },
+        });
+        // Cap at the on-chain max so the validator's
+        // `tx.fee <= max_fee_per_mix_lovelace` rule still passes if the
+        // network is unusually expensive (defensive — under normal Conway
+        // params minFee << max).
+        const capped = minFee > plan.txFeeLovelace ? plan.txFeeLovelace : minFee;
+
+        console.log(
+          `[lovejoin/mix] shard-mode fee discovery: minFee=${minFee} ` +
+            `(size+script+ref) cap=${plan.txFeeLovelace} → setFee(${capped}); ` +
+            `feeOut=${plan.feeShardInput.lovelace - capped}`,
+        );
+        if (capped !== plan.txFeeLovelace) {
+          unsignedTxHex = await buildWithFeeBumpRetry(buildOnce, capped, plan.txFeeLovelace);
+        }
+      } else {
+        console.warn(
+          `[lovejoin/mix] shard-mode fee discovery: evaluator returned non-array ` +
+            `result; falling back to plan.txFeeLovelace=${plan.txFeeLovelace}`,
+        );
+      }
+    }
+
+    if (feePayer === "wallet") {
+      const cst = await import("@meshsdk/core-cst");
+      const meshFee = extractFeeFromTxCbor(unsignedTxHex, cst);
+      const refScriptFee = computeRefScriptFee(refScriptSize, refScriptCostPerByte);
+      const correctedFee = meshFee + refScriptFee;
+
+      console.log(
+        `[lovejoin/mix] wallet-mode fee correction: mesh=${meshFee} + ref-script(` +
+          `${refScriptSize}b × ${refScriptCostPerByte}/b)=${refScriptFee} → setFee(${correctedFee})`,
+      );
+      if (refScriptFee > 0n) {
+        unsignedTxHex = await buildOnce(correctedFee);
+      }
+    }
+
+    // Witness path. With GivemeMyProvider (the default for Mix) the user's
+    // wallet does not sign at all — the host's vkey is the only signer the
+    // tx needs. With WalletProvider the wallet signs the collateral input
+    // through the normal CIP-30 path; absence of a wallet on that branch
+    // is a programming error since defaultMixCollateralProvider() only
+    // returns WalletProvider when args.wallet is set.
+    let signedTx: string;
+    if (preparedCollateral.externallySigned) {
+      const hostWitness = await collateralProvider.signTxBody(unsignedTxHex);
+      if (!hostWitness) {
+        throw new Error(
+          "Mix tx: collateral provider claimed externallySigned but signTxBody() returned null",
+        );
+      }
+      signedTx = await appendVkeyWitness(unsignedTxHex, hostWitness);
+
+      console.log(
+        `[lovejoin/mix] external collateral witness merged from ${hostWitness.vkeyHex.slice(0, 8)}…`,
+      );
     } else {
-       
-      console.warn(
-        `[lovejoin/mix] shard-mode fee discovery: evaluator returned non-array ` +
-          `result; falling back to plan.txFeeLovelace=${plan.txFeeLovelace}`,
-      );
+      if (!args.wallet) {
+        throw new Error(
+          "Mix tx: the chosen collateral provider needs a wallet signature, but no wallet was supplied. Use GivemeMyProvider (default for shard mode on networks with a pinned host) for wallet-anonymous submission.",
+        );
+      }
+      signedTx = await args.wallet.signTx(unsignedTxHex, true);
     }
-  }
 
-  if (feePayer === "wallet") {
-    const cst = await import("@meshsdk/core-cst");
-    const meshFee = extractFeeFromTxCbor(unsignedTxHex, cst);
-    const refScriptFee = computeRefScriptFee(refScriptSize, refScriptCostPerByte);
-    const correctedFee = meshFee + refScriptFee;
-     
-    console.log(
-      `[lovejoin/mix] wallet-mode fee correction: mesh=${meshFee} + ref-script(` +
-        `${refScriptSize}b × ${refScriptCostPerByte}/b)=${refScriptFee} → setFee(${correctedFee})`,
-    );
-    if (refScriptFee > 0n) {
-      unsignedTxHex = await buildOnce(correctedFee);
+    if (args.signOnly) {
+      return { signedTxHex: signedTx, txId: "", plan };
     }
-  }
-
-  // Witness path. With GivemeMyProvider (the default for Mix) the user's
-  // wallet does not sign at all — the host's vkey is the only signer the
-  // tx needs. With WalletProvider the wallet signs the collateral input
-  // through the normal CIP-30 path; absence of a wallet on that branch
-  // is a programming error since defaultMixCollateralProvider() only
-  // returns WalletProvider when args.wallet is set.
-  let signedTx: string;
-  if (preparedCollateral.externallySigned) {
-    const hostWitness = await collateralProvider.signTxBody(unsignedTxHex);
-    if (!hostWitness) {
-      throw new Error(
-        "Mix tx: collateral provider claimed externallySigned but signTxBody() returned null",
-      );
-    }
-    signedTx = await appendVkeyWitness(unsignedTxHex, hostWitness);
-     
-    console.log(
-      `[lovejoin/mix] external collateral witness merged from ${hostWitness.vkeyHex.slice(0, 8)}…`,
-    );
-  } else {
-    if (!args.wallet) {
-      throw new Error(
-        "Mix tx: the chosen collateral provider needs a wallet signature, but no wallet was supplied. Use GivemeMyProvider (default for shard mode on networks with a pinned host) for wallet-anonymous submission.",
-      );
-    }
-    signedTx = await args.wallet.signTx(unsignedTxHex, true);
-  }
-
-  if (args.signOnly) {
-    return { signedTxHex: signedTx, txId: "", plan };
-  }
-  const txId = await args.provider.submitTx(signedTx);
-  return { signedTxHex: signedTx, txId, plan };
+    const txId = await args.provider.submitTx(signedTx);
+    return { signedTxHex: signedTx, txId, plan };
   }, args.retry);
 }
 
@@ -1307,7 +1239,7 @@ function defaultMixCollateralProvider(args: BuildMixArgs): CollateralProvider {
         `Mix tx: no pinned collateral host for "${args.network}" and no wallet supplied. Pass an explicit collateralProvider, or connect a wallet so we can fall back to WalletProvider. Original: ${e instanceof Error ? e.message : String(e)}`,
       );
     }
-     
+
     console.warn(
       `[lovejoin/mix] no pinned collateral host for "${args.network}" — falling back to ` +
         `wallet collateral. Mix anonymity is degraded on this path. Original: ` +
@@ -1347,7 +1279,7 @@ async function buildWithFeeBumpRetry(
       const reportedMin = BigInt(match[1] ?? "0");
       if (reportedMin <= fee) throw e;
       const next = reportedMin > feeCeiling ? feeCeiling : reportedMin;
-       
+
       console.warn(
         `[lovejoin/mix] mesh-csl reported Min fee=${reportedMin} > our fee=${fee}; ` +
           `retrying with setFee(${next}) (cap=${feeCeiling})`,
@@ -1368,10 +1300,7 @@ async function buildWithFeeBumpRetry(
 /// (older bootstraps); in that case the correction is a no-op and the
 /// caller falls back to mesh's broken auto-fee, which the chain may
 /// reject with `FeeTooSmallUTxO`.
-function computeMixRefScriptBytes(
-  addresses: LovejoinAddresses,
-  feePayer: MixFeePayer,
-): number {
+function computeMixRefScriptBytes(addresses: LovejoinAddresses, feePayer: MixFeePayer): number {
   const sizes = addresses.referenceScriptSizes;
   if (!sizes) return 0;
   const base = (sizes.mix_box ?? 0) + (sizes.mix_logic ?? 0);

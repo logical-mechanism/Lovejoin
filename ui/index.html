@@ -60,7 +60,9 @@
       lands. They get overridden cleanly when the real CSS arrives.
     -->
     <style>
-      html, body, #root {
+      html,
+      body,
+      #root {
         height: 100%;
         margin: 0;
         background: #0a0a0c;
@@ -95,8 +97,12 @@
         max-width: 38rem;
       }
       @media (max-width: 720px) {
-        .lj-prepaint { padding: 1.75rem 1rem 1rem; }
-        .lj-prepaint__title { font-size: clamp(2rem, 8vw, 3rem); }
+        .lj-prepaint {
+          padding: 1.75rem 1rem 1rem;
+        }
+        .lj-prepaint__title {
+          font-size: clamp(2rem, 8vw, 3rem);
+        }
       }
     </style>
   </head>
@@ -121,13 +127,14 @@
           <em>Withdraw in private.</em>
         </h2>
         <p class="lj-prepaint__lede">
-          A Cardano-native privacy mixer with fixed-denomination boxes and N-way sigma-OR re-randomization.
+          A Cardano-native privacy mixer with fixed-denomination boxes and N-way sigma-OR
+          re-randomization.
         </p>
       </section>
     </div>
     <noscript>
-      Lovejoin requires JavaScript to build and submit transactions. Please
-      enable JavaScript and reload.
+      Lovejoin requires JavaScript to build and submit transactions. Please enable JavaScript and
+      reload.
     </noscript>
     <script type="module" src="/src/main.tsx"></script>
   </body>

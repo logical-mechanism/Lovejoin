@@ -18,31 +18,28 @@ Common transaction patterns and recipes for `@meshsdk/transaction`.
 ### Send ADA with Manual Inputs
 
 ```typescript
-import { MeshTxBuilder } from '@meshsdk/transaction';
+import { MeshTxBuilder } from "@meshsdk/transaction";
 
 const txBuilder = new MeshTxBuilder();
 
 const unsignedTx = txBuilder
   .txIn(
-    '2cb57168ee66b68bd04a0d595060b546edf30c04ae1031b883c9ac797967dd85',
+    "2cb57168ee66b68bd04a0d595060b546edf30c04ae1031b883c9ac797967dd85",
     0,
-    [{ unit: 'lovelace', quantity: '10000000' }],
-    'addr_test1qz...'
+    [{ unit: "lovelace", quantity: "10000000" }],
+    "addr_test1qz...",
   )
-  .txOut(
-    'addr_test1qp...',
-    [{ unit: 'lovelace', quantity: '5000000' }]
-  )
-  .changeAddress('addr_test1qz...')
+  .txOut("addr_test1qp...", [{ unit: "lovelace", quantity: "5000000" }])
+  .changeAddress("addr_test1qz...")
   .completeSync();
 ```
 
 ### Send ADA with Auto Coin Selection
 
 ```typescript
-import { MeshTxBuilder, BlockfrostProvider } from '@meshsdk/core';
+import { MeshTxBuilder, BlockfrostProvider } from "@meshsdk/core";
 
-const provider = new BlockfrostProvider('your-api-key');
+const provider = new BlockfrostProvider("your-api-key");
 
 const txBuilder = new MeshTxBuilder({
   fetcher: provider,
@@ -54,9 +51,7 @@ const txBuilder = new MeshTxBuilder({
 const utxos = await provider.fetchAddressUTxOs(walletAddress);
 
 const unsignedTx = await txBuilder
-  .txOut('addr_test1qp...', [
-    { unit: 'lovelace', quantity: '5000000' }
-  ])
+  .txOut("addr_test1qp...", [{ unit: "lovelace", quantity: "5000000" }])
   .changeAddress(walletAddress)
   .selectUtxosFrom(utxos)
   .complete();
@@ -70,13 +65,11 @@ const txHash = await wallet.submitTx(signedTx);
 
 ```typescript
 const unsignedTx = await txBuilder
-  .txOut('addr_test1qp...', [
-    { unit: 'lovelace', quantity: '2000000' },
-    { unit: 'policyId' + 'assetNameHex', quantity: '100' }
+  .txOut("addr_test1qp...", [
+    { unit: "lovelace", quantity: "2000000" },
+    { unit: "policyId" + "assetNameHex", quantity: "100" },
   ])
-  .txOut('addr_test1qr...', [
-    { unit: 'lovelace', quantity: '3000000' }
-  ])
+  .txOut("addr_test1qr...", [{ unit: "lovelace", quantity: "3000000" }])
   .changeAddress(walletAddress)
   .selectUtxosFrom(utxos)
   .complete();
@@ -86,15 +79,15 @@ const unsignedTx = await txBuilder
 
 ```typescript
 const unsignedTx = await txBuilder
-  .txOut('addr_test1qp...', [{ unit: 'lovelace', quantity: '2000000' }])
+  .txOut("addr_test1qp...", [{ unit: "lovelace", quantity: "2000000" }])
   .metadataValue(721, {
     [policyId]: {
       [assetName]: {
-        name: 'My NFT',
-        image: 'ipfs://...',
-        description: 'An awesome NFT'
-      }
-    }
+        name: "My NFT",
+        image: "ipfs://...",
+        description: "An awesome NFT",
+      },
+    },
   })
   .changeAddress(walletAddress)
   .selectUtxosFrom(utxos)
@@ -108,7 +101,7 @@ const unsignedTx = await txBuilder
 ### Spend from Plutus Script (Inline Datum)
 
 ```typescript
-import { mConStr0 } from '@meshsdk/common';
+import { mConStr0 } from "@meshsdk/common";
 
 const unsignedTx = await txBuilder
   // 1. Signal Plutus script version
@@ -121,7 +114,7 @@ const unsignedTx = await txBuilder
     scriptUtxo.input.txHash,
     scriptUtxo.input.outputIndex,
     scriptUtxo.output.amount,
-    scriptAddress
+    scriptAddress,
   )
   // 3. Provide the script
   .txInScript(scriptCbor)
@@ -134,10 +127,10 @@ const unsignedTx = await txBuilder
     collateralUtxo.input.txHash,
     collateralUtxo.input.outputIndex,
     collateralUtxo.output.amount,
-    collateralUtxo.output.address
+    collateralUtxo.output.address,
   )
   // 7. Add output and complete
-  .txOut(recipientAddress, [{ unit: 'lovelace', quantity: '5000000' }])
+  .txOut(recipientAddress, [{ unit: "lovelace", quantity: "5000000" }])
   .changeAddress(walletAddress)
   .selectUtxosFrom(utxos)
   .complete();
@@ -148,18 +141,27 @@ const unsignedTx = await txBuilder
 When the UTxO was locked with `.txOutDatumHashValue()` (hash stored on-chain, not full datum), you must provide the full datum when spending:
 
 ```typescript
-import { mConStr0 } from '@meshsdk/common';
+import { mConStr0 } from "@meshsdk/common";
 
 const datum = mConStr0([ownerPubKeyHash]);
 
 const unsignedTx = await txBuilder
   .spendingPlutusScriptV3()
-  .txIn(scriptUtxo.input.txHash, scriptUtxo.input.outputIndex,
-        scriptUtxo.output.amount, scriptAddress)
+  .txIn(
+    scriptUtxo.input.txHash,
+    scriptUtxo.input.outputIndex,
+    scriptUtxo.output.amount,
+    scriptAddress,
+  )
   .txInScript(scriptCbor)
-  .txInDatumValue(datum)  // Must provide full datum for datum-hash UTxOs
+  .txInDatumValue(datum) // Must provide full datum for datum-hash UTxOs
   .txInRedeemerValue(mConStr0([]))
-  .txInCollateral(collateralHash, collateralIndex, collateralAmount, collateralAddr)
+  .txInCollateral(
+    collateralHash,
+    collateralIndex,
+    collateralAmount,
+    collateralAddr,
+  )
   .requiredSignerHash(ownerPubKeyHash)
   .txOut(recipientAddress, outputAmount)
   .changeAddress(walletAddress)
@@ -174,12 +176,21 @@ When the Aiken contract uses `_redeemer: Data` (not validated), pass an empty st
 ```typescript
 const unsignedTx = await txBuilder
   .spendingPlutusScriptV3()
-  .txIn(scriptUtxo.input.txHash, scriptUtxo.input.outputIndex,
-        scriptUtxo.output.amount, scriptAddress)
+  .txIn(
+    scriptUtxo.input.txHash,
+    scriptUtxo.input.outputIndex,
+    scriptUtxo.output.amount,
+    scriptAddress,
+  )
   .txInScript(scriptCbor)
   .spendingReferenceTxInInlineDatumPresent()
-  .spendingReferenceTxInRedeemerValue("")  // Empty string for unused redeemer
-  .txInCollateral(collateralHash, collateralIndex, collateralAmount, collateralAddr)
+  .spendingReferenceTxInRedeemerValue("") // Empty string for unused redeemer
+  .txInCollateral(
+    collateralHash,
+    collateralIndex,
+    collateralAmount,
+    collateralAddr,
+  )
   .txOut(recipientAddress, outputAmount)
   .changeAddress(walletAddress)
   .selectUtxosFrom(utxos)
@@ -214,34 +225,33 @@ const unsignedTx = await txBuilder
 Two approaches for datum construction — both are valid:
 
 **Mesh format (default type, simpler):**
+
 ```typescript
-import { mConStr0 } from '@meshsdk/common';
+import { mConStr0 } from "@meshsdk/common";
 
 // Mesh format: "alternative" keyword, primitive values directly
 const datum = mConStr0([beneficiaryPubKeyHash, unlockTime]);
 // Equivalent to: { alternative: 0, fields: [beneficiaryPubKeyHash, unlockTime] }
 
 const unsignedTx = await txBuilder
-  .txOut(scriptAddress, [{ unit: 'lovelace', quantity: '10000000' }])
-  .txOutInlineDatumValue(datum)  // default type is "Mesh"
+  .txOut(scriptAddress, [{ unit: "lovelace", quantity: "10000000" }])
+  .txOutInlineDatumValue(datum) // default type is "Mesh"
   .changeAddress(walletAddress)
   .selectUtxosFrom(utxos)
   .complete();
 ```
 
 **JSON format (convention from real contracts, typed wrappers):**
+
 ```typescript
-import { conStr0, byteString, integer, pubKeyAddress } from '@meshsdk/common';
+import { conStr0, byteString, integer, pubKeyAddress } from "@meshsdk/common";
 
 // JSON format: "constructor" keyword, typed field wrappers
-const datum = conStr0([
-  pubKeyAddress(beneficiaryPkh),
-  integer(unlockTime),
-]);
+const datum = conStr0([pubKeyAddress(beneficiaryPkh), integer(unlockTime)]);
 
 const unsignedTx = await txBuilder
-  .txOut(scriptAddress, [{ unit: 'lovelace', quantity: '10000000' }])
-  .txOutInlineDatumValue(datum, "JSON")  // MUST specify "JSON"
+  .txOut(scriptAddress, [{ unit: "lovelace", quantity: "10000000" }])
+  .txOutInlineDatumValue(datum, "JSON") // MUST specify "JSON"
   .changeAddress(walletAddress)
   .selectUtxosFrom(utxos)
   .complete();
@@ -287,11 +297,11 @@ const unsignedTx = await txBuilder
 ```typescript
 // Native script - no redeemer needed
 const unsignedTx = await txBuilder
-  .mint('100', policyId, assetName)
-  .mintingScript(nativeScriptCbor)  // Native script CBOR
+  .mint("100", policyId, assetName)
+  .mintingScript(nativeScriptCbor) // Native script CBOR
   .txOut(recipientAddress, [
-    { unit: 'lovelace', quantity: '2000000' },
-    { unit: policyId + assetName, quantity: '100' }
+    { unit: "lovelace", quantity: "2000000" },
+    { unit: policyId + assetName, quantity: "100" },
   ])
   .changeAddress(walletAddress)
   .selectUtxosFrom(utxos)
@@ -399,15 +409,15 @@ const unsignedTx = await txBuilder
 
 ```typescript
 const anchor = {
-  anchorUrl: 'https://example.com/drep-metadata.json',
-  anchorDataHash: 'abc123...'  // Hash of metadata file
+  anchorUrl: "https://example.com/drep-metadata.json",
+  anchorDataHash: "abc123...", // Hash of metadata file
 };
 
 const unsignedTx = await txBuilder
   .drepRegistrationCertificate(
     drepId,
     anchor,
-    '500000000000'  // 500 ADA deposit
+    "500000000000", // 500 ADA deposit
   )
   .changeAddress(walletAddress)
   .selectUtxosFrom(utxos)
@@ -418,21 +428,21 @@ const unsignedTx = await txBuilder
 
 ```typescript
 const voter = {
-  type: 'DRep',
-  drepId: 'drep1...'
+  type: "DRep",
+  drepId: "drep1...",
 };
 
 const govActionId = {
-  txHash: 'abc123...',
-  txIndex: 0
+  txHash: "abc123...",
+  txIndex: 0,
 };
 
 const votingProcedure = {
-  vote: 'Yes',
+  vote: "Yes",
   anchor: {
-    anchorUrl: 'https://example.com/rationale.json',
-    anchorDataHash: 'xyz789...'
-  }
+    anchorUrl: "https://example.com/rationale.json",
+    anchorDataHash: "xyz789...",
+  },
 };
 
 const unsignedTx = await txBuilder
@@ -446,8 +456,8 @@ const unsignedTx = await txBuilder
 
 ```typescript
 const drep = {
-  type: 'DRepId',
-  drepId: 'drep1...'
+  type: "DRepId",
+  drepId: "drep1...",
 };
 // Or: { type: 'AlwaysAbstain' }
 // Or: { type: 'AlwaysNoConfidence' }
@@ -465,21 +475,27 @@ const unsignedTx = await txBuilder
 
 ### Convention from Real MeshJS Contracts (9 contracts studied)
 
-| Scenario | Format | Helpers | Type Param |
-|----------|--------|---------|------------|
-| **Datums** | JSON | `conStr0()` + `integer()`, `pubKeyAddress()`, etc. | `"JSON"` (explicit) |
-| **Redeemers (empty)** | Mesh | `mConStr0([])`, `mConStr1([])`, etc. | omit (default) |
-| **Redeemers (with fields)** | JSON | `conStr0()` + typed wrappers | `"JSON"`, `DEFAULT_REDEEMER_BUDGET` |
-| **Redeemers (unused)** | N/A | `""` (empty string) | omit |
+| Scenario                    | Format | Helpers                                            | Type Param                          |
+| --------------------------- | ------ | -------------------------------------------------- | ----------------------------------- |
+| **Datums**                  | JSON   | `conStr0()` + `integer()`, `pubKeyAddress()`, etc. | `"JSON"` (explicit)                 |
+| **Redeemers (empty)**       | Mesh   | `mConStr0([])`, `mConStr1([])`, etc.               | omit (default)                      |
+| **Redeemers (with fields)** | JSON   | `conStr0()` + typed wrappers                       | `"JSON"`, `DEFAULT_REDEEMER_BUDGET` |
+| **Redeemers (unused)**      | N/A    | `""` (empty string)                                | omit                                |
 
 ```typescript
 import {
   // JSON helpers (datums & complex redeemers)
-  conStr0, conStr1, integer, byteString, pubKeyAddress,
+  conStr0,
+  conStr1,
+  integer,
+  byteString,
+  pubKeyAddress,
   // Mesh helpers (empty redeemers & simple datums)
-  mConStr0, mConStr1, mConStr2,
+  mConStr0,
+  mConStr1,
+  mConStr2,
   DEFAULT_REDEEMER_BUDGET,
-} from '@meshsdk/common';
+} from "@meshsdk/common";
 
 // Datum (JSON format) — typed wrappers + explicit "JSON" type
 const datum = conStr0([pubKeyAddress(ownerPkh), integer(deadline)]);
@@ -489,7 +505,10 @@ txBuilder.txOutInlineDatumValue(datum, "JSON");
 txBuilder.txInRedeemerValue(mConStr1([]));
 
 // Redeemer - with fields (JSON format, explicit type + budget)
-const complexRedeemer = conStr0([pubKeyAddress(recipientPkh), value(depositAmount)]);
+const complexRedeemer = conStr0([
+  pubKeyAddress(recipientPkh),
+  value(depositAmount),
+]);
 txBuilder.txInRedeemerValue(complexRedeemer, "JSON", DEFAULT_REDEEMER_BUDGET);
 
 // Redeemer - unused Data type (empty string)
@@ -499,15 +518,15 @@ txBuilder.spendingReferenceTxInRedeemerValue("");
 ### Reading On-Chain Datum
 
 ```typescript
-import { deserializeDatum, serializeAddressObj } from '@meshsdk/core';
+import { deserializeDatum, serializeAddressObj } from "@meshsdk/core";
 
 // Parse datum from UTxO's inline Plutus data
 const datum = deserializeDatum<MyDatumType>(utxo.output.plutusData!);
 
 // Access fields by index (matches Aiken record field order)
-const priceField = datum.fields[1].int;       // Integer
-const ownerField = datum.fields[0];           // Address object
-const hashField = datum.fields[2].bytes;      // ByteArray
+const priceField = datum.fields[1].int; // Integer
+const ownerField = datum.fields[0]; // Address object
+const hashField = datum.fields[2].bytes; // ByteArray
 
 // Convert address object back to bech32
 const address = serializeAddressObj(datum.fields[0], networkId);
@@ -516,26 +535,35 @@ const address = serializeAddressObj(datum.fields[0], networkId);
 ### Combined Spend + Mint in Same Transaction
 
 ```typescript
-import { mConStr0, mConStr1 } from '@meshsdk/common';
+import { mConStr0, mConStr1 } from "@meshsdk/common";
 
 const tx = await txBuilder
   // --- Spending part ---
   .spendingPlutusScriptV3()
-  .txIn(scriptUtxo.input.txHash, scriptUtxo.input.outputIndex,
-        scriptUtxo.output.amount, scriptAddress)
+  .txIn(
+    scriptUtxo.input.txHash,
+    scriptUtxo.input.outputIndex,
+    scriptUtxo.output.amount,
+    scriptAddress,
+  )
   .txInScript(spendingScriptCbor)
   .txInInlineDatumPresent()
-  .txInRedeemerValue(mConStr0([]))  // spending redeemer
+  .txInRedeemerValue(mConStr0([])) // spending redeemer
 
   // --- Minting part ---
   .mintPlutusScriptV3()
-  .mint('-1', burnPolicyId, burnAssetName)
+  .mint("-1", burnPolicyId, burnAssetName)
   .mintingScript(mintingPolicyCbor)
-  .mintRedeemerValue(mConStr1([]))  // burn redeemer
+  .mintRedeemerValue(mConStr1([])) // burn redeemer
 
   // --- Common ---
-  .txInCollateral(collateralHash, collateralIndex, collateralAmount, collateralAddr)
-  .txOut(recipientAddress, [{ unit: 'lovelace', quantity: '5000000' }])
+  .txInCollateral(
+    collateralHash,
+    collateralIndex,
+    collateralAmount,
+    collateralAddr,
+  )
+  .txOut(recipientAddress, [{ unit: "lovelace", quantity: "5000000" }])
   .changeAddress(walletAddress)
   .selectUtxosFrom(utxos)
   .complete();
@@ -557,7 +585,7 @@ const unsignedTx = await txBuilder
   .complete();
 
 // First signer signs partially
-const partialSig1 = await wallet1.signTx(unsignedTx, true);  // partial = true
+const partialSig1 = await wallet1.signTx(unsignedTx, true); // partial = true
 
 // Second signer signs
 const fullySigned = await wallet2.signTx(partialSig1, true);
@@ -569,9 +597,9 @@ const txHash = await wallet1.submitTx(fullySigned);
 ### Offline Transaction Building
 
 ```typescript
-import { OfflineFetcher, MeshTxBuilder } from '@meshsdk/core';
+import { OfflineFetcher, MeshTxBuilder } from "@meshsdk/core";
 
-const offlineFetcher = new OfflineFetcher('preprod');
+const offlineFetcher = new OfflineFetcher("preprod");
 
 // Cache UTxOs for offline use
 offlineFetcher.cacheUtxos(cachedUtxos);
@@ -583,7 +611,7 @@ const txBuilder = new MeshTxBuilder({
     minFeeB: 155381,
     coinsPerUtxoSize: 4310,
     // ... other protocol params
-  }
+  },
 });
 
 const unsignedTx = await txBuilder
@@ -635,9 +663,9 @@ const txB = await new MeshTxBuilder({ fetcher, submitter, evaluator })
 const unsignedTx = await txBuilder
   .txOut(
     refScriptHolderAddress,
-    [{ unit: 'lovelace', quantity: '10000000' }]  // Min UTxO for script
+    [{ unit: "lovelace", quantity: "10000000" }], // Min UTxO for script
   )
-  .txOutReferenceScript(scriptCbor, 'V2')  // Attach script as reference
+  .txOutReferenceScript(scriptCbor, "V2") // Attach script as reference
   .changeAddress(walletAddress)
   .selectUtxosFrom(utxos)
   .complete();
@@ -647,10 +675,10 @@ const unsignedTx = await txBuilder
 
 ```typescript
 const currentSlot = await provider.fetchLatestSlot();
-const lockUntilSlot = currentSlot + 3600;  // ~1 hour
+const lockUntilSlot = currentSlot + 3600; // ~1 hour
 
 const unsignedTx = await txBuilder
-  .invalidBefore(lockUntilSlot)  // Valid only after this slot
+  .invalidBefore(lockUntilSlot) // Valid only after this slot
   .txOut(recipientAddress, amount)
   .changeAddress(walletAddress)
   .selectUtxosFrom(utxos)
@@ -661,7 +689,7 @@ const unsignedTx = await txBuilder
 
 ```typescript
 const txBuilder = new MeshTxBuilder({
-  isHydra: true,  // Zero fees for Hydra
+  isHydra: true, // Zero fees for Hydra
   fetcher: hydraProvider,
   submitter: hydraProvider,
 });

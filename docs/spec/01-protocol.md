@@ -32,11 +32,11 @@ This makes lovejoin a **hyperstructure**: the on-chain state is permissionless a
 
 A "mix-box" is a UTxO at `mixScriptAddr` with:
 
-| Field | Cardano representation |
-|---|---|
-| `value` | exactly `denom_lovelace` ADA, no native assets |
-| `datum` (inline) | `MixDatum { a: ByteArray, b: ByteArray }` |
-| `address` | `mixScriptAddr` |
+| Field            | Cardano representation                         |
+| ---------------- | ---------------------------------------------- |
+| `value`          | exactly `denom_lovelace` ADA, no native assets |
+| `datum` (inline) | `MixDatum { a: ByteArray, b: ByteArray }`      |
+| `address`        | `mixScriptAddr`                                |
 
 The **owner secret** is `x ∈ Z_r` such that `b = [x]a`. After mixing, `(a, b)` are re-randomized but the relation is preserved.
 
@@ -94,6 +94,7 @@ The deposit tx is unprivileged from a privacy standpoint — anyone watching can
 Anyone (the box owner, or any other user) picks **N mix-boxes** from the pool where `2 ≤ N ≤ max_n`, and a fresh secret `y_i ∈ Z_r` per input. They produce N re-randomized mix-boxes and a reduced fee shard:
 
 For each input `i ∈ {0, ..., N-1}` with registers `(a_i, b_i)`:
+
 - Pick a permutation `π` of `{0, ..., N-1}` (output position assignment).
 - Pick fresh `y_i ∈ Z_r`.
 - Output `π(i)` has registers `([y_i]a_i, [y_i]b_i)`.
@@ -110,12 +111,12 @@ This is an N-way sigma-OR composition (paper Appendix C, generalized; full const
 
 Per round, an outsider's chance of correctly mapping a specific input to its output is `1/N`. After `k` rounds at width `N`, linkage probability is `(1/N)^k`. Practical comparison:
 
-| N | rounds for 1/2^30 linkage |
-|---|---|
-| 2 | 30 |
-| 4 | 15 |
-| 6 | ~12 |
-| 8 | 10 |
+| N   | rounds for 1/2^30 linkage |
+| --- | ------------------------- |
+| 2   | 30                        |
+| 4   | 15                        |
+| 6   | ~12                       |
+| 8   | 10                        |
 
 Larger N gets you to the same anonymity faster, with fewer total txs.
 
@@ -149,7 +150,7 @@ signers: collateral provider's key
 
 #### Selection privacy
 
-The submitter picks *which N boxes* to mix. SDK default: uniform random selection. The UI's "Mix N random boxes" button uses the default. Power-user override hidden behind an advanced toggle.
+The submitter picks _which N boxes_ to mix. SDK default: uniform random selection. The UI's "Mix N random boxes" button uses the default. Power-user override hidden behind an advanced toggle.
 
 ### Withdraw
 
@@ -183,18 +184,21 @@ The user's wallet pays the tx fee and provides collateral (no need for a third-p
 Detailed in [03-contracts.md](03-contracts.md). Summary:
 
 ### `mix_box` Owner branch
+
 1. Schnorr proof verifies against `(a, b)` with ctx = `blake2b_256(serialize(tx.outputs) || mixScriptHash)`.
 2. Reference UTxO present and provides `ProtocolParams`.
 
 ### `mix_box` Mix branch (variable N)
+
 1. Number of inputs at `mixScriptAddr` equals number of outputs at `mixScriptAddr`. Both equal `N`, with `2 ≤ N ≤ max_n`.
 2. The N script outputs are at the first N positions of `tx.outputs` (positions 0 through N-1).
 3. Each script output preserves `denom_lovelace`, no native assets.
 4. Each output datum is well-formed `MixDatum` with `a' ≠ b'`.
-5. Sigma-OR proof verifies for *this* input against all N output datums.
+5. Sigma-OR proof verifies for _this_ input against all N output datums.
 6. Proof's FS challenge is bound to all N output datums + values + mix_script_hash.
 
 ### `fee_contract` PayMixFee
+
 1. ≥ 2 inputs at `mixScriptHash` (i.e., a Mix tx).
 2. Exactly one fee input (this) and one fee output, datum unchanged.
 3. `fee_in.lovelace - fee_out.lovelace == tx.fee`.
@@ -202,6 +206,7 @@ Detailed in [03-contracts.md](03-contracts.md). Summary:
 5. No native assets.
 
 ### `fee_contract` Replenish
+
 1. Exactly one fee input (this) and one fee output, datum unchanged.
 2. `fee_out.lovelace > fee_in.lovelace`.
 3. No native assets.
@@ -210,11 +215,11 @@ Detailed in [03-contracts.md](03-contracts.md). Summary:
 
 For a target linkage probability of `1/2^30` (high privacy), required rounds depend on `N`:
 
-| N | Rounds | Total txs |
-|---|---|---|
-| 2 | 30 | 30 |
-| 4 | 15 | 15 |
-| 6 | 12 | 12 |
+| N   | Rounds | Total txs |
+| --- | ------ | --------- |
+| 2   | 30     | 30        |
+| 4   | 15     | 15        |
+| 6   | 12     | 12        |
 
 Higher `N` = fewer txs to reach the same privacy = lower total fees and faster mixing. The fee contract contribution per deposit (`N_rounds × max_fee_per_mix`) reflects the user's chosen rounds.
 
