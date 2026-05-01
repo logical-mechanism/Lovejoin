@@ -57,6 +57,12 @@ A husky `pre-commit` hook runs `lint-staged` (prettier + eslint --fix on staged 
 
 When opening a PR (`gh pr create --base dev`), the PR template will prompt for what changed, how it was tested, and which spec section is affected. Fill it out; reviewers rely on it.
 
+## Changelog
+
+User-visible changes get an entry under `## [Unreleased]` in [CHANGELOG.md](CHANGELOG.md), in the same PR as the change. Add it under the appropriate `### Added` / `### Changed` / `### Fixed` / `### Removed` heading.
+
+Pre-v1.0.0 we use date-based sections, not SemVer. **On `dev → main` rollup day**, whoever opens the rollup PR renames the `## [Unreleased]` section to `## [YYYY-MM-DD]` and opens a fresh empty `## [Unreleased]` block above it. We will switch to SemVer at v1.0.0; until then, dated entries match the actual cadence.
+
 ## Tests
 
 - Every new file with logic gets a test file. Minimum: one happy-path and at least one failure mode.
