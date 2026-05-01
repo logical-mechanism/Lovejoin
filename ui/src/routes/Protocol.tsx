@@ -25,9 +25,11 @@ export function Protocol() {
     <article className="lj-prose">
       <header>
         <Eyebrow>{t("protocol.eyebrow")}</Eyebrow>
-        <h1 className="mt-2 font-mono text-3xl font-medium tracking-tight text-paper">
+        {/* Layout owns the page <h1> (sr-only, route-derived); the visible
+         * page title here is h2 so the document outline is h1 → h2 → h2... */}
+        <h2 className="mt-2 font-mono text-3xl font-medium tracking-tight text-paper">
           {t("protocol.title")}
-        </h1>
+        </h2>
         <p className="mt-3 text-muted">{t("protocol.lede")}</p>
       </header>
 
@@ -37,19 +39,19 @@ export function Protocol() {
         <li>
           <Trans
             i18nKey="protocol.primitive_g"
-            components={{ b: <strong />, c: <code /> }}
+            components={{ b: <strong />, c: <code />, e: <em /> }}
           />
         </li>
         <li>
           <Trans
             i18nKey="protocol.primitive_x"
-            components={{ b: <strong />, c: <code /> }}
+            components={{ b: <strong />, c: <code />, e: <em /> }}
           />
         </li>
         <li>
           <Trans
             i18nKey="protocol.primitive_hash"
-            components={{ b: <strong />, c: <code /> }}
+            components={{ b: <strong />, c: <code />, e: <em /> }}
           />
         </li>
       </ul>
@@ -58,17 +60,17 @@ export function Protocol() {
       <p>
         <Trans
           i18nKey="protocol.deposit_p1"
-          components={{ b: <strong />, c: <code /> }}
+          components={{ b: <strong />, c: <code />, e: <em /> }}
         />
       </p>
       <pre className="lj-math">
-        <code>{`a = [d] · G
-b = [x · d] · G`}</code>
+        <code>{`a = [d] · g
+b = [x · d] · g`}</code>
       </pre>
       <p>
         <Trans
           i18nKey="protocol.deposit_p2"
-          components={{ b: <strong />, c: <code /> }}
+          components={{ b: <strong />, c: <code />, e: <em /> }}
         />
       </p>
 
@@ -101,7 +103,7 @@ b = [x · d] · G`}</code>
       <p>
         <Trans
           i18nKey="protocol.privacy_p1"
-          components={{ b: <strong />, c: <code /> }}
+          components={{ b: <strong />, c: <code />, e: <em /> }}
         />
       </p>
       <pre className="lj-math">
@@ -110,7 +112,7 @@ b = [x · d] · G`}</code>
       <p>
         <Trans
           i18nKey="protocol.privacy_p2"
-          components={{ b: <strong />, c: <code /> }}
+          components={{ b: <strong />, c: <code />, e: <em /> }}
         />
       </p>
 
@@ -118,7 +120,7 @@ b = [x · d] · G`}</code>
       <p>
         <Trans
           i18nKey="protocol.withdraw_p1"
-          components={{ b: <strong />, c: <code /> }}
+          components={{ b: <strong />, c: <code />, e: <em /> }}
         />
       </p>
       <pre className="lj-math">
@@ -130,7 +132,7 @@ verify:    [s] · a ≟ t + [c] · b`}</code>
       <p>
         <Trans
           i18nKey="protocol.withdraw_p2"
-          components={{ b: <strong />, c: <code /> }}
+          components={{ b: <strong />, c: <code />, e: <em /> }}
         />
       </p>
 
@@ -143,7 +145,7 @@ verify:    [s] · a ≟ t + [c] · b`}</code>
             paper: (
               <a
                 className="text-amber underline-offset-4 hover:underline"
-                href="https://github.com/logical-mechanism/Lovejoin/blob/main/papers/sigmajoin.pdf"
+                href="/papers/sigmajoin.pdf"
                 target="_blank"
                 rel="noopener noreferrer"
               />

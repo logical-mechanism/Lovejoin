@@ -13,7 +13,8 @@
     "tx_hash": "Tx",
     "address": "Địa chỉ",
     "amount": "Số lượng",
-    "fee": "Phí"
+    "fee": "Phí",
+    "copy_value": "Sao chép {{value}} vào clipboard"
   },
   "page_title": {
     "app": "Lovejoin",
@@ -118,7 +119,6 @@
   "wallet": {
     "modal_title": "Chọn một ví",
     "modal_eyebrow": "CIP-30",
-    "modal_lede": "Ví làm ba việc: một chữ ký để xuất két, và ký mỗi giao dịch gửi và rút. Nó không bao giờ có mặt trong tx Trộn.",
     "scanning": "Đang quét các ví đã cài đặt…",
     "no_wallets_title": "Không tìm thấy ví",
     "no_wallets": "Cài Lace, Eternl, Nami hoặc Flint, sau đó tải lại trang.",
@@ -133,12 +133,13 @@
     "disconnect_eyebrow": "Ví",
     "disconnect_title": "Ngắt kết nối ví?",
     "disconnect_lede": "Két phiên sẽ bị khoá và lần kết nối tiếp theo sẽ yêu cầu ký lại. Các hộp không bị ảnh hưởng, chúng sống trên chuỗi.",
-    "disconnect_confirm": "Ngắt kết nối"
+    "disconnect_confirm": "Ngắt kết nối",
+    "connect_to": "Kết nối với {{name}}",
+    "list_aria_label": "Ví đã cài đặt",
+    "modal_lede": "Ví của bạn mặc định làm ba việc: một chữ ký để dẫn xuất kho lưu trữ của bạn, cộng thêm một chữ ký cho mỗi lần gửi và mỗi lần rút. Các tx Mix ẩn danh đối với ví ở chế độ shard (mặc định), nên ví của bạn hoàn toàn không xuất hiện trên tx."
   },
   "pool": {
     "section_title": "Trộn",
-    "eyebrow": "Pool · chọn từ toàn pool",
-    "lede": "Bất kỳ ai cũng có thể trộn pool. Mỗi lần Trộn tái ngẫu nhiên hoá N hộp trong pool. Phí có thể trả từ shard chung (giữ ví của bạn ngoài tx) hoặc từ ví của bạn trực tiếp (lộ ví trên tx).",
     "size": "Kích thước pool",
     "estimated_mixes_available": "Số lượt trộn khả dụng",
     "mix_n_random_boxes": "Trộn ngẫu nhiên {{n}} hộp",
@@ -161,16 +162,12 @@
     "pool_loaded": "Đã tải {{count}} hộp pool.",
     "fee_payer_label": "Người trả phí",
     "fee_payer_shard": "Fee shard",
-    "fee_payer_shard_hint": "Mặc định. Lấy từ pool phí dùng chung. Bị giới hạn on-chain bởi max_fee_per_mix.",
     "fee_payer_wallet": "Ví",
-    "fee_payer_wallet_hint": "Người gửi trả trực tiếp. Không có giới hạn on-chain, nhưng danh tính ví sẽ ở trên tx.",
     "tx_preview_title": "Xem trước giao dịch",
     "tx_preview_fee_shard": "Phí trả từ shard fee_contract. Tài sản đảm bảo do dịch vụ đã cấu hình cung cấp. Ví của bạn không tham gia tx này.",
-    "tx_preview_fee_wallet": "Phí trả từ ví của bạn. Tài sản đảm bảo do dịch vụ đã cấu hình cung cấp. Ví của bạn ở trên tx.",
     "review_title": "Xem trước giao dịch",
     "review_width": "Bề rộng trộn",
     "review_linkage": "Liên kết",
-    "review_linkage_value": "1/{{n}} mỗi vòng → (1/{{n}})^k sau k vòng",
     "review_selection": "Lựa chọn từ pool",
     "review_selection_loading": "Đang quét pool…",
     "review_selection_value": "{{n}} hộp được chọn ngẫu nhiên từ {{pool}} hộp đang sống",
@@ -178,20 +175,26 @@
     "review_fee_path_shard": "Fee shard · ví của bạn không trên tx",
     "review_fee_path_wallet": "Ví của bạn · danh tính ví của bạn trên tx",
     "review_collateral": "Tài sản đảm bảo",
-    "review_collateral_value": "Do dịch vụ đảm bảo đã cấu hình cung cấp",
     "empty_title": "Pool trống",
     "empty_hint": "Trên mạng này chưa có hộp nào được gửi. Hãy gửi để gieo mầm pool. Khi có ít nhất 2 hộp đang sống, ai cũng có thể trộn.",
     "empty_cta": "Tạo một giao dịch gửi",
     "confirm_eyebrow": "Kiểm tra cuối cùng",
     "confirm_title": "Xác nhận tx Trộn",
-    "confirm_lede_shard": "Lovejoin sẽ chọn ngẫu nhiên N hộp, yêu cầu tài sản đảm bảo và gửi tx Trộn. Ở chế độ shard bạn không ký gì cả. Sau khi xác nhận, mọi thứ tự động chạy.",
-    "confirm_lede_wallet": "Lovejoin sẽ chọn ngẫu nhiên N hộp, yêu cầu tài sản đảm bảo và gửi tx Trộn. Ví của bạn sẽ ở trên tx và trả phí trực tiếp.",
-    "confirm_submit": "Xác nhận và gửi"
+    "confirm_submit": "Xác nhận và gửi",
+    "eyebrow": "Bước II · trộn pool",
+    "lede": "Ai cũng có thể trộn pool; không có người vận hành. Mỗi tx Mix tái-ngẫu-nhiên N box trong pool một lần, và bạn có hai cách trả phí. Trả từ fee shard chung và ví của bạn hoàn toàn không xuất hiện trên tx (ẩn danh phía ví). Hoặc trả từ ví của bạn, tx nhanh hơn nhưng mang theo danh tính ví.",
+    "fee_payer_shard_hint": "Mặc định. Phí lấy từ pool chung trên chuỗi (giới hạn {{cap}} ADA mỗi lần mix), tài sản thế chấp đến từ dịch vụ collateral đã cấu hình. Ví của bạn hoàn toàn không xuất hiện trên tx.",
+    "fee_payer_wallet_hint": "Ví của bạn trả phí và cung cấp tài sản thế chấp. Không có trần trên chuỗi, nhưng danh tính ví đi vào tx.",
+    "tx_preview_fee_wallet": "Phí do ví của bạn trả, ví cũng cung cấp tài sản thế chấp. Danh tính ví đi vào tx.",
+    "review_collateral_value_shard": "Cung cấp bởi dịch vụ collateral đã cấu hình",
+    "review_collateral_value_wallet": "Cung cấp bởi ví đã kết nối của bạn",
+    "review_linkage_value": "1/{{n}} mỗi vòng",
+    "confirm_lede_shard": "Lovejoin sẽ chọn ngẫu nhiên N box, yêu cầu collateral từ dịch vụ đã cấu hình và gửi tx Mix. Ở chế độ shard, bạn không ký gì; ví ở ngoài tx.",
+    "confirm_lede_wallet": "Lovejoin sẽ chọn ngẫu nhiên N box và gửi tx Mix. Ví của bạn sẽ trả phí, cung cấp collateral và ký."
   },
   "deposit": {
     "section_title": "Gửi",
     "eyebrow": "Bước I · vào pool",
-    "lede": "Khoá mệnh giá cố định vào một hộp trộn mới. Pool có tính tất định. Ví của bạn xuất khoá owner Lovejoin ở lần mở khoá đầu tiên, và cùng một ví khôi phục mọi giao dịch gửi trên bất kỳ trình duyệt nào.",
     "rounds_label": "Vòng trộn",
     "rounds_help": "Vòng càng nhiều = càng riêng tư. Đồng thời nạp cho fee shard cho các lần trộn về sau.",
     "count_label": "Hộp mỗi tx",
@@ -205,7 +208,8 @@
     "tx_preview_title": "Xem trước giao dịch",
     "tx_preview_copy": "Ví của bạn trả mệnh giá {{denom}} ADA cộng một khoản nạp lại nhỏ vào fee shard. Cần chữ ký của ví.",
     "tx_preview_copy_bulk": "Ví của bạn trả {{total}} ADA ({{count}} × {{denom}} ADA) cộng một khoản nạp lại vào fee shard. Một chữ ký cho cả lô.",
-    "index_help": "Bộ đếm két cho khoá bí mật chủ sở hữu của giao dịch gửi này."
+    "index_help": "Bộ đếm két cho khoá bí mật chủ sở hữu của giao dịch gửi này.",
+    "lede": "Khoá mệnh giá cố định vào một mix-box mới. Ví của bạn dẫn xuất khoá chủ sở hữu Lovejoin ngay lần mở khoá đầu tiên, nên cùng chiếc ví đó khôi phục mọi khoản gửi trên bất kỳ trình duyệt nào. Không có cụm từ thêm nào để ghi chép."
   },
   "donate": {
     "section_title": "Quyên góp vào pool phí",
@@ -296,7 +300,11 @@
     "net_testnet": "testnet",
     "net_mainnet": "mainnet",
     "empty_title": "Không có hộp đã gửi để rút.",
-    "empty_hint": "Hãy gửi và đợi xác nhận. Hộp sẽ xuất hiện ở đây trong vòng một block."
+    "empty_hint": "Hãy gửi và đợi xác nhận. Hộp sẽ xuất hiện ở đây trong vòng một block.",
+    "column_b_long": "Khoá công khai b của box",
+    "column_index_long": "Chỉ mục kho: bộ đếm dẫn xuất cho bí mật chủ sở hữu này",
+    "column_select": "Chọn box",
+    "table_caption": "Mix-box thuộc sở hữu có thể rút."
   },
   "collateral_provider": {
     "ok": "Nhà cung cấp tài sản đảm bảo trực tuyến",
@@ -318,31 +326,30 @@
   "protocol": {
     "eyebrow": "Sigmajoin · BLS12-381 · Plutus V3",
     "title": "Giao thức",
-    "lede": "Tour năm phút qua phần toán đứng sau Lovejoin. Hãy đọc bài Sigmajoin để có lập luận an toàn đầy đủ; trang này là tour cho người triển khai.",
-    "primitives_h": "Nguyên thuỷ",
-    "primitives_p": "Lovejoin dùng ba thứ:",
     "deposit_h": "Gửi",
     "mix_h": "Trộn",
     "privacy_h": "Liên kết",
     "withdraw_h": "Rút",
     "further_h": "Đọc thêm",
-    "primitive_g": "<b>G</b>: phần tử sinh của BLS12-381 G1, nhóm con đường cong cấp <c>r</c>.",
-    "primitive_x": "<b>x ∈ Z_r</b>: bí mật chủ sở hữu của bạn. Được suy ra một cách xác định từ chữ ký CIP-8 của ví, nên không cần sao lưu riêng.",
-    "primitive_hash": "<b>blake2b-256</b>: hàm băm dùng cho cả Fiat–Shamir on-chain và seed của vault trong UI này.",
-    "deposit_p1": "Một khoản gửi chọn một độ ngẫu nhiên mới <c>d</c> và khóa mệnh giá cố định vào script mix-box với inline datum. Hai điểm G1 nén 48 byte, trong đó <c>b</c> đóng vai trò là dấu sở hữu của bạn:",
-    "deposit_p2": "Bất kỳ ai theo dõi chuỗi đều thấy <c>(a, b)</c> nhưng không biết gì về <c>x</c> hay <c>d</c>. Cả hai đều là mẫu ngẫu nhiên đều và bài toán logarit rời rạc khó.",
-    "mix_p1": "Một Mix tx lấy <b>N</b> hộp đang hoạt động và ngẫu-nhiên-hóa lại chúng với một vô hướng mới cho mỗi đầu vào <c>y_i</c>. <e>Đầu ra</e> tại vị trí <c>i</c> là <e>tái-ngẫu-nhiên-hóa hoán vị</e>:",
-    "mix_p2": "trong đó <c>π</c> là một hoán vị của <c>0..N</c>. Tính chất quan trọng: nếu <c>b_i = [x_i] · a_i</c> ở đầu vào, thì <c>b'_i = [x_π(i)] · a'_i</c> ở đầu ra. Quyền sở hữu sống sót sau tái-ngẫu-nhiên-hóa, nhưng cặp <e>đầu vào → đầu ra</e> bị che giấu.",
-    "mix_p3": "Để chứng minh tx bảo toàn quyền sở hữu mà không tiết lộ <e>đầu vào nào</e> nó sở hữu, người gửi tạo một chứng minh <b>sigma-OR N nhánh</b> cho mỗi đầu vào. Một chứng minh Schnorr duy nhất \"tôi biết <c>x</c> cho một đầu ra nào đó\", được xác minh on-chain. Thử thách Fiat–Shamir gắn với cả N tuyên bố đầu ra cộng datum gửi của hộp, nên chứng minh không thể bị nhắm lại.",
-    "privacy_p1": "Sau một lần Mix với độ rộng <c>N</c>, xác suất một người quan sát bên ngoài liên kết đúng đầu vào với đầu ra của bạn là <c>1/N</c>. Sau <c>k</c> vòng độc lập:",
-    "privacy_p2": "Tại <b>N = 3</b> (giới hạn đã hiệu chỉnh của Lovejoin trên Preprod hôm nay), mỗi vòng thêm chia xác suất liên kết cho 3. Mười hai vòng đẩy nó xuống dưới 2⁻¹⁹, ít hơn một phần nửa triệu. Hai mươi vòng đẩy nó xuống dưới 2⁻³¹.",
-    "withdraw_p1": "Để rời pool, bạn tiêu mix-box ở nhánh chủ sở hữu của script <c>mix_box</c> với một chứng minh Schnorr của <c>b = [x] · a</c> gắn với <c>tx.outputs</c>. Người chứng minh chọn một <c>k ∈ Z_r</c> đều và tính:",
-    "withdraw_p2": "Việc thay thế đầu ra sẽ làm vô hiệu thử thách, vì thế validator chỉ có thể tiêu hộp theo đúng đường tiêu mà người chứng minh đã ký. Bản thân hộp không có chữ ký ví. Chỉ các đầu ra đích được ví của người gửi (trả phí) ủy quyền.",
-    "further_p": "Cấu trúc đầy đủ và chứng minh an toàn nằm trong <paper>bài báo Sigmajoin</paper>. Cài đặt validator on-chain ở <c>contracts/validators/mix_logic.ak</c>; bộ dựng off-chain ở <c>offchain/src/tx/mix.ts</c>; các vector KAT đa ngôn ngữ ở <c>crypto/test-vectors/</c>."
+    "lede": "Một lượt năm phút về cách Lovejoin thực sự hoạt động. Các khối toán có sẵn nếu bạn cần, nhưng chỉ riêng phần văn cũng đủ để theo được hình hài. Lập luận an toàn đầy đủ nằm trong bài Sigmajoin.",
+    "primitives_h": "Ba khối xây dựng",
+    "primitives_p": "Mọi thứ trong Lovejoin được lắp ghép từ ba mảnh này. Đọc lướt một lần là phần còn lại của trang đọc trôi chảy.",
+    "primitive_g": "<b>g</b>: phần tử sinh chuẩn của nhóm G1 trên BLS12-381. Một điểm cố định trên đường cong. Ký hiệu <c>[k] · g</c> nghĩa là \"cộng g vào chính nó k lần\", cho ra một điểm khác trên đường cong. Điểm mấu chốt: cho trước <c>[k] · g</c>, việc khôi phục <c>k</c> là <e>bài toán logarithm rời rạc</e>, được tin là không khả thi ở kích thước đường cong này. Mọi bí mật trong Lovejoin trốn sau khoảng cách này.",
+    "primitive_x": "<b>x</b>: <e>bí mật chủ sở hữu</e> của bạn. Chỉ là một số ngẫu nhiên giữ kín. Lovejoin lấy ra một cái cho mỗi lần gửi một cách tất định từ chữ ký ví của bạn, nên bạn không phải quản lý bằng tay và cùng chiếc ví đó khôi phục được trên bất kỳ trình duyệt nào.",
+    "primitive_hash": "<b>blake2b-256</b>: một hàm băm. Chúng tôi dùng nó cho <e>biến đổi Fiat–Shamir</e>, biến một chứng minh tương tác (prover và verifier trao đổi thông điệp) thành một mẩu dữ liệu duy nhất mà prover có thể đăng on-chain. Nó xuất hiện hai lần phía dưới: trong chứng minh Mix và trong chứng minh Withdraw.",
+    "deposit_p1": "Một lần gửi chọn số ngẫu nhiên mới <c>d</c> rồi khóa mệnh giá cố định vào script mix-box. Box mang một datum inline <c>(a, b)</c> — hai điểm nén 48 byte trên đường cong:",
+    "deposit_p2": "Bất kỳ ai theo dõi chuỗi đều thấy <c>(a, b)</c> nhưng không học được gì về <c>x</c> hay <c>d</c>: cả hai đều ngẫu nhiên đều và logarithm rời rạc thì khó. Điểm <c>b</c> là <e>dấu sở hữu</e> của bạn. Chỉ người giữ <c>x</c> mới có thể về sau chứng minh mình đứng sau nó, và đúng chứng minh đó là thứ mở khóa box khi rút.",
+    "mix_p1": "Một tx Mix chọn <b>N</b> mix-box còn sống từ pool và làm ngẫu nhiên hóa lại từng cái với một scalar mới <c>y_i</c>. Các đầu ra được <e>hoán vị</e> trên các đầu vào theo một hoán vị ngẫu nhiên <c>π</c> của <c>0..N</c>:",
+    "mix_p2": "Tính chất mấu chốt: nếu phía đầu vào có <c>b_i = [x_i] · a_i</c>, thì phía đầu ra có <c>b'_i = [x_π(i)] · a'_i</c>. Cùng bí mật <c>x</c> vẫn mở khóa box, dù các byte <c>(a, b)</c> đã thay đổi hoàn toàn. Người quan sát bên ngoài thấy N đầu vào và N đầu ra, nhưng không thể nói đầu vào nào trở thành đầu ra nào.",
+    "mix_p3": "Tất nhiên tx phải <e>chứng minh</e> việc ngẫu nhiên hóa là trung thực; nếu không, một người gửi gian có thể viết đầu ra rác và cuỗm tiền của mọi người. Mỗi đầu vào đi kèm một chứng minh <b>sigma-OR N nhánh</b>: một chứng minh không tương tác có tính không tiết lộ rằng đầu vào này đã được ngẫu nhiên hóa lại sang một trong N đầu ra, mà không nói <e>đầu ra nào</e>. Chứng cứ của nhánh thật là scalar mới <c>y_i</c>; các nhánh khác được giả lập. Với một chứng minh cho mỗi đầu vào, mọi đầu ra đều được giải thích, và lập luận sở hữu phía trên đi suốt cả lô. Fiat–Shamir buộc các chứng minh vào những đầu ra cụ thể của tx này, nên không thể bê chúng sang một tx khác.",
+    "privacy_p1": "Sau một lần Mix với độ rộng <c>N</c>, dự đoán tốt nhất của một người quan sát bên ngoài về đầu ra của bạn là <c>1/N</c>. Các Mix kết hợp được: <c>k</c> vòng độc lập đẩy xác suất liên kết xuống theo cấp số nhân:",
+    "privacy_p2": "Hiệu chỉnh Preprod hiện tại của Lovejoin: <b>N = 3</b> qua fee shard chung (đường ẩn danh phía ví), hoặc <b>N = 4</b> khi người gửi trả phí từ chính ví của họ. Trần này là chuyện ngân sách CPU của validator, không phải an toàn. Với N = 3, mười vòng kéo liên kết xuống còn khoảng một trên 60.000, và hai mươi vòng còn khoảng một trên 3,5 tỷ. Với N = 4, mười vòng đưa bạn tới khoảng một trên một triệu, và hai mươi vòng tới khoảng một trên một nghìn tỷ.",
+    "withdraw_p1": "Để rời pool, bạn tiêu mix-box ở nhánh chủ sở hữu của script <c>mix_box</c> kèm <e>chứng minh Schnorr</e> rằng bạn biết <c>x</c> đứng sau <c>b = [x] · a</c>. Schnorr là giao thức sigma đơn giản nhất: prover cam kết một điểm ngẫu nhiên, verifier ra thử thách, prover trả lời. Fiat–Shamir thay thử thách của verifier bằng một hash, biến cả vòng trao đổi thành một mẩu dữ liệu duy nhất:",
+    "withdraw_p2": "Hash sinh ra <c>c</c> bao trùm <c>tx.outputs</c>, nghĩa là chứng minh bị buộc vào đúng những địa chỉ đích bạn đã ký. Đổi đầu ra làm <c>c</c> mất hiệu lực, nên người gửi gian không thể chuyển hướng việc rút của bạn tới nơi bạn không yêu cầu. Trên chính box thì không có chữ ký ví; chỉ các đầu ra đích là được tx của ví người gửi (bên trả phí) ủy quyền.",
+    "further_p": "Cấu trúc đầy đủ + chứng minh an toàn nằm trong <paper>bài Sigmajoin</paper>. Trình xác minh on-chain ở <c>contracts/validators/mix_logic.ak</c>; trình dựng off-chain là <c>offchain/src/tx/mix.ts</c>; các vector kiểm thử đa ngôn ngữ ở <c>crypto/test-vectors/</c>."
   },
   "vault": {
     "title": "Két",
-    "eyebrow": "Két dẫn xuất từ ví",
     "lede": "Ký một thông điệp duy nhất bằng ví của bạn. Lovejoin xuất tất cả khoá bí mật chủ một cách tất định từ chữ ký đó. Khôi phục trên trình duyệt mới chỉ cần một cú nhấp. Mặc định không có cụm từ phải ghi lại.",
     "lock": "Khoá",
     "locked_title": "Két đang khoá",
@@ -370,7 +377,14 @@
     "recover_unlocking": "Đang xuất seed…",
     "recover_strength_weak": "Quá yếu",
     "recover_strength_fair": "Tạm ổn",
-    "recover_strength_strong": "Mạnh"
+    "recover_strength_strong": "Mạnh",
+    "eyebrow": "Bước III · rời pool",
+    "eyebrow_recovery": "Bước III · rời pool (khôi phục)",
+    "pagination_aria": "Phân trang danh sách box trong kho",
+    "page_indicator": "Trang {{current}} / {{total}}",
+    "prev_page": "Trước",
+    "next_page": "Sau",
+    "recover_strength_announce_prefix": "Độ mạnh mật khẩu: "
   },
   "secret_card": {
     "title": "Lưu khoá bí mật này ngay",
@@ -394,5 +408,8 @@
     "not_found": "Không tìm thấy hộp tại ref đó. Có thể nó đã được rút, đã bị trộn đi, hoặc chưa từng được nhập.",
     "back_to_vault": "Quay lại két",
     "preconditions_missing": "Hãy kết nối ví và mở khoá két để rút."
+  },
+  "a11y": {
+    "skip_to_main": "Bỏ qua đến nội dung chính"
   }
 }

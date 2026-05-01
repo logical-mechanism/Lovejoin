@@ -20,11 +20,14 @@ export function Home() {
   return (
     <>
       <section className="lj-hero">
-        <h1 className="lj-hero__title">
+        {/* Layout owns the page <h1> (sr-only, route-derived) so we keep the
+         * heading order at h1 → h2 → h3 (pillars below). The visible hero
+         * line gets h2 + the lj-hero__title styling so it still reads big. */}
+        <h2 className="lj-hero__title">
           {t("home.headline_a")}
           <br />
           <em>{t("home.headline_b")}</em>
-        </h1>
+        </h2>
         <p className="lj-hero__lede">{t("home.lede")}</p>
         <div className="lj-hero__cta">
           {wallet ? (

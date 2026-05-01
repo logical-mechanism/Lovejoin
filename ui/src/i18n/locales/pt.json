@@ -13,7 +13,8 @@
     "tx_hash": "Tx",
     "address": "Endereço",
     "amount": "Quantia",
-    "fee": "Taxa"
+    "fee": "Taxa",
+    "copy_value": "Copiar {{value}} para a área de transferência"
   },
   "page_title": {
     "app": "Lovejoin",
@@ -118,7 +119,6 @@
   "wallet": {
     "modal_title": "Escolha uma carteira",
     "modal_eyebrow": "CIP-30",
-    "modal_lede": "Sua carteira faz três coisas: uma assinatura para derivar seu cofre, e a assinatura de cada depósito e saque. Ela nunca aparece em uma tx de Mix.",
     "scanning": "Procurando carteiras instaladas…",
     "no_wallets_title": "Nenhuma carteira detectada",
     "no_wallets": "Instale Lace, Eternl, Nami ou Flint, e recarregue esta página.",
@@ -133,12 +133,13 @@
     "disconnect_eyebrow": "Carteira",
     "disconnect_title": "Desconectar a carteira?",
     "disconnect_lede": "O cofre da sessão será trancado e a próxima reconexão pedirá assinatura novamente. Caixas não são afetadas; vivem on-chain.",
-    "disconnect_confirm": "Desconectar"
+    "disconnect_confirm": "Desconectar",
+    "connect_to": "Conectar com {{name}}",
+    "list_aria_label": "Carteiras instaladas",
+    "modal_lede": "Sua carteira faz três coisas por padrão: uma assinatura para derivar seu cofre, mais uma assinatura para cada depósito e cada saque. As txs de Mix são anônimas para a carteira no modo shard (o padrão), então sua carteira fica totalmente fora da tx."
   },
   "pool": {
     "section_title": "Mix",
-    "eyebrow": "Pool · seleção em todo o pool",
-    "lede": "Qualquer pessoa pode misturar o pool. Cada Mix re-randomiza N caixas do pool. A taxa pode ser paga pelo shard compartilhado (sua carteira fica fora da tx) ou diretamente pela sua carteira (sua carteira aparece na tx).",
     "size": "Tamanho do pool",
     "estimated_mixes_available": "Mixes disponíveis",
     "mix_n_random_boxes": "Misturar {{n}} caixas aleatórias",
@@ -161,16 +162,12 @@
     "pool_loaded": "{{count}} caixas do pool carregadas.",
     "fee_payer_label": "Pagador da taxa",
     "fee_payer_shard": "Shard de taxa",
-    "fee_payer_shard_hint": "Padrão. Puxa do pool de taxas compartilhado. Limitado on-chain por max_fee_per_mix.",
     "fee_payer_wallet": "Carteira",
-    "fee_payer_wallet_hint": "Quem submete paga direto. Sem limite on-chain, mas a identidade da carteira aparece na tx.",
     "tx_preview_title": "Pré-visualização da transação",
     "tx_preview_fee_shard": "Taxa paga pelo shard fee_contract. Colateral fornecido pelo serviço configurado. Sua carteira não participa desta tx.",
-    "tx_preview_fee_wallet": "Taxa paga pela sua carteira. Colateral fornecido pelo serviço configurado. Sua carteira aparece na tx.",
     "review_title": "Pré-visualização da transação",
     "review_width": "Largura do mix",
     "review_linkage": "Ligação",
-    "review_linkage_value": "1/{{n}} por rodada → (1/{{n}})^k após k rodadas",
     "review_selection": "Seleção do pool",
     "review_selection_loading": "Verificando o pool…",
     "review_selection_value": "{{n}} caixas escolhidas aleatoriamente entre {{pool}} ativas",
@@ -178,20 +175,26 @@
     "review_fee_path_shard": "Shard de taxa · sua carteira não está na tx",
     "review_fee_path_wallet": "Sua carteira · sua identidade de carteira está na tx",
     "review_collateral": "Colateral",
-    "review_collateral_value": "Fornecido pelo serviço de colateral configurado",
     "empty_title": "O pool está vazio",
     "empty_hint": "Nenhuma caixa foi depositada nesta rede ainda. Faça um depósito para iniciar o pool. Quando houver pelo menos 2 caixas ativas, qualquer um pode misturar.",
     "empty_cta": "Fazer um depósito",
     "confirm_eyebrow": "Verificação final",
     "confirm_title": "Confirmar tx Mix",
-    "confirm_lede_shard": "O Lovejoin escolherá N caixas aleatórias, pedirá colateral e enviará a tx Mix. No modo shard você não assina nada. Após confirmar, segue automaticamente.",
-    "confirm_lede_wallet": "O Lovejoin escolherá N caixas aleatórias, pedirá colateral e enviará a tx Mix. Sua carteira estará na tx e pagará a taxa diretamente.",
-    "confirm_submit": "Confirmar e enviar"
+    "confirm_submit": "Confirmar e enviar",
+    "eyebrow": "Passo II · misturar o pool",
+    "lede": "Qualquer um pode misturar o pool; não há operador. Cada tx de Mix re-aleatoriza N boxes do pool de uma vez, e você pode pagar de duas formas. Pague pelo fee shard compartilhado e sua carteira fica totalmente fora da tx (anônima para a carteira). Ou pague pela sua carteira e a tx fica mais rápida, mas leva sua identidade de carteira.",
+    "fee_payer_shard_hint": "Padrão. A taxa sai do pool compartilhado on-chain (limitada a {{cap}} ADA por mix), e o colateral vem do serviço de colateral configurado. Sua carteira fica totalmente fora da tx.",
+    "fee_payer_wallet_hint": "Sua carteira paga a taxa e fornece o colateral. Sem teto on-chain, mas sua identidade de carteira fica na tx.",
+    "tx_preview_fee_wallet": "Taxa paga pela sua carteira, que também fornece o colateral. Sua identidade de carteira fica na tx.",
+    "review_collateral_value_shard": "Fornecido pelo serviço de colateral configurado",
+    "review_collateral_value_wallet": "Fornecido pela sua carteira conectada",
+    "review_linkage_value": "1/{{n}} por rodada",
+    "confirm_lede_shard": "Lovejoin vai escolher N boxes ao acaso, pedir colateral ao serviço configurado e enviar a tx de Mix. No modo shard você não assina nada; a carteira fica fora da tx.",
+    "confirm_lede_wallet": "Lovejoin vai escolher N boxes ao acaso e enviar a tx de Mix. Sua carteira vai pagar a taxa, fornecer o colateral e assinar."
   },
   "deposit": {
     "section_title": "Depósito",
     "eyebrow": "Passo I · entrar no pool",
-    "lede": "Tranque a denominação fixa em uma nova caixa de mix. O pool é determinístico. Sua carteira deriva uma owner key Lovejoin no primeiro desbloqueio, e a mesma carteira recupera cada depósito em qualquer navegador.",
     "rounds_label": "Rodadas de mix",
     "rounds_help": "Mais rodadas = mais privacidade. Financia o shard de taxa para mixes futuros.",
     "count_label": "Caixas por tx",
@@ -205,7 +208,8 @@
     "tx_preview_title": "Pré-visualização da transação",
     "tx_preview_copy": "Sua carteira paga a denominação de {{denom}} ADA mais um pequeno top-up de reposição ao shard de taxa. Assinatura da carteira é obrigatória.",
     "tx_preview_copy_bulk": "Sua carteira paga {{total}} ADA ({{count}} × {{denom}} ADA) mais um top-up de reposição ao shard de taxa. Uma assinatura para todo o lote.",
-    "index_help": "Contador do cofre para o secret de owner deste depósito."
+    "index_help": "Contador do cofre para o secret de owner deste depósito.",
+    "lede": "Trave a denominação fixa numa mix-box nova. Sua carteira deriva uma chave de proprietário Lovejoin no primeiro desbloqueio, então a mesma carteira recupera cada depósito em qualquer navegador. Sem frase extra para anotar."
   },
   "donate": {
     "section_title": "Doar para o pool de taxas",
@@ -296,7 +300,11 @@
     "net_testnet": "testnet",
     "net_mainnet": "mainnet",
     "empty_title": "Nenhuma caixa depositada para sacar.",
-    "empty_hint": "Faça um depósito e espere ele confirmar. A caixa aparecerá aqui em menos de um bloco."
+    "empty_hint": "Faça um depósito e espere ele confirmar. A caixa aparecerá aqui em menos de um bloco.",
+    "column_b_long": "Chave pública b da box",
+    "column_index_long": "Índice do cofre: contador de derivação para este segredo de proprietário",
+    "column_select": "Selecionar box",
+    "table_caption": "Mix-boxes próprias disponíveis para saque."
   },
   "collateral_provider": {
     "ok": "Provedor de colateral online",
@@ -318,31 +326,30 @@
   "protocol": {
     "eyebrow": "Sigmajoin · BLS12-381 · Plutus V3",
     "title": "Protocolo",
-    "lede": "Um tour de cinco minutos pela matemática por trás do Lovejoin. Leia o paper Sigmajoin para o argumento completo de segurança; esta página é o tour para implementadores.",
-    "primitives_h": "Primitivas",
-    "primitives_p": "O Lovejoin usa três:",
     "deposit_h": "Depósito",
     "mix_h": "Mix",
     "privacy_h": "Ligação",
     "withdraw_h": "Saque",
     "further_h": "Leitura adicional",
-    "primitive_g": "<b>G</b>: o gerador de BLS12-381 G1, o subgrupo da curva de ordem <c>r</c>.",
-    "primitive_x": "<b>x ∈ Z_r</b>: seu segredo de proprietário. Derivado deterministicamente da assinatura CIP-8 da sua carteira, então nunca precisa ser feito backup à parte.",
-    "primitive_hash": "<b>blake2b-256</b>: a função hash usada tanto para Fiat–Shamir on-chain quanto para o seed do vault desta UI.",
-    "deposit_p1": "Um depósito escolhe uma aleatoriedade fresca <c>d</c> e bloqueia a denominação fixa no script mix-box com o datum inline. Dois pontos G1 comprimidos de 48 bytes, com <c>b</c> servindo de marca de propriedade:",
-    "deposit_p2": "Quem observa a chain vê <c>(a, b)</c> mas não aprende nada sobre <c>x</c> nem <c>d</c>. Ambos são amostras uniformes e o logaritmo discreto é difícil.",
-    "mix_p1": "Uma tx de Mix toma <b>N</b> boxes ativas e as re-randomiza com um escalar fresco por entrada <c>y_i</c>. A <e>saída</e> na posição <c>i</c> é a <e>re-randomização permutada</e>:",
-    "mix_p2": "onde <c>π</c> é uma permutação de <c>0..N</c>. A propriedade crucial: se <c>b_i = [x_i] · a_i</c> na entrada, então <c>b'_i = [x_π(i)] · a'_i</c> na saída. A propriedade sobrevive à re-randomização, mas o pareamento <e>entrada → saída</e> fica oculto.",
-    "mix_p3": "Para provar que a tx preserva a propriedade sem revelar <e>qual</e> entrada possui, o emissor gera uma prova <b>sigma-OR de N vias</b> por entrada. Uma única prova Schnorr de \"conheço <c>x</c> para alguma saída\", verificada on-chain. O desafio Fiat–Shamir se liga a todas as N declarações de saída mais o datum de depósito da box, então a prova não pode ser redirecionada.",
-    "privacy_p1": "Após um único Mix de largura <c>N</c>, a probabilidade de um observador externo ligar corretamente sua entrada à sua saída é <c>1/N</c>. Após <c>k</c> rodadas independentes:",
-    "privacy_p2": "Em <b>N = 3</b> (o teto calibrado de Lovejoin no Preprod hoje) cada rodada extra divide a probabilidade de ligação por 3. Doze rodadas a empurram para baixo de 2⁻¹⁹, menos de uma chance em meio milhão. Vinte rodadas a colocam abaixo de 2⁻³¹.",
-    "withdraw_p1": "Para sair do pool você gasta a mix-box no ramo de proprietário do script <c>mix_box</c> com uma prova Schnorr de <c>b = [x] · a</c> ligada a <c>tx.outputs</c>. O provador escolhe um <c>k ∈ Z_r</c> uniforme e calcula:",
-    "withdraw_p2": "A substituição de saídas invalida o desafio, então o validador só pode gastar a box pelo caminho de gasto que o provador assinou. Não há assinatura de carteira na box em si. Apenas as saídas de destino são autorizadas pela carteira do emissor (que paga a taxa).",
-    "further_p": "Construção completa + provas de segurança no <paper>paper Sigmajoin</paper>. A implementação do validador on-chain vive em <c>contracts/validators/mix_logic.ak</c>; o builder off-chain é <c>offchain/src/tx/mix.ts</c>; os vetores KAT entre linguagens estão em <c>crypto/test-vectors/</c>."
+    "lede": "Um passeio de cinco minutos por como o Lovejoin realmente funciona. Os blocos de matemática estão lá se você quiser, mas o texto basta para acompanhar a forma. A argumentação de segurança completa vive no paper Sigmajoin.",
+    "primitives_h": "Os três blocos de construção",
+    "primitives_p": "Tudo no Lovejoin se compõe a partir destas três peças. Leia-as uma vez e o restante da página flui sem solavancos.",
+    "primitive_g": "<b>g</b>: o gerador padrão do grupo G1 do BLS12-381. Um ponto fixo na curva. A notação <c>[k] · g</c> significa \"somar g a si mesmo k vezes\", o que produz outro ponto na curva. O crucial: dado <c>[k] · g</c>, recuperar <c>k</c> é o <e>problema do logaritmo discreto</e>, considerado inviável neste tamanho de curva. Todo segredo no Lovejoin se esconde atrás desta lacuna.",
+    "primitive_x": "<b>x</b>: seu <e>segredo de proprietário</e>. Apenas um número aleatório, mantido privado. O Lovejoin deriva um por depósito de forma determinística a partir da assinatura da sua carteira, então você não os gerencia à mão e a mesma carteira os recupera em qualquer navegador.",
+    "primitive_hash": "<b>blake2b-256</b>: uma função hash. A usamos para a <e>transformação Fiat–Shamir</e>, que colapsa uma prova interativa (prover e verifier trocando mensagens) em um único dado que o prover pode publicar on-chain. Aparece duas vezes mais abaixo: na prova do Mix e na do Withdraw.",
+    "deposit_p1": "Um depósito escolhe um número aleatório novo <c>d</c> e tranca a denominação fixa no script da mix-box. A box carrega um datum inline <c>(a, b)</c>, dois pontos comprimidos de 48 bytes na curva:",
+    "deposit_p2": "Quem observa a chain vê <c>(a, b)</c> mas nada aprende sobre <c>x</c> ou <c>d</c>: ambos são uniformemente aleatórios e o logaritmo discreto é difícil. O ponto <c>b</c> é sua <e>marca de propriedade</e>. Apenas quem detém <c>x</c> pode depois provar que está atrás dele, e essa prova é o que destranca a box no saque.",
+    "mix_p1": "Uma tx de Mix escolhe <b>N</b> mix-boxes vivas do pool e re-aleatoriza cada uma com um escalar novo <c>y_i</c>. As saídas são <e>permutadas</e> sobre as entradas por uma permutação aleatória <c>π</c> de <c>0..N</c>:",
+    "mix_p2": "A propriedade crucial: se <c>b_i = [x_i] · a_i</c> do lado da entrada, então <c>b'_i = [x_π(i)] · a'_i</c> do lado da saída. O mesmo segredo <c>x</c> ainda destranca a box, mesmo que os bytes <c>(a, b)</c> tenham mudado por completo. Um observador externo vê N entradas e N saídas mas não pode dizer qual entrada virou qual saída.",
+    "mix_p3": "Claro que a tx tem que <e>provar</e> que a re-aleatorização é honesta; senão um submetedor malicioso poderia escrever saídas-lixo e roubar os fundos de todos. Cada entrada é acompanhada de uma prova <b>sigma-OR de N vias</b>: uma prova de conhecimento zero não interativa de que esta entrada foi re-aleatorizada para uma das N saídas, sem dizer <e>qual</e>. A testemunha do ramo verdadeiro é o escalar novo <c>y_i</c>; os outros ramos são simulados. Com uma prova por entrada, toda saída é coberta, e o argumento de propriedade lá em cima se sustenta pelo lote inteiro. Fiat–Shamir liga as provas às saídas específicas desta tx, então elas não podem ser transportadas para outra.",
+    "privacy_p1": "Depois de um único Mix de largura <c>N</c>, o melhor palpite de um observador externo sobre qual saída é a sua é <c>1/N</c>. Mixes se compõem: <c>k</c> rodadas independentes empurram a probabilidade de vínculo geometricamente para baixo:",
+    "privacy_p2": "Calibração atual do Lovejoin no Preprod: <b>N = 3</b> pelo fee shard compartilhado (a rota anônima de carteira), ou <b>N = 4</b> quando o submetedor paga a taxa da própria carteira. O teto é uma preocupação de orçamento de CPU do validador, não de segurança. Em N = 3, dez rodadas levam o vínculo a cerca de um em 60.000, e vinte rodadas a cerca de um em 3,5 bilhões. Em N = 4, dez rodadas te levam a cerca de um em um milhão, e vinte rodadas a cerca de um em um trilhão.",
+    "withdraw_p1": "Para sair do pool, você gasta a mix-box no ramo de proprietário do script <c>mix_box</c> com uma <e>prova de Schnorr</e> de que conhece o <c>x</c> por trás de <c>b = [x] · a</c>. Schnorr é o protocolo sigma mais simples: o prover compromete um ponto aleatório, o verifier desafia, o prover responde. Fiat–Shamir substitui o desafio do verifier por um hash, transformando toda a troca em um único dado:",
+    "withdraw_p2": "O hash que produz <c>c</c> cobre <c>tx.outputs</c>, o que significa que a prova fica atada aos endereços de destino exatos que você assinou. Substituir saídas invalida <c>c</c>, então um submetedor malicioso não pode redirecionar seu saque para algum lugar que você não pediu. Não há assinatura de carteira na própria box; apenas as saídas de destino são autorizadas na tx pela carteira do submetedor (que paga a taxa).",
+    "further_p": "Construção completa + provas de segurança no <paper>paper Sigmajoin</paper>. O verifier on-chain está em <c>contracts/validators/mix_logic.ak</c>; o builder off-chain é <c>offchain/src/tx/mix.ts</c>; os vetores de teste multi-linguagem estão em <c>crypto/test-vectors/</c>."
   },
   "vault": {
     "title": "Cofre",
-    "eyebrow": "Cofre derivado da carteira",
     "lede": "Assine uma única mensagem com sua carteira. O Lovejoin deriva cada secret de owner deterministicamente a partir dessa assinatura. Recuperar em um navegador novo é um clique. Por padrão, nenhuma frase para anotar.",
     "lock": "Trancar",
     "locked_title": "Cofre trancado",
@@ -370,7 +377,14 @@
     "recover_unlocking": "Derivando a seed…",
     "recover_strength_weak": "Fraca demais",
     "recover_strength_fair": "Razoável",
-    "recover_strength_strong": "Forte"
+    "recover_strength_strong": "Forte",
+    "eyebrow": "Passo III · sair do pool",
+    "eyebrow_recovery": "Passo III · sair do pool (recuperação)",
+    "pagination_aria": "Paginação da lista de boxes do cofre",
+    "page_indicator": "Página {{current}} de {{total}}",
+    "prev_page": "Anterior",
+    "next_page": "Próxima",
+    "recover_strength_announce_prefix": "Força da senha: "
   },
   "secret_card": {
     "title": "Salve este secret agora",
@@ -394,5 +408,8 @@
     "not_found": "Nenhuma caixa encontrada para essa ref. Pode ter sido sacada, misturada ou nunca importada.",
     "back_to_vault": "Voltar ao cofre",
     "preconditions_missing": "Conecte uma carteira e desbloqueie o cofre para sacar."
+  },
+  "a11y": {
+    "skip_to_main": "Pular para o conteúdo principal"
   }
 }

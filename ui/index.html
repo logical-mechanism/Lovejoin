@@ -2,15 +2,45 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <meta name="referrer" content="no-referrer" />
     <meta name="color-scheme" content="dark" />
-    <meta name="theme-color" content="#0c0c0e" />
+    <meta name="theme-color" content="#0a0a0c" />
+    <meta name="format-detection" content="telephone=no" />
+
+    <title>Lovejoin · privacy mixer on Cardano</title>
+    <meta
+      name="description"
+      content="Lovejoin is a Cardano-native privacy mixer. Deposit a fixed denomination, mix it with N-way sigma-OR re-randomization, and withdraw to a fresh address. Permissionless. No operator. Currently in alpha on Preprod."
+    />
+    <link rel="canonical" href="https://lovejo.in/" />
+
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-    <title>Lovejoin — privacy mixer on Cardano</title>
+
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://lovejo.in/" />
+    <meta property="og:title" content="Lovejoin · privacy mixer on Cardano" />
+    <meta
+      property="og:description"
+      content="A Cardano-native privacy mixer using N-way sigma-OR re-randomization. Deposit in public, withdraw in private. Alpha on Preprod."
+    />
+    <meta property="og:site_name" content="Lovejoin" />
+    <meta property="og:image" content="https://lovejo.in/favicon.svg" />
+
+    <meta name="twitter:card" content="summary" />
+    <meta name="twitter:title" content="Lovejoin · privacy mixer on Cardano" />
+    <meta
+      name="twitter:description"
+      content="A Cardano-native privacy mixer using N-way sigma-OR re-randomization. Deposit in public, withdraw in private."
+    />
+    <meta name="twitter:image" content="https://lovejo.in/favicon.svg" />
   </head>
   <body>
     <div id="root"></div>
+    <noscript>
+      Lovejoin requires JavaScript to build and submit transactions. Please
+      enable JavaScript and reload.
+    </noscript>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

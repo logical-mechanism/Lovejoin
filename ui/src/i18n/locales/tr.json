@@ -13,7 +13,8 @@
     "tx_hash": "Tx",
     "address": "Adres",
     "amount": "Tutar",
-    "fee": "Ücret"
+    "fee": "Ücret",
+    "copy_value": "{{value}}'ı panoya kopyala"
   },
   "page_title": {
     "app": "Lovejoin",
@@ -118,7 +119,6 @@
   "wallet": {
     "modal_title": "Bir cüzdan seçin",
     "modal_eyebrow": "CIP-30",
-    "modal_lede": "Cüzdanınız üç şey yapar: kasanızı türetmek için bir imza ve her yatırım ve çekimin imzası. Karıştırma tx'inde asla görünmez.",
     "scanning": "Yüklü cüzdanlar taranıyor…",
     "no_wallets_title": "Cüzdan bulunamadı",
     "no_wallets": "Lace, Eternl, Nami veya Flint kurun ve sayfayı yeniden yükleyin.",
@@ -133,12 +133,13 @@
     "disconnect_eyebrow": "Cüzdan",
     "disconnect_title": "Cüzdan bağlantısı kesilsin mi?",
     "disconnect_lede": "Oturum kasası kilitlenir ve bir sonraki bağlantıda tekrar imza istenir. Kutular etkilenmez, zincirde kalır.",
-    "disconnect_confirm": "Bağlantıyı kes"
+    "disconnect_confirm": "Bağlantıyı kes",
+    "connect_to": "{{name}}'a bağlan",
+    "list_aria_label": "Yüklü cüzdanlar",
+    "modal_lede": "Cüzdanınız varsayılan olarak üç şey yapar: kasanızı türetmek için bir imza, ayrıca her yatırım ve her çekim için bir imza. Mix tx'leri shard modunda (varsayılan) cüzdana anonimdir, böylece cüzdanınız tx'in tamamen dışında kalır."
   },
   "pool": {
     "section_title": "Karıştır",
-    "eyebrow": "Pool · pool genelinde seçim",
-    "lede": "Pool'u herkes karıştırabilir. Her karıştırma N pool kutusunu yeniden rastgeleştirir. Ücret paylaşılan ücret shard'ından (cüzdanınız tx'in dışında kalır) ya da cüzdanınızdan doğrudan (cüzdanınız tx'te görünür) ödenebilir.",
     "size": "Pool boyutu",
     "estimated_mixes_available": "Kullanılabilir karıştırma sayısı",
     "mix_n_random_boxes": "{{n}} rastgele kutuyu karıştır",
@@ -161,16 +162,12 @@
     "pool_loaded": "{{count}} pool kutusu yüklendi.",
     "fee_payer_label": "Ücreti ödeyen",
     "fee_payer_shard": "Ücret shard'ı",
-    "fee_payer_shard_hint": "Varsayılan. Paylaşılan ücret havuzundan çeker. Zincir üstü max_fee_per_mix sınırlıdır.",
     "fee_payer_wallet": "Cüzdan",
-    "fee_payer_wallet_hint": "Gönderici doğrudan öder. Zincir üstü sınır yok ama cüzdan kimliği tx'te görünür.",
     "tx_preview_title": "İşlem önizlemesi",
     "tx_preview_fee_shard": "Ücret fee_contract shard'ından ödenir. Teminatı yapılandırılmış servis sağlar. Cüzdanınız bu tx'e dahil olmaz.",
-    "tx_preview_fee_wallet": "Ücreti cüzdanınız öder. Teminatı yapılandırılmış servis sağlar. Cüzdanınız tx'te görünür.",
     "review_title": "İşlem önizlemesi",
     "review_width": "Karıştırma genişliği",
     "review_linkage": "Bağlanma",
-    "review_linkage_value": "Tur başına 1/{{n}} → k tur sonra (1/{{n}})^k",
     "review_selection": "Pool seçimi",
     "review_selection_loading": "Pool taranıyor…",
     "review_selection_value": "{{pool}} aktif arasından rastgele {{n}} kutu",
@@ -178,20 +175,26 @@
     "review_fee_path_shard": "Ücret shard'ı · cüzdanınız tx'te değil",
     "review_fee_path_wallet": "Cüzdanınız · cüzdan kimliğiniz tx'te",
     "review_collateral": "Teminat",
-    "review_collateral_value": "Yapılandırılmış teminat servisi sağlar",
     "empty_title": "Pool boş",
     "empty_hint": "Bu ağda henüz hiç kutu yatırılmadı. Pool'u başlatmak için bir yatırım yapın. En az 2 aktif kutu olduğunda herkes karıştırabilir.",
     "empty_cta": "Yatırım yap",
     "confirm_eyebrow": "Son kontrol",
     "confirm_title": "Karıştırma tx'ini onayla",
-    "confirm_lede_shard": "Lovejoin N rastgele kutu seçecek, teminat isteyecek ve karıştırma tx'ini gönderecek. Shard modunda hiçbir şey imzalamazsınız. Onaylandıktan sonra otomatik ilerler.",
-    "confirm_lede_wallet": "Lovejoin N rastgele kutu seçecek, teminat isteyecek ve karıştırma tx'ini gönderecek. Cüzdanınız tx'te yer alacak ve ücreti doğrudan ödeyecek.",
-    "confirm_submit": "Onayla ve gönder"
+    "confirm_submit": "Onayla ve gönder",
+    "eyebrow": "Adım II · havuzu karıştır",
+    "lede": "Havuzu herkes karıştırabilir; operatör yok. Her Mix tx tek seferde N havuz kutusunu yeniden rastgeleleştirir ve iki şekilde ödeme yapabilirsin. Paylaşılan fee shard'dan öde, cüzdanın tx'in tamamen dışında kalır (cüzdan-anonim). Ya da kendi cüzdanından öde; tx daha hızlı olur ama cüzdan kimliğini taşır.",
+    "fee_payer_shard_hint": "Varsayılan. Ücret paylaşılan zincir-üstü havuzdan gelir (mix başına {{cap}} ADA tavanlı), kolateral ise yapılandırılmış kolateral hizmetinden. Cüzdanın tx'in tamamen dışında kalır.",
+    "fee_payer_wallet_hint": "Cüzdanın ücreti öder ve kolateralı sağlar. Zincir-üstü tavan yok, ama cüzdan kimliğin tx'e düşer.",
+    "tx_preview_fee_wallet": "Ücreti cüzdanın öder, kolateralı da cüzdanın sağlar. Cüzdan kimliğin tx'tedir.",
+    "review_collateral_value_shard": "Yapılandırılmış kolateral hizmeti tarafından sağlanır",
+    "review_collateral_value_wallet": "Bağlı cüzdanın tarafından sağlanır",
+    "review_linkage_value": "Tur başına 1/{{n}}",
+    "confirm_lede_shard": "Lovejoin rastgele N kutu seçer, yapılandırılmış servisten kolateral ister ve Mix tx'ini gönderir. Shard modunda hiçbir şey imzalamazsın; cüzdan tx'in dışında kalır.",
+    "confirm_lede_wallet": "Lovejoin rastgele N kutu seçer ve Mix tx'ini gönderir. Cüzdanın ücreti öder, kolateralı sağlar ve imzalar."
   },
   "deposit": {
     "section_title": "Yatırım",
     "eyebrow": "Adım I · pool'a girmek",
-    "lede": "Sabit nominali yeni bir karıştırma kutusunda kilitleyin. Pool deterministiktir. Cüzdanınız ilk açılışta bir Lovejoin sahip anahtarı türetir; aynı cüzdan her tarayıcıda her yatırımı geri yükler.",
     "rounds_label": "Karıştırma turu",
     "rounds_help": "Daha çok tur = daha çok gizlilik. Gelecekteki karıştırmalar için ücret shard'ını besler.",
     "count_label": "tx başına kutu",
@@ -205,7 +208,8 @@
     "tx_preview_title": "İşlem önizlemesi",
     "tx_preview_copy": "Cüzdanınız {{denom}} ADA nominalini ve ücret shard'ına küçük bir takviyeyi öder. Cüzdan imzası gereklidir.",
     "tx_preview_copy_bulk": "Cüzdanınız {{total}} ADA ({{count}} × {{denom}} ADA) ve ücret shard'ına takviye öder. Tüm parti için tek imza.",
-    "index_help": "Bu yatırımın sahip sırrı için kasa sayacı."
+    "index_help": "Bu yatırımın sahip sırrı için kasa sayacı.",
+    "lede": "Sabit kupürü yeni bir mix-box'a kilitle. Cüzdanın ilk kilit açımında bir Lovejoin sahip anahtarı türetir, böylece aynı cüzdan her yatırımı herhangi bir tarayıcıda geri kazanır. Yazıp saklayacak ek bir öbek yok."
   },
   "donate": {
     "section_title": "Ücret havuzuna bağış",
@@ -296,7 +300,11 @@
     "net_testnet": "testnet",
     "net_mainnet": "mainnet",
     "empty_title": "Çekilecek yatırılmış kutu yok.",
-    "empty_hint": "Bir yatırım yapın ve onaylanmasını bekleyin. Kutu bir blok içinde burada görünecek."
+    "empty_hint": "Bir yatırım yapın ve onaylanmasını bekleyin. Kutu bir blok içinde burada görünecek.",
+    "column_b_long": "Kutunun açık anahtarı b",
+    "column_index_long": "Kasa indeksi: bu sahip sırrı için türetme sayacı",
+    "column_select": "Kutu seç",
+    "table_caption": "Çekim için uygun sahip olduğun mix-box'lar."
   },
   "collateral_provider": {
     "ok": "Teminat sağlayıcısı çevrim içi",
@@ -318,31 +326,30 @@
   "protocol": {
     "eyebrow": "Sigmajoin · BLS12-381 · Plutus V3",
     "title": "Protokol",
-    "lede": "Lovejoin'in arkasındaki matematiğe beş dakikalık bir tur. Tam güvenlik argümanı için Sigmajoin makalesini okuyun; bu sayfa uygulayıcı turudur.",
-    "primitives_h": "İlkel yapılar",
-    "primitives_p": "Lovejoin üç tane kullanır:",
     "deposit_h": "Yatırım",
     "mix_h": "Karıştır",
     "privacy_h": "Bağlanma",
     "withdraw_h": "Çekim",
     "further_h": "Daha fazlası",
-    "primitive_g": "<b>G</b>: BLS12-381 G1'in üreteci, mertebesi <c>r</c> olan eğri alt grubu.",
-    "primitive_x": "<b>x ∈ Z_r</b>: sahip sırrınız. Cüzdanınızın CIP-8 imzasından deterministik biçimde türetilir, ayrıca yedeklemeye gerek kalmaz.",
-    "primitive_hash": "<b>blake2b-256</b>: hem zincir üstü Fiat–Shamir için hem de bu UI'nın kasa tohumu için kullanılan özet işlevi.",
-    "deposit_p1": "Bir yatırım taze bir rastgelelik <c>d</c> seçer ve sabit denominasyonu inline datum ile mix-box betiğine kilitler. İki 48 baytlık sıkıştırılmış G1 noktası, <c>b</c> sahiplik işaretiniz olarak iş görür:",
-    "deposit_p2": "Zinciri izleyen herkes <c>(a, b)</c>'yi görür ama <c>x</c> ya da <c>d</c> hakkında bir şey öğrenemez. Her ikisi de düzgün rastgele örneklerdir ve ayrık logaritma zordur.",
-    "mix_p1": "Mix tx, <b>N</b> aktif kutuyu alır ve her giriş için taze bir skaler <c>y_i</c> ile yeniden rastgeleleştirir. <c>i</c> konumundaki <e>çıktı</e>, <e>permüte edilmiş yeniden rastgeleleştirme</e>dir:",
-    "mix_p2": "burada <c>π</c>, <c>0..N</c>'in bir permütasyonudur. Kritik özellik: girişte <c>b_i = [x_i] · a_i</c> ise çıkışta <c>b'_i = [x_π(i)] · a'_i</c>. Sahiplik yeniden rastgeleleştirmeden sağ çıkar, ama <e>giriş → çıkış</e> eşleşmesi gizlenir.",
-    "mix_p3": "Tx'in <e>hangi</e> girişe sahip olduğunu açıklamadan sahipliği koruduğunu kanıtlamak için gönderen, her giriş için bir <b>N-yollu sigma-OR</b> kanıtı üretir. \"Bir çıktı için <c>x</c>'i biliyorum\" diyen tek bir Schnorr kanıtı, zincir üstünde doğrulanır. Fiat–Shamir meydan okuması tüm N çıktı ifadelerine ve kutunun yatırım datum'una bağlanır, böylece kanıt yeniden hedeflenemez.",
-    "privacy_p1": "Genişlik <c>N</c>'lik tek bir Mix'ten sonra, dış bir gözlemcinin girdinizi çıktınızla doğru eşleştirme olasılığı <c>1/N</c>'dir. Bağımsız <c>k</c> turdan sonra:",
-    "privacy_p2": "<b>N = 3</b>'te (bugün Preprod'da Lovejoin'in kalibre tavanı) her ek tur bağ kurma olasılığını 3'e böler. On iki tur onu 2⁻¹⁹'un, yani yarım milyonda birden az bir şansın altına indirir. Yirmi tur onu 2⁻³¹'in altına indirir.",
-    "withdraw_p1": "Havuzdan çıkmak için, <c>tx.outputs</c>'a bağlı <c>b = [x] · a</c>'nın Schnorr kanıtıyla, <c>mix_box</c> betiğinin sahip dalında mix-box'u harcarsınız. Kanıtlayıcı düzgün bir <c>k ∈ Z_r</c> seçer ve hesaplar:",
-    "withdraw_p2": "Çıktı değişimi meydan okumayı geçersiz kılar, dolayısıyla doğrulayıcı kutuyu yalnızca kanıtlayıcının imzaladığı harcama yolunda harcayabilir. Kutunun kendisinde cüzdan imzası yoktur. Yalnızca hedef çıktıları gönderenin cüzdanı tarafından (ücreti ödeyen) yetkilendirilir.",
-    "further_p": "Tam yapı + güvenlik kanıtları <paper>Sigmajoin makalesinde</paper>. Zincir üstü doğrulayıcı uygulaması <c>contracts/validators/mix_logic.ak</c>'ta yaşar; zincir dışı oluşturucu <c>offchain/src/tx/mix.ts</c>'tir; diller arası KAT vektörleri <c>crypto/test-vectors/</c>'dadır."
+    "lede": "Lovejoin'ün gerçekten nasıl çalıştığına dair beş dakikalık bir tur. Matematik blokları isteyenler için orada, ama metin tek başına da formu takip etmeye yetiyor. Tam güvenlik argümanı Sigmajoin makalesinde yaşıyor.",
+    "primitives_h": "Üç yapı taşı",
+    "primitives_p": "Lovejoin'deki her şey bu üç parçadan oluşur. Bir kez göz gezdirin, sayfanın geri kalanı pürüzsüz okunur.",
+    "primitive_g": "<b>g</b>: BLS12-381'in G1 grubunun standart üreteci. Eğri üzerinde sabit bir nokta. <c>[k] · g</c> notasyonu \"g'yi kendisine k kez ekle\" anlamına gelir ve eğri üzerinde başka bir nokta üretir. Kritik olan: <c>[k] · g</c> verildiğinde <c>k</c>'yı geri elde etmek <e>ayrık logaritma problemi</e>'dir, bu eğri boyutunda yapılamaz kabul edilir. Lovejoin'deki her sır bu boşluğun arkasına saklanır.",
+    "primitive_x": "<b>x</b>: <e>sahip sırrınız</e>. Sadece rastgele bir sayı, gizli tutulur. Lovejoin her depozit için cüzdan imzanızdan deterministik biçimde birini türetir, böylece elle yönetmezsiniz ve aynı cüzdan herhangi bir tarayıcıda hepsini geri kazanır.",
+    "primitive_hash": "<b>blake2b-256</b>: bir hash fonksiyonu. Bunu <e>Fiat–Shamir dönüşümü</e> için kullanırız; bu dönüşüm, etkileşimli bir kanıtı (prover ve verifier mesaj alışverişi yaparken) zincir üzerine konabilen tek bir veri parçasına çöker. İki kez aşağıda görünür: Mix kanıtında ve Withdraw kanıtında.",
+    "deposit_p1": "Bir depozit taze rastgele bir sayı <c>d</c> seçer ve sabit kupürü mix-box scriptine kilitler. Box, eğri üzerinde 48-baytlık iki sıkıştırılmış nokta olan <c>(a, b)</c> inline datum'unu taşır:",
+    "deposit_p2": "Zinciri izleyen herkes <c>(a, b)</c>'yi görür ama <c>x</c> veya <c>d</c> hakkında hiçbir şey öğrenmez: ikisi de düzgün rastgele ve ayrık logaritma zordur. <c>b</c> noktası sizin <e>sahiplik işaretiniz</e>'dir. Yalnızca <c>x</c>'i tutan kişi sonradan onun arkasında olduğunu kanıtlayabilir; ve çekim sırasında box'ı çözen tam da o kanıttır.",
+    "mix_p1": "Bir Mix tx havuzdan <b>N</b> canlı mix-box seçer ve her birini taze bir skaler <c>y_i</c> ile yeniden rastgeleleştirir. Çıktılar girdiler üzerinde rastgele bir <c>0..N</c> permütasyonu <c>π</c> ile <e>permüte edilir</e>:",
+    "mix_p2": "Kritik özellik: girdi tarafında <c>b_i = [x_i] · a_i</c> ise, çıktı tarafında <c>b'_i = [x_π(i)] · a'_i</c>'dir. <c>(a, b)</c> baytları tamamen değişmiş olsa da, aynı <c>x</c> sırrı box'ı hâlâ açar. Dış bir gözlemci N girdi ve N çıktı görür ama hangi girdinin hangi çıktıya dönüştüğünü söyleyemez.",
+    "mix_p3": "Elbette tx'in yeniden rastgeleleştirmenin dürüst olduğunu <e>kanıtlaması</e> gerekir; aksi takdirde kötü niyetli bir gönderici çöp çıktılar yazıp herkesin parasını çalabilir. Her girdiye bir <b>N-yollu sigma-OR</b> kanıtı eşlik eder: bu girdinin N çıktıdan birine yeniden rastgeleleştirildiğine dair etkileşimsiz, sıfır bilgi kanıtı, hangisi olduğunu söylemeden <e>hangi</e> olduğunu açığa vurmaz. Doğru dalın tanığı taze skaler <c>y_i</c>'dir; diğer dallar simüle edilir. Girdi başına bir kanıt ile her çıktı kapsanır ve yukarıdaki sahiplik argümanı tüm batch boyunca taşınır. Fiat–Shamir kanıtları bu tx'in spesifik çıktılarına bağlar; başka bir tx'e taşınamazlar.",
+    "privacy_p1": "Genişliği <c>N</c> olan tek bir Mix sonrasında, dış bir gözlemcinin sizin çıktınız hakkındaki en iyi tahmini <c>1/N</c>'dir. Mix'ler bileşir: <c>k</c> bağımsız tur bağlanma olasılığını geometrik olarak aşağı çeker:",
+    "privacy_p2": "Lovejoin'in bugünkü Preprod kalibrasyonu: paylaşılan fee shard üzerinden <b>N = 3</b> (cüzdan-anonim yol) veya gönderici ücreti kendi cüzdanından öderse <b>N = 4</b>. Üst sınır validator için bir CPU bütçesi meselesidir, güvenlik değil. N = 3'te on tur bağlanmayı yaklaşık 60.000'de bire ve yirmi tur yaklaşık 3,5 milyarda bire indirir. N = 4'te on tur sizi yaklaşık bir milyonda bire, yirmi tur yaklaşık bir trilyonda bire taşır.",
+    "withdraw_p1": "Havuzdan çıkmak için, <c>b = [x] · a</c>'nın arkasındaki <c>x</c>'i bildiğinize dair bir <e>Schnorr kanıtı</e> ile <c>mix_box</c> scriptinin sahip dalında mix-box'ı harcarsınız. Schnorr en basit sigma protokolüdür: prover rastgele bir noktaya commit eder, verifier meydan okur, prover yanıtlar. Fiat–Shamir verifier'ın meydan okumasını bir hash ile değiştirerek tüm alışverişi tek bir veri parçası hâline getirir:",
+    "withdraw_p2": "<c>c</c>'yi üreten hash <c>tx.outputs</c>'u kapsar; bu da kanıtın imzaladığınız tam hedef adreslere bağlandığı anlamına gelir. Çıktıları değiştirmek <c>c</c>'yi geçersiz kılar, dolayısıyla kötü niyetli bir gönderici çekiminizi istemediğiniz bir yere yönlendiremez. Box'ın kendisinde cüzdan imzası yoktur; yalnızca hedef çıktılar gönderici cüzdanı tarafından (ücreti ödeyen) tx'te yetkilendirilir.",
+    "further_p": "Tam yapı + güvenlik kanıtları <paper>Sigmajoin makalesinde</paper>. On-chain doğrulayıcı <c>contracts/validators/mix_logic.ak</c>'tedir; off-chain builder <c>offchain/src/tx/mix.ts</c>'dir; çapraz dil test vektörleri <c>crypto/test-vectors/</c>'dadır."
   },
   "vault": {
     "title": "Kasa",
-    "eyebrow": "Cüzdan türevli kasa",
     "lede": "Cüzdanınızla tek bir mesajı imzalayın. Lovejoin her sahip sırrını bu imzadan deterministik olarak türetir. Yeni bir tarayıcıda kurtarma tek tıklamadır. Varsayılanda yazılacak bir cümle yoktur.",
     "lock": "Kilitle",
     "locked_title": "Kasa kilitli",
@@ -370,7 +377,14 @@
     "recover_unlocking": "Tohum türetiliyor…",
     "recover_strength_weak": "Çok zayıf",
     "recover_strength_fair": "Orta",
-    "recover_strength_strong": "Güçlü"
+    "recover_strength_strong": "Güçlü",
+    "eyebrow": "Adım III · havuzdan ayrıl",
+    "eyebrow_recovery": "Adım III · havuzdan ayrıl (kurtarma)",
+    "pagination_aria": "Kasa kutu listesi sayfalama",
+    "page_indicator": "Sayfa {{current}} / {{total}}",
+    "prev_page": "Önceki",
+    "next_page": "Sonraki",
+    "recover_strength_announce_prefix": "Parola gücü: "
   },
   "secret_card": {
     "title": "Bu sırrı şimdi kaydedin",
@@ -394,5 +408,8 @@
     "not_found": "Bu ref'te kutu bulunamadı. Çekilmiş, karıştırılmış ya da hiç içe aktarılmamış olabilir.",
     "back_to_vault": "Kasaya dön",
     "preconditions_missing": "Çekim için cüzdan bağlayın ve kasayı açın."
+  },
+  "a11y": {
+    "skip_to_main": "Ana içeriğe geç"
   }
 }

@@ -13,7 +13,8 @@
     "tx_hash": "Tx",
     "address": "地址",
     "amount": "数量",
-    "fee": "手续费"
+    "fee": "手续费",
+    "copy_value": "将 {{value}} 复制到剪贴板"
   },
   "page_title": {
     "app": "Lovejoin",
@@ -118,7 +119,6 @@
   "wallet": {
     "modal_title": "选择钱包",
     "modal_eyebrow": "CIP-30",
-    "modal_lede": "你的钱包做三件事：派生保险库时签一次名，存入和提取各自签名一次。它从不参与混币交易。",
     "scanning": "正在扫描已安装的钱包…",
     "no_wallets_title": "未检测到钱包",
     "no_wallets": "请安装 Lace、Eternl、Nami 或 Flint，然后刷新此页面。",
@@ -133,12 +133,13 @@
     "disconnect_eyebrow": "钱包",
     "disconnect_title": "断开钱包连接？",
     "disconnect_lede": "会话保险库将被锁定，下次连接会再次请求签名。盒子不受影响，它们存在链上。",
-    "disconnect_confirm": "断开连接"
+    "disconnect_confirm": "断开连接",
+    "connect_to": "连接到 {{name}}",
+    "list_aria_label": "已安装的钱包",
+    "modal_lede": "你的钱包默认做三件事：一次签名用于派生你的金库，以及每次存款与每次取款各一次签名。Mix 交易在 shard 模式（默认）下对钱包匿名，所以你的钱包完全不在交易中出现。"
   },
   "pool": {
     "section_title": "混币",
-    "eyebrow": "资金池 · 全池选择",
-    "lede": "任何人都可以混币。每次混币会重新随机化 N 个池中盒子。手续费可由共享分片支付（这样钱包不会出现在交易中），或由你的钱包直接支付（钱包将出现在交易中）。",
     "size": "资金池规模",
     "estimated_mixes_available": "可用混币次数",
     "mix_n_random_boxes": "随机混币 {{n}} 个盒子",
@@ -161,16 +162,12 @@
     "pool_loaded": "已加载 {{count}} 个池中盒子。",
     "fee_payer_label": "手续费支付方",
     "fee_payer_shard": "手续费分片",
-    "fee_payer_shard_hint": "默认。从共享手续费池支取。链上 max_fee_per_mix 限额。",
     "fee_payer_wallet": "钱包",
-    "fee_payer_wallet_hint": "提交者直接支付。无链上限额，但你的钱包身份会出现在交易中。",
     "tx_preview_title": "交易预览",
     "tx_preview_fee_shard": "由 fee_contract 分片支付手续费。抵押品由配置的服务提供。你的钱包不参与此交易。",
-    "tx_preview_fee_wallet": "由你的钱包支付手续费。抵押品由配置的服务提供。你的钱包将出现在交易中。",
     "review_title": "交易预览",
     "review_width": "混币宽度",
     "review_linkage": "可链接性",
-    "review_linkage_value": "每轮 1/{{n}} → 经过 k 轮后 (1/{{n}})^k",
     "review_selection": "资金池选择",
     "review_selection_loading": "正在扫描资金池…",
     "review_selection_value": "从 {{pool}} 个活跃盒子中随机选取 {{n}} 个",
@@ -178,20 +175,26 @@
     "review_fee_path_shard": "手续费分片 · 你的钱包不在交易中",
     "review_fee_path_wallet": "你的钱包 · 你的钱包身份在交易中",
     "review_collateral": "抵押品",
-    "review_collateral_value": "由配置的抵押品服务提供",
     "empty_title": "资金池为空",
     "empty_hint": "此网络上尚未存入任何盒子。先做一次存入来启动资金池。一旦至少有 2 个盒子在线，任何人都可以混币。",
     "empty_cta": "去做一次存入",
     "confirm_eyebrow": "最终确认",
     "confirm_title": "确认混币交易",
-    "confirm_lede_shard": "Lovejoin 将随机选取 N 个盒子、请求抵押品并提交混币交易。在分片模式下你不签任何名。一旦确认即自动执行。",
-    "confirm_lede_wallet": "Lovejoin 将随机选取 N 个盒子、请求抵押品并提交混币交易。你的钱包将出现在交易中并直接支付手续费。",
-    "confirm_submit": "确认并提交"
+    "confirm_submit": "确认并提交",
+    "eyebrow": "第二步 · 混合池子",
+    "lede": "任何人都可以混池；没有运营方。每笔 Mix 交易一次性把 N 个池中盒子重新随机化，付费方式有两种。从共享 fee shard 付，钱包就完全不在交易里（对钱包匿名）。或者从你自己的钱包付，交易更快，但会带上你的钱包身份。",
+    "fee_payer_shard_hint": "默认。手续费来自链上的共享池（每次混合上限 {{cap}} ADA），抵押来自所配置的抵押服务。你的钱包完全不在交易中出现。",
+    "fee_payer_wallet_hint": "你的钱包支付手续费并提供抵押。链上无上限，但你的钱包身份会出现在交易里。",
+    "tx_preview_fee_wallet": "手续费由你的钱包支付，抵押也由你的钱包提供。你的钱包身份会出现在交易里。",
+    "review_collateral_value_shard": "由所配置的抵押服务提供",
+    "review_collateral_value_wallet": "由你已连接的钱包提供",
+    "review_linkage_value": "每轮 1/{{n}}",
+    "confirm_lede_shard": "Lovejoin 会随机挑选 N 个盒子，向所配置的服务请求抵押，然后提交 Mix 交易。在 shard 模式下你不签名任何东西；钱包不出现在交易中。",
+    "confirm_lede_wallet": "Lovejoin 会随机挑选 N 个盒子并提交 Mix 交易。你的钱包将支付手续费、提供抵押并签名。"
   },
   "deposit": {
     "section_title": "存入",
     "eyebrow": "第 I 步 · 进入资金池",
-    "lede": "将固定面额锁入一个全新的混币盒子。资金池是确定性的。你的钱包在首次解锁时派生 Lovejoin 所有者密钥，同一个钱包在任意浏览器都能恢复每一次存入。",
     "rounds_label": "混币轮数",
     "rounds_help": "轮数越高，隐私越好。同时为后续混币的手续费分片注资。",
     "count_label": "每笔交易的盒子数",
@@ -205,7 +208,8 @@
     "tx_preview_title": "交易预览",
     "tx_preview_copy": "你的钱包支付 {{denom}} ADA 面额，外加少量手续费分片补充金。需要钱包签名。",
     "tx_preview_copy_bulk": "你的钱包支付 {{total}} ADA（{{count}} × {{denom}} ADA），外加手续费分片补充金。整批仅需一次签名。",
-    "index_help": "用于此存入所有者密钥的保险库计数器。"
+    "index_help": "用于此存入所有者密钥的保险库计数器。",
+    "lede": "把固定面额锁进一个新的 mix-box。你的钱包在首次解锁时派生一个 Lovejoin 所有者密钥，因此同一个钱包在任何浏览器都能恢复你做过的每一笔存款。无需额外抄写助记短语。"
   },
   "donate": {
     "section_title": "向手续费池捐赠",
@@ -296,7 +300,11 @@
     "net_testnet": "testnet",
     "net_mainnet": "mainnet",
     "empty_title": "没有可提取的已存入盒子。",
-    "empty_hint": "请做一次存入并等待确认。盒子会在一个区块内出现于此。"
+    "empty_hint": "请做一次存入并等待确认。盒子会在一个区块内出现于此。",
+    "column_b_long": "盒子的公钥 b",
+    "column_index_long": "金库索引：该所有者密钥的派生计数器",
+    "column_select": "选择盒子",
+    "table_caption": "可用于提现的、归属于你的 mix-box。"
   },
   "collateral_provider": {
     "ok": "抵押品提供方在线",
@@ -318,31 +326,30 @@
   "protocol": {
     "eyebrow": "Sigmajoin · BLS12-381 · Plutus V3",
     "title": "协议",
-    "lede": "Lovejoin 背后数学的五分钟导览。完整的安全论证请阅读 Sigmajoin 论文；本页是面向实现者的速览。",
-    "primitives_h": "原语",
-    "primitives_p": "Lovejoin 用到三种：",
     "deposit_h": "存入",
     "mix_h": "混币",
     "privacy_h": "可链接性",
     "withdraw_h": "提取",
     "further_h": "延伸阅读",
-    "primitive_g": "<b>G</b>：BLS12-381 G1 的生成元，阶为 <c>r</c> 的曲线子群。",
-    "primitive_x": "<b>x ∈ Z_r</b>：你的所有者密钥。从你钱包的 CIP-8 签名确定性地派生，因此无需另行备份。",
-    "primitive_hash": "<b>blake2b-256</b>：用于链上 Fiat–Shamir 与本 UI 保险库种子的哈希函数。",
-    "deposit_p1": "存入会选取一个新的随机数 <c>d</c>，并以 inline datum 将固定面额锁入 mix-box 脚本。两个 48 字节的压缩 G1 点，其中 <c>b</c> 充当你的所有权标记：",
-    "deposit_p2": "任何观察链的人都能看到 <c>(a, b)</c>，却无法知道 <c>x</c> 或 <c>d</c>。两者都是均匀随机样本，离散对数难以求解。",
-    "mix_p1": "混币交易选取 <b>N</b> 个活跃盒子，并用每个输入新的标量 <c>y_i</c> 对其重新随机化。位置 <c>i</c> 处的<e>输出</e>是<e>经过置换的重新随机化</e>：",
-    "mix_p2": "其中 <c>π</c> 是 <c>0..N</c> 的一个置换。关键性质：若输入处 <c>b_i = [x_i] · a_i</c>，则输出处 <c>b'_i = [x_π(i)] · a'_i</c>。所有权在重新随机化中得以保留，但<e>输入 → 输出</e>的配对被隐藏。",
-    "mix_p3": "为了证明交易在不暴露<e>哪一个</e>输入归属下保留所有权，提交者为每个输入生成一个 <b>N 路 sigma-OR</b> 证明。一条 Schnorr 证明，宣称\"我知道某个输出对应的 <c>x</c>\"，并在链上验证。Fiat–Shamir 挑战绑定到全部 N 个输出陈述以及盒子的存入 datum，因此证明无法被重定向。",
-    "privacy_p1": "在宽度 <c>N</c> 的单次混币之后，外部观察者将你的输入正确链接到你的输出的概率为 <c>1/N</c>。在 <c>k</c> 次独立轮次之后：",
-    "privacy_p2": "在 <b>N = 3</b>（Lovejoin 当前在 Preprod 上的校准上限）下，每多一轮可链接性就除以 3。十二轮把它压到 2⁻¹⁹ 以下，不到五十万分之一；二十轮把它压到 2⁻³¹ 以下。",
-    "withdraw_p1": "要离开资金池，你需要用绑定到 <c>tx.outputs</c> 的 <c>b = [x] · a</c> 的 Schnorr 证明，在 <c>mix_box</c> 脚本的所有者分支花费混币盒子。证明者均匀地选取 <c>k ∈ Z_r</c>，并计算：",
-    "withdraw_p2": "更换输出会使挑战失效，因此验证器只能沿证明者签署的花费路径消费此盒子。盒子本身没有钱包签名。只有目的地输出由提交者钱包（支付手续费的那个）授权。",
-    "further_p": "完整构造与安全证明见 <paper>Sigmajoin 论文</paper>。链上验证器实现位于 <c>contracts/validators/mix_logic.ak</c>；链下构建器位于 <c>offchain/src/tx/mix.ts</c>；跨语言 KAT 向量位于 <c>crypto/test-vectors/</c>。"
+    "lede": "用五分钟过一遍 Lovejoin 实际是怎样工作的。下面的数学块可看可不看，仅凭文字也能跟上整体形状。完整的安全性论证在 Sigmajoin 论文里。",
+    "primitives_h": "三个基本构件",
+    "primitives_p": "Lovejoin 的一切都由这三块组成。先扫一遍，本页其余部分就读得顺。",
+    "primitive_g": "<b>g</b>：BLS12-381 的 G1 群的标准生成元。它是曲线上一个固定的点。记号 <c>[k] · g</c> 表示「把 g 自加 k 次」，得到曲线上另一个点。关键在于：给定 <c>[k] · g</c>，恢复 <c>k</c> 是<e>离散对数问题</e>，在该曲线规模下被认为不可行。Lovejoin 中的每一个秘密都藏在这个鸿沟之后。",
+    "primitive_x": "<b>x</b>：你的<e>所有者秘钥</e>。只是一个保密的随机数。Lovejoin 从你钱包的签名里确定性地为每次存款派生一个，所以你不用手动管理，同一个钱包在任何浏览器里都能恢复它们。",
+    "primitive_hash": "<b>blake2b-256</b>：一个哈希函数。我们用它做 <e>Fiat–Shamir 变换</e>——它把一个交互式证明（prover 与 verifier 互发消息）压缩成 prover 可以发布到链上的一段数据。下文会出现两次：在 Mix 证明里和 Withdraw 证明里。",
+    "deposit_p1": "一次存款选取一个新的随机数 <c>d</c>，把固定面额锁到 mix-box 脚本上。该 box 携带一个内嵌 datum <c>(a, b)</c>——曲线上两个 48 字节压缩点：",
+    "deposit_p2": "任何观察链的人都能看到 <c>(a, b)</c>，但学不到关于 <c>x</c> 或 <c>d</c> 的任何信息：两者都是均匀随机的，离散对数也很难。点 <c>b</c> 是你的<e>所有权标记</e>。只有掌握 <c>x</c> 的人才能在之后证明自己在它背后；提取时正是这个证明把 box 解开。",
+    "mix_p1": "一笔 Mix 交易从池中挑出 <b>N</b> 个活跃的 mix-box，用一个新的标量 <c>y_i</c> 重新随机化每一个。输出按一个 <c>0..N</c> 的随机置换 <c>π</c> 在输入之上被<e>置换</e>：",
+    "mix_p2": "关键性质：若输入端有 <c>b_i = [x_i] · a_i</c>，则输出端有 <c>b'_i = [x_π(i)] · a'_i</c>。同一个秘钥 <c>x</c> 仍能解开 box，尽管 <c>(a, b)</c> 字节已完全改变。外部观察者看到 N 个输入和 N 个输出，但说不出哪一笔输入变成了哪一笔输出。",
+    "mix_p3": "当然，交易必须<e>证明</e>重新随机化是诚实的；否则恶意提交者就可以写出垃圾输出、把所有人的资金偷走。每个输入都配一份 <b>N 路 sigma-OR</b> 证明：一份非交互零知识证明，说明这个输入被重新随机化到了 N 个输出之一，但不暴露<e>是哪一个</e>。真分支的见证是新的标量 <c>y_i</c>；其他分支被模拟。每个输入一份证明，意味着每个输出都被覆盖，上面的所有权论证就贯穿整个批次。Fiat–Shamir 把这些证明绑死到本笔交易的具体输出上，因此它们没法被搬到别的交易里去。",
+    "privacy_p1": "经过宽度为 <c>N</c> 的一次 Mix 之后，外部观察者对你的输出最好的猜测概率是 <c>1/N</c>。Mix 可以叠加：<c>k</c> 个独立轮次让关联概率以几何方式下降：",
+    "privacy_p2": "Lovejoin 当前在 Preprod 的标定：经由共享 fee shard 的 <b>N = 3</b>（钱包匿名路径），或在提交者用自己钱包付费时的 <b>N = 4</b>。这个上限是验证器 CPU 预算的问题，不是安全问题。N = 3 时，十轮把关联概率压到大约六万分之一，二十轮压到大约三十五亿分之一。N = 4 时，十轮把你带到大约百万分之一，二十轮到大约万亿分之一。",
+    "withdraw_p1": "要离开池，你在 <c>mix_box</c> 脚本的所有者分支上花掉这个 mix-box，并附上一个<e>Schnorr 证明</e>，说明你知道 <c>b = [x] · a</c> 背后的 <c>x</c>。Schnorr 是最简单的 sigma 协议：prover 承诺一个随机点，verifier 发出挑战，prover 应答。Fiat–Shamir 用一个哈希取代 verifier 的挑战，把整轮交互压成单一一段数据：",
+    "withdraw_p2": "产生 <c>c</c> 的那个哈希覆盖了 <c>tx.outputs</c>，意思是证明被绑定到你签名的那些精确目的地址上。换掉输出会让 <c>c</c> 失效，所以恶意提交者没法把你的提现重定向到你没要求的地方。box 本身没有钱包签名；只有目的输出由提交者钱包（支付手续费的那一方）在交易里授权。",
+    "further_p": "完整构造与安全性证明见 <paper>Sigmajoin 论文</paper>。链上验证器在 <c>contracts/validators/mix_logic.ak</c>；链下构造器是 <c>offchain/src/tx/mix.ts</c>；跨语言测试向量在 <c>crypto/test-vectors/</c>。"
   },
   "vault": {
     "title": "保险库",
-    "eyebrow": "由钱包派生的保险库",
     "lede": "用钱包签一条消息。Lovejoin 会从该签名确定性地派生出每一个所有者密钥。在新浏览器上恢复只需一次点击，默认无须抄写助记词。",
     "lock": "锁定",
     "locked_title": "保险库已锁定",
@@ -370,7 +377,14 @@
     "recover_unlocking": "派生种子中…",
     "recover_strength_weak": "太弱",
     "recover_strength_fair": "一般",
-    "recover_strength_strong": "强"
+    "recover_strength_strong": "强",
+    "eyebrow": "第三步 · 离开池子",
+    "eyebrow_recovery": "第三步 · 离开池子（恢复）",
+    "pagination_aria": "金库盒子列表分页",
+    "page_indicator": "第 {{current}} 页，共 {{total}} 页",
+    "prev_page": "上一页",
+    "next_page": "下一页",
+    "recover_strength_announce_prefix": "密码强度："
   },
   "secret_card": {
     "title": "现在保存这个密钥",
@@ -394,5 +408,8 @@
     "not_found": "找不到该 ref 的盒子。它可能已被提取、混走，或从未导入。",
     "back_to_vault": "返回保险库",
     "preconditions_missing": "请先连接钱包并解锁保险库再提取。"
+  },
+  "a11y": {
+    "skip_to_main": "跳转到主内容"
   }
 }

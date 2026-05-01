@@ -30,7 +30,11 @@
    * whisper spread is preserved so the title → body → caption hierarchy
    * still reads, just at a higher absolute baseline. */
   --color-muted: #bcb8b3;
-  --color-whisper: #78756f;
+  /* Whisper bumped from #78756f. Old value clocked ~3.97:1 against
+   * --color-surface, which fails WCAG AA (4.5:1) for normal text and
+   * was the contrast finding flagged by Lighthouse. New value lands at
+   * ~5.5:1 against surface and ~5.2:1 against ink, comfortably AA. */
+  --color-whisper: #8e8b85;
 
   /* No chromatic accent. The signal IS paper — high-contrast monochrome
    * is the differentiator now that every "modern dapp" reaches for the
@@ -109,6 +113,19 @@
     min-height: 100vh;
     display: grid;
     grid-template-rows: auto 1fr auto;
+    /* Without an explicit columns rule, the implicit grid column sizes
+     * to the widest descendant's intrinsic content, so a single
+     * non-wrapping `<pre>` deep inside the Protocol page would expand
+     * the whole page past the viewport on mobile. `minmax(0, 1fr)` is
+     * the standard escape hatch: 1fr keeps the column at the available
+     * width, the 0 floor lets it shrink below content size, and the
+     * inner overflow-x: auto on `.lj-math` keeps math scrollable
+     * inside its own box. `overflow-x: clip` is the belt-and-suspenders
+     * safety net for any other element that someday refuses to shrink;
+     * `clip` (vs `hidden`) does not create a scroll container, so the
+     * sticky header keeps working. */
+    grid-template-columns: minmax(0, 1fr);
+    overflow-x: clip;
   }
   /* Skip-to-main link. Off-screen until focused; on focus, slides into
    * the top-left as a high-contrast paper-on-ink pill. The link is the
@@ -146,6 +163,11 @@
     display: flex;
     flex-direction: column;
     gap: 2rem;
+    /* Match the `.lj-shell` rationale: as a flex container with column
+     * direction, the cross-axis (width) defaults to fitting the widest
+     * child. `min-width: 0` lets it shrink so children with their own
+     * `min-width: 0` (e.g. `.lj-prose`) actually take effect. */
+    min-width: 0;
   }
   /* Programmatic focus on <main> after skip-link click leaves a visible
    * outline by default; we don't want it to look like the page is
@@ -1018,6 +1040,10 @@
     padding: 1rem 1.25rem;
     color: var(--color-paper);
     overflow-x: auto;
+    /* Defensive: keep the block inside its parent on narrow viewports
+     * so the page itself doesn't gain a horizontal scrollbar — the
+     * math content scrolls inside this box, not the document. */
+    max-width: 100%;
   }
   .lj-math em {
     font-style: italic;
@@ -1030,6 +1056,20 @@
     font-size: 0.95rem;
     line-height: 1.65;
     max-width: 42rem;
+    /* The article is a flex child of `.lj-main` (flex column). Without
+     * `min-width: 0` the default `min-width: auto` would let any inline
+     * `<code>` token (paths like `contracts/validators/mix_logic.ak`,
+     * 48-byte hex hashes if we ever inline them) push the article's
+     * intrinsic min-width past the viewport on phones, producing the
+     * classic "page scrolls left/right" failure. `overflow-wrap` then
+     * lets long tokens wrap at any character so paragraphs reflow
+     * cleanly inside the constrained width. */
+    min-width: 0;
+    overflow-wrap: anywhere;
+  }
+  .lj-prose code,
+  .lj-prose a {
+    overflow-wrap: anywhere;
   }
   .lj-prose h2 {
     font-family: var(--font-mono);
@@ -1077,10 +1117,142 @@
     margin-bottom: 0.5rem;
   }
   .lj-prose li::before {
-    content: "—";
+    content: "·";
     position: absolute;
     left: -1.25rem;
     color: var(--color-amber);
+    font-weight: 700;
+  }
+
+  /* -------------------------------------------------------------------------
+   * Mobile responsive pass (≤720px)
+   * -------------------------------------------------------------------------
+   * The desktop grid was the original target (web wallets are desktop), so
+   * the rules here are corrective: collapse the header, give cards more
+   * breathing room, wrap toggle groups, raise tap-target sizes, etc. Single
+   * breakpoint at 720px (the existing pillars / hero one) keeps the rules
+   * easy to reason about; finer tuning lives at <=480px below. */
+  @media (max-width: 720px) {
+    .lj-main {
+      padding: 1.5rem 1rem 3rem;
+      gap: 1.5rem;
+    }
+    .lj-card {
+      padding: 1.1rem 1rem;
+    }
+    .lj-card__head {
+      flex-wrap: wrap;
+      gap: 0.75rem;
+      margin-bottom: 1rem;
+    }
+    .lj-card__title {
+      font-size: 1.05rem;
+    }
+
+    /* Header collapses to two rows: brand + lang + wallet on top, full-width
+     * nav scrolling horizontally underneath. The nav is rarely longer than
+     * the viewport but Russian / Spanish translations push it close, so the
+     * scroll is a safety net rather than the default presentation. */
+    .lj-header__inner {
+      flex-wrap: wrap;
+      gap: 0.6rem 0.85rem;
+      padding: 0.7rem 1rem;
+    }
+    .lj-nav {
+      order: 99;
+      width: 100%;
+      margin-left: 0;
+      margin-right: 0;
+      gap: 1rem;
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+      scrollbar-width: none;
+      padding-bottom: 0.1rem;
+    }
+    .lj-nav::-webkit-scrollbar { display: none; }
+    .lj-nav a {
+      flex-shrink: 0;
+      padding: 0.3rem 0;
+    }
+    .lj-brand { font-size: 0.95rem; }
+    .lj-wallet-pill { margin-left: auto; }
+    .lj-wallet-pill__addr { display: none; }
+
+    /* Buttons hit the WCAG 2.5.5 enhanced 44px target on mobile. The
+     * desktop sizing reads as instrument-sized; phone fingers want more. */
+    .lj-btn {
+      padding: 0.75rem 1rem;
+      min-height: 44px;
+    }
+    .lj-btn--lg {
+      padding: 0.95rem 1.4rem;
+      font-size: 0.85rem;
+      min-height: 48px;
+    }
+
+    /* Fee-payer toggle: allow wrap and full-row stretch so the buttons
+     * don't squish below readability when the localised label is long. */
+    .lj-toggle {
+      width: 100%;
+    }
+    .lj-toggle button {
+      flex: 1;
+      min-height: 44px;
+      padding: 0.65rem 0.5rem;
+    }
+
+    /* Hero: tighten the top padding and let the lede wrap. CTAs stack
+     * full-width; one is the primary "Connect wallet", which we want
+     * unmissable on first touch. */
+    .lj-hero { padding: 1.75rem 0 1rem; }
+    .lj-hero__title { font-size: clamp(2rem, 8vw, 3rem); }
+    .lj-hero__cta { flex-direction: column; align-items: stretch; }
+    .lj-hero__cta .lj-btn { width: 100%; }
+
+    /* Pillars already collapse to one column at this breakpoint via the
+     * existing rule; just give the inner padding some air. */
+    .lj-pillar { padding: 1.25rem 1rem; }
+
+    /* Modal padding shrinks so sheet takes less of the viewport on tiny
+     * screens, and dialog content has actual room to breathe. */
+    .lj-modal-backdrop { padding: 0.75rem; }
+    .lj-modal { padding: 1.25rem; }
+
+    /* Table wrapper already does overflow-x-auto. Make the scroll
+     * smoother on iOS and force a sensible minimum width so the cells
+     * don't squish to two-character columns before the user pages. */
+    .lj-table { min-width: 32rem; }
+
+    /* Field hints on phone screens were hugging the input edge; bump the
+     * top space so they don't read as part of the value. */
+    .lj-field__hint { font-size: 0.78rem; }
+
+    /* Footer: text-transform: uppercase + letter-spacing fights the small
+     * width hard. Drop the spacing a notch and let it wrap. */
+    .lj-footer {
+      padding: 0.7rem 1rem;
+      letter-spacing: 0.04em;
+      font-size: 0.66rem;
+    }
+
+    /* Protocol page on phones: math blocks get a smaller monospace size
+     * so more characters fit per line before the inner overflow-x kicks
+     * in (the long Schnorr challenge line is ~50 chars; at the desktop
+     * 1rem mono that overflows a 360px viewport even after padding).
+     * Heading letter-spacing eased so uppercase mono h2s don't visually
+     * spill at narrow widths. Body type drops a hair for better fit
+     * without sacrificing legibility. */
+    .lj-prose {
+      font-size: 0.9rem;
+    }
+    .lj-prose h2 {
+      letter-spacing: 0.12em;
+    }
+    .lj-math {
+      font-size: 0.8rem;
+      padding: 0.75rem 0.85rem;
+      line-height: 1.45;
+    }
   }
 }
 
