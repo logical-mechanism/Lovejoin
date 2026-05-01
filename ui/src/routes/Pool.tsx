@@ -118,8 +118,7 @@ export function Pool() {
         // stack; Blockfrost is the safety net, not the default.
         let entries: DirectPoolEntry[] | null = null;
         const useBackend =
-          !!config.backendUrl &&
-          (backendStatus === "synced" || backendStatus === "syncing");
+          !!config.backendUrl && (backendStatus === "synced" || backendStatus === "syncing");
         if (useBackend) {
           try {
             const client = new BackendClient(config.backendUrl);
@@ -176,9 +175,7 @@ export function Pool() {
 
   return (
     <>
-      {collateral?.status === "down" && (
-        <CollateralProviderBanner status={collateral.status} />
-      )}
+      {collateral?.status === "down" && <CollateralProviderBanner status={collateral.status} />}
 
       <section
         className={`lj-card lj-overlay ${mixSubmitting ? "lj-overlay--busy" : ""}`}
@@ -191,9 +188,7 @@ export function Pool() {
           </div>
           {collateral && <CollateralProviderPill status={collateral.status} />}
         </header>
-        <p className="text-sm text-muted leading-relaxed max-w-prose">
-          {t("pool.lede")}
-        </p>
+        <p className="text-sm text-muted leading-relaxed max-w-prose">{t("pool.lede")}</p>
 
         <div className="mt-6 flex flex-col gap-6">
           <div className="flex flex-wrap items-center gap-x-6 gap-y-2">
@@ -219,10 +214,7 @@ export function Pool() {
                 {t("pool.fee_payer_wallet")}
               </button>
             </div>
-            <p
-              id="fee-payer-hint"
-              className="text-xs text-whisper basis-full leading-relaxed"
-            >
+            <p id="fee-payer-hint" className="text-xs text-whisper basis-full leading-relaxed">
               {feePayer === "shard"
                 ? t("pool.fee_payer_shard_hint", { cap: maxFeePerMixAda })
                 : t("pool.fee_payer_wallet_hint")}
@@ -230,11 +222,7 @@ export function Pool() {
           </div>
         </div>
 
-        <div
-          className="lj-review mt-8"
-          role="group"
-          aria-label={t("pool.review_title")}
-        >
+        <div className="lj-review mt-8" role="group" aria-label={t("pool.review_title")}>
           <span className="lj-eyebrow">{t("pool.review_title")}</span>
           <dl className="lj-review__rows">
             <div className="lj-review__row">
@@ -245,9 +233,7 @@ export function Pool() {
             </div>
             <div className="lj-review__row">
               <dt className="lj-review__label">{t("pool.review_linkage")}</dt>
-              <dd className="lj-review__value">
-                {t("pool.review_linkage_value", { n })}
-              </dd>
+              <dd className="lj-review__value">{t("pool.review_linkage_value", { n })}</dd>
             </div>
             <div className="lj-review__row">
               <dt className="lj-review__label">{t("pool.review_selection")}</dt>
@@ -343,12 +329,8 @@ export function Pool() {
 
           {showError && (
             <div className="lj-banner lj-banner--coral" role="alert">
-              <span className="lj-banner__title">
-                {t("pool.scan_failed_title")}
-              </span>
-              <span className="lj-banner__detail">
-                {friendlyErrorMessage(poolError, t)}
-              </span>
+              <span className="lj-banner__title">{t("pool.scan_failed_title")}</span>
+              <span className="lj-banner__detail">{friendlyErrorMessage(poolError, t)}</span>
             </div>
           )}
         </div>

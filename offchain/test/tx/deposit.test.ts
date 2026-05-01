@@ -68,7 +68,10 @@ function bytesToHex(b: Uint8Array): string {
 
 function feeShard(lovelace: bigint = 5_000_000n): Utxo {
   return {
-    ref: { txId: "34a117d9699e8537529aa093943cdeda6f525fd167a74e6f1bd9229ef805a080", outputIndex: 0 },
+    ref: {
+      txId: "34a117d9699e8537529aa093943cdeda6f525fd167a74e6f1bd9229ef805a080",
+      outputIndex: 0,
+    },
     address: buildEnterpriseScriptAddress(ADDRESSES.feeScriptHash, 0),
     lovelace,
     assets: {},

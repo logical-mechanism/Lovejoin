@@ -66,9 +66,7 @@ async function main(): Promise<void> {
   const addresses = requireBootstrap(network);
   const provider = buildProvider(cfg);
 
-  console.log(
-    `max-n-calibration: network=${network}, sampling N ∈ {${NS_TO_TEST.join(", ")}}`,
-  );
+  console.log(`max-n-calibration: network=${network}, sampling N ∈ {${NS_TO_TEST.join(", ")}}`);
 
   // Sanity-check that the provider is reachable.
   const networkParams = await provider.getProtocolParameters();

@@ -6,9 +6,7 @@ import {
   STATEMENT_ID_PROVE_DLOG,
   STATEMENT_ID_SIGMA_OR_N,
   blake2b256,
-  fsHashDHTuple,
   fsHashSchnorr,
-  fsHashSigmaOr,
   fsInputDHTuple,
   fsInputSchnorr,
   fsInputSigmaOr,
@@ -110,7 +108,10 @@ describe("crypto/hash — fsInput* layout", () => {
       fsInputSigmaOr(
         a,
         b,
-        [{ ap: ABYTE(48), bp: ABYTE(48) }, { ap: ABYTE(48), bp: ABYTE(48) }],
+        [
+          { ap: ABYTE(48), bp: ABYTE(48) },
+          { ap: ABYTE(48), bp: ABYTE(48) },
+        ],
         [{ t0: ABYTE(48), t1: ABYTE(48) }],
         new Uint8Array(0),
       ),

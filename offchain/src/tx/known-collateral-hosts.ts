@@ -63,20 +63,17 @@ export const KNOWN_COLLATERAL_HOSTS: ReadonlyArray<KnownCollateralHost> = [
     name: "giveme.my",
     networks: new Set(["preprod", "mainnet"]),
     pkhHex: "7c24c22d1dc252d31f6022ff22ccc838c2ab83a461172d7c2dae61f4",
-    publicKeyHex:
-      "fa2025e788fae01ce10deffff386f992f62a311758819e4e3792887396c171ba",
+    publicKeyHex: "fa2025e788fae01ce10deffff386f992f62a311758819e4e3792887396c171ba",
     perNetwork: {
       preprod: {
-        utxoTxId:
-          "1d388e615da2dca607e28f704130d04e39da6f251d551d66d054b75607e0393f",
+        utxoTxId: "1d388e615da2dca607e28f704130d04e39da6f251d551d66d054b75607e0393f",
         utxoOutputIndex: 0,
         url: "https://www.giveme.my/preprod/collateral/",
         onion:
           "http://fjy3v62j7vqytvtviixsbixcmgyxgfolb7pg5bb3vcozxn4rrlu7z6ad.onion/preprod/collateral/",
       },
       mainnet: {
-        utxoTxId:
-          "e62351eacbdd001aee77a91805840d2b81f77feebbf2439fb01b79e76c42c839",
+        utxoTxId: "e62351eacbdd001aee77a91805840d2b81f77feebbf2439fb01b79e76c42c839",
         utxoOutputIndex: 0,
         url: "https://www.giveme.my/mainnet/collateral/",
         onion:
@@ -94,9 +91,7 @@ export const KNOWN_COLLATERAL_HOSTS: ReadonlyArray<KnownCollateralHost> = [
  * has no public host today, so we surface that as null and let callers
  * decide between failing or falling back to WalletProvider.
  */
-export function getKnownCollateralHost(
-  network: CollateralNetwork,
-): KnownCollateralHost | null {
+export function getKnownCollateralHost(network: CollateralNetwork): KnownCollateralHost | null {
   for (const host of KNOWN_COLLATERAL_HOSTS) {
     if (host.networks.has(network) && host.perNetwork[network]) {
       return host;

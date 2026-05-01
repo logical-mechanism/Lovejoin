@@ -115,11 +115,9 @@ class FakeSocket implements OgmiosSocket {
 
   on(event: string, listener: (...args: unknown[]) => void): void {
     if (event === "open") this.openHandlers.push(listener as () => void);
-    else if (event === "message")
-      this.messageHandlers.push(listener as (d: string) => void);
+    else if (event === "message") this.messageHandlers.push(listener as (d: string) => void);
     else if (event === "close") this.closeHandlers.push(listener as () => void);
-    else if (event === "error")
-      this.errorHandlers.push(listener as (e: Error) => void);
+    else if (event === "error") this.errorHandlers.push(listener as (e: Error) => void);
   }
 
   emit(payload: string): void {
@@ -347,9 +345,7 @@ describe("IndexerRuntime: chainsync reconnect", () => {
     await waitFor(() => runtime.fatalError() !== null);
 
     expect(runtime.isRunning()).toBe(false);
-    expect(runtime.fatalError()?.message).toMatch(
-      /chainsync reconnect failed after 2 attempts/,
-    );
+    expect(runtime.fatalError()?.message).toMatch(/chainsync reconnect failed after 2 attempts/);
     expect(runtime.reconnecting().inProgress).toBe(false);
     expect(runtime.reconnecting().lastErrorMessage).toMatch(/ECONNREFUSED/);
 

@@ -26,14 +26,10 @@ import { AppStateProvider, useAppState } from "./lib/store.js";
 // flaky network on a stale tab doesn't blank the whole app — see the
 // route fallback below.
 const Box = lazy(() => import("./routes/Box.js").then((m) => ({ default: m.Box })));
-const Deposit = lazy(() =>
-  import("./routes/Deposit.js").then((m) => ({ default: m.Deposit })),
-);
+const Deposit = lazy(() => import("./routes/Deposit.js").then((m) => ({ default: m.Deposit })));
 const Donate = lazy(() => import("./routes/Donate.js").then((m) => ({ default: m.Donate })));
 const Pool = lazy(() => import("./routes/Pool.js").then((m) => ({ default: m.Pool })));
-const Protocol = lazy(() =>
-  import("./routes/Protocol.js").then((m) => ({ default: m.Protocol })),
-);
+const Protocol = lazy(() => import("./routes/Protocol.js").then((m) => ({ default: m.Protocol })));
 const Vault = lazy(() => import("./routes/Vault.js").then((m) => ({ default: m.Vault })));
 
 export function App() {
@@ -150,8 +146,6 @@ function CollateralStatusBridge({ children }: { children: React.ReactNode }) {
 function BackendStatusBridge({ children }: { children: React.ReactNode }) {
   const { config } = useAppState();
   return (
-    <BackendStatusProvider backendUrl={config.backendUrl || null}>
-      {children}
-    </BackendStatusProvider>
+    <BackendStatusProvider backendUrl={config.backendUrl || null}>{children}</BackendStatusProvider>
   );
 }

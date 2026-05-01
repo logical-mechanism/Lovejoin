@@ -24,49 +24,53 @@ const reason = skipReason();
 const MAX_N_DEFAULT = 6;
 
 describe.skipIf(reason !== null)(`m4 — mix at max_n on ${NETWORK}`, () => {
-  it("mixes max_n boxes in one tx", async () => {
-    const provider = makeProvider();
-    const wallet = await loadWallet();
-    const addresses = loadAddresses();
+  it(
+    "mixes max_n boxes in one tx",
+    async () => {
+      const provider = makeProvider();
+      const wallet = await loadWallet();
+      const addresses = loadAddresses();
 
-    // Read max_n from the network config — the spec drives the calibration
-    // sweep there. Fall back to MAX_N_DEFAULT if absent.
-    const maxN = readMaxN(NETWORK) ?? MAX_N_DEFAULT;
+      // Read max_n from the network config — the spec drives the calibration
+      // sweep there. Fall back to MAX_N_DEFAULT if absent.
+      const maxN = readMaxN(NETWORK) ?? MAX_N_DEFAULT;
 
-    const boxes = await depositSeries({
-      count: maxN,
-      rounds: 5,
-      wallet,
-      provider,
-      addresses,
-    });
+      const boxes = await depositSeries({
+        count: maxN,
+        rounds: 5,
+        wallet,
+        provider,
+        addresses,
+      });
 
-    const inputs: MixInput[] = boxes.map<MixInput>((b) => ({
-      ref: { txId: b.txId, outputIndex: b.outputIndex },
-      a: b.a,
-      b: b.b,
-      utxo: {
+      const inputs: MixInput[] = boxes.map<MixInput>((b) => ({
         ref: { txId: b.txId, outputIndex: b.outputIndex },
-        address: "",
-        lovelace: BigInt(addresses.protocol.denom_lovelace),
-        assets: {},
-        inlineDatum: null,
-        referenceScript: null,
-      },
-    }));
+        a: b.a,
+        b: b.b,
+        utxo: {
+          ref: { txId: b.txId, outputIndex: b.outputIndex },
+          address: "",
+          lovelace: BigInt(addresses.protocol.denom_lovelace),
+          assets: {},
+          inlineDatum: null,
+          referenceScript: null,
+        },
+      }));
 
-    const result = await buildMixTx({
-      network: NETWORK as "preprod" | "preview" | "mainnet",
-      inputs,
-      wallet,
-      provider,
-      addresses,
-    });
+      const result = await buildMixTx({
+        network: NETWORK as "preprod" | "preview" | "mainnet",
+        inputs,
+        wallet,
+        provider,
+        addresses,
+      });
 
-    expect(result.txId).toMatch(/^[0-9a-f]{64}$/);
-    expect(result.plan.n).toBe(maxN);
-    await provider.awaitConfirmation(result.txId, 10 * 60_000);
-  }, 30 * 60_000);
+      expect(result.txId).toMatch(/^[0-9a-f]{64}$/);
+      expect(result.plan.n).toBe(maxN);
+      await provider.awaitConfirmation(result.txId, 10 * 60_000);
+    },
+    30 * 60_000,
+  );
 });
 
 function readMaxN(network: string): number | null {
@@ -84,6 +88,5 @@ function readMaxN(network: string): number | null {
 }
 
 if (reason) {
-  // eslint-disable-next-line no-console
   console.log(`[m4 mix-at-max-n] SKIP — ${reason}`);
 }

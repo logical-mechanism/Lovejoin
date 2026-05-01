@@ -22,6 +22,7 @@ npm install @meshsdk/core  # includes core-cst + transaction + wallet + provider
 ## What is core-cst?
 
 `@meshsdk/core-cst` provides low-level utilities for:
+
 - **Serialization** - Convert transactions to/from CBOR
 - **Resolvers** - Extract hashes, addresses, keys from various formats
 - **Message Signing** - CIP-8 COSE sign and verify
@@ -49,21 +50,21 @@ import {
   resolveScriptRef,
   resolveScriptHashDRepId,
   resolveEd25519KeyHash,
-} from '@meshsdk/core-cst';
+} from "@meshsdk/core-cst";
 
 // Get data hash from Plutus data
 const hash = resolveDataHash({ constructor: 0, fields: [] });
 
 // Get payment key hash from address
-const keyHash = resolvePaymentKeyHash('addr_test1qp...');
+const keyHash = resolvePaymentKeyHash("addr_test1qp...");
 
 // Get stake/reward address from base address
-const rewardAddr = resolveRewardAddress('addr_test1qp...');
+const rewardAddr = resolveRewardAddress("addr_test1qp...");
 
 // Get script address from Plutus script
 const scriptAddr = resolvePlutusScriptAddress(
-  { code: '59...', version: 'V2' },
-  0  // networkId
+  { code: "59...", version: "V2" },
+  0, // networkId
 );
 
 // Get tx hash from tx CBOR
@@ -73,34 +74,34 @@ const txHash = resolveTxHash(txCborHex);
 ### Message Signing (CIP-8)
 
 ```typescript
-import { signData, checkSignature } from '@meshsdk/core-cst';
+import { signData, checkSignature } from "@meshsdk/core-cst";
 
 // Sign data
-const signature = signData('Hello Cardano!', signer);
+const signature = signData("Hello Cardano!", signer);
 // { key: 'a401...', signature: '845846...' }
 
 // Verify signature
 const isValid = await checkSignature(
-  'Hello Cardano!',
+  "Hello Cardano!",
   signature,
-  'addr_test1qp...'  // optional address verification
+  "addr_test1qp...", // optional address verification
 );
 ```
 
 ### Plutus Tools
 
 ```typescript
-import { applyParamsToScript, normalizePlutusScript } from '@meshsdk/core-cst';
+import { applyParamsToScript, normalizePlutusScript } from "@meshsdk/core-cst";
 
 // Apply parameters to parameterized script
 const appliedScript = applyParamsToScript(
   rawScriptHex,
-  [{ constructor: 0, fields: [{ bytes: 'abc123' }] }],
-  'Mesh'  // or 'JSON' or 'CBOR'
+  [{ constructor: 0, fields: [{ bytes: "abc123" }] }],
+  "Mesh", // or 'JSON' or 'CBOR'
 );
 
 // Normalize script encoding
-const normalized = normalizePlutusScript(scriptHex, 'DoubleCBOR');
+const normalized = normalizePlutusScript(scriptHex, "DoubleCBOR");
 ```
 
 ### Data Conversion
@@ -111,13 +112,13 @@ import {
   fromBuilderToPlutusData,
   fromPlutusDataToJson,
   parseDatumCbor,
-} from '@meshsdk/core-cst';
+} from "@meshsdk/core-cst";
 
 // Mesh Data → PlutusData
-const plutusData = toPlutusData({ constructor: 0, fields: ['hello', 42] });
+const plutusData = toPlutusData({ constructor: 0, fields: ["hello", 42] });
 
 // BuilderData → PlutusData (handles Mesh/JSON/CBOR)
-const data = fromBuilderToPlutusData({ type: 'Mesh', content: myData });
+const data = fromBuilderToPlutusData({ type: "Mesh", content: myData });
 
 // PlutusData → JSON
 const json = fromPlutusDataToJson(plutusData);
@@ -134,23 +135,23 @@ import {
   serialzeAddress,
   scriptHashToBech32,
   addrBech32ToPlutusDataHex,
-} from '@meshsdk/core-cst';
+} from "@meshsdk/core-cst";
 
 // Deserialize address to components
 const { pubKeyHash, scriptHash, stakeCredentialHash } =
-  deserializeBech32Address('addr_test1qp...');
+  deserializeBech32Address("addr_test1qp...");
 
 // Script hash to bech32 address
 const addr = scriptHashToBech32(scriptHash, stakeKeyHash, 0);
 
 // Address to Plutus data (for on-chain use)
-const addrPlutusHex = addrBech32ToPlutusDataHex('addr_test1qp...');
+const addrPlutusHex = addrBech32ToPlutusDataHex("addr_test1qp...");
 ```
 
 ### CardanoSDKSerializer
 
 ```typescript
-import { CardanoSDKSerializer } from '@meshsdk/core-cst';
+import { CardanoSDKSerializer } from "@meshsdk/core-cst";
 
 const serializer = new CardanoSDKSerializer(protocolParams);
 
@@ -161,13 +162,16 @@ const txCbor = serializer.serializeTxBody(meshTxBuilderBody);
 const signedTx = serializer.addSigningKeys(txCbor, [privateKeyHex]);
 
 // Serialize data
-const dataCbor = serializer.serializeData({ type: 'Mesh', content: myData });
+const dataCbor = serializer.serializeData({ type: "Mesh", content: myData });
 
 // Serialize address from components
-const addr = serializer.serializeAddress({
-  pubKeyHash: '...',
-  stakeCredentialHash: '...',
-}, 0);
+const addr = serializer.serializeAddress(
+  {
+    pubKeyHash: "...",
+    stakeCredentialHash: "...",
+  },
+  0,
+);
 ```
 
 ## Files
@@ -178,14 +182,14 @@ const addr = serializer.serializeAddress({
 
 ## Module Exports
 
-| Module | Purpose |
-|--------|---------|
-| `resolvers` | Hash/address resolution functions |
-| `serializer` | CardanoSDKSerializer class |
-| `message-signing` | CIP-8 COSE utilities |
-| `plutus-tools` | Script parameterization |
-| `utils` | Data, address, encoding utilities |
-| `types` | Re-exports from @cardano-sdk/core |
+| Module            | Purpose                           |
+| ----------------- | --------------------------------- |
+| `resolvers`       | Hash/address resolution functions |
+| `serializer`      | CardanoSDKSerializer class        |
+| `message-signing` | CIP-8 COSE utilities              |
+| `plutus-tools`    | Script parameterization           |
+| `utils`           | Data, address, encoding utilities |
+| `types`           | Re-exports from @cardano-sdk/core |
 
 ## Important Notes
 

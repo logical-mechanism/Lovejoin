@@ -30,13 +30,13 @@ The spending validator's per-input cost drops to roughly "is this credential in 
 
 ### Rule 2 — bad / missing datums are accepted
 
-Spend validators in lovejoin return **True** when the input's datum is missing or doesn't decode to the expected shape. The intent is hyperstructure-coherent: the protocol publishes rules for *its* datums; UTxOs that someone else parked at the script address with a junk datum are not the protocol's concern, and the protocol shouldn't decide their fate by making assumptions about what they "meant."
+Spend validators in lovejoin return **True** when the input's datum is missing or doesn't decode to the expected shape. The intent is hyperstructure-coherent: the protocol publishes rules for _its_ datums; UTxOs that someone else parked at the script address with a junk datum are not the protocol's concern, and the protocol shouldn't decide their fate by making assumptions about what they "meant."
 
 Concrete consequences:
 
 - `mix_box` spend: missing datum or bytes that don't decode as `MixDatum {a: 48 bytes, b: 48 bytes, a ≠ b}` → True. Anyone can sweep these UTxOs. They were never part of the privacy pool.
 - `fee_contract` spend: datum that isn't `()` → True. Same recovery semantics.
-- `reference_holder` spend: **always False** — this is intentional and is *not* a Rule-2 case. The reference UTxO is the hyperstructure anchor; the fact that no one (including a malformed-datum spender) can move it is the property we want.
+- `reference_holder` spend: **always False** — this is intentional and is _not_ a Rule-2 case. The reference UTxO is the hyperstructure anchor; the fact that no one (including a malformed-datum spender) can move it is the property we want.
 
 The withdrawal validator (`mix_logic`) is not bound by Rule 2 the same way: it doesn't run on a per-UTxO basis but on the tx as a whole. It silently **ignores** mix-script inputs whose datums don't decode (those inputs go through the spend validator's True branch independently). It still strictly validates the well-formed inputs and all outputs at the mix address.
 
@@ -254,7 +254,7 @@ Rules (all enforced; each gets a positive + negative test):
 6. For each `i ∈ {0..N-1}`: N-way sigma-OR for input `i` verifies against
    `(a_i, b_i, [(out_0.a, out_0.b), ..., (out_{N-1}.a, out_{N-1}.b)])` with `ctx`.
 
-**Output ordering and privacy.** The validator does *not* enforce a specific permutation of outputs at positions 0..N−1; the SDK randomizes. Privacy is provided by the OR-proof's mathematical indistinguishability across the N output set, not by validator-enforced ordering. Randomizing the output positions defeats positional-heuristic linkage by passive observers.
+**Output ordering and privacy.** The validator does _not_ enforce a specific permutation of outputs at positions 0..N−1; the SDK randomizes. Privacy is provided by the OR-proof's mathematical indistinguishability across the N output set, not by validator-enforced ordering. Randomizing the output positions defeats positional-heuristic linkage by passive observers.
 
 ### Performance budget (N-dependent, withdraw-zero)
 
@@ -262,11 +262,11 @@ The total cryptographic work for a Mix tx is unchanged: N proofs × 2N branches 
 
 Per-tx cost components:
 
-| Component | Count | Notes |
-|---|---|---|
-| `mix_box` spend (pass-through) | N | tiny — a `Pairs.has_key` and a datum decode |
-| `mix_logic` withdraw | 1 | one ctx, one ref-utxo decode, N OR-proof checks |
-| `fee_contract` spend | 1 | unchanged |
+| Component                      | Count | Notes                                           |
+| ------------------------------ | ----- | ----------------------------------------------- |
+| `mix_box` spend (pass-through) | N     | tiny — a `Pairs.has_key` and a datum decode     |
+| `mix_logic` withdraw           | 1     | one ctx, one ref-utxo decode, N OR-proof checks |
+| `fee_contract` spend           | 1     | unchanged                                       |
 
 The `2N²` proof work concentrates in `mix_logic`. The M2 stress test calibrates real CPU on Preprod and sets `max_n` accordingly. Initial bet (post-design-update): `max_n = 6`, with realistic upside to `max_n = 8` if the per-input overhead reduction is significant. We commit empirical numbers to `docs/perf.md`.
 
@@ -354,7 +354,7 @@ Removing `bound_pkh` simplifies the redeemer and matches Seedelf's spending patt
 
 Cardano requires collateral for any Plutus tx. The contracts themselves don't reference the collateral input — Cardano enforces it transparently. From the validator's perspective, collateral is invisible.
 
-But the *tx-builder* must provide one. For Mix txs, the SDK uses an external **collateral provider service** (e.g. giveme.my). For Deposit and Withdraw, the user's own wallet supplies collateral (since the wallet is in the tx anyway).
+But the _tx-builder_ must provide one. For Mix txs, the SDK uses an external **collateral provider service** (e.g. giveme.my). For Deposit and Withdraw, the user's own wallet supplies collateral (since the wallet is in the tx anyway).
 
 The fee_contract validator does not need to validate collateral specifically; it only checks `tx.fee` and the shard's value diff. The collateral mechanism is a Cardano protocol feature, not a contract feature.
 

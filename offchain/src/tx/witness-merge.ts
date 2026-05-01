@@ -13,10 +13,7 @@
 // the witness set has 11 different fields, and miswriting any of them
 // produces a tx that the ledger silently rejects with no useful error.
 
-import type {
-  CollateralProvider,
-  VkeyWitness as ExternalVkeyWitness,
-} from "./collateral.js";
+import type { CollateralProvider, VkeyWitness as ExternalVkeyWitness } from "./collateral.js";
 
 /**
  * Lazy import of `@meshsdk/core-cst` — same pattern as `tx/withdraw.ts`,

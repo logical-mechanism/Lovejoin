@@ -17,23 +17,24 @@ focuses on what remains after those landed.
   have been booked (statement pre-uncompression, single-walk
   `validate_mix` prologue, cached `denom_value_bytes`, hoisted FS-hash
   prefix, single-pass fee-input fold). The dominant remaining cost is
-  *inherent* to the N-way sigma-OR construction (≈ 4N² scalar muls + 2N²
+  _inherent_ to the N-way sigma-OR construction (≈ 4N² scalar muls + 2N²
   uncompresses + 2N² adds + 2N² point-equals + N blake2b inside
   [`sigma_or.verify_pre`](../contracts/lib/lovejoin/sigma_or.ak)).
   Algorithmic reductions there require a soundness re-derivation
   (already rejected for M4.5 — see audit item 11).
-- **Estimated CPU reduction range** (from items in this audit, *cumulative,
-  per-Mix-tx*):
+- **Estimated CPU reduction range** (from items in this audit, _cumulative,
+  per-Mix-tx_):
   | N | reclaim (CPU) | as % of mainnet 10 G budget |
   |---|---|---|
-  | 2 |  ~6 M | ~0.06 % |
-  | 3 |  ~9 M | ~0.09 % |
+  | 2 | ~6 M | ~0.06 % |
+  | 3 | ~9 M | ~0.09 % |
   | 4 | ~13 M | ~0.13 % |
   | 6 | ~22 M | ~0.22 % |
   | 8 | ~32 M | ~0.32 % |
 
   This is one order of magnitude smaller than M4.6's reclaim. There is
   no single big lever left without an algorithmic / protocol change.
+
 - **Biggest CPU sinks** (unchanged from prior audits):
   1. `bls12_381_g1_uncompress` on `t0`/`t1` per OR branch — N² uncompresses
      per Mix tx, ≈ 25–30 M CPU each.
@@ -67,32 +68,32 @@ focuses on what remains after those landed.
 
 ## Contract Map
 
-| File | Validator/Policy | Purpose | Hot path? | Notes |
-|---|---|---|---|---|
-| [`mix_logic.ak`](../contracts/validators/mix_logic.ak) | `mix_logic` | withdraw / publish | **YES — Mix branch** | Once per Mix tx. Owner branch is hot under bulk owner withdraws. |
-| [`mix_box.ak`](../contracts/validators/mix_box.ak) | `mix_box` | spend | **YES** | Runs N times per Mix tx (once per mix-script input). |
-| [`fee_contract.ak`](../contracts/validators/fee_contract.ak) | `fee_contract` | spend | **YES — PayMixFee** | Once per Mix tx. Replenish is once per Deposit. |
-| [`one_shot_mint.ak`](../contracts/validators/one_shot_mint.ak) | `one_shot_mint` | mint | NO | Bootstrap-only, single lifetime invocation. |
-| [`reference_holder.ak`](../contracts/validators/reference_holder.ak) | `reference_holder` | spend | NO | Always-False; reference UTxO is read-only via `reference_inputs`. |
-| [`lib/lovejoin/sigma_or.ak`](../contracts/lib/lovejoin/sigma_or.ak) | — | OR-proof verifier | **YES** | Called N times per Mix tx; dominant CPU. |
-| [`lib/lovejoin/schnorr.ak`](../contracts/lib/lovejoin/schnorr.ak) | — | Schnorr verifier | YES under bulk-owner | Called N times per Owner tx. |
-| [`lib/lovejoin/bls.ak`](../contracts/lib/lovejoin/bls.ak) | — | BLS12-381 G1 wrappers | YES | Inlined into `sigma_or` / `schnorr`. |
-| [`lib/lovejoin/hash.ak`](../contracts/lib/lovejoin/hash.ak) | — | FS-hash preimage builders | YES | `fs_hash_sigma_or_header_with_prefix` per input + per-tx const prefix. |
-| [`lib/lovejoin/value.ak`](../contracts/lib/lovejoin/value.ak) | — | `expect_ada_only_lovelace` | YES | One dict walk per output / fee-input. |
-| [`lib/lovejoin/mixbox.ak`](../contracts/lib/lovejoin/mixbox.ak) | — | datum decoders + script-cred helpers | YES | Per input + per output. |
-| [`lib/lovejoin/fee.ak`](../contracts/lib/lovejoin/fee.ak) | — | fee-shard helpers | YES | Per input + per output (PayMixFee). |
-| [`lib/lovejoin/reference.ak`](../contracts/lib/lovejoin/reference.ak) | — | reference-UTxO lookup | YES | One reference-input walk per validator run. |
+| File                                                                  | Validator/Policy   | Purpose                              | Hot path?            | Notes                                                                  |
+| --------------------------------------------------------------------- | ------------------ | ------------------------------------ | -------------------- | ---------------------------------------------------------------------- |
+| [`mix_logic.ak`](../contracts/validators/mix_logic.ak)                | `mix_logic`        | withdraw / publish                   | **YES — Mix branch** | Once per Mix tx. Owner branch is hot under bulk owner withdraws.       |
+| [`mix_box.ak`](../contracts/validators/mix_box.ak)                    | `mix_box`          | spend                                | **YES**              | Runs N times per Mix tx (once per mix-script input).                   |
+| [`fee_contract.ak`](../contracts/validators/fee_contract.ak)          | `fee_contract`     | spend                                | **YES — PayMixFee**  | Once per Mix tx. Replenish is once per Deposit.                        |
+| [`one_shot_mint.ak`](../contracts/validators/one_shot_mint.ak)        | `one_shot_mint`    | mint                                 | NO                   | Bootstrap-only, single lifetime invocation.                            |
+| [`reference_holder.ak`](../contracts/validators/reference_holder.ak)  | `reference_holder` | spend                                | NO                   | Always-False; reference UTxO is read-only via `reference_inputs`.      |
+| [`lib/lovejoin/sigma_or.ak`](../contracts/lib/lovejoin/sigma_or.ak)   | —                  | OR-proof verifier                    | **YES**              | Called N times per Mix tx; dominant CPU.                               |
+| [`lib/lovejoin/schnorr.ak`](../contracts/lib/lovejoin/schnorr.ak)     | —                  | Schnorr verifier                     | YES under bulk-owner | Called N times per Owner tx.                                           |
+| [`lib/lovejoin/bls.ak`](../contracts/lib/lovejoin/bls.ak)             | —                  | BLS12-381 G1 wrappers                | YES                  | Inlined into `sigma_or` / `schnorr`.                                   |
+| [`lib/lovejoin/hash.ak`](../contracts/lib/lovejoin/hash.ak)           | —                  | FS-hash preimage builders            | YES                  | `fs_hash_sigma_or_header_with_prefix` per input + per-tx const prefix. |
+| [`lib/lovejoin/value.ak`](../contracts/lib/lovejoin/value.ak)         | —                  | `expect_ada_only_lovelace`           | YES                  | One dict walk per output / fee-input.                                  |
+| [`lib/lovejoin/mixbox.ak`](../contracts/lib/lovejoin/mixbox.ak)       | —                  | datum decoders + script-cred helpers | YES                  | Per input + per output.                                                |
+| [`lib/lovejoin/fee.ak`](../contracts/lib/lovejoin/fee.ak)             | —                  | fee-shard helpers                    | YES                  | Per input + per output (PayMixFee).                                    |
+| [`lib/lovejoin/reference.ak`](../contracts/lib/lovejoin/reference.ak) | —                  | reference-UTxO lookup                | YES                  | One reference-input walk per validator run.                            |
 
 ## Hot path inventory (per Mix tx, N = mix width)
 
 For a Mix tx with N mix inputs and 1 fee-shard input:
 
-| Step | Walks | Where |
-|---|---|---|
-| `mix_box.spend` × N | N × `list.find(self.inputs)` (≈ M comparisons each) + N × soft-decode | [`mix_box.ak`](../contracts/validators/mix_box.ak) |
-| `fee_contract.spend` (PayMixFee) | 1 × `read_reference_datum` (walks `reference_inputs`) + 1 × `list.find(own_input)` + 1 × `list.foldl` for mix/fee count + 1 × `list.filter` for fee_outputs + 1 × `pairs.get_first` (redeemers) | [`fee_contract.ak`](../contracts/validators/fee_contract.ak) |
-| `mix_logic.withdraw` (Mix) | 1 × `read_reference_datum` (a SECOND walk of `reference_inputs`) + 1 × `collect_well_formed_mix_inputs` (walks `self.inputs`) + 1 × `list.length(mix_inputs)` + 1 × `list.length(proofs)` + `walk_outputs` (walks `self.outputs` once) + `list.reverse(statements)` + N × `verify_pre` | [`mix_logic.ak`](../contracts/validators/mix_logic.ak) |
-| Per `verify_pre` | 2 × `point_from_bytes(a, b)` + `fs_hash_sigma_or_header_with_prefix` (2 concats) + `list.foldl` over statements (2N concats) + `list.foldl` over branches (2N concats) + `blake2b_256` + `list.foldl` xor over branches (N × xor32) + `parallel_all` over (statements, branches) running 2 mul + 1 add + 1 mul + 1 add + 1 eq + 1 mul + 1 add + 1 mul + 1 add + 1 eq per branch | [`sigma_or.ak`](../contracts/lib/lovejoin/sigma_or.ak) |
+| Step                             | Walks                                                                                                                                                                                                                                                                                                                                                                           | Where                                                        |
+| -------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------ |
+| `mix_box.spend` × N              | N × `list.find(self.inputs)` (≈ M comparisons each) + N × soft-decode                                                                                                                                                                                                                                                                                                           | [`mix_box.ak`](../contracts/validators/mix_box.ak)           |
+| `fee_contract.spend` (PayMixFee) | 1 × `read_reference_datum` (walks `reference_inputs`) + 1 × `list.find(own_input)` + 1 × `list.foldl` for mix/fee count + 1 × `list.filter` for fee_outputs + 1 × `pairs.get_first` (redeemers)                                                                                                                                                                                 | [`fee_contract.ak`](../contracts/validators/fee_contract.ak) |
+| `mix_logic.withdraw` (Mix)       | 1 × `read_reference_datum` (a SECOND walk of `reference_inputs`) + 1 × `collect_well_formed_mix_inputs` (walks `self.inputs`) + 1 × `list.length(mix_inputs)` + 1 × `list.length(proofs)` + `walk_outputs` (walks `self.outputs` once) + `list.reverse(statements)` + N × `verify_pre`                                                                                          | [`mix_logic.ak`](../contracts/validators/mix_logic.ak)       |
+| Per `verify_pre`                 | 2 × `point_from_bytes(a, b)` + `fs_hash_sigma_or_header_with_prefix` (2 concats) + `list.foldl` over statements (2N concats) + `list.foldl` over branches (2N concats) + `blake2b_256` + `list.foldl` xor over branches (N × xor32) + `parallel_all` over (statements, branches) running 2 mul + 1 add + 1 mul + 1 add + 1 eq + 1 mul + 1 add + 1 mul + 1 add + 1 eq per branch | [`sigma_or.ak`](../contracts/lib/lovejoin/sigma_or.ak)       |
 
 Two `read_reference_datum` invocations per Mix tx (`fee_contract` + `mix_logic`)
 walk the same `reference_inputs` list separately. Cardano runs each
@@ -141,7 +142,7 @@ What's **missing** for the items below:
 
 4. **Owner-redeemer attacker benchmark (F-1 regression)**. Already
    exists (`pay_mix_fee_rejects_owner_redeemer_n{2,6}`). After §2, the
-   reject should land *before* any input walk; CPU should drop sharply
+   reject should land _before_ any input walk; CPU should drop sharply
    on this test. Capture the pre/post numbers as a fail-fast proof.
 
 For each of the items below, the **measurement procedure** is:
@@ -169,6 +170,7 @@ For each of the items below, the **measurement procedure** is:
   index in its `output_reference`; equality per element is cheap but
   not free. With `M = N + 1` inputs, that's an extra `M` list traversals
   per Mix tx that buy nothing.
+
 - **Proposed fix**: collapse both into a single `list.foldl` returning
   `(mix_count, fee_count, own_lovelace)`. The own input is identified
   by the pre-known `OutputReference utxo` argument; in the same pass
@@ -183,7 +185,7 @@ For each of the items below, the **measurement procedure** is:
 - **Risk**: **Low**. Pure restructure. Behaviour-equivalent except the
   failure-trace order changes (fee-shard input not at fee script now
   fails inside the fold instead of at the upfront `expect Script(_) =
-  …`).
+…`).
 - **Behaviour change**: No (same accept set; attacker txs reject equal
   or earlier than today).
 - **Tests need updating**: No — the existing `fee_contract.test.ak`
@@ -196,15 +198,15 @@ For each of the items below, the **measurement procedure** is:
 ### H2 · `mix_box.spend` — short-circuit on `_datum: Option<Data>` before the input walk
 
 - **Location**: [`mix_box.ak:40-69`](../contracts/validators/mix_box.ak#L40-L69).
-- **Current cost problem**: every mix_box spend pays for
+- **Current cost problem**: every mix*box spend pays for
   `list.find(self.inputs, …)` (≈ M/2 comparisons) before it knows whether
   the typed datum is `InlineDatum`, `DatumHash`, or `NoDatum`. For
   recovery-path spends (NoDatum, malformed-inline, DatumHash with
   arbitrary witness data) the walk is wasted: those cases hit the
-  `_ -> True` arm regardless. mix_box runs **N times per Mix tx**, so
+  `* -> True` arm regardless. mix_box runs **N times per Mix tx**, so
   even small per-spend constants compound.
 - **Proposed fix**: reorder the validator to do the cheap soft-decode on
-  `_datum: Option<Data>` first, and *only* walk `self.inputs` when the
+  `_datum: Option<Data>` first, and _only_ walk `self.inputs` when the
   datum decodes as a well-formed `MixDatum`:
 
   ```aiken
@@ -247,10 +249,11 @@ For each of the items below, the **measurement procedure** is:
   - **Net at N=4**: maybe 0–2 M CPU per Mix tx (almost no recovery
     inputs in honest Mix txs).
 
-  The *main* value of this change is **correctness clarity** — the
+  The _main_ value of this change is **correctness clarity** — the
   hyperstructure recovery branches now visibly cost less than the
   proof-required branch, matching the spec's description of them as
   "cheap escape hatches."
+
 - **Risk**: **Low–Medium**. F-2 invariant must be preserved. The
   proposed code keeps the typed-Datum disambiguation in the well-formed
   branch (mandatory: a DatumHash mix-script UTxO whose resolved data is
@@ -262,7 +265,7 @@ For each of the items below, the **measurement procedure** is:
 - **Tests need updating**: **Yes — important.** All existing
   `mix_box.test.ak` tests pass `None` for the spend handler's
   `_datum` (line 85, 97, etc.) regardless of the typed Datum on the
-  input. After this change, the `_datum` argument is *load-bearing*:
+  input. After this change, the `_datum` argument is _load-bearing_:
   - `mix_box_accepts_when_mix_logic_withdraws_zero` should pass
     `Some(well_formed_datum())`.
   - `mix_box_accepts_a_eq_b_datum_no_withdraw` should pass
@@ -284,25 +287,28 @@ For each of the items below, the **measurement procedure** is:
 
 - **Location**: [`sigma_or.ak:80-83`](../contracts/lib/lovejoin/sigma_or.ak#L80-L83).
 - **Current cost problem**:
+
   ```aiken
   fn xor32(left: ByteArray, right: ByteArray) -> ByteArray {
     expect bytearray.length(left) == 32
     builtin.xor_bytearray(False, left, right)
   }
   ```
+
   - `builtin.xor_bytearray(False, l, r)` already aborts when
     `length(l) != length(r)` — that's the documented contract of the
     `False` padding flag.
   - The XOR fold seed is `zero32` (32 bytes by definition), and
     `xor_bytearray` with two 32-byte inputs returns 32 bytes. By
     induction, `acc` is **always** 32 bytes, so the explicit `expect
-    bytearray.length(left) == 32` is True every call.
+bytearray.length(left) == 32` is True every call.
   - The right side's length is implicitly enforced by the builtin: if
     `br.c` is not 32 bytes, the builtin aborts on the first iteration
     (because the seed `zero32` is exactly 32 bytes).
   - Per-Mix-tx cost: `xor32` runs N × N = N² times. The redundant `expect
-    bytearray.length(left) == 32` is `1 length` + `1 ==` builtin pair —
+bytearray.length(left) == 32` is `1 length` + `1 ==` builtin pair —
     ~0.2–0.5 M CPU each.
+
 - **Proposed fix**:
   ```aiken
   fn xor32(left: ByteArray, right: ByteArray) -> ByteArray {
@@ -314,7 +320,7 @@ For each of the items below, the **measurement procedure** is:
 - **Expected impact**: **Low–Medium**. At N=4: 16 calls × ~0.4 M = ~6 M
   CPU. At N=8: 64 × ~0.4 M = ~25 M CPU.
 - **Risk**: **Low**. The builtin's abort-on-length-mismatch is still in
-  place; the only change is *which* failure mode trips on a length-≠-32
+  place; the only change is _which_ failure mode trips on a length-≠-32
   per-branch `c`.
 - **Behaviour change**: No.
 - **Tests need updating**: No — the existing sigma-OR negative tests for
@@ -336,20 +342,21 @@ For each of the items below, the **measurement procedure** is:
   Per-N prologue benchmark (foldr variant):
   | N | Before (H3 head) | After M1 (foldr) | Delta |
   |---|---|---|---|
-  | 2 |   453,414,279 |   454,123,641 |    +709,362 |
-  | 3 |   641,189,945 |   642,173,165 |    +983,220 |
-  | 4 |   829,274,137 |   830,531,215 |  +1,257,078 |
-  | 6 | 1,209,576,455 | 1,211,381,249 |  +1,804,794 |
-  | 8 | 1,591,104,521 | 1,593,457,031 |  +2,352,510 |
+  | 2 | 453,414,279 | 454,123,641 | +709,362 |
+  | 3 | 641,189,945 | 642,173,165 | +983,220 |
+  | 4 | 829,274,137 | 830,531,215 | +1,257,078 |
+  | 6 | 1,209,576,455 | 1,211,381,249 | +1,804,794 |
+  | 8 | 1,591,104,521 | 1,593,457,031 | +2,352,510 |
 
   **Why the audit's estimate was wrong**: the audit treated `list.length`
   on a small (N-element) filtered list as 0.5–2 M CPU. In compiled
   UPLC, `list.length` traversing N cells of a freshly-filtered list is
-  *cheaper* than carrying a 2-tuple `(List, Int)` accumulator through
+  _cheaper_ than carrying a 2-tuple `(List, Int)` accumulator through
   every step of an M-element fold — the per-step pair allocation +
   destructure dominates the saved length walk. `list.filter_map` is
   a tightly-compiled stdlib helper with a 2-arg recursive shape; mine
   is a 4-arg recursion (hand) or 2-tuple-acc fold (foldr). Both lose.
+
 - **Recommendation**: **Skip.** The reverted code is the existing
   `list.filter_map` + `list.length` pair. **Update of audit estimate
   for future passes**: the cost of replacing a small `list.length`
@@ -389,6 +396,7 @@ For each of the items below, the **measurement procedure** is:
 
   Then `let (mix_inputs, n) = collect_well_formed_mix_inputs_with_count(…)`
   and skip the subsequent `list.length`.
+
 - **Measured impact**: **negative** — see Outcome above. The estimate
   underweighted the cost of the accumulator pair vs. the small
   `list.length` walk it replaces.
@@ -402,7 +410,7 @@ Skipping this one. The current `walk_outputs` accumulates statements
 in reverse (cheap cons), then the caller does one final `list.reverse`.
 Cost: one O(N) walk per Mix tx ≈ 0.4 M @ N=4. Restructuring to right-fold
 is non-trivial (datums/values accumulators are byte-string concatenations
-that *must* be left-to-right for the canonical FS preimage). Net win
+that _must_ be left-to-right for the canonical FS preimage). Net win
 < 1 M, not worth the readability hit.
 
 ### M3 · `hash.fs_hash_sigma_or_header_const_prefix` — pre-concat `domain_tag_v1 || #"03"`
@@ -482,7 +490,7 @@ that *must* be left-to-right for the canonical FS preimage). Net win
   (M=9): 8 × ~4.5 × 1 M = ~35 M CPU.
   - **However**: `mix_logic` now also has to walk `tx.datums` (a
     `Pairs<DatumHash, Data>` list) for each `DatumHash(_)` input it
-    counts. In practice, today *no* SDK creates DatumHash mix-script
+    counts. In practice, today _no_ SDK creates DatumHash mix-script
     UTxOs, so `tx.datums` is typically empty for mix-script entries
     and the new lookups are O(0) for honest txs.
 - **Risk**: **Medium**. This is a **protocol-surface change**:
@@ -550,44 +558,44 @@ Not in the hot path (mints once per protocol lifetime). **Keep**.
 
 ## Stdlib Hot Path Review
 
-| Function | Used in | Replace? | Why |
-|---|---|---|---|
-| `list.foldl` | `verify_pre` (FS-hash branches/commitments + xor), `validate_pay_mix_fee` (input fold) | **Keep** | Single-pass; correct accumulator usage. |
-| `list.filter_map` | `collect_well_formed_mix_inputs` | Replace with hand recursion (M1) | Saves the subsequent `list.length`. |
-| `list.find` | `mix_box.spend`, `fee_contract.spend` | **Reduce** (H1, H2) | Fuse with adjacent walks; short-circuit recovery cases. |
-| `list.filter` | `fee_contract.validate_pay_mix_fee` (fee_outputs) | Keep | Walks `self.outputs`; `[fee_output] = …` requires the filtered list anyway. Replacing with `list.find` and a count would not save measurable CPU. |
-| `list.count` | `fee_contract.validate_replenish` | Replace (M4) | Same shape as H1. |
-| `list.length` | `validate_mix`, `validate_owner` (input + proof lengths) | Reduce (M1) | Fold count into `collect_well_formed_mix_inputs`; keep proofs check. |
-| `list.reverse` | `walk_outputs` | Keep | Statements list is built reverse-cons; one final reverse is cheaper than `list.foldr`. |
-| `pairs.has_key` | `mix_box.spend` | Keep | Withdrawals list ≤ 2 typically. |
-| `pairs.get_first` | `fee_contract.validate_pay_mix_fee` | Keep | Redeemers list is small; sorted scan. |
-| `dict.to_pairs` | `expect_ada_only_lovelace` | Keep | One walk per call; the canonical-shape destructure replaces two prior dict walks. |
-| `dict.foldr` | `one_shot_mint.mint` | Keep | Bootstrap-only. |
-| `assets.flatten` / `restricted_to` / `policies` | NONE | n/a | Not used in any production path — good. |
-| `list.map` / `list.zip` / `list.sort` / `dict.from_pairs` / `dict.keys` / `dict.values` / `list.flat_map` | NONE | n/a | Already eliminated in M4.5/M4.6 passes. |
+| Function                                                                                                  | Used in                                                                                | Replace?                         | Why                                                                                                                                               |
+| --------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------- | -------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `list.foldl`                                                                                              | `verify_pre` (FS-hash branches/commitments + xor), `validate_pay_mix_fee` (input fold) | **Keep**                         | Single-pass; correct accumulator usage.                                                                                                           |
+| `list.filter_map`                                                                                         | `collect_well_formed_mix_inputs`                                                       | Replace with hand recursion (M1) | Saves the subsequent `list.length`.                                                                                                               |
+| `list.find`                                                                                               | `mix_box.spend`, `fee_contract.spend`                                                  | **Reduce** (H1, H2)              | Fuse with adjacent walks; short-circuit recovery cases.                                                                                           |
+| `list.filter`                                                                                             | `fee_contract.validate_pay_mix_fee` (fee_outputs)                                      | Keep                             | Walks `self.outputs`; `[fee_output] = …` requires the filtered list anyway. Replacing with `list.find` and a count would not save measurable CPU. |
+| `list.count`                                                                                              | `fee_contract.validate_replenish`                                                      | Replace (M4)                     | Same shape as H1.                                                                                                                                 |
+| `list.length`                                                                                             | `validate_mix`, `validate_owner` (input + proof lengths)                               | Reduce (M1)                      | Fold count into `collect_well_formed_mix_inputs`; keep proofs check.                                                                              |
+| `list.reverse`                                                                                            | `walk_outputs`                                                                         | Keep                             | Statements list is built reverse-cons; one final reverse is cheaper than `list.foldr`.                                                            |
+| `pairs.has_key`                                                                                           | `mix_box.spend`                                                                        | Keep                             | Withdrawals list ≤ 2 typically.                                                                                                                   |
+| `pairs.get_first`                                                                                         | `fee_contract.validate_pay_mix_fee`                                                    | Keep                             | Redeemers list is small; sorted scan.                                                                                                             |
+| `dict.to_pairs`                                                                                           | `expect_ada_only_lovelace`                                                             | Keep                             | One walk per call; the canonical-shape destructure replaces two prior dict walks.                                                                 |
+| `dict.foldr`                                                                                              | `one_shot_mint.mint`                                                                   | Keep                             | Bootstrap-only.                                                                                                                                   |
+| `assets.flatten` / `restricted_to` / `policies`                                                           | NONE                                                                                   | n/a                              | Not used in any production path — good.                                                                                                           |
+| `list.map` / `list.zip` / `list.sort` / `dict.from_pairs` / `dict.keys` / `dict.values` / `list.flat_map` | NONE                                                                                   | n/a                              | Already eliminated in M4.5/M4.6 passes.                                                                                                           |
 
 ## Repeated Traversal Review
 
-| Path | Repeated? | Single-pass replacement |
-|---|---|---|
-| `fee_contract.PayMixFee` walks `self.inputs` 2× (find + foldl). | **Yes** | H1 — fuse to single foldl with `(mix_count, fee_count, own_lovelace)`. |
-| `fee_contract.Replenish` walks `self.inputs` 2× (find + count). | **Yes** | M4 — same fuse. |
-| `mix_box.spend` walks `self.inputs` once via `list.find`. | No | H2 reorder lets some recovery paths skip the walk; hot path keeps it. |
-| `mix_logic.validate_mix` walks `self.inputs` 1× (collect) + `mix_inputs` 1× (length). | One redundant | M1 — fold count into collect. |
-| `mix_logic.validate_mix` walks `self.outputs` 1× (`walk_outputs`). | No (already collapsed at M4.6 §11) | n/a |
-| `verify_pre` walks `proof.branches` 2× (xor fold + parallel_all). | **Yes**, but separation is intrinsic | The xor fold needs the global c first; the per-branch verify needs c-derived per-branch c_i. Cannot combine without breaking soundness model. **Keep.** |
-| `verify_pre` walks `statements` 2× (FS-preimage fold + parallel_all). | **Yes**, but separation is intrinsic | Same reasoning. **Keep.** |
-| `read_reference_datum` walks `tx.reference_inputs` 1× via `list.filter`. | No | n/a |
+| Path                                                                                  | Repeated?                            | Single-pass replacement                                                                                                                                 |
+| ------------------------------------------------------------------------------------- | ------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `fee_contract.PayMixFee` walks `self.inputs` 2× (find + foldl).                       | **Yes**                              | H1 — fuse to single foldl with `(mix_count, fee_count, own_lovelace)`.                                                                                  |
+| `fee_contract.Replenish` walks `self.inputs` 2× (find + count).                       | **Yes**                              | M4 — same fuse.                                                                                                                                         |
+| `mix_box.spend` walks `self.inputs` once via `list.find`.                             | No                                   | H2 reorder lets some recovery paths skip the walk; hot path keeps it.                                                                                   |
+| `mix_logic.validate_mix` walks `self.inputs` 1× (collect) + `mix_inputs` 1× (length). | One redundant                        | M1 — fold count into collect.                                                                                                                           |
+| `mix_logic.validate_mix` walks `self.outputs` 1× (`walk_outputs`).                    | No (already collapsed at M4.6 §11)   | n/a                                                                                                                                                     |
+| `verify_pre` walks `proof.branches` 2× (xor fold + parallel_all).                     | **Yes**, but separation is intrinsic | The xor fold needs the global c first; the per-branch verify needs c-derived per-branch c_i. Cannot combine without breaking soundness model. **Keep.** |
+| `verify_pre` walks `statements` 2× (FS-preimage fold + parallel_all).                 | **Yes**, but separation is intrinsic | Same reasoning. **Keep.**                                                                                                                               |
+| `read_reference_datum` walks `tx.reference_inputs` 1× via `list.filter`.              | No                                   | n/a                                                                                                                                                     |
 
 ## Branch Ordering Review
 
-| Site | Current order | Proposed | Equivalence |
-|---|---|---|---|
-| `fee_contract.spend` (PayMixFee) | (1) `is_unit_optional(datum)` (2) `read_reference_datum` (3) `list.find(own_input)` (4) cast & hash check (5) `validate_pay_mix_fee`'s redeemer-Mix gate (6) input fold | After H1: (1) `is_unit_optional` (2) `read_reference_datum` (3) **redeemer-Mix gate** (4) single-pass input fold (which captures own input + mix/fee counts) | Owner-redeemer attacker txs reject *before* any input walk (today: walk first, gate second). Honest tx: identical accept set. |
-| `mix_box.spend` | (1) `list.find(own_input)` (2) match typed Datum (3) soft-decode (4) `pairs.has_key` | After H2: (1) match `_datum: Option<Data>` (2) soft-decode (3) `list.find(own_input)` only on well-formed (4) match typed Datum (5) `pairs.has_key` | Same accept set. Recovery cases skip `list.find`; hot path identical cost. |
-| `mix_logic.validate_mix` | (1) `n = list.length(mix_inputs)` (2) `expect n >= 2` (3) `expect list.length(proofs) == n` (4) walk_outputs (5) verify | unchanged | The `expect n <= 255` for the header prefix is currently *after* walk_outputs, but moving it earlier saves only constant work; keep current order (current matches the documented "structural pre-checks → ctx build → proofs" order in the source comment). |
-| `validate_pay_mix_fee` | After redeemer-Mix gate: input fold → fee_outputs filter → ADA-only checks → `is_unit_inline_datum` → `fee_in - fee_out == self.fee` → `self.fee <= max_fee_per_mix_lovelace` | Move `is_unit_inline_datum` *into* the fee_outputs filter callback so a non-unit-datum fee output rejects without the lovelace extract. Saves 1 `expect_ada_only_lovelace` call on attacker txs only. **Marginal; skip.** | n/a |
-| `verify_pre` per branch | scalar_mul ×4, point_add ×2, point_equal ×2 (`&&`-chained) | Computing `lhs1, rhs1` is strict before the `&&`. Restructuring with `if` could lazy lhs1/rhs1 on a failed lhs0/rhs0 check — saves work on **invalid proofs only**. Honest tx unchanged. **Skip.** | n/a |
+| Site                             | Current order                                                                                                                                                                 | Proposed                                                                                                                                                                                                                  | Equivalence                                                                                                                                                                                                                                                  |
+| -------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `fee_contract.spend` (PayMixFee) | (1) `is_unit_optional(datum)` (2) `read_reference_datum` (3) `list.find(own_input)` (4) cast & hash check (5) `validate_pay_mix_fee`'s redeemer-Mix gate (6) input fold       | After H1: (1) `is_unit_optional` (2) `read_reference_datum` (3) **redeemer-Mix gate** (4) single-pass input fold (which captures own input + mix/fee counts)                                                              | Owner-redeemer attacker txs reject _before_ any input walk (today: walk first, gate second). Honest tx: identical accept set.                                                                                                                                |
+| `mix_box.spend`                  | (1) `list.find(own_input)` (2) match typed Datum (3) soft-decode (4) `pairs.has_key`                                                                                          | After H2: (1) match `_datum: Option<Data>` (2) soft-decode (3) `list.find(own_input)` only on well-formed (4) match typed Datum (5) `pairs.has_key`                                                                       | Same accept set. Recovery cases skip `list.find`; hot path identical cost.                                                                                                                                                                                   |
+| `mix_logic.validate_mix`         | (1) `n = list.length(mix_inputs)` (2) `expect n >= 2` (3) `expect list.length(proofs) == n` (4) walk_outputs (5) verify                                                       | unchanged                                                                                                                                                                                                                 | The `expect n <= 255` for the header prefix is currently _after_ walk_outputs, but moving it earlier saves only constant work; keep current order (current matches the documented "structural pre-checks → ctx build → proofs" order in the source comment). |
+| `validate_pay_mix_fee`           | After redeemer-Mix gate: input fold → fee_outputs filter → ADA-only checks → `is_unit_inline_datum` → `fee_in - fee_out == self.fee` → `self.fee <= max_fee_per_mix_lovelace` | Move `is_unit_inline_datum` _into_ the fee_outputs filter callback so a non-unit-datum fee output rejects without the lovelace extract. Saves 1 `expect_ada_only_lovelace` call on attacker txs only. **Marginal; skip.** | n/a                                                                                                                                                                                                                                                          |
+| `verify_pre` per branch          | scalar_mul ×4, point_add ×2, point_equal ×2 (`&&`-chained)                                                                                                                    | Computing `lhs1, rhs1` is strict before the `&&`. Restructuring with `if` could lazy lhs1/rhs1 on a failed lhs0/rhs0 check — saves work on **invalid proofs only**. Honest tx unchanged. **Skip.**                        | n/a                                                                                                                                                                                                                                                          |
 
 ## Datum/Redeemer Optimization Review
 
@@ -667,7 +675,7 @@ The dominant per-tx cost is structurally:
 What **cannot** be reduced without an algorithmic change:
 
 - The 4N² scalar muls (Cramer-Damgård OR has 2 equations × N branches × N inputs).
-- The 2N² uncompresses for `t0`/`t1` (each per-branch commitment is unique to its branch *and* unique per input, so no caching is possible).
+- The 2N² uncompresses for `t0`/`t1` (each per-branch commitment is unique to its branch _and_ unique per input, so no caching is possible).
 - The 2N² equals (one per equation).
 
 What **could** be reduced with an algorithmic change (rejected for
@@ -696,13 +704,13 @@ What **is already optimal** in this codebase:
 Per the audit brief: every always-true branch is intentional. Listed
 here with a "can it be cheaper?" verdict.
 
-| Location | Branch | Purpose | Current cost | Cheaper? | Recommendation |
-|---|---|---|---|---|---|
-| [`mix_box.ak:64`](../contracts/validators/mix_box.ak#L64) | `Some(_md) -> { … } / None -> True` (after `try_decode_well_formed_data`) | Inline-but-not-well-formed `MixDatum` (a==b, wrong length, wrong constructor) → recovery. | After H2: ~2 builtins past the soft-decode (cheap). | **Yes — already cheaper after H2** (skips `list.find`). | Land H2. |
-| [`mix_box.ak:67`](../contracts/validators/mix_box.ak#L67) | `_ -> True` for `NoDatum`/`DatumHash(_)` | Datum-less or hash-stored UTxO at mix script → recovery (F-2). | Currently pays `list.find` + Datum match before reaching this arm. | **Yes — H2 makes NoDatum free**. DatumHash still pays the `list.find` (F-2 disambiguation). M5 (architectural) eliminates that too, with a Rule-2 semantics shift. | H2 now; M5 only with audit blessing. |
-| [`fee_contract.ak:53`](../contracts/validators/fee_contract.ak#L53) | `if !is_unit_optional(datum) { True }` | Non-unit datum at fee script → recovery (parked UTxO sweepable). | One `is_unit_optional` call — already minimal. | No. | Keep as-is. |
-| [`mix_logic.ak:296-306`](../contracts/validators/mix_logic.ak#L296-L306) (`collect_well_formed_mix_inputs`) | Bad-datum mix-script inputs are silently dropped. | Inputs with bad/missing datums "exit via `mix_box`'s True path" — they're never counted in the proof set. | One filter pass; M1 reduces it slightly. | Marginally (M1). | Apply M1; keep semantics. |
-| [`reference_holder.ak:29`](../contracts/validators/reference_holder.ak#L29) | `False` | Always-False spend (defense-in-depth: the reference UTxO is read-only via `reference_inputs`; nothing should ever spend it). | Returns False immediately. | n/a — already a constant. | Keep. |
+| Location                                                                                                    | Branch                                                                    | Purpose                                                                                                                      | Current cost                                                       | Cheaper?                                                                                                                                                           | Recommendation                       |
+| ----------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------ |
+| [`mix_box.ak:64`](../contracts/validators/mix_box.ak#L64)                                                   | `Some(_md) -> { … } / None -> True` (after `try_decode_well_formed_data`) | Inline-but-not-well-formed `MixDatum` (a==b, wrong length, wrong constructor) → recovery.                                    | After H2: ~2 builtins past the soft-decode (cheap).                | **Yes — already cheaper after H2** (skips `list.find`).                                                                                                            | Land H2.                             |
+| [`mix_box.ak:67`](../contracts/validators/mix_box.ak#L67)                                                   | `_ -> True` for `NoDatum`/`DatumHash(_)`                                  | Datum-less or hash-stored UTxO at mix script → recovery (F-2).                                                               | Currently pays `list.find` + Datum match before reaching this arm. | **Yes — H2 makes NoDatum free**. DatumHash still pays the `list.find` (F-2 disambiguation). M5 (architectural) eliminates that too, with a Rule-2 semantics shift. | H2 now; M5 only with audit blessing. |
+| [`fee_contract.ak:53`](../contracts/validators/fee_contract.ak#L53)                                         | `if !is_unit_optional(datum) { True }`                                    | Non-unit datum at fee script → recovery (parked UTxO sweepable).                                                             | One `is_unit_optional` call — already minimal.                     | No.                                                                                                                                                                | Keep as-is.                          |
+| [`mix_logic.ak:296-306`](../contracts/validators/mix_logic.ak#L296-L306) (`collect_well_formed_mix_inputs`) | Bad-datum mix-script inputs are silently dropped.                         | Inputs with bad/missing datums "exit via `mix_box`'s True path" — they're never counted in the proof set.                    | One filter pass; M1 reduces it slightly.                           | Marginally (M1).                                                                                                                                                   | Apply M1; keep semantics.            |
+| [`reference_holder.ak:29`](../contracts/validators/reference_holder.ak#L29)                                 | `False`                                                                   | Always-False spend (defense-in-depth: the reference UTxO is read-only via `reference_inputs`; nothing should ever spend it). | Returns False immediately.                                         | n/a — already a constant.                                                                                                                                          | Keep.                                |
 
 None of these branches change semantics under any optimisation in this
 audit.
@@ -1032,21 +1040,21 @@ compile-time test asserting equality with the derived form.)
 
 ## Final benchmark report (template — measure locally)
 
-| Validator/Policy | Branch | Before CPU | After CPU | CPU Saved | Before Mem | After Mem | Mem Saved | Notes |
-|---|---|---:|---:|---:|---:|---:|---:|---|
-| `mix_logic` | Mix prologue, N=2 (`mix_full_prologue_then_proof_fails_n2`) | measure | measure | measure | measure | measure | measure | H3 + M1 + M3 cumulative. |
-| `mix_logic` | Mix prologue, N=4 | measure | measure | measure | measure | measure | measure | |
-| `mix_logic` | Mix prologue, N=8 | measure | measure | measure | measure | measure | measure | |
-| `mix_logic` | Owner prologue, N=4 (NEW benchmark) | n/a | measure | n/a | n/a | measure | n/a | M1 + new test. |
-| `mix_box` | well-formed inline (NEW benchmark) | measure | measure | ≈ 0 | measure | measure | ≈ 0 | H2 keeps hot path equal. |
-| `mix_box` | NoDatum recovery (NEW benchmark) | measure | measure | measure | measure | measure | measure | H2 skips `list.find`. |
-| `mix_box` | malformed-inline recovery (NEW benchmark) | measure | measure | measure | measure | measure | measure | H2 skips `list.find`. |
-| `mix_box` | DatumHash recovery (NEW benchmark) | measure | measure | measure | measure | measure | measure | Hot-path-equivalent (still walks). |
-| `fee_contract` | PayMixFee, N=4 (NEW benchmark) | n/a | measure | n/a | n/a | measure | n/a | H1. |
-| `fee_contract` | PayMixFee, N=6 | measure | measure | measure | measure | measure | measure | H1. |
-| `fee_contract` | PayMixFee Owner-attacker (`pay_mix_fee_rejects_owner_redeemer_n6`) | measure | measure | measure | measure | measure | measure | H1's redeemer-first reorder; expected sharp drop. |
-| `fee_contract` | Replenish positive | measure | measure | measure | measure | measure | measure | M4. |
-| (Whole suite) | `aiken check` cumulative | measure | measure | measure | measure | measure | measure | The safety net. |
+| Validator/Policy | Branch                                                             | Before CPU | After CPU | CPU Saved | Before Mem | After Mem | Mem Saved | Notes                                             |
+| ---------------- | ------------------------------------------------------------------ | ---------: | --------: | --------: | ---------: | --------: | --------: | ------------------------------------------------- |
+| `mix_logic`      | Mix prologue, N=2 (`mix_full_prologue_then_proof_fails_n2`)        |    measure |   measure |   measure |    measure |   measure |   measure | H3 + M1 + M3 cumulative.                          |
+| `mix_logic`      | Mix prologue, N=4                                                  |    measure |   measure |   measure |    measure |   measure |   measure |                                                   |
+| `mix_logic`      | Mix prologue, N=8                                                  |    measure |   measure |   measure |    measure |   measure |   measure |                                                   |
+| `mix_logic`      | Owner prologue, N=4 (NEW benchmark)                                |        n/a |   measure |       n/a |        n/a |   measure |       n/a | M1 + new test.                                    |
+| `mix_box`        | well-formed inline (NEW benchmark)                                 |    measure |   measure |       ≈ 0 |    measure |   measure |       ≈ 0 | H2 keeps hot path equal.                          |
+| `mix_box`        | NoDatum recovery (NEW benchmark)                                   |    measure |   measure |   measure |    measure |   measure |   measure | H2 skips `list.find`.                             |
+| `mix_box`        | malformed-inline recovery (NEW benchmark)                          |    measure |   measure |   measure |    measure |   measure |   measure | H2 skips `list.find`.                             |
+| `mix_box`        | DatumHash recovery (NEW benchmark)                                 |    measure |   measure |   measure |    measure |   measure |   measure | Hot-path-equivalent (still walks).                |
+| `fee_contract`   | PayMixFee, N=4 (NEW benchmark)                                     |        n/a |   measure |       n/a |        n/a |   measure |       n/a | H1.                                               |
+| `fee_contract`   | PayMixFee, N=6                                                     |    measure |   measure |   measure |    measure |   measure |   measure | H1.                                               |
+| `fee_contract`   | PayMixFee Owner-attacker (`pay_mix_fee_rejects_owner_redeemer_n6`) |    measure |   measure |   measure |    measure |   measure |   measure | H1's redeemer-first reorder; expected sharp drop. |
+| `fee_contract`   | Replenish positive                                                 |    measure |   measure |   measure |    measure |   measure |   measure | M4.                                               |
+| (Whole suite)    | `aiken check` cumulative                                           |    measure |   measure |   measure |    measure |   measure |   measure | The safety net.                                   |
 
 Headline numbers expected (per perf cost model in
 [`docs/perf-m4-5-audit.md`](perf-m4-5-audit.md)):

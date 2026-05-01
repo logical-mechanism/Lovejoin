@@ -20,11 +20,5 @@ export function StatusDot({
   else if (tone === "warn") cls.push("lj-dot--warn");
   else if (tone === "bad") cls.push("lj-dot--bad");
   if (hollow) cls.push("lj-dot--hollow");
-  return (
-    <span
-      className={cls.join(" ")}
-      role={label ? "img" : undefined}
-      aria-label={label}
-    />
-  );
+  return <span className={cls.join(" ")} role={label ? "img" : undefined} aria-label={label} />;
 }

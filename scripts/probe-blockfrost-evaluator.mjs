@@ -63,18 +63,12 @@ const r2 = await fetch(`${baseUrl}/utils/txs/evaluate?version=6`, {
 await show("2. /utils/txs/evaluate?version=6 (ogmios v6)", r2);
 
 // 3) /utils/txs/evaluate/utxos with version=6 + empty additional_utxos.
-const r3 = await fetch(
-  `${baseUrl}/utils/txs/evaluate/utxos?version=6`,
-  {
-    method: "POST",
-    headers: { "Content-Type": "application/json", project_id: projectId },
-    body: JSON.stringify({ cbor: txHex, additionalUtxoSet: [] }),
-  },
-);
-await show(
-  "3. /utils/txs/evaluate/utxos?version=6 (JSON + additionalUtxoSet=[])",
-  r3,
-);
+const r3 = await fetch(`${baseUrl}/utils/txs/evaluate/utxos?version=6`, {
+  method: "POST",
+  headers: { "Content-Type": "application/json", project_id: projectId },
+  body: JSON.stringify({ cbor: txHex, additionalUtxoSet: [] }),
+});
+await show("3. /utils/txs/evaluate/utxos?version=6 (JSON + additionalUtxoSet=[])", r3);
 
 // 4) Koios's ogmios proxy — JSON-RPC 2.0 evaluateTransaction.
 //    https://preprod.koios.rest/#post-/ogmios — public, no API key.

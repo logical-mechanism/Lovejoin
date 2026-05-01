@@ -32,8 +32,7 @@ const PROJECT_ID = process.env.BLOCKFROST_PROJECT_ID_PREPROD;
 const PAYMENT_SKEY = process.env.LOVEJOIN_PAYMENT_SKEY;
 const STAKE_SKEY = process.env.LOVEJOIN_STAKE_SKEY;
 const MNEMONIC = process.env.LOVEJOIN_MNEMONIC;
-const ADDRESSES_PATH = process.env.LOVEJOIN_ADDRESSES
-  ?? `./artifacts/${NETWORK}/addresses.json`;
+const ADDRESSES_PATH = process.env.LOVEJOIN_ADDRESSES ?? `./artifacts/${NETWORK}/addresses.json`;
 
 const HAS_PROJECT_ID = !!PROJECT_ID;
 const HAS_WALLET = !!(PAYMENT_SKEY || MNEMONIC);
@@ -70,63 +69,60 @@ const skipReason = !HAS_PROJECT_ID
     ? "LOVEJOIN_PAYMENT_SKEY / LOVEJOIN_MNEMONIC not set"
     : null;
 
-describe.skipIf(skipReason !== null)(
-  `m3 — deposit-withdraw on ${NETWORK}`,
-  () => {
-    it("deposits a mix-box then withdraws it (single round)", async () => {
-      const provider = new BlockfrostProvider({
-        baseUrl: blockfrostBaseUrl(),
-        projectId: PROJECT_ID!,
-      });
-      const wallet = await loadWallet();
-      const addresses = loadAddresses();
-
-      // --- Deposit ----------------------------------------------------------
-      const deposit = await buildDepositTx({
-        network: NETWORK,
-        rounds: 5, // small replenishment so the test doesn't burn a lot of ADA
-        wallet,
-        provider,
-        addresses,
-      });
-      expect(deposit.txId).toMatch(/^[0-9a-f]{64}$/);
-      expect(deposit.owner.secretHex).toMatch(/^[0-9a-f]{64}$/);
-      expect(deposit.owner.publicPointHex).toMatch(/^[0-9a-f]{96}$/);
-      expect(deposit.mixBoxOutputIndex).toBe(0);
-
-      // Wait for confirmation before referencing the UTxO downstream.
-      await provider.awaitConfirmation(deposit.txId, 5 * 60_000);
-
-      // --- Withdraw ---------------------------------------------------------
-      // Send to a fresh ad-hoc Preprod address so the test doesn't pollute the
-      // funding wallet. We use a derived enterprise script address from the
-      // reference holder script — guaranteed to exist on chain. Real users
-      // would withdraw to a Seedelf or fresh wallet.
-      const destinationFresh = await freshDestination(wallet);
-
-      const withdraw = await buildWithdrawTx({
-        network: NETWORK,
-        ownerSecret: BigInt("0x" + deposit.owner.secretHex),
-        mixBox: {
-          ref: { txId: deposit.txId, outputIndex: deposit.mixBoxOutputIndex },
-          a: hexToBytes(generatorBytesHex()),
-          b: hexToBytes(deposit.owner.publicPointHex),
-        },
-        destinationAddressBech32: destinationFresh,
-        wallet,
-        provider,
-        addresses,
-      });
-      expect(withdraw.txId).toMatch(/^[0-9a-f]{64}$/);
-
-      await provider.awaitConfirmation(withdraw.txId, 5 * 60_000);
+describe.skipIf(skipReason !== null)(`m3 — deposit-withdraw on ${NETWORK}`, () => {
+  it("deposits a mix-box then withdraws it (single round)", async () => {
+    const provider = new BlockfrostProvider({
+      baseUrl: blockfrostBaseUrl(),
+      projectId: PROJECT_ID!,
     });
-  },
-);
+    const wallet = await loadWallet();
+    const addresses = loadAddresses();
+
+    // --- Deposit ----------------------------------------------------------
+    const deposit = await buildDepositTx({
+      network: NETWORK,
+      rounds: 5, // small replenishment so the test doesn't burn a lot of ADA
+      wallet,
+      provider,
+      addresses,
+    });
+    expect(deposit.txId).toMatch(/^[0-9a-f]{64}$/);
+    expect(deposit.owner.secretHex).toMatch(/^[0-9a-f]{64}$/);
+    expect(deposit.owner.publicPointHex).toMatch(/^[0-9a-f]{96}$/);
+    expect(deposit.mixBoxOutputIndex).toBe(0);
+
+    // Wait for confirmation before referencing the UTxO downstream.
+    await provider.awaitConfirmation(deposit.txId, 5 * 60_000);
+
+    // --- Withdraw ---------------------------------------------------------
+    // Send to a fresh ad-hoc Preprod address so the test doesn't pollute the
+    // funding wallet. We use a derived enterprise script address from the
+    // reference holder script — guaranteed to exist on chain. Real users
+    // would withdraw to a Seedelf or fresh wallet.
+    const destinationFresh = await freshDestination(wallet);
+
+    const withdraw = await buildWithdrawTx({
+      network: NETWORK,
+      ownerSecret: BigInt("0x" + deposit.owner.secretHex),
+      mixBox: {
+        ref: { txId: deposit.txId, outputIndex: deposit.mixBoxOutputIndex },
+        a: hexToBytes(generatorBytesHex()),
+        b: hexToBytes(deposit.owner.publicPointHex),
+      },
+      destinationAddressBech32: destinationFresh,
+      wallet,
+      provider,
+      addresses,
+    });
+    expect(withdraw.txId).toMatch(/^[0-9a-f]{64}$/);
+
+    await provider.awaitConfirmation(withdraw.txId, 5 * 60_000);
+  });
+});
 
 if (skipReason) {
   // Surface the skip reason as test output so it shows up in CI logs.
-  // eslint-disable-next-line no-console
+
   console.log(`[m3 deposit-withdraw] SKIP — ${skipReason}`);
 }
 

@@ -109,9 +109,7 @@ const DEFAULTS = {
  *
  * @param env Defaults to `process.env`. Tests inject a synthetic env.
  */
-export function loadConfig(
-  env: NodeJS.ProcessEnv = process.env,
-): BackendConfig {
+export function loadConfig(env: NodeJS.ProcessEnv = process.env): BackendConfig {
   const network = parseNetwork(env.NETWORK ?? "preprod");
   const port = parseIntegerEnv(env.PORT, DEFAULTS.port, "PORT");
   const host = env.HOST?.trim() || DEFAULTS.host;
@@ -178,9 +176,7 @@ function resolveBootstrapStartPoint(
   // Either both env vars or neither — treating only one as set is almost
   // always a config typo and silently falling back is worse than yelling.
   if ((slotRaw && !hashRaw) || (!slotRaw && hashRaw)) {
-    throw new Error(
-      "BOOTSTRAP_START_SLOT and BOOTSTRAP_START_BLOCKHASH must be set together",
-    );
+    throw new Error("BOOTSTRAP_START_SLOT and BOOTSTRAP_START_BLOCKHASH must be set together");
   }
   if (slotRaw && hashRaw) {
     const slot = Number(slotRaw);
@@ -258,9 +254,7 @@ export function validateAddresses(
     }
   }
   if (errs.length > 0) {
-    throw new Error(
-      `addresses.json (${source}) is malformed:\n  - ${errs.join("\n  - ")}`,
-    );
+    throw new Error(`addresses.json (${source}) is malformed:\n  - ${errs.join("\n  - ")}`);
   }
   return parsed as LovejoinAddresses;
 }
@@ -271,11 +265,7 @@ function parseNetwork(s: string): "preprod" | "mainnet" | "preview" {
   throw new Error(`NETWORK must be preprod / mainnet / preview, got ${s}`);
 }
 
-function parseIntegerEnv(
-  raw: string | undefined,
-  fallback: number,
-  name: string,
-): number {
+function parseIntegerEnv(raw: string | undefined, fallback: number, name: string): number {
   if (raw === undefined || raw === "") return fallback;
   const n = Number(raw);
   if (!Number.isInteger(n) || n < 0) {

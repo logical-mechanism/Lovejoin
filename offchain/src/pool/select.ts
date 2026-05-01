@@ -39,12 +39,8 @@ export function pickRandomNTuple(args: {
   if (!Number.isInteger(args.n) || args.n < 0) {
     throw new Error(`pickRandomNTuple: n must be a non-negative integer, got ${args.n}`);
   }
-  const exclude = new Set(
-    (args.excludeRefs ?? []).map((r) => `${r.txId}#${r.outputIndex}`),
-  );
-  const eligible = args.pool.filter(
-    (e) => !exclude.has(`${e.ref.txId}#${e.ref.outputIndex}`),
-  );
+  const exclude = new Set((args.excludeRefs ?? []).map((r) => `${r.txId}#${r.outputIndex}`));
+  const eligible = args.pool.filter((e) => !exclude.has(`${e.ref.txId}#${e.ref.outputIndex}`));
   if (eligible.length === 0 || args.n === 0) return [];
   const n = Math.min(args.n, eligible.length);
   const rng = args.rng ?? cryptoRandomInt;

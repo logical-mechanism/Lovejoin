@@ -14,9 +14,7 @@ import { changeLanguage } from "../i18n/index.js";
 
 export function LanguageSwitcher() {
   const { t, i18n } = useTranslation();
-  const current = isSupportedLang(i18n.resolvedLanguage ?? "")
-    ? i18n.resolvedLanguage!
-    : "en";
+  const current = isSupportedLang(i18n.resolvedLanguage ?? "") ? i18n.resolvedLanguage! : "en";
 
   return (
     <label className="lj-lang">

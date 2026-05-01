@@ -364,7 +364,7 @@ export class GivemeMyProvider implements CollateralProvider {
       throw new Error("GivemeMyProvider.signTxBody: txCborHex must be non-empty hex");
     }
     const body = JSON.stringify({ tx_body: txCborHex });
-    // eslint-disable-next-line no-console
+
     console.log(
       `[lovejoin/collateral] POST ${this.endpoint} ` +
         `(host=${this.host.name}, txCbor=${txCborHex.length / 2} bytes)`,
@@ -374,7 +374,7 @@ export class GivemeMyProvider implements CollateralProvider {
       headers: { "Content-Type": "application/json" },
       body,
     });
-    // eslint-disable-next-line no-console
+
     console.log(`[lovejoin/collateral] HTTP ${res.status} ${res.statusText}`);
 
     // Read body once as text. Detecting HTML up-front lets us emit a
@@ -443,9 +443,7 @@ export function parseGivemeMyWitnessResponse(
   const witnessField = r["witness"];
   if (typeof witnessField !== "string" || witnessField.length === 0) {
     const errField = JSON.stringify(r).slice(0, 300);
-    throw new Error(
-      `GivemeMyProvider: response missing/empty "witness" field. Body: ${errField}`,
-    );
+    throw new Error(`GivemeMyProvider: response missing/empty "witness" field. Body: ${errField}`);
   }
   const witnessBytes = hexToBytes(witnessField);
   // Layout from upstream's `create_witness_cbor`:
@@ -472,9 +470,7 @@ export function parseGivemeMyWitnessResponse(
   }
   // bytes(32) header: 0x58 0x20
   if (witnessBytes[3] !== 0x58 || witnessBytes[4] !== 0x20) {
-    throw new Error(
-      `GivemeMyProvider: vkey field is not a 32-byte CBOR byte string`,
-    );
+    throw new Error(`GivemeMyProvider: vkey field is not a 32-byte CBOR byte string`);
   }
   if (witnessBytes.length < 5 + 32 + 2 + 64) {
     throw new Error(
@@ -484,9 +480,7 @@ export function parseGivemeMyWitnessResponse(
   const vkeyBytes = witnessBytes.subarray(5, 5 + 32);
   // bytes(64) header: 0x58 0x40
   if (witnessBytes[5 + 32] !== 0x58 || witnessBytes[5 + 32 + 1] !== 0x40) {
-    throw new Error(
-      `GivemeMyProvider: signature field is not a 64-byte CBOR byte string`,
-    );
+    throw new Error(`GivemeMyProvider: signature field is not a 64-byte CBOR byte string`);
   }
   const sigBytes = witnessBytes.subarray(5 + 32 + 2, 5 + 32 + 2 + 64);
 

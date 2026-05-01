@@ -43,17 +43,12 @@ export function repoRoot(): string {
 }
 
 export function loadConfig(network: string): NetworkConfig {
-  return JSON.parse(
-    readFileSync(resolve(repoRoot(), `config/network.${network}.json`), "utf8"),
-  );
+  return JSON.parse(readFileSync(resolve(repoRoot(), `config/network.${network}.json`), "utf8"));
 }
 
 export function loadAddresses(network: string): Addresses {
   return JSON.parse(
-    readFileSync(
-      resolve(repoRoot(), `artifacts/${network}/addresses.json`),
-      "utf8",
-    ),
+    readFileSync(resolve(repoRoot(), `artifacts/${network}/addresses.json`), "utf8"),
   );
 }
 

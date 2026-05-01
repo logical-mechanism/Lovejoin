@@ -22,7 +22,7 @@ Zerojoin requires both parties online to mix and operates strictly on 2-input/2-
 
 ## Wallet anonymity layer
 
-We do NOT implement stealth withdrawal in v1. Users who want full wallet-side anonymity for the destination of a withdrawal should send funds to a [Seedelf](https://github.com/logical-mechanism/Seedelf-Wallet) address. Lovejoin handles the *pool* side; Seedelf handles the *wallet* side. They compose cleanly.
+We do NOT implement stealth withdrawal in v1. Users who want full wallet-side anonymity for the destination of a withdrawal should send funds to a [Seedelf](https://github.com/logical-mechanism/Seedelf-Wallet) address. Lovejoin handles the _pool_ side; Seedelf handles the _wallet_ side. They compose cleanly.
 
 ## Goals
 

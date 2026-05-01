@@ -43,12 +43,7 @@ import { hkdf } from "@noble/hashes/hkdf.js";
 import { sha256 } from "@noble/hashes/sha2.js";
 
 import { blake2b256 } from "../crypto/hash.js";
-import {
-  SCALAR_ORDER,
-  bytesToBigIntBE,
-  reduceScalar,
-  type Scalar,
-} from "../crypto/bls.js";
+import { SCALAR_ORDER, bytesToBigIntBE, reduceScalar, type Scalar } from "../crypto/bls.js";
 
 /**
  * The exact UTF-8 string the wallet is asked to sign. CIP-8-compatible
@@ -110,9 +105,7 @@ const OWNER_HKDF_TAG_V1_BYTES = new TextEncoder().encode(OWNER_HKDF_TAG_V1);
  * mainnet) — different network, different seed.
  */
 export const RECOVERY_SALT_DOMAIN_TAG_V1 = "lovejoin/recover-seed/v1";
-const RECOVERY_SALT_DOMAIN_TAG_V1_BYTES = new TextEncoder().encode(
-  RECOVERY_SALT_DOMAIN_TAG_V1,
-);
+const RECOVERY_SALT_DOMAIN_TAG_V1_BYTES = new TextEncoder().encode(RECOVERY_SALT_DOMAIN_TAG_V1);
 
 /**
  * Refuse to derive a seed from anything other than a Cardano stake
@@ -124,9 +117,7 @@ const RECOVERY_SALT_DOMAIN_TAG_V1_BYTES = new TextEncoder().encode(
  * deriving the seed from a non-stake key.
  */
 export function isStakeAddressBech32(address: string): boolean {
-  return (
-    address.startsWith("stake1") || address.startsWith("stake_test1")
-  );
+  return address.startsWith("stake1") || address.startsWith("stake_test1");
 }
 
 /**
@@ -222,9 +213,7 @@ export function recoverySalt(args: {
     throw new Error(`recoverySalt: unknown network ${args.network}`);
   }
   const addrBytes = new TextEncoder().encode(args.stakeAddrBech32);
-  const buf = new Uint8Array(
-    RECOVERY_SALT_DOMAIN_TAG_V1_BYTES.length + 1 + addrBytes.length,
-  );
+  const buf = new Uint8Array(RECOVERY_SALT_DOMAIN_TAG_V1_BYTES.length + 1 + addrBytes.length);
   let off = 0;
   buf.set(RECOVERY_SALT_DOMAIN_TAG_V1_BYTES, off);
   off += RECOVERY_SALT_DOMAIN_TAG_V1_BYTES.length;
@@ -345,10 +334,7 @@ export interface SignDataCapableWallet {
    *   omitted mesh defaults to the first used address; we ALWAYS pass an
    *   explicit stake address so the seed is per-account.
    */
-  signData(
-    payload: string,
-    address?: string,
-  ): Promise<{ signature: string; key: string }>;
+  signData(payload: string, address?: string): Promise<{ signature: string; key: string }>;
   /**
    * Bech32 stake / reward addresses owned by the wallet. CIP-30 lets a
    * wallet sign with any of its keys; we always sign with the stake key

@@ -28,6 +28,7 @@ Scalar serialization is 32 bytes, big-endian, with the constraint that the canon
 Statement: prover knows `x ∈ Z_r` such that `u = [x]g`.
 
 Non-interactive (Fiat-Shamir):
+
 1. Prover picks `r_p ∈ Z_r` uniformly, computes `t = [r_p]g`.
 2. Computes challenge `c = H(g, u, t, ctx) mod r`.
 3. Computes `z = r_p + c·x mod r`.
@@ -42,6 +43,7 @@ Generalized form `proveDlog(g', u)` (any base): same as above with `g` replaced 
 Statement: prover knows `x ∈ Z_r` such that `u = [x]g` AND `v = [x]h`, for given `(g, h, u, v)`.
 
 Non-interactive:
+
 1. Prover picks `r_p ∈ Z_r`, computes `(t_0, t_1) = ([r_p]g, [r_p]h)`.
 2. `c = H(g, h, u, v, t_0, t_1, ctx) mod r`.
 3. `z = r_p + c·x mod r`.
@@ -90,20 +92,20 @@ If any branch fails, reject.
 
 For an N-way OR proof:
 
-| Item | Count |
-|---|---|
-| `t_{i,0}`, `t_{i,1}` | 2N × 48 bytes |
-| `c_i`, `z_i` | N × 64 bytes |
-| Total proof size | `~ 160·N` bytes |
-| Verifier scalar muls | 2N |
-| Verifier adds | 2N (subtractions are add+neg) |
-| Verifier hash | 1 blake2b-256 over all the above |
+| Item                 | Count                            |
+| -------------------- | -------------------------------- |
+| `t_{i,0}`, `t_{i,1}` | 2N × 48 bytes                    |
+| `c_i`, `z_i`         | N × 64 bytes                     |
+| Total proof size     | `~ 160·N` bytes                  |
+| Verifier scalar muls | 2N                               |
+| Verifier adds        | 2N (subtractions are add+neg)    |
+| Verifier hash        | 1 blake2b-256 over all the above |
 
 The N=2 case reduces to the standard 2-way Cramer-Damgård OR.
 
 #### When prover knows multiple witnesses
 
-In our Mix tx, the mixer knows `y_b` for *one* of the N branches per input (the branch where the i-th input was mapped to). The above construction handles exactly this case. If the mixer happened to know witnesses for multiple branches (they don't in our protocol; only one branch per input is "real"), they'd just pick one to be `b` and simulate the rest.
+In our Mix tx, the mixer knows `y_b` for _one_ of the N branches per input (the branch where the i-th input was mapped to). The above construction handles exactly this case. If the mixer happened to know witnesses for multiple branches (they don't in our protocol; only one branch per input is "real"), they'd just pick one to be `b` and simulate the rest.
 
 ## Hash function and Fiat-Shamir context binding
 
@@ -128,11 +130,13 @@ Domain tag: `"lovejoin/sigmajoin/v1/"` (ASCII).
 The proof MUST commit to enough of the spending transaction that an attacker cannot replay or front-run it.
 
 #### Owner redeemer
+
 ```
 ctx = blake2b_256( serialize(tx.outputs) || mixScriptHash )
 ```
 
 #### Mix redeemer (variable N)
+
 ```
 ctx = blake2b_256(
     serialize(out_0.datum) || serialize(out_1.datum) || ... || serialize(out_{N-1}.datum)
@@ -141,7 +145,7 @@ ctx = blake2b_256(
 )
 ```
 
-This binds the proof to the *exact* N output mix-boxes, preventing rebinding to a different output set.
+This binds the proof to the _exact_ N output mix-boxes, preventing rebinding to a different output set.
 
 ## Nonce generation: RFC 6979 deterministic
 
@@ -166,12 +170,14 @@ The **secret key itself** (`x` in a deposit, `y_i` in a mix) MUST come from a CS
 ## Test vectors
 
 KAT files in `crypto/test-vectors/`:
+
 - `provedlog.json` — 1000 vectors at default form.
 - `provedhtuple.json` — 1000 vectors.
 - `sigma-or.json` — vectors at N ∈ {2, 3, 4, 6, 8}, 200 each.
 - `negative.json` — invalid proofs that MUST fail (across all N).
 
 Each vector verified by:
+
 1. The TS prover (re-derive proof using RFC 6979 nonce; assert exact bytes).
 2. The TS verifier.
 3. The Aiken validator running in the simulator.

@@ -55,15 +55,12 @@ import type { OwnedBox } from "../lib/vault.js";
 
 export function Vault() {
   const { t } = useTranslation();
-  const { wallet, vault, vaultBusy, vaultError, unlockWithWallet } =
-    useAppState();
+  const { wallet, vault, vaultBusy, vaultError, unlockWithWallet } = useAppState();
   const [showFallback, setShowFallback] = useState(false);
 
   if (!vault) {
     if (showFallback) {
-      return (
-        <RecoverPasswordPanel onClose={() => setShowFallback(false)} />
-      );
+      return <RecoverPasswordPanel onClose={() => setShowFallback(false)} />;
     }
     return (
       <section className="lj-card">
@@ -73,9 +70,7 @@ export function Vault() {
             <h2 className="lj-card__title">{t("vault.locked_title")}</h2>
           </div>
         </header>
-        <p className="text-sm text-muted leading-relaxed max-w-prose">
-          {t("vault.locked_lede")}
-        </p>
+        <p className="text-sm text-muted leading-relaxed max-w-prose">{t("vault.locked_lede")}</p>
         <div className="mt-6">
           <button
             type="button"
@@ -83,15 +78,11 @@ export function Vault() {
             disabled={!wallet || vaultBusy}
             onClick={() => void unlockWithWallet()}
           >
-            {vaultBusy && (
-              <span className="lj-spinner lj-spinner--sm" aria-hidden="true" />
-            )}
+            {vaultBusy && <span className="lj-spinner lj-spinner--sm" aria-hidden="true" />}
             {vaultBusy ? t("vault.unlocking") : t("vault.unlock_with_wallet")}
           </button>
         </div>
-        {!wallet && (
-          <p className="mt-4 text-sm text-whisper">{t("vault.no_wallet")}</p>
-        )}
+        {!wallet && <p className="mt-4 text-sm text-whisper">{t("vault.no_wallet")}</p>}
         <div className="mt-6 border-t border-rule pt-4">
           <button
             type="button"
@@ -148,8 +139,7 @@ function UnlockedVault() {
   // deployed validator allows.
   const [rowMixingRef, setRowMixingRef] = useState<string | null>(null);
   const [confirmMixRef, setConfirmMixRef] = useState<string | null>(null);
-  const maxNShard =
-    addresses?.protocol.max_n_shard ?? addresses?.protocol.max_n ?? 2;
+  const maxNShard = addresses?.protocol.max_n_shard ?? addresses?.protocol.max_n ?? 2;
 
   const [selectedRefs, setSelectedRefs] = useState<Set<string>>(() => new Set());
   const [destination, setDestination] = useState("");
@@ -205,10 +195,7 @@ function UnlockedVault() {
       return;
     }
     const first = ownedBoxes.find(
-      (b) =>
-        !pendingTxRefs.has(
-          `${b.entry.ref.txId.toLowerCase()}#${b.entry.ref.outputIndex}`,
-        ),
+      (b) => !pendingTxRefs.has(`${b.entry.ref.txId.toLowerCase()}#${b.entry.ref.outputIndex}`),
     );
     if (!first) return;
     setSelectedRefs(
@@ -263,8 +250,7 @@ function UnlockedVault() {
       // pattern the Pool screen uses; we want the freshest data here
       // since we're about to spend specific UTxOs.
       const useBackend =
-        !!config.backendUrl &&
-        (backend?.status === "synced" || backend?.status === "syncing");
+        !!config.backendUrl && (backend?.status === "synced" || backend?.status === "syncing");
       let entries: DirectPoolEntry[] | null = null;
       if (useBackend) {
         try {
@@ -298,9 +284,7 @@ function UnlockedVault() {
           const snap = await client.mempoolInputs();
           if (snap) {
             for (const r of snap.inputs) {
-              inFlightRefs.add(
-                `${r.txHash.toLowerCase()}#${r.outputIndex}`,
-              );
+              inFlightRefs.add(`${r.txHash.toLowerCase()}#${r.outputIndex}`);
             }
           }
         } catch {
@@ -391,15 +375,10 @@ function UnlockedVault() {
       // them from getting double-selected for a parallel mix or
       // withdraw before this tx confirms.
       const ownedRefSet = new Set(
-        ownedBoxes.map(
-          (b) =>
-            `${b.entry.ref.txId.toLowerCase()}#${b.entry.ref.outputIndex}`,
-        ),
+        ownedBoxes.map((b) => `${b.entry.ref.txId.toLowerCase()}#${b.entry.ref.outputIndex}`),
       );
       const ownedFillerRefs = fillers
-        .map(
-          (e) => `${e.ref.txId.toLowerCase()}#${e.ref.outputIndex}`,
-        )
+        .map((e) => `${e.ref.txId.toLowerCase()}#${e.ref.outputIndex}`)
         .filter((k) => ownedRefSet.has(k));
       markTxPending([refKey, ...ownedFillerRefs]);
       toast.push({
@@ -414,9 +393,7 @@ function UnlockedVault() {
       toast.push({
         tone: "error",
         title: busy ? t("tx.busy_title") : t("toast.mix_failed"),
-        detail: busy
-          ? t("tx.busy_detail")
-          : friendlyErrorMessage((err as Error).message, t),
+        detail: busy ? t("tx.busy_detail") : friendlyErrorMessage((err as Error).message, t),
       });
     } finally {
       setRowMixingRef(null);
@@ -427,9 +404,7 @@ function UnlockedVault() {
   const selectedBoxes: OwnedBox[] = useMemo(
     () =>
       ownedBoxes.filter((b) =>
-        selectedRefs.has(
-          `${b.entry.ref.txId.toLowerCase()}#${b.entry.ref.outputIndex}`,
-        ),
+        selectedRefs.has(`${b.entry.ref.txId.toLowerCase()}#${b.entry.ref.outputIndex}`),
       ),
     [ownedBoxes, selectedRefs],
   );
@@ -443,10 +418,7 @@ function UnlockedVault() {
   // rescan removed a box) so we don't render a blank page past the end.
   const totalPages = Math.max(1, Math.ceil(ownedBoxes.length / PAGE_SIZE));
   const safeBoxPage = Math.min(boxPage, totalPages - 1);
-  const visibleBoxes = ownedBoxes.slice(
-    safeBoxPage * PAGE_SIZE,
-    (safeBoxPage + 1) * PAGE_SIZE,
-  );
+  const visibleBoxes = ownedBoxes.slice(safeBoxPage * PAGE_SIZE, (safeBoxPage + 1) * PAGE_SIZE);
 
   const validation = useMemo(
     () => validateDestination(destination, config.network),
@@ -455,10 +427,7 @@ function UnlockedVault() {
 
   const preconditionsOk = !!provider && !!addresses && !!wallet && !!vault;
   const canSubmit =
-    preconditionsOk &&
-    selectedBoxes.length > 0 &&
-    validation.status === "ok" &&
-    !submitting;
+    preconditionsOk && selectedBoxes.length > 0 && validation.status === "ok" && !submitting;
 
   // Soft balance hint. Withdraw fees are paid by the connected wallet
   // (collateral comes from giveme.my); 3 ADA covers tx fee + min-utxo
@@ -468,9 +437,7 @@ function UnlockedVault() {
   // balance can't see it. Surface as advisory copy under the button.
   const withdrawRequiredLovelace = 3_000_000n;
   const balanceShort =
-    !!wallet &&
-    walletLovelace !== null &&
-    walletLovelace < withdrawRequiredLovelace;
+    !!wallet && walletLovelace !== null && walletLovelace < withdrawRequiredLovelace;
 
   const onRequestSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -521,9 +488,7 @@ function UnlockedVault() {
       // 90 s safety timer expires). Closes the perceptual gap between
       // "submitted" toast and the boxes actually leaving the table.
       markTxPending(
-        selectedBoxes.map(
-          (b) => `${b.entry.ref.txId.toLowerCase()}#${b.entry.ref.outputIndex}`,
-        ),
+        selectedBoxes.map((b) => `${b.entry.ref.txId.toLowerCase()}#${b.entry.ref.outputIndex}`),
       );
       // Clear the picker so the row visibly drains as the chain confirms;
       // schedule a rescan so the boxes drop out of `ownedBoxes` once the
@@ -554,9 +519,7 @@ function UnlockedVault() {
       <header className="lj-card__head">
         <div>
           <Eyebrow>
-            {vault!.kind === "wallet"
-              ? t("vault.eyebrow")
-              : t("vault.eyebrow_recovery")}
+            {vault!.kind === "wallet" ? t("vault.eyebrow") : t("vault.eyebrow_recovery")}
           </Eyebrow>
           <h2 className="lj-card__title">{t("vault.title")}</h2>
         </div>
@@ -567,9 +530,7 @@ function UnlockedVault() {
             onClick={() => void runRescan()}
             disabled={submitting || rescanning}
           >
-            {rescanning && (
-              <span className="lj-spinner lj-spinner--sm" aria-hidden="true" />
-            )}
+            {rescanning && <span className="lj-spinner lj-spinner--sm" aria-hidden="true" />}
             {rescanning ? t("vault.scanning_pool") : t("vault.scan_again")}
           </button>
           <button
@@ -589,9 +550,7 @@ function UnlockedVault() {
 
       {scanError && (
         <div className="lj-banner lj-banner--coral mt-4">
-          <span className="lj-banner__title">
-            {t("vault.scan_failed", { message: scanError })}
-          </span>
+          <span className="lj-banner__title">{t("vault.scan_failed", { message: scanError })}</span>
         </div>
       )}
 
@@ -601,17 +560,11 @@ function UnlockedVault() {
           <p>{t("vault.empty_hint")}</p>
         </div>
       ) : (
-        <form
-          className="mt-6 space-y-6"
-          onSubmit={onRequestSubmit}
-          aria-busy={submitting}
-        >
+        <form className="mt-6 space-y-6" onSubmit={onRequestSubmit} aria-busy={submitting}>
           <fieldset disabled={submitting} className="contents">
             <div className="space-y-2">
               <div className="flex items-center justify-between">
-                <span className="lj-field__label">
-                  {t("withdraw.select_boxes")}
-                </span>
+                <span className="lj-field__label">{t("withdraw.select_boxes")}</span>
                 <div className="flex gap-3 text-xs">
                   <button
                     type="button"
@@ -633,15 +586,11 @@ function UnlockedVault() {
               </div>
               <div className="overflow-x-auto">
                 <table className="lj-table">
-                  <caption className="sr-only">
-                    {t("withdraw.table_caption")}
-                  </caption>
+                  <caption className="sr-only">{t("withdraw.table_caption")}</caption>
                   <thead>
                     <tr>
                       <th scope="col" className="w-8">
-                        <span className="sr-only">
-                          {t("withdraw.column_select")}
-                        </span>
+                        <span className="sr-only">{t("withdraw.column_select")}</span>
                       </th>
                       <th scope="col">
                         <abbr title={t("withdraw.column_index_long")}>i</abbr>
@@ -653,9 +602,7 @@ function UnlockedVault() {
                         </abbr>
                       </th>
                       <th scope="col" className="lj-table__num">
-                        <span className="sr-only">
-                          {t("vault.column_action")}
-                        </span>
+                        <span className="sr-only">{t("vault.column_action")}</span>
                       </th>
                     </tr>
                   </thead>
@@ -697,10 +644,7 @@ function UnlockedVault() {
                           <td className="lj-table__num">
                             {pending ? (
                               <span className="inline-flex items-center gap-2">
-                                <span
-                                  className="lj-spinner lj-spinner--sm"
-                                  aria-hidden="true"
-                                />
+                                <span className="lj-spinner lj-spinner--sm" aria-hidden="true" />
                                 <span className="text-whisper text-xs uppercase tracking-wider">
                                   {t("vault.box_pending")}
                                 </span>
@@ -716,9 +660,7 @@ function UnlockedVault() {
                             </span>
                           </td>
                           <td className="lj-table__num">
-                            {typeof box.generation === "number"
-                              ? box.generation
-                              : "—"}
+                            {typeof box.generation === "number" ? box.generation : "—"}
                           </td>
                           <td className="lj-table__num">
                             <button
@@ -736,17 +678,10 @@ function UnlockedVault() {
                                 !addresses ||
                                 !collateralOk
                               }
-                              title={
-                                !collateralOk
-                                  ? t("vault.mix_disabled_collateral")
-                                  : undefined
-                              }
+                              title={!collateralOk ? t("vault.mix_disabled_collateral") : undefined}
                             >
                               {rowMixingRef === ref && (
-                                <span
-                                  className="lj-spinner lj-spinner--sm"
-                                  aria-hidden="true"
-                                />
+                                <span className="lj-spinner lj-spinner--sm" aria-hidden="true" />
                               )}
                               {rowMixingRef === ref
                                 ? t("vault.mix_row_submitting")
@@ -781,9 +716,7 @@ function UnlockedVault() {
                   <button
                     type="button"
                     className="lj-btn lj-btn--quiet"
-                    onClick={() =>
-                      setBoxPage((p) => Math.min(totalPages - 1, p + 1))
-                    }
+                    onClick={() => setBoxPage((p) => Math.min(totalPages - 1, p + 1))}
                     disabled={safeBoxPage >= totalPages - 1}
                   >
                     {t("vault.next_page")} →
@@ -801,9 +734,7 @@ function UnlockedVault() {
             </div>
 
             <div className="mt-4 mb-6 border-t border-b border-rule py-6">
-              <p className="lj-eyebrow mb-3">
-                {t("withdraw.destination_section")}
-              </p>
+              <p className="lj-eyebrow mb-3">{t("withdraw.destination_section")}</p>
               <div className="lj-field">
                 <label className="lj-field__label" htmlFor="vault-destination">
                   {t("withdraw.destination_label")}
@@ -817,14 +748,12 @@ function UnlockedVault() {
                   autoComplete="off"
                   placeholder={t("withdraw.destination_placeholder")}
                   className={`lj-input${
-                    validation.status === "invalid" ||
-                    validation.status === "wrong-network"
+                    validation.status === "invalid" || validation.status === "wrong-network"
                       ? " lj-input--error"
                       : ""
                   }`}
                   aria-invalid={
-                    validation.status === "invalid" ||
-                    validation.status === "wrong-network"
+                    validation.status === "invalid" || validation.status === "wrong-network"
                   }
                   aria-describedby="vault-destination-help"
                 />
@@ -845,18 +774,12 @@ function UnlockedVault() {
                       })}
                     </p>
                   )}
-                  {validation.status === "ok" &&
-                    validation.kind.kind === "regular-key" && (
-                      <p className="lj-field__hint">
-                        {t("withdraw.dest_regular_key")}
-                      </p>
-                    )}
-                  {validation.status === "ok" &&
-                    validation.kind.kind === "stealth" && (
-                      <p className="lj-field__hint">
-                        {t("withdraw.dest_stealth")}
-                      </p>
-                    )}
+                  {validation.status === "ok" && validation.kind.kind === "regular-key" && (
+                    <p className="lj-field__hint">{t("withdraw.dest_regular_key")}</p>
+                  )}
+                  {validation.status === "ok" && validation.kind.kind === "stealth" && (
+                    <p className="lj-field__hint">{t("withdraw.dest_stealth")}</p>
+                  )}
                 </div>
               </div>
             </div>
@@ -871,9 +794,7 @@ function UnlockedVault() {
 
             <div className="lj-banner lj-banner--signal">
               <span className="lj-eyebrow">{t("withdraw.tx_preview_title")}</span>
-              <span className="lj-banner__detail">
-                {t("withdraw.tx_preview_copy")}
-              </span>
+              <span className="lj-banner__detail">{t("withdraw.tx_preview_copy")}</span>
             </div>
 
             <div>
@@ -882,23 +803,17 @@ function UnlockedVault() {
                 disabled={!canSubmit}
                 className="lj-btn lj-btn--primary lj-btn--lg"
               >
-                {submitting && (
-                  <span className="lj-spinner lj-spinner--sm" aria-hidden="true" />
-                )}
+                {submitting && <span className="lj-spinner lj-spinner--sm" aria-hidden="true" />}
                 {submitting ? t("withdraw.submitting") : t("withdraw.submit")}
               </button>
               {!preconditionsOk && (
-                <p className="mt-3 text-sm text-muted">
-                  {t("withdraw.preconditions_missing")}
-                </p>
+                <p className="mt-3 text-sm text-muted">{t("withdraw.preconditions_missing")}</p>
               )}
               {preconditionsOk &&
                 selectedBoxes.length === 0 &&
                 ownedBoxes.length > 0 &&
                 !submitting && (
-                  <p className="mt-3 text-xs text-whisper">
-                    {t("withdraw.no_box_selected")}
-                  </p>
+                  <p className="mt-3 text-xs text-whisper">{t("withdraw.no_box_selected")}</p>
                 )}
               {balanceShort && walletLovelace !== null && !submitting && (
                 <p className="mt-3 text-xs text-amber">
@@ -961,9 +876,7 @@ function UnlockedVault() {
               setConfirmMixRef(null);
               if (!ref) return;
               const target = ownedBoxes.find(
-                (b) =>
-                  `${b.entry.ref.txId.toLowerCase()}#${b.entry.ref.outputIndex}` ===
-                  ref,
+                (b) => `${b.entry.ref.txId.toLowerCase()}#${b.entry.ref.outputIndex}` === ref,
               );
               if (target) void mixThisBox(target);
             }}
@@ -983,9 +896,7 @@ function UnlockedVault() {
           <h2 className="mt-2 font-display text-2xl font-light tracking-tight text-paper">
             {t("withdraw.confirm_title")}
           </h2>
-          <p className="mt-2 text-sm text-muted">
-            {t("withdraw.confirm_lede")}
-          </p>
+          <p className="mt-2 text-sm text-muted">{t("withdraw.confirm_lede")}</p>
         </header>
         <dl className="lj-banner lj-banner--signal flex-col items-stretch gap-3">
           <div>
@@ -999,9 +910,7 @@ function UnlockedVault() {
           </div>
           <div>
             <dt className="lj-eyebrow">{t("withdraw.destination_label")}</dt>
-            <dd className="mt-1 break-all font-mono text-xs text-paper">
-              {destination.trim()}
-            </dd>
+            <dd className="mt-1 break-all font-mono text-xs text-paper">{destination.trim()}</dd>
           </div>
         </dl>
         <footer className="mt-6 flex justify-end gap-2">

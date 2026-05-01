@@ -92,7 +92,10 @@ export class BackendClient {
     return this.getJson<HealthResponse>("/health", signal);
   }
 
-  async pool(opts: { cursor?: number; limit?: number } = {}, signal?: AbortSignal): Promise<PoolPage | null> {
+  async pool(
+    opts: { cursor?: number; limit?: number } = {},
+    signal?: AbortSignal,
+  ): Promise<PoolPage | null> {
     const qs = new URLSearchParams();
     if (opts.cursor !== undefined) qs.set("cursor", String(opts.cursor));
     if (opts.limit !== undefined) qs.set("limit", String(opts.limit));

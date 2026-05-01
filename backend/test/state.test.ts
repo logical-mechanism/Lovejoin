@@ -3,11 +3,7 @@
 import { describe, expect, it } from "vitest";
 
 import { encodeMixDatumDef } from "./helpers/datum.js";
-import {
-  IndexerState,
-  ROLLBACK_BUFFER_BLOCKS,
-  DeepRollbackError,
-} from "../src/indexer/state.js";
+import { IndexerState, ROLLBACK_BUFFER_BLOCKS, DeepRollbackError } from "../src/indexer/state.js";
 import type { BlockDiff, ProducedUtxo } from "../src/indexer/types.js";
 import type { LovejoinAddresses } from "../src/config.js";
 
@@ -55,11 +51,7 @@ function mixBoxOutput(
   };
 }
 
-function feeOutput(
-  txId: string,
-  index: number,
-  lovelace: bigint,
-): ProducedUtxo {
+function feeOutput(txId: string, index: number, lovelace: bigint): ProducedUtxo {
   return {
     ref: { txId, outputIndex: index },
     address: FEE_ADDR,
@@ -91,7 +83,8 @@ function makeG1(seed: number): Uint8Array {
 function txHash(seed: string): string {
   // 64 hex chars deterministically derived from seed.
   let s = "";
-  for (let i = 0; i < 32; i++) s += ((seed.charCodeAt(i % seed.length) + i) % 256).toString(16).padStart(2, "0");
+  for (let i = 0; i < 32; i++)
+    s += ((seed.charCodeAt(i % seed.length) + i) % 256).toString(16).padStart(2, "0");
   return s;
 }
 
@@ -123,15 +116,19 @@ describe("IndexerState forward apply", () => {
   it("ignores produced UTxOs at unrelated addresses", () => {
     const s = makeState();
     s.applyForward(
-      block(1, [], [
-        {
-          ref: { txId: txHash("u"), outputIndex: 0 },
-          address: "addr_test1unrelated",
-          lovelace: 5_000_000n,
-          inlineDatumHex: null,
-          assets: {},
-        },
-      ]),
+      block(
+        1,
+        [],
+        [
+          {
+            ref: { txId: txHash("u"), outputIndex: 0 },
+            address: "addr_test1unrelated",
+            lovelace: 5_000_000n,
+            inlineDatumHex: null,
+            assets: {},
+          },
+        ],
+      ),
     );
     expect(s.poolSize()).toBe(0);
     expect(s.feeSnapshot().shards.length).toBe(0);
@@ -164,10 +161,7 @@ describe("IndexerState forward apply", () => {
           { txId: txHash("d1"), outputIndex: 0 },
           { txId: txHash("d2"), outputIndex: 0 },
         ],
-        [
-          mixBoxOutput(txHash("m1"), 0, 5, 6),
-          mixBoxOutput(txHash("m1"), 1, 7, 8),
-        ],
+        [mixBoxOutput(txHash("m1"), 0, 5, 6), mixBoxOutput(txHash("m1"), 1, 7, 8)],
       ),
     );
     expect(s.poolSize()).toBe(2);
@@ -184,17 +178,11 @@ describe("IndexerState forward apply", () => {
 
     // PayMixFee: consume f1, produce f1' with lower balance.
     s.applyForward(
-      block(
-        3,
-        [{ txId: txHash("f1"), outputIndex: 0 }],
-        [feeOutput(txHash("p1"), 0, 4_500_000n)],
-      ),
+      block(3, [{ txId: txHash("f1"), outputIndex: 0 }], [feeOutput(txHash("p1"), 0, 4_500_000n)]),
     );
     expect(s.feeSnapshot().shards).toHaveLength(2);
     expect(s.feeSnapshot().totalLovelace).toBe(7_500_000n);
-    expect(s.feeSnapshot().estimatedMixesAvailable).toBe(
-      Math.floor(7_500_000 / 800_000),
-    );
+    expect(s.feeSnapshot().estimatedMixesAvailable).toBe(Math.floor(7_500_000 / 800_000));
   });
 
   it("registers reference UTxO when the NFT-bearing output appears", () => {
@@ -217,11 +205,7 @@ describe("IndexerState forward apply", () => {
     const s = makeState();
     s.applyForward(block(1, [], [referenceOutput(txHash("r1"), 0)]));
     s.applyForward(
-      block(
-        2,
-        [{ txId: txHash("r1"), outputIndex: 0 }],
-        [referenceOutput(txHash("r2"), 0)],
-      ),
+      block(2, [{ txId: txHash("r1"), outputIndex: 0 }], [referenceOutput(txHash("r2"), 0)]),
     );
     expect(s.alarm()).toBeNull();
     expect(s.referenceUtxoRef()).toEqual({ txId: txHash("r2"), outputIndex: 0 });
@@ -246,7 +230,7 @@ describe("IndexerState rollback", () => {
     const anchor = s.tip!;
     for (let h = 1; h <= 500; h++) {
       s.applyForward(
-        block(h, [], [mixBoxOutput(txHash(`d-${h}`), 0, h % 200 + 1, (h + 100) % 200 + 1)]),
+        block(h, [], [mixBoxOutput(txHash(`d-${h}`), 0, (h % 200) + 1, ((h + 100) % 200) + 1)]),
       );
     }
     expect(s.poolSize()).toBe(500);
@@ -260,11 +244,7 @@ describe("IndexerState rollback", () => {
     s.applyForward(block(1, [], [feeOutput(txHash("f1"), 0, 5_000_000n)]));
     const tip1 = s.tip!;
     s.applyForward(
-      block(
-        2,
-        [{ txId: txHash("f1"), outputIndex: 0 }],
-        [feeOutput(txHash("p1"), 0, 4_200_000n)],
-      ),
+      block(2, [{ txId: txHash("f1"), outputIndex: 0 }], [feeOutput(txHash("p1"), 0, 4_200_000n)]),
     );
     expect(s.feeSnapshot().totalLovelace).toBe(4_200_000n);
     s.applyRollback(tip1);

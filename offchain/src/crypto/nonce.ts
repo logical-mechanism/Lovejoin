@@ -18,13 +18,7 @@
 
 import { hmac } from "@noble/hashes/hmac.js";
 import { sha256 } from "@noble/hashes/sha2.js";
-import {
-  SCALAR_BYTES,
-  SCALAR_ORDER,
-  type Scalar,
-  bytesToBigIntBE,
-  scalarToBytes,
-} from "./bls.js";
+import { SCALAR_BYTES, SCALAR_ORDER, type Scalar, bytesToBigIntBE, scalarToBytes } from "./bls.js";
 import { DOMAIN_TAG_V1_BYTES } from "./hash.js";
 
 // Scalar order r = 0x73ed...01 — first hex nibble 7 = 0b0111, so r occupies bit 254
@@ -100,7 +94,7 @@ export function deriveNonce(secret: Scalar, message: Uint8Array): Scalar {
   // RFC 6979 step h: generate T, test against rejection criteria, repeat as needed.
   // For SHA-256 + scalar field of size ~256 bits, one HMAC block is enough; we still
   // loop so the construction remains correct if the curve ever changes.
-  // eslint-disable-next-line no-constant-condition
+
   while (true) {
     const buf = new Uint8Array(SCALAR_BYTES);
     let off = 0;

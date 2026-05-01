@@ -44,10 +44,7 @@ export function RecoverPasswordPanel({ onClose }: RecoverPasswordPanelProps) {
   const { wallet, vaultBusy, vaultError, unlockWithPassword } = useAppState();
   const [password, setPassword] = useState("");
 
-  const assessment = useMemo<StrengthAssessment>(
-    () => assessStrength(password),
-    [password],
-  );
+  const assessment = useMemo<StrengthAssessment>(() => assessStrength(password), [password]);
 
   // Submit gates: a wallet must be connected (its stake address goes
   // into the salt), the password must clear the "fair" bar, and we
@@ -90,14 +87,10 @@ export function RecoverPasswordPanel({ onClose }: RecoverPasswordPanelProps) {
         </button>
       </header>
 
-      <p className="text-sm text-muted leading-relaxed max-w-prose">
-        {t("vault.recover_lede")}
-      </p>
+      <p className="text-sm text-muted leading-relaxed max-w-prose">{t("vault.recover_lede")}</p>
 
       <div className="lj-banner lj-banner--amber mt-5">
-        <span className="lj-banner__title">
-          {t("vault.recover_warning_title")}
-        </span>
+        <span className="lj-banner__title">{t("vault.recover_warning_title")}</span>
         <span className="lj-banner__detail">
           {t("vault.recover_warning_detail", {
             min: RECOVERY_PASSWORD_MIN_LENGTH,
@@ -135,15 +128,11 @@ export function RecoverPasswordPanel({ onClose }: RecoverPasswordPanelProps) {
           className="lj-btn lj-btn--primary lj-btn--lg self-start"
           disabled={!canSubmit}
         >
-          {vaultBusy && (
-            <span className="lj-spinner lj-spinner--sm" aria-hidden="true" />
-          )}
+          {vaultBusy && <span className="lj-spinner lj-spinner--sm" aria-hidden="true" />}
           {vaultBusy ? t("vault.recover_unlocking") : t("vault.recover_unlock")}
         </button>
 
-        {!wallet && (
-          <p className="text-sm text-whisper">{t("vault.no_wallet")}</p>
-        )}
+        {!wallet && <p className="text-sm text-whisper">{t("vault.no_wallet")}</p>}
 
         {vaultError && (
           <div className="lj-banner lj-banner--coral">
@@ -166,35 +155,17 @@ function StrengthMeter({
 }) {
   const { t } = useTranslation();
   // 4-segment meter: weak fills 1, fair fills 2, strong fills 4.
-  const lit =
-    assessment.strength === "weak"
-      ? 1
-      : assessment.strength === "fair"
-        ? 2
-        : 4;
+  const lit = assessment.strength === "weak" ? 1 : assessment.strength === "fair" ? 2 : 4;
   // Render the live region unconditionally — even when empty — so the
   // wired aria-describedby on the input always resolves. We only render
   // the visible UI when the user has typed something.
   return (
-    <div
-      id="recover-password-strength"
-      role="status"
-      aria-live="polite"
-      aria-atomic="true"
-    >
+    <div id="recover-password-strength" role="status" aria-live="polite" aria-atomic="true">
       {password.length > 0 && (
         <div className="flex items-center gap-3">
-          <div
-            className="lj-meter mt-0 flex-1"
-            aria-hidden="true"
-          >
+          <div className="lj-meter mt-0 flex-1" aria-hidden="true">
             {[0, 1, 2, 3].map((i) => (
-              <span
-                key={i}
-                className={
-                  "lj-meter__seg" + (i < lit ? " lj-meter__seg--lit" : "")
-                }
-              />
+              <span key={i} className={"lj-meter__seg" + (i < lit ? " lj-meter__seg--lit" : "")} />
             ))}
           </div>
           <span
@@ -208,9 +179,7 @@ function StrengthMeter({
           >
             {/* AT users hear "Password strength: Strong" rather than just
              * "Strong" so the reading is unambiguous in context. */}
-            <span className="sr-only">
-              {t("vault.recover_strength_announce_prefix")}
-            </span>
+            <span className="sr-only">{t("vault.recover_strength_announce_prefix")}</span>
             {t(assessment.labelKey)}
           </span>
         </div>

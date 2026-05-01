@@ -8,18 +8,15 @@
 
 import { describe, expect, it } from "vitest";
 
-import {
-  inversePermutation,
-  pickRandomNTuple,
-  randomPermutation,
-} from "../../src/pool/select.js";
+import { inversePermutation, pickRandomNTuple, randomPermutation } from "../../src/pool/select.js";
 import type { PoolEntry } from "../../src/pool/identify.js";
 import type { Utxo } from "../../src/chain/provider.js";
 
 function makeEntry(idx: number): PoolEntry {
   const u: Utxo = {
     ref: { txId: idx.toString(16).padStart(64, "0"), outputIndex: 0 },
-    address: "addr_test1zr6st458sf8czp2nayx9wqgqg9hd58lmqyguda3e7csdju8repagljh249nrlmgvxhfah6mvyq6sg2xkmgnzcjpsqzckqz3ahz5",
+    address:
+      "addr_test1zr6st458sf8czp2nayx9wqgqg9hd58lmqyguda3e7csdju8repagljh249nrlmgvxhfah6mvyq6sg2xkmgnzcjpsqzckqz3ahz5",
     lovelace: 10_000_000n,
     assets: {},
     inlineDatum: null,

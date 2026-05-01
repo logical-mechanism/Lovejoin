@@ -24,12 +24,13 @@ Get the hash of Plutus data.
 
 ```typescript
 function resolveDataHash(
-  rawData: BuilderData['content'],
-  type?: PlutusDataType  // 'Mesh' | 'JSON' | 'CBOR', default 'Mesh'
-): string
+  rawData: BuilderData["content"],
+  type?: PlutusDataType, // 'Mesh' | 'JSON' | 'CBOR', default 'Mesh'
+): string;
 ```
 
 **Example:**
+
 ```typescript
 const hash = resolveDataHash({ constructor: 0, fields: [] });
 // '923918e403bf43c34b4ef6b48eb2ee04babed17320d8d1b9ff9ad086e86f44ec'
@@ -42,12 +43,13 @@ const hash = resolveDataHash({ constructor: 0, fields: [] });
 Extract payment key hash from a bech32 address.
 
 ```typescript
-function resolvePaymentKeyHash(bech32: string): string
+function resolvePaymentKeyHash(bech32: string): string;
 ```
 
 **Example:**
+
 ```typescript
-const keyHash = resolvePaymentKeyHash('addr_test1qp...');
+const keyHash = resolvePaymentKeyHash("addr_test1qp...");
 // 'abc123def456...'
 ```
 
@@ -58,7 +60,7 @@ const keyHash = resolvePaymentKeyHash('addr_test1qp...');
 Extract stake key hash from a bech32 address.
 
 ```typescript
-function resolveStakeKeyHash(bech32: string): string
+function resolveStakeKeyHash(bech32: string): string;
 ```
 
 **Works with:** Base addresses and reward addresses.
@@ -70,12 +72,13 @@ function resolveStakeKeyHash(bech32: string): string
 Get the reward/stake address from a base address.
 
 ```typescript
-function resolveRewardAddress(bech32: string): string
+function resolveRewardAddress(bech32: string): string;
 ```
 
 **Example:**
+
 ```typescript
-const rewardAddr = resolveRewardAddress('addr_test1qp...');
+const rewardAddr = resolveRewardAddress("addr_test1qp...");
 // 'stake_test1uq...'
 ```
 
@@ -87,16 +90,17 @@ Get the address of a Plutus script.
 
 ```typescript
 function resolvePlutusScriptAddress(
-  script: PlutusScript,  // { code: string, version: 'V1' | 'V2' | 'V3' }
-  networkId?: number     // 0 = testnet, 1 = mainnet
-): string
+  script: PlutusScript, // { code: string, version: 'V1' | 'V2' | 'V3' }
+  networkId?: number, // 0 = testnet, 1 = mainnet
+): string;
 ```
 
 **Example:**
+
 ```typescript
 const addr = resolvePlutusScriptAddress(
-  { code: '59010100...', version: 'V2' },
-  0
+  { code: "59010100...", version: "V2" },
+  0,
 );
 // 'addr_test1wz...'
 ```
@@ -108,7 +112,7 @@ const addr = resolvePlutusScriptAddress(
 Get script hash from an enterprise script address.
 
 ```typescript
-function resolvePlutusScriptHash(bech32: string): string
+function resolvePlutusScriptHash(bech32: string): string;
 ```
 
 ---
@@ -120,19 +124,23 @@ Get address from a native script.
 ```typescript
 function resolveNativeScriptAddress(
   script: NativeScript,
-  networkId?: number
-): string
+  networkId?: number,
+): string;
 ```
 
 **Example:**
+
 ```typescript
-const addr = resolveNativeScriptAddress({
-  type: 'all',
-  scripts: [
-    { type: 'sig', keyHash: 'abc...' },
-    { type: 'sig', keyHash: 'def...' },
-  ]
-}, 0);
+const addr = resolveNativeScriptAddress(
+  {
+    type: "all",
+    scripts: [
+      { type: "sig", keyHash: "abc..." },
+      { type: "sig", keyHash: "def..." },
+    ],
+  },
+  0,
+);
 ```
 
 ---
@@ -142,7 +150,7 @@ const addr = resolveNativeScriptAddress({
 Get hash of a native script.
 
 ```typescript
-function resolveNativeScriptHash(script: NativeScript): string
+function resolveNativeScriptHash(script: NativeScript): string;
 ```
 
 ---
@@ -152,12 +160,13 @@ function resolveNativeScriptHash(script: NativeScript): string
 Convert pool key hash to pool ID (bech32).
 
 ```typescript
-function resolvePoolId(hash: string): string
+function resolvePoolId(hash: string): string;
 ```
 
 **Example:**
+
 ```typescript
-const poolId = resolvePoolId('abc123...');
+const poolId = resolvePoolId("abc123...");
 // 'pool1...'
 ```
 
@@ -168,7 +177,7 @@ const poolId = resolvePoolId('abc123...');
 Derive private key from mnemonic words.
 
 ```typescript
-function resolvePrivateKey(words: string[]): string
+function resolvePrivateKey(words: string[]): string;
 ```
 
 **Returns:** BIP32 root key in bech32 format (`xprv1...`)
@@ -180,10 +189,11 @@ function resolvePrivateKey(words: string[]): string
 Get transaction hash from CBOR hex.
 
 ```typescript
-function resolveTxHash(txHex: string): string
+function resolveTxHash(txHex: string): string;
 ```
 
 **Example:**
+
 ```typescript
 const hash = resolveTxHash(signedTxCbor);
 // '3b40265111d8bb3c3c608d95b3a0bf83461ace32d79336579a1939b3aad1c0b7'
@@ -196,7 +206,7 @@ const hash = resolveTxHash(signedTxCbor);
 Serialize a script for use as reference script.
 
 ```typescript
-function resolveScriptRef(script: PlutusScript | NativeScript): string
+function resolveScriptRef(script: PlutusScript | NativeScript): string;
 ```
 
 **Returns:** CBOR hex suitable for `scriptRef` field in outputs.
@@ -208,7 +218,7 @@ function resolveScriptRef(script: PlutusScript | NativeScript): string
 Convert script hash to DRep ID (CIP-129).
 
 ```typescript
-function resolveScriptHashDRepId(scriptHash: string): string
+function resolveScriptHashDRepId(scriptHash: string): string;
 ```
 
 ---
@@ -218,7 +228,7 @@ function resolveScriptHashDRepId(scriptHash: string): string
 Get Ed25519 key hash from address.
 
 ```typescript
-function resolveEd25519KeyHash(bech32: string): string
+function resolveEd25519KeyHash(bech32: string): string;
 ```
 
 ---
@@ -231,7 +241,7 @@ Main serializer class implementing `IMeshTxSerializer`.
 
 ```typescript
 class CardanoSDKSerializer {
-  constructor(protocolParams?: Protocol)
+  constructor(protocolParams?: Protocol);
 }
 ```
 
@@ -270,6 +280,7 @@ addSigningKeys(txHex: string, signingKeys: string[]): string
 ```
 
 **Parameters:**
+
 - `txHex` - Transaction CBOR
 - `signingKeys` - Array of private key hex strings
 
@@ -297,11 +308,15 @@ serializeAddress(
 ```
 
 **Example:**
+
 ```typescript
-const addr = serializer.serializeAddress({
-  pubKeyHash: 'abc123...',
-  stakeCredentialHash: 'def456...',
-}, 0);
+const addr = serializer.serializeAddress(
+  {
+    pubKeyHash: "abc123...",
+    stakeCredentialHash: "def456...",
+  },
+  0,
+);
 ```
 
 ---
@@ -406,17 +421,19 @@ CIP-8 COSE message signing utilities.
 Sign data with a signer.
 
 ```typescript
-function signData(data: string, signer: Signer): DataSignature
+function signData(data: string, signer: Signer): DataSignature;
 ```
 
 **Parameters:**
+
 - `data` - String to sign (plain text or hex)
 - `signer` - Object with `key` (Ed25519PrivateKey) and `address` (Address)
 
 **Returns:**
+
 ```typescript
 interface DataSignature {
-  key: string;       // COSE_Key hex
+  key: string; // COSE_Key hex
   signature: string; // COSE_Sign1 hex
 }
 ```
@@ -431,16 +448,17 @@ Verify a CIP-8 signature.
 async function checkSignature(
   data: string,
   signature: DataSignature,
-  address?: string  // Optional address to verify signer
-): Promise<boolean>
+  address?: string, // Optional address to verify signer
+): Promise<boolean>;
 ```
 
 **Example:**
+
 ```typescript
 const isValid = await checkSignature(
-  'Hello Cardano!',
-  { key: 'a401...', signature: '845846...' },
-  'addr_test1qp...'  // Verify this address signed it
+  "Hello Cardano!",
+  { key: "a401...", signature: "845846..." },
+  "addr_test1qp...", // Verify this address signed it
 );
 ```
 
@@ -452,12 +470,12 @@ Low-level COSE_Sign1 message builder.
 
 ```typescript
 class CoseSign1 {
-  static fromCbor(hex: string): CoseSign1
+  static fromCbor(hex: string): CoseSign1;
 
-  getPayload(): Buffer | null
-  verifySignature(options: { publicKeyBuffer: Buffer }): boolean
-  createSigStructure(): Buffer
-  buildMessage(signature: Buffer): Buffer
+  getPayload(): Buffer | null;
+  verifySignature(options: { publicKeyBuffer: Buffer }): boolean;
+  createSigStructure(): Buffer;
+  buildMessage(signature: Buffer): Buffer;
 }
 ```
 
@@ -468,7 +486,7 @@ class CoseSign1 {
 Generate a random nonce for signing.
 
 ```typescript
-function generateNonce(length?: number): string
+function generateNonce(length?: number): string;
 ```
 
 ---
@@ -481,19 +499,20 @@ Apply parameters to a parameterized Plutus script.
 
 ```typescript
 function applyParamsToScript(
-  rawScript: string,       // Script CBOR hex
+  rawScript: string, // Script CBOR hex
   params: object[] | Data[],
-  type?: PlutusDataType    // 'Mesh' | 'JSON' | 'CBOR'
-): string
+  type?: PlutusDataType, // 'Mesh' | 'JSON' | 'CBOR'
+): string;
 ```
 
 **Example:**
+
 ```typescript
 // Apply owner pubkey hash to a script
 const applied = applyParamsToScript(
   parameterizedScriptHex,
   [{ bytes: ownerPubKeyHash }],
-  'Mesh'
+  "Mesh",
 );
 ```
 
@@ -506,11 +525,12 @@ Normalize script encoding format.
 ```typescript
 function normalizePlutusScript(
   plutusScript: string,
-  encoding: OutputEncoding
-): string
+  encoding: OutputEncoding,
+): string;
 ```
 
 **OutputEncoding:**
+
 - `'SingleCBOR'` - One layer of CBOR encoding
 - `'DoubleCBOR'` - Two layers (standard for on-chain)
 - `'PurePlutusScriptBytes'` - Raw flat bytes
@@ -524,21 +544,23 @@ function normalizePlutusScript(
 Convert Mesh Data type to PlutusData.
 
 ```typescript
-function toPlutusData(data: Data): PlutusData
+function toPlutusData(data: Data): PlutusData;
 ```
 
 **Data Types:**
+
 ```typescript
 type Data =
-  | string           // Bytes (hex)
-  | number           // Integer
-  | bigint           // Integer
-  | Data[]           // List
-  | Map<Data, Data>  // Map
-  | {                // Constructor
+  | string // Bytes (hex)
+  | number // Integer
+  | bigint // Integer
+  | Data[] // List
+  | Map<Data, Data> // Map
+  | {
+      // Constructor
       alternative: number;
       fields: Data[];
-    }
+    };
 ```
 
 ---
@@ -548,15 +570,16 @@ type Data =
 Convert BuilderData (Mesh/JSON/CBOR) to PlutusData.
 
 ```typescript
-function fromBuilderToPlutusData(data: BuilderData): PlutusData
+function fromBuilderToPlutusData(data: BuilderData): PlutusData;
 ```
 
 **BuilderData:**
+
 ```typescript
 type BuilderData =
-  | { type: 'Mesh'; content: Data }
-  | { type: 'JSON'; content: string | object }
-  | { type: 'CBOR'; content: string }
+  | { type: "Mesh"; content: Data }
+  | { type: "JSON"; content: string | object }
+  | { type: "CBOR"; content: string };
 ```
 
 ---
@@ -566,10 +589,11 @@ type BuilderData =
 Convert PlutusData to JSON format.
 
 ```typescript
-function fromPlutusDataToJson(data: PlutusData): object
+function fromPlutusDataToJson(data: PlutusData): object;
 ```
 
 **JSON Format:**
+
 ```typescript
 // Constructor
 { constructor: number, fields: object[] }
@@ -594,7 +618,7 @@ function fromPlutusDataToJson(data: PlutusData): object
 Convert JSON to PlutusData.
 
 ```typescript
-function fromJsonToPlutusData(data: object): PlutusData
+function fromJsonToPlutusData(data: object): PlutusData;
 ```
 
 ---
@@ -604,7 +628,7 @@ function fromJsonToPlutusData(data: object): PlutusData
 Parse datum CBOR to typed JSON.
 
 ```typescript
-function parseDatumCbor<T = any>(datumCbor: string): T
+function parseDatumCbor<T = any>(datumCbor: string): T;
 ```
 
 ---
@@ -614,7 +638,7 @@ function parseDatumCbor<T = any>(datumCbor: string): T
 Deserialize CBOR to PlutusData.
 
 ```typescript
-function deserializePlutusData(plutusData: string): PlutusData
+function deserializePlutusData(plutusData: string): PlutusData;
 ```
 
 ---
@@ -626,15 +650,16 @@ function deserializePlutusData(plutusData: string): PlutusData
 Decompose bech32 address into components.
 
 ```typescript
-function deserializeBech32Address(bech32Addr: string): DeserializedAddress
+function deserializeBech32Address(bech32Addr: string): DeserializedAddress;
 ```
 
 **Returns:**
+
 ```typescript
 interface DeserializedAddress {
-  pubKeyHash: string;              // Payment key hash (if key-based)
-  scriptHash: string;              // Payment script hash (if script-based)
-  stakeCredentialHash: string;     // Stake key hash
+  pubKeyHash: string; // Payment key hash (if key-based)
+  scriptHash: string; // Payment script hash (if script-based)
+  stakeCredentialHash: string; // Stake key hash
   stakeScriptCredentialHash: string; // Stake script hash
 }
 ```
@@ -648,8 +673,8 @@ Build bech32 address from components.
 ```typescript
 function serialzeAddress(
   deserializedAddress: Partial<DeserializedAddress>,
-  networkId?: number
-): string
+  networkId?: number,
+): string;
 ```
 
 ---
@@ -663,8 +688,8 @@ function scriptHashToBech32(
   scriptHash: string,
   stakeCredentialHash?: string,
   networkId?: number,
-  isScriptStakeCredentialHash?: boolean
-): string
+  isScriptStakeCredentialHash?: boolean,
+): string;
 ```
 
 ---
@@ -674,7 +699,7 @@ function scriptHashToBech32(
 Convert address to Plutus data CBOR (for on-chain use).
 
 ```typescript
-function addrBech32ToPlutusDataHex(bech32: string): string
+function addrBech32ToPlutusDataHex(bech32: string): string;
 ```
 
 ---
@@ -684,7 +709,7 @@ function addrBech32ToPlutusDataHex(bech32: string): string
 Convert address to Plutus data JSON object.
 
 ```typescript
-function addrBech32ToPlutusDataObj<T>(bech32: string): T
+function addrBech32ToPlutusDataObj<T>(bech32: string): T;
 ```
 
 ---
@@ -696,8 +721,8 @@ Convert Plutus data address back to bech32.
 ```typescript
 function serializePlutusAddressToBech32(
   plutusHex: string,
-  networkId?: number
-): string
+  networkId?: number,
+): string;
 ```
 
 ---
@@ -707,7 +732,7 @@ function serializePlutusAddressToBech32(
 Convert script hash to reward address.
 
 ```typescript
-function scriptHashToRewardAddress(hash: string, networkId?: number): string
+function scriptHashToRewardAddress(hash: string, networkId?: number): string;
 ```
 
 ---
@@ -717,7 +742,7 @@ function scriptHashToRewardAddress(hash: string, networkId?: number): string
 Convert key hash to reward address.
 
 ```typescript
-function keyHashToRewardAddress(hash: string, networkId?: number): string
+function keyHashToRewardAddress(hash: string, networkId?: number): string;
 ```
 
 ---
@@ -728,19 +753,20 @@ The package re-exports from `@cardano-sdk`:
 
 ```typescript
 // Namespace exports
-export * as CardanoSDKUtil from '@cardano-sdk/util';
-export * as Crypto from '@cardano-sdk/crypto';
-export * as CardanoSDK from '@cardano-sdk/core';
+export * as CardanoSDKUtil from "@cardano-sdk/util";
+export * as Crypto from "@cardano-sdk/crypto";
+export * as CardanoSDK from "@cardano-sdk/core";
 
 // Direct exports
-export { Cardano, Serialization } from '@cardano-sdk/core';
+export { Cardano, Serialization } from "@cardano-sdk/core";
 ```
 
 **Usage:**
+
 ```typescript
-import { Cardano, Serialization, Crypto } from '@meshsdk/core-cst';
+import { Cardano, Serialization, Crypto } from "@meshsdk/core-cst";
 
 // Use Cardano SDK types directly
-const txId = Cardano.TransactionId('abc123...');
-const address = Cardano.Address.fromBech32('addr_test1...');
+const txId = Cardano.TransactionId("abc123...");
+const address = Cardano.Address.fromBech32("addr_test1...");
 ```

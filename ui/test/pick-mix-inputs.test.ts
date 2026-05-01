@@ -32,12 +32,7 @@ afterEach(() => {
 
 describe("pickMixInputs", () => {
   it("returns exactly N entries (shard, random)", () => {
-    const pool = [
-      makeEntry("a"),
-      makeEntry("b"),
-      makeEntry("c"),
-      makeEntry("d"),
-    ];
+    const pool = [makeEntry("a"), makeEntry("b"), makeEntry("c"), makeEntry("d")];
     const got = pickMixInputs({
       pool,
       n: 2,

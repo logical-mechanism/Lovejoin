@@ -63,9 +63,10 @@ function buildFetch(
 
 const BASE = "https://cardano-preprod.blockfrost.io/api/v0";
 
-function provider(
-  responses: Map<string, MockResponseBody | MockResponseBody[]>,
-): { provider: ChainProvider; calls: RecordedCall[] } {
+function provider(responses: Map<string, MockResponseBody | MockResponseBody[]>): {
+  provider: ChainProvider;
+  calls: RecordedCall[];
+} {
   const calls: RecordedCall[] = [];
   const p = new BlockfrostProvider({
     baseUrl: BASE,
@@ -79,7 +80,10 @@ function provider(
 describe("BlockfrostProvider", () => {
   it("submits txs and returns the txid", async () => {
     const responses = new Map([
-      [`${BASE}/tx/submit`, { json: "deadbeefcafedeadbeefcafedeadbeefcafedeadbeefcafedeadbeefcafe1234" }],
+      [
+        `${BASE}/tx/submit`,
+        { json: "deadbeefcafedeadbeefcafedeadbeefcafedeadbeefcafedeadbeefcafe1234" },
+      ],
     ]);
     const { provider: p, calls } = provider(responses);
     const id = await p.submitTx("84a3");
@@ -125,10 +129,7 @@ describe("BlockfrostProvider", () => {
           ],
         },
       ],
-      [
-        `${BASE}/addresses/addr_test1xyz/utxos?page=2&order=asc`,
-        { json: [] },
-      ],
+      [`${BASE}/addresses/addr_test1xyz/utxos?page=2&order=asc`, { json: [] }],
     ]);
     const { provider: p, calls } = provider(responses);
     const utxos = await p.getUtxos("addr_test1xyz");
@@ -165,8 +166,7 @@ describe("BlockfrostProvider", () => {
               amount: [
                 { unit: "lovelace", quantity: "10000000" },
                 {
-                  unit:
-                    "abababababababababababababababababababababababababababab6c6f76656a6f696e",
+                  unit: "abababababababababababababababababababababababababababab6c6f76656a6f696e",
                   quantity: "1",
                 },
               ],
@@ -182,9 +182,7 @@ describe("BlockfrostProvider", () => {
     const [utxo] = await p.getUtxos("addr_test1mix");
     expect(utxo!.lovelace).toBe(10_000_000n);
     expect(
-      utxo!.assets[
-        "abababababababababababababababababababababababababababab6c6f76656a6f696e"
-      ],
+      utxo!.assets["abababababababababababababababababababababababababababab6c6f76656a6f696e"],
     ).toBe(1n);
     expect(utxo!.inlineDatum).toBe("d8799f...some_cbor...");
     expect(utxo!.referenceScript).toBeNull();
@@ -242,11 +240,7 @@ describe("BlockfrostProvider", () => {
     const responses = new Map<string, MockResponseBody | MockResponseBody[]>([
       [
         `${BASE}/txs/${txId}`,
-        [
-          { status: 404, text: "" },
-          { status: 404, text: "" },
-          { json: { hash: txId } },
-        ],
+        [{ status: 404, text: "" }, { status: 404, text: "" }, { json: { hash: txId } }],
       ],
     ]);
     const { provider: p } = provider(responses);
@@ -301,11 +295,12 @@ describe("BlockfrostProvider", () => {
     const realFetch = (globalThis as { fetch?: unknown }).fetch;
     delete (globalThis as { fetch?: unknown }).fetch;
     try {
-      expect(() =>
-        new BlockfrostProvider({
-          baseUrl: BASE,
-          projectId: "x",
-        }),
+      expect(
+        () =>
+          new BlockfrostProvider({
+            baseUrl: BASE,
+            projectId: "x",
+          }),
       ).toThrow(/no fetch implementation/);
     } finally {
       (globalThis as { fetch?: unknown }).fetch = realFetch;

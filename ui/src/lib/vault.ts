@@ -193,7 +193,10 @@ export async function scanPool(args: {
  * `d`; the deposit builder owns `d`. This helper just turns the seed +
  * index into the owner secret. Callers compose `a` and `b` themselves.
  */
-export function deriveDepositSecret(seed: Uint8Array, index: number): {
+export function deriveDepositSecret(
+  seed: Uint8Array,
+  index: number,
+): {
   index: number;
   secret: Scalar;
   secretHex: string;
@@ -234,15 +237,11 @@ export async function unlockFromPassword(args: {
   network: RecoveryNetwork;
 }): Promise<UnlockedSeed> {
   if (args.password.length < RECOVERY_PASSWORD_MIN_LENGTH) {
-    throw new Error(
-      `password: must be at least ${RECOVERY_PASSWORD_MIN_LENGTH} characters`,
-    );
+    throw new Error(`password: must be at least ${RECOVERY_PASSWORD_MIN_LENGTH} characters`);
   }
   const rewards = await args.wallet.getRewardAddresses();
   if (!rewards || rewards.length === 0) {
-    throw new Error(
-      "wallet: exposed no reward (stake) addresses — cannot derive a recovery salt",
-    );
+    throw new Error("wallet: exposed no reward (stake) addresses — cannot derive a recovery salt");
   }
   const salt = recoverySalt({
     network: args.network,
@@ -287,4 +286,3 @@ function bytesToHex(b: Uint8Array): string {
   for (const x of b) s += x.toString(16).padStart(2, "0");
   return s;
 }
-

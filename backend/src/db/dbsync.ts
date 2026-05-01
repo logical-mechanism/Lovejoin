@@ -295,9 +295,7 @@ export class PostgresDbSyncClient implements DbSyncClient {
    * map keyed by `${txHash}:${outputIndex}` to a `unit → quantity` map.
    * Empty for refs with no native assets.
    */
-  private async assetsForUtxos(
-    refs: string[],
-  ): Promise<Map<string, Record<string, bigint>>> {
+  private async assetsForUtxos(refs: string[]): Promise<Map<string, Record<string, bigint>>> {
     if (refs.length === 0) return new Map();
     // Build (txHash, outputIndex) tuples; the SQL unnests two parallel
     // arrays so postgres planner can index-scan each tx_out row.

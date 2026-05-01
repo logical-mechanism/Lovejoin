@@ -13,12 +13,12 @@ Part of [@meshsdk/ai-skills](../README.md).
 
 ## Files
 
-| File | Purpose |
-|------|---------|
-| `SKILL.md` | Main entry - overview, quick reference |
-| `TRANSACTION.md` | Complete API documentation |
-| `PATTERNS.md` | Common transaction recipes with code |
-| `TROUBLESHOOTING.md` | Error solutions and debugging |
+| File                 | Purpose                                |
+| -------------------- | -------------------------------------- |
+| `SKILL.md`           | Main entry - overview, quick reference |
+| `TRANSACTION.md`     | Complete API documentation             |
+| `PATTERNS.md`        | Common transaction recipes with code   |
+| `TROUBLESHOOTING.md` | Error solutions and debugging          |
 
 ## Example Prompts
 

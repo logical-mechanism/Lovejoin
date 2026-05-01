@@ -29,7 +29,6 @@ export class ErrorBoundary extends React.Component<{ children: ReactNode }, Stat
   }
 
   override componentDidCatch(error: Error, info: React.ErrorInfo): void {
-    // eslint-disable-next-line no-console
     console.error("[lovejoin] uncaught render error:", error, info);
   }
 
@@ -69,9 +68,7 @@ function ErrorScreen({ error }: { error: Error }) {
             <h2 className="lj-card__title">{t("error.boundary_title")}</h2>
           </div>
         </header>
-        <p className="text-sm text-muted leading-relaxed max-w-prose">
-          {t("error.boundary_lede")}
-        </p>
+        <p className="text-sm text-muted leading-relaxed max-w-prose">{t("error.boundary_lede")}</p>
         <div className="lj-banner lj-banner--coral mt-4">
           <span className="lj-banner__title">{error.name || "Error"}</span>
           <span className="lj-banner__detail">{error.message}</span>

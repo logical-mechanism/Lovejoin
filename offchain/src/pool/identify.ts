@@ -140,10 +140,7 @@ export function ownsBox(secret: Scalar, entry: Pick<PoolEntry, "a" | "b">): bool
  * The order of the result mirrors `entries`. Useful for the UI's "my boxes"
  * view across a full mixed pool — the SDK doesn't trust labels, only math.
  */
-export function findOwnedBoxes(
-  secret: Scalar,
-  entries: ReadonlyArray<PoolEntry>,
-): PoolEntry[] {
+export function findOwnedBoxes(secret: Scalar, entries: ReadonlyArray<PoolEntry>): PoolEntry[] {
   return entries.filter((e) => ownsBox(secret, e));
 }
 

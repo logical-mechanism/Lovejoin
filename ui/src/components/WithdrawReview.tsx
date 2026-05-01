@@ -30,11 +30,7 @@ export interface WithdrawReviewProps {
   validation: DestinationStatus;
 }
 
-export function WithdrawReview({
-  lovelace,
-  destination,
-  validation,
-}: WithdrawReviewProps) {
+export function WithdrawReview({ lovelace, destination, validation }: WithdrawReviewProps) {
   const { t } = useTranslation();
   const trimmed = destination.trim();
   const ok = validation.status === "ok";
@@ -56,9 +52,7 @@ export function WithdrawReview({
             {trimmed ? (
               <Hash value={trimmed} edge={12} />
             ) : (
-              <span className="lj-review__placeholder">
-                {t("withdraw.review_to_placeholder")}
-              </span>
+              <span className="lj-review__placeholder">{t("withdraw.review_to_placeholder")}</span>
             )}
           </dd>
         </div>
@@ -66,9 +60,7 @@ export function WithdrawReview({
           <div className="lj-review__row">
             <dt className="lj-review__label">{t("withdraw.review_kind")}</dt>
             <dd className="lj-review__value lj-review__value--muted">
-              {isStealth
-                ? t("withdraw.review_kind_stealth")
-                : t("withdraw.review_kind_regular")}
+              {isStealth ? t("withdraw.review_kind_stealth") : t("withdraw.review_kind_regular")}
             </dd>
           </div>
         )}

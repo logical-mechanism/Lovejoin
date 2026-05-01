@@ -25,10 +25,7 @@ import {
 } from "../../src/crypto/hash.js";
 
 const HERE = fileURLToPath(new URL(".", import.meta.url));
-const VECTORS_PATH = resolve(
-  HERE,
-  "../../../crypto/test-vectors/encoding-parity.json",
-);
+const VECTORS_PATH = resolve(HERE, "../../../crypto/test-vectors/encoding-parity.json");
 
 const hex = (b: Uint8Array): string =>
   Array.from(b, (x) => x.toString(16).padStart(2, "0")).join("");
@@ -69,9 +66,7 @@ type SigmaOrVec = {
 };
 type ParityVec = SchnorrVec | DHTupleVec | SigmaOrVec;
 
-const vectors: ParityVec[] = JSON.parse(
-  readFileSync(VECTORS_PATH, "utf8"),
-) as ParityVec[];
+const vectors: ParityVec[] = JSON.parse(readFileSync(VECTORS_PATH, "utf8")) as ParityVec[];
 
 describe("crypto/hash — encoding parity (1000 vectors, TS side)", () => {
   it("loads exactly 1000 vectors from the canonical JSON file", () => {

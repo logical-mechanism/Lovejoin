@@ -38,9 +38,7 @@ describe("UI i18n harness", () => {
 
   it("renders the Preprod warning banner", () => {
     renderShell();
-    expect(
-      screen.getByText(/Preprod only/i),
-    ).toBeInTheDocument();
+    expect(screen.getByText(/Preprod only/i)).toBeInTheDocument();
   });
 
   it("renders the navigation links", () => {

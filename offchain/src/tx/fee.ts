@@ -70,10 +70,7 @@ export function cryptoRandomInt(n: number): number {
  * assets fail the on-chain `validate_pay_mix_fee` rule 6, so picking such a
  * UTxO would deterministically fail tx submission.
  */
-export function isFeeShardCandidate(
-  utxo: Utxo,
-  feeScriptAddressBech32: string,
-): boolean {
+export function isFeeShardCandidate(utxo: Utxo, feeScriptAddressBech32: string): boolean {
   if (utxo.address !== feeScriptAddressBech32) return false;
   if (Object.keys(utxo.assets).length > 0) return false;
   if (!utxo.inlineDatum) return false;
@@ -136,12 +133,8 @@ export function pickRandomShard(args: {
         `donate to the fee pool to top it up`,
     );
   }
-  const exclude = new Set(
-    (args.excludeRefs ?? []).map((r) => `${r.txId}#${r.outputIndex}`),
-  );
-  const eligible = above.filter(
-    (s) => !exclude.has(`${s.ref.txId}#${s.ref.outputIndex}`),
-  );
+  const exclude = new Set((args.excludeRefs ?? []).map((r) => `${r.txId}#${r.outputIndex}`));
+  const eligible = above.filter((s) => !exclude.has(`${s.ref.txId}#${s.ref.outputIndex}`));
   const candidates = eligible.length > 0 ? eligible : above;
   return candidates[rng(candidates.length)]!;
 }
@@ -219,9 +212,7 @@ export function replenishOutputLovelace(args: {
     throw new Error(`rounds must be a positive integer, got ${args.rounds}`);
   }
   if (args.minRounds !== undefined && args.rounds < args.minRounds) {
-    throw new Error(
-      `rounds=${args.rounds} below minRounds=${args.minRounds}; UI should reject`,
-    );
+    throw new Error(`rounds=${args.rounds} below minRounds=${args.minRounds}; UI should reject`);
   }
   const contribution = BigInt(args.rounds) * args.params.maxFeePerMixLovelace;
   return args.shard.lovelace + contribution;

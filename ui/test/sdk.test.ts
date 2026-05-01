@@ -30,15 +30,9 @@ afterEach(() => {
 
 describe("blockfrostBaseUrl", () => {
   it("maps preprod / preview / mainnet to the right Blockfrost host", () => {
-    expect(blockfrostBaseUrl("preprod")).toBe(
-      "https://cardano-preprod.blockfrost.io/api/v0",
-    );
-    expect(blockfrostBaseUrl("preview")).toBe(
-      "https://cardano-preview.blockfrost.io/api/v0",
-    );
-    expect(blockfrostBaseUrl("mainnet")).toBe(
-      "https://cardano-mainnet.blockfrost.io/api/v0",
-    );
+    expect(blockfrostBaseUrl("preprod")).toBe("https://cardano-preprod.blockfrost.io/api/v0");
+    expect(blockfrostBaseUrl("preview")).toBe("https://cardano-preview.blockfrost.io/api/v0");
+    expect(blockfrostBaseUrl("mainnet")).toBe("https://cardano-mainnet.blockfrost.io/api/v0");
   });
 });
 
@@ -154,11 +148,14 @@ describe("loadAddresses", () => {
         fee_contract: `${"3".repeat(64)}#0`,
       },
     };
-    const fetchMock = vi.fn(async () => ({
-      ok: true,
-      status: 200,
-      json: async () => fakeAddresses,
-    } as unknown as Response));
+    const fetchMock = vi.fn(
+      async () =>
+        ({
+          ok: true,
+          status: 200,
+          json: async () => fakeAddresses,
+        }) as unknown as Response,
+    );
     vi.stubGlobal("fetch", fetchMock);
 
     const addresses = await loadAddresses("preprod");
@@ -172,11 +169,14 @@ describe("loadAddresses", () => {
   it("throws a useful error when the file is absent", async () => {
     vi.stubGlobal(
       "fetch",
-      vi.fn(async () => ({
-        ok: false,
-        status: 404,
-        json: async () => ({}),
-      } as unknown as Response)),
+      vi.fn(
+        async () =>
+          ({
+            ok: false,
+            status: 404,
+            json: async () => ({}),
+          }) as unknown as Response,
+      ),
     );
     await expect(loadAddresses("preprod")).rejects.toThrow(/HTTP 404/);
   });

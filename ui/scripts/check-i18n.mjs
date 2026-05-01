@@ -30,10 +30,7 @@ const __dirname = dirname(__filename);
 const ROOT = resolve(__dirname, "..");
 const SRC = join(ROOT, "src");
 
-const SCAN_DIRS = [
-  join(SRC, "components"),
-  join(SRC, "routes"),
-];
+const SCAN_DIRS = [join(SRC, "components"), join(SRC, "routes")];
 
 // Attributes whose string-literal values would render as visible English.
 // We deliberately include only the small surface that ships text — `id`,
@@ -92,9 +89,7 @@ function findOffendersInSource(filePath, sourceText) {
     if (ts.isJsxText(node)) {
       const text = node.getText(source);
       if (looksLikeEnglish(text)) {
-        const { line, character } = source.getLineAndCharacterOfPosition(
-          node.getStart(source),
-        );
+        const { line, character } = source.getLineAndCharacterOfPosition(node.getStart(source));
         offenders.push({
           line: line + 1,
           column: character + 1,
@@ -117,9 +112,7 @@ function findOffendersInSource(filePath, sourceText) {
           literal = node.initializer.expression.text;
         }
         if (literal !== null && looksLikeEnglish(literal)) {
-          const { line, character } = source.getLineAndCharacterOfPosition(
-            node.getStart(source),
-          );
+          const { line, character } = source.getLineAndCharacterOfPosition(node.getStart(source));
           offenders.push({
             line: line + 1,
             column: character + 1,

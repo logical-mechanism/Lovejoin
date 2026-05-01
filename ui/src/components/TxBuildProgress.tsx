@@ -39,8 +39,7 @@ export function TxBuildProgress({ active, phases, ariaLabel }: TxBuildProgressPr
   const [finishing, setFinishing] = useState(false);
   const startedAt = useRef<number | null>(null);
   const wasActive = useRef(false);
-  const totalEstimate =
-    phases.reduce((s, p) => s + p.estimateMs, 0) || 1;
+  const totalEstimate = phases.reduce((s, p) => s + p.estimateMs, 0) || 1;
 
   // Mount/unmount + finish-snap state machine, driven off `active`.
   useEffect(() => {
@@ -94,25 +93,12 @@ export function TxBuildProgress({ active, phases, ariaLabel }: TxBuildProgressPr
   if (!visible) return null;
 
   return (
-    <div
-      className="lj-tx-progress"
-      role="status"
-      aria-live="polite"
-      aria-label={ariaLabel}
-    >
+    <div className="lj-tx-progress" role="status" aria-live="polite" aria-label={ariaLabel}>
       <ol className="lj-tx-progress__steps">
         {phases.map((p, i) => {
-          const state =
-            finishing || i < phaseIdx
-              ? "done"
-              : i === phaseIdx
-                ? "active"
-                : "pending";
+          const state = finishing || i < phaseIdx ? "done" : i === phaseIdx ? "active" : "pending";
           return (
-            <li
-              key={i}
-              className={`lj-tx-progress__step lj-tx-progress__step--${state}`}
-            >
+            <li key={i} className={`lj-tx-progress__step lj-tx-progress__step--${state}`}>
               <span className="lj-tx-progress__dot" aria-hidden="true" />
               <span className="lj-tx-progress__label">{p.label}</span>
             </li>

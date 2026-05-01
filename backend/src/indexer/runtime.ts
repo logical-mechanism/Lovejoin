@@ -24,11 +24,7 @@
 // reconnect resume — the upstream node has rolled past our tip and a
 // fresh container needs to walk forward from the bootstrap point.
 
-import {
-  DeepRollbackError,
-  type AddressFilter,
-  type IndexerState,
-} from "./state.js";
+import { DeepRollbackError, type AddressFilter, type IndexerState } from "./state.js";
 import {
   OgmiosClient,
   type ChainSyncEvent,
@@ -148,9 +144,7 @@ export class IndexerRuntime {
     const inter = await this.client.findIntersection(points);
     this.config.logger.info(
       `chainsync intersection found at ${
-        inter.intersection === "origin"
-          ? "origin"
-          : `slot ${inter.intersection.slot}`
+        inter.intersection === "origin" ? "origin" : `slot ${inter.intersection.slot}`
       }; tip slot ${inter.tip.slot}`,
     );
     this.loopPromise = this.loop();
@@ -176,9 +170,7 @@ export class IndexerRuntime {
       url: this.config.ogmiosUrl,
       filter: this.config.filter,
       onOpen: (url) => this.config.logger.info(`ogmios connected at ${url}`),
-      ...(this.config.socketFactory
-        ? { socketFactory: this.config.socketFactory }
-        : {}),
+      ...(this.config.socketFactory ? { socketFactory: this.config.socketFactory } : {}),
     });
   }
 
@@ -276,9 +268,7 @@ export class IndexerRuntime {
         this.client = fresh;
         this.config.logger.info(
           `chainsync resumed at ${
-            inter.intersection === "origin"
-              ? "origin"
-              : `slot ${inter.intersection.slot}`
+            inter.intersection === "origin" ? "origin" : `slot ${inter.intersection.slot}`
           }; tip slot ${inter.tip.slot} (after ${this.reconnectAttempts} attempt${
             this.reconnectAttempts === 1 ? "" : "s"
           })`,
@@ -312,8 +302,7 @@ export class IndexerRuntime {
   }
 
   private recordReconnectError(err: unknown): void {
-    this.lastReconnectErrorMessage =
-      err instanceof Error ? err.message : String(err);
+    this.lastReconnectErrorMessage = err instanceof Error ? err.message : String(err);
     this.lastReconnectErrorAt = Date.now();
   }
 
@@ -359,9 +348,7 @@ export class IndexerRuntime {
       if (this.state.bufferDepth() === 0 && this.state.tip === null) {
         return;
       }
-      throw new Error(
-        "rollback to origin past indexer state — restart required",
-      );
+      throw new Error("rollback to origin past indexer state — restart required");
     }
     this.state.applyRollback({
       slot: event.point.slot,

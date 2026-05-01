@@ -16,22 +16,16 @@ describe("friendlyErrorKey", () => {
   });
 
   it("maps a 429 response to a rate-limit message", () => {
-    expect(friendlyErrorKey("HTTP 429 Too Many Requests")).toBe(
-      "errors.blockfrost_rate",
-    );
+    expect(friendlyErrorKey("HTTP 429 Too Many Requests")).toBe("errors.blockfrost_rate");
   });
 
   it("maps a Plutus script-eval failure", () => {
-    expect(friendlyErrorKey("script evaluation failed at index 0")).toBe(
-      "errors.script_eval",
-    );
+    expect(friendlyErrorKey("script evaluation failed at index 0")).toBe("errors.script_eval");
   });
 
   it("maps a wallet-rejected signing prompt", () => {
     expect(friendlyErrorKey("user declined to sign")).toBe("errors.user_rejected");
-    expect(friendlyErrorKey("User rejected the request.")).toBe(
-      "errors.user_rejected",
-    );
+    expect(friendlyErrorKey("User rejected the request.")).toBe("errors.user_rejected");
   });
 
   it("returns null for unmapped messages", () => {
@@ -47,8 +41,6 @@ describe("friendlyErrorMessage", () => {
 
   it("falls back to the raw message when nothing matches", () => {
     const t = (k: string) => `[${k}]`;
-    expect(friendlyErrorMessage("totally novel error", t)).toBe(
-      "totally novel error",
-    );
+    expect(friendlyErrorMessage("totally novel error", t)).toBe("totally novel error");
   });
 });

@@ -40,14 +40,8 @@ const SHARD_LIST_LIMIT = 12;
 export function Donate() {
   const { t } = useTranslation();
   const toast = useToast();
-  const {
-    config,
-    provider,
-    addresses,
-    wallet,
-    walletLovelace,
-    refreshWalletBalance,
-  } = useAppState();
+  const { config, provider, addresses, wallet, walletLovelace, refreshWalletBalance } =
+    useAppState();
   const backend = useBackendStatus();
 
   const [amountAda, setAmountAda] = useState<number>(DEFAULT_AMOUNT_ADA);
@@ -58,8 +52,7 @@ export function Donate() {
   const [shards, setShards] = useState<FeeShard[] | null>(null);
 
   const useBackend =
-    !!config.backendUrl &&
-    (backend?.status === "synced" || backend?.status === "syncing");
+    !!config.backendUrl && (backend?.status === "synced" || backend?.status === "syncing");
 
   // Best-effort fee-pool snapshot. The backend already exposes /fee, so
   // when the indexer is up we surface "pool is at X ADA across N shards"
@@ -114,8 +107,7 @@ export function Donate() {
   const donationLovelace = BigInt(Math.max(0, Math.floor(amountAda * 1_000_000)));
   // 5 ADA cushion mirrors the deposit form. Covers tx fee + change min-utxo.
   const requiredLovelace = donationLovelace + 5_000_000n;
-  const balanceShort =
-    walletLovelace !== null && walletLovelace < requiredLovelace;
+  const balanceShort = walletLovelace !== null && walletLovelace < requiredLovelace;
   const validAmount = donationLovelace > 0n;
 
   const onSubmit = async (e: React.FormEvent) => {
@@ -198,15 +190,11 @@ export function Donate() {
             <span className="lj-stat__value" data-num>
               {formatAda(poolLovelace)} ₳
             </span>
-            <span className="lj-stat__sub">
-              {t("donate.shard_count", { count: shardCount })}
-            </span>
+            <span className="lj-stat__sub">{t("donate.shard_count", { count: shardCount })}</span>
           </div>
         )}
       </header>
-      <p className="text-sm text-muted leading-relaxed max-w-prose">
-        {t("donate.lede")}
-      </p>
+      <p className="text-sm text-muted leading-relaxed max-w-prose">{t("donate.lede")}</p>
 
       {shards && shards.length > 0 && shards.length <= SHARD_LIST_LIMIT && (
         <div className="mt-6">
@@ -227,9 +215,7 @@ export function Donate() {
                   <td>
                     <Hash value={`${s.txHash}#${s.outputIndex}`} edge={6} />
                   </td>
-                  <td className="lj-table__num">
-                    {formatAda(BigInt(s.lovelace))} ₳
-                  </td>
+                  <td className="lj-table__num">{formatAda(BigInt(s.lovelace))} ₳</td>
                 </tr>
               ))}
             </tbody>
@@ -284,9 +270,7 @@ export function Donate() {
               disabled={submitting || !validAmount}
               className="lj-btn lj-btn--primary lj-btn--lg"
             >
-              {submitting && (
-                <span className="lj-spinner lj-spinner--sm" aria-hidden="true" />
-              )}
+              {submitting && <span className="lj-spinner lj-spinner--sm" aria-hidden="true" />}
               {submitting ? t("donate.submitting") : t("donate.submit")}
             </button>
             {retryAttempt !== null && (

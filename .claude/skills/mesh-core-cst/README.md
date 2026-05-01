@@ -16,12 +16,12 @@ Part of [@meshsdk/ai-skills](../README.md).
 
 ## Files
 
-| File | Purpose |
-|------|---------|
-| `SKILL.md` | Main entry - overview, quick reference |
-| `CORE-CST.md` | Complete API documentation |
-| `PATTERNS.md` | Common usage patterns with code |
-| `TROUBLESHOOTING.md` | Error solutions and debugging |
+| File                 | Purpose                                |
+| -------------------- | -------------------------------------- |
+| `SKILL.md`           | Main entry - overview, quick reference |
+| `CORE-CST.md`        | Complete API documentation             |
+| `PATTERNS.md`        | Common usage patterns with code        |
+| `TROUBLESHOOTING.md` | Error solutions and debugging          |
 
 ## Example Prompts
 
@@ -35,6 +35,7 @@ Part of [@meshsdk/ai-skills](../README.md).
 ## When to Use
 
 Use `@meshsdk/core-cst` when you need:
+
 - Low-level control over serialization
 - Direct access to cardano-sdk types
 - Custom signature verification
@@ -42,6 +43,7 @@ Use `@meshsdk/core-cst` when you need:
 - Address component manipulation
 
 For most use cases, prefer:
+
 - `@meshsdk/transaction` - For building transactions
 - `@meshsdk/wallet` - For wallet integration
 - `@meshsdk/core` - For full SDK access

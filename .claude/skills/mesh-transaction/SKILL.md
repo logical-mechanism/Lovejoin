@@ -21,16 +21,16 @@ npm install @meshsdk/core  # includes transaction + wallet + provider
 
 ## Quick Reference
 
-| Task | Method Chain |
-|------|--------------|
-| Send ADA | `txIn() -> txOut() -> changeAddress() -> complete()` |
-| Mint tokens (Plutus) | `mintPlutusScriptV3() -> mint() -> mintingScript() -> mintRedeemerValue() -> ...` |
-| Mint tokens (Native) | `mint() -> mintingScript() -> ...` |
-| Script spending | `spendingPlutusScriptV3() -> txIn() -> txInScript() -> txInDatumValue() -> txInRedeemerValue() -> ...` |
-| Stake delegation | `delegateStakeCertificate(rewardAddress, poolId)` |
-| Withdraw rewards | `withdrawal(rewardAddress, coin) -> withdrawalScript() -> withdrawalRedeemerValue()` |
-| Governance vote | `vote(voter, govActionId, votingProcedure)` |
-| DRep registration | `drepRegistrationCertificate(drepId, anchor?, deposit?)` |
+| Task                 | Method Chain                                                                                           |
+| -------------------- | ------------------------------------------------------------------------------------------------------ |
+| Send ADA             | `txIn() -> txOut() -> changeAddress() -> complete()`                                                   |
+| Mint tokens (Plutus) | `mintPlutusScriptV3() -> mint() -> mintingScript() -> mintRedeemerValue() -> ...`                      |
+| Mint tokens (Native) | `mint() -> mintingScript() -> ...`                                                                     |
+| Script spending      | `spendingPlutusScriptV3() -> txIn() -> txInScript() -> txInDatumValue() -> txInRedeemerValue() -> ...` |
+| Stake delegation     | `delegateStakeCertificate(rewardAddress, poolId)`                                                      |
+| Withdraw rewards     | `withdrawal(rewardAddress, coin) -> withdrawalScript() -> withdrawalRedeemerValue()`                   |
+| Governance vote      | `vote(voter, govActionId, votingProcedure)`                                                            |
+| DRep registration    | `drepRegistrationCertificate(drepId, anchor?, deposit?)`                                               |
 
 ## Constructor Options
 
@@ -51,12 +51,12 @@ const txBuilder = new MeshTxBuilder({
 
 ## Completion Methods
 
-| Method | Async | Balanced | Use Case |
-|--------|-------|----------|----------|
-| `complete()` | Yes | Yes | Production - auto coin selection, fee calculation |
-| `completeSync()` | No | No | Testing - requires manual inputs/fee |
-| `completeUnbalanced()` | No | No | Partial build for inspection |
-| `completeSigning()` | No | N/A | Add signatures after complete() |
+| Method                 | Async | Balanced | Use Case                                          |
+| ---------------------- | ----- | -------- | ------------------------------------------------- |
+| `complete()`           | Yes   | Yes      | Production - auto coin selection, fee calculation |
+| `completeSync()`       | No    | No       | Testing - requires manual inputs/fee              |
+| `completeUnbalanced()` | No    | No       | Partial build for inspection                      |
+| `completeSigning()`    | No    | N/A      | Add signatures after complete()                   |
 
 ## Files
 
@@ -68,7 +68,9 @@ const txBuilder = new MeshTxBuilder({
 ## Key Concepts
 
 ### Fluent API
+
 All methods return `this` for chaining:
+
 ```typescript
 txBuilder
   .txIn(hash, index)
@@ -81,22 +83,22 @@ txBuilder
 
 **Choose the version matching the script's Plutus version:**
 
-| Version | Era | When to Use |
-|---------|-----|-------------|
-| V1 | Alonzo | Legacy scripts only |
-| V2 | Babbage | Existing Babbage-era scripts |
-| **V3** | **Conway** | **New scripts (current era, default choice)** |
+| Version | Era        | When to Use                                   |
+| ------- | ---------- | --------------------------------------------- |
+| V1      | Alonzo     | Legacy scripts only                           |
+| V2      | Babbage    | Existing Babbage-era scripts                  |
+| **V3**  | **Conway** | **New scripts (current era, default choice)** |
 
 `LanguageVersion` type = `"V1" | "V2" | "V3"`
 
 Each script context has **two equivalent calling styles** — static shortcuts and dynamic version:
 
-| Context | Static Shortcut | Dynamic Version |
-|---------|----------------|-----------------|
-| Spending | `spendingPlutusScriptV3()` | `spendingPlutusScript("V3")` |
-| Minting | `mintPlutusScriptV3()` | `mintPlutusScript("V3")` |
+| Context    | Static Shortcut              | Dynamic Version                |
+| ---------- | ---------------------------- | ------------------------------ |
+| Spending   | `spendingPlutusScriptV3()`   | `spendingPlutusScript("V3")`   |
+| Minting    | `mintPlutusScriptV3()`       | `mintPlutusScript("V3")`       |
 | Withdrawal | `withdrawalPlutusScriptV3()` | `withdrawalPlutusScript("V3")` |
-| Voting | `votePlutusScriptV3()` | `votePlutusScript("V3")` |
+| Voting     | `votePlutusScriptV3()`       | `votePlutusScript("V3")`       |
 
 **Default to V3 for new Conway-era scripts.** Only use V2/V1 for scripts compiled against those specific Plutus versions.
 
@@ -105,6 +107,7 @@ Each script context has **two equivalent calling styles** — static shortcuts a
 Datum and redeemer values accept three formats via the `type` parameter:
 
 **`"Mesh"` (default) — Use `alternative`, NOT `constructor`:**
+
 ```typescript
 import { mConStr0, mConStr1 } from '@meshsdk/common';
 
@@ -118,6 +121,7 @@ const datum = { alternative: 0, fields: [42, "deadbeef"] };
 ```
 
 **`"JSON"` — Cardano-CLI format, uses `constructor`:**
+
 ```typescript
 import { conStr0, integer, byteString, pubKeyAddress } from '@meshsdk/common';
 
@@ -129,18 +133,19 @@ const datum = conStr0([integer(42), byteString("deadbeef")]);
 ```
 
 **`"CBOR"` — Pre-serialized hex:**
+
 ```typescript
 .txOutInlineDatumValue("d8799f182aff", "CBOR")
 ```
 
 **Convention from real MeshJS contracts:**
 
-| Scenario | Format | Helpers | Type Parameter |
-|----------|--------|---------|----------------|
-| **Datums** (always) | JSON | `conStr0()`, `integer()`, `pubKeyAddress()` | `"JSON"` (explicit) |
-| **Redeemers** (empty, no fields) | Mesh | `mConStr0([])`, `mConStr1([])` | omit (default `"Mesh"`) |
-| **Redeemers** (with fields) | JSON | `conStr0()` + typed wrappers | `"JSON"` + `DEFAULT_REDEEMER_BUDGET` |
-| **Redeemers** (unused/`Data` type) | N/A | `""` (empty string) | omit |
+| Scenario                           | Format | Helpers                                     | Type Parameter                       |
+| ---------------------------------- | ------ | ------------------------------------------- | ------------------------------------ |
+| **Datums** (always)                | JSON   | `conStr0()`, `integer()`, `pubKeyAddress()` | `"JSON"` (explicit)                  |
+| **Redeemers** (empty, no fields)   | Mesh   | `mConStr0([])`, `mConStr1([])`              | omit (default `"Mesh"`)              |
+| **Redeemers** (with fields)        | JSON   | `conStr0()` + typed wrappers                | `"JSON"` + `DEFAULT_REDEEMER_BUDGET` |
+| **Redeemers** (unused/`Data` type) | N/A    | `""` (empty string)                         | omit                                 |
 
 **Note:** Some contracts use Mesh format (`mConStr0`) for simple datums without a type parameter. Both formats work — the critical rule is **matching the type parameter to the format**.
 
@@ -149,6 +154,7 @@ See [AIKEN-MAPPING.md](./AIKEN-MAPPING.md) for complete Aiken type → Mesh data
 **CRITICAL:** If you omit the type parameter, the default is `"Mesh"`. Using `{ constructor: 0, ... }` without specifying `"JSON"` will cause errors.
 
 ### Reference Scripts
+
 Use `*TxInReference()` methods to reference scripts stored on-chain instead of including them in the transaction (reduces tx size/fees).
 
 ## Important Notes

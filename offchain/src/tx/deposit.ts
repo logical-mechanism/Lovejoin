@@ -27,16 +27,10 @@ import {
 import { Encoder, Tag } from "cbor-x";
 
 import type { ChainProvider, Lovelace, Utxo, UtxoRef } from "../chain/provider.js";
-import {
-  type CollateralProvider,
-  WalletProvider,
-} from "./collateral.js";
+import { type CollateralProvider, WalletProvider } from "./collateral.js";
 import { mergeExternalCollateralWitness } from "./witness-merge.js";
 import { getMeshProtocolParams, getMeshProvider } from "./mesh-bridge.js";
-import {
-  pickFeeShardOptional,
-  replenishOutputLovelace,
-} from "./fee.js";
+import { pickFeeShardOptional, replenishOutputLovelace } from "./fee.js";
 import {
   fetchProtocolParams,
   type LovejoinAddresses,
@@ -197,7 +191,7 @@ function drawScalar(rng?: () => Uint8Array): Scalar {
   const draw = rng ?? defaultScalarDraw;
   // Reject-sample 32 random bytes until we land in [1, r). With r ≈ 2^255
   // this almost always passes on the first try.
-  // eslint-disable-next-line no-constant-condition
+
   while (true) {
     const bytes = draw();
     if (bytes.length !== 32) {
@@ -226,16 +220,11 @@ function defaultScalarDraw(): Uint8Array {
  * the legacy `deriveOwner(secret)` overload) `a` defaults to the
  * canonical generator and `b = [x]·g`.
  */
-export function deriveOwner(
-  secret: Scalar,
-  aBytes?: Uint8Array,
-): OwnerSecretMaterial {
+export function deriveOwner(secret: Scalar, aBytes?: Uint8Array): OwnerSecretMaterial {
   assertOwnerSecret(secret);
   if (aBytes) {
     if (aBytes.length !== G1_COMPRESSED_BYTES) {
-      throw new Error(
-        `deriveOwner: a must be ${G1_COMPRESSED_BYTES} bytes, got ${aBytes.length}`,
-      );
+      throw new Error(`deriveOwner: a must be ${G1_COMPRESSED_BYTES} bytes, got ${aBytes.length}`);
     }
     // b = [x]·a (whatever a is). Re-randomized deposits set a = [d]·g.
     const aPoint = pointFromBytes(aBytes);
@@ -308,9 +297,8 @@ export function planDepositTx(args: PlanDepositArgs): DepositPlan {
   // each new box looks indistinguishable from a mid-mix-pool box.
   // The user only ever stores `x` — `d` is consumed at deposit time and
   // discarded. The validator's Schnorr check `b == [x]·a` still holds.
-  const d: Scalar | null = args.rerandomization === undefined
-    ? generateRerandomizationScalar()
-    : args.rerandomization;
+  const d: Scalar | null =
+    args.rerandomization === undefined ? generateRerandomizationScalar() : args.rerandomization;
   let aPoint;
   let bPoint;
   if (d === null) {
@@ -336,11 +324,7 @@ export function planDepositTx(args: PlanDepositArgs): DepositPlan {
   // Fee shards live at the enterprise (unstaked) script address — the
   // bootstrap funded them there. Don't add the dApp stake key here or we'd
   // be looking up an empty address.
-  const feeAddress = buildScriptAddress(
-    args.addresses.feeScriptHash,
-    args.networkId,
-    null,
-  );
+  const feeAddress = buildScriptAddress(args.addresses.feeScriptHash, args.networkId, null);
 
   // Shard-less deposit: emit only the mix-box. The fee_contract is not
   // invoked at all — mesh balances the lovelace against the wallet.
@@ -349,9 +333,7 @@ export function planDepositTx(args: PlanDepositArgs): DepositPlan {
       throw new Error(`rounds must be a positive integer, got ${args.rounds}`);
     }
     if (args.minRounds !== undefined && args.rounds < args.minRounds) {
-      throw new Error(
-        `rounds=${args.rounds} below minRounds=${args.minRounds}; UI should reject`,
-      );
+      throw new Error(`rounds=${args.rounds} below minRounds=${args.minRounds}; UI should reject`);
     }
     return {
       ownerSecret,
@@ -454,22 +436,19 @@ export async function buildDepositTx(args: BuildDepositArgs): Promise<DepositRes
   const networkId = networkIdFor(args.network);
 
   const { params } = await fetchProtocolParams(args.addresses, args.provider);
-  const feeAddress = buildScriptAddress(
-    args.addresses.feeScriptHash,
-    networkId,
-    null,
-  );
+  const feeAddress = buildScriptAddress(args.addresses.feeScriptHash, networkId, null);
   // `undefined` → auto-pick (or null when no shards on chain); `null`
   // → explicit shard-less; a `Utxo` → explicit shard.
-  const feeShard = args.feeShard !== undefined
-    ? args.feeShard
-    : await pickFeeShardOptional({
-        provider: args.provider,
-        feeScriptAddressBech32: feeAddress,
-        ...(args.excludeFeeShardRefs && args.excludeFeeShardRefs.length > 0
-          ? { excludeRefs: args.excludeFeeShardRefs }
-          : {}),
-      });
+  const feeShard =
+    args.feeShard !== undefined
+      ? args.feeShard
+      : await pickFeeShardOptional({
+          provider: args.provider,
+          feeScriptAddressBech32: feeAddress,
+          ...(args.excludeFeeShardRefs && args.excludeFeeShardRefs.length > 0
+            ? { excludeRefs: args.excludeFeeShardRefs }
+            : {}),
+        });
 
   const plan = planDepositTx({
     ...(args.ownerSecret !== undefined ? { ownerSecret: args.ownerSecret } : {}),
@@ -533,8 +512,7 @@ export async function buildDepositTx(args: BuildDepositArgs): Promise<DepositRes
     plan.replenishRedeemerHex &&
     plan.feeContractRefScriptUtxoRef
   ) {
-    tx
-      .spendingPlutusScriptV3()
+    tx.spendingPlutusScriptV3()
       .txIn(
         plan.feeShardInput.ref.txId,
         plan.feeShardInput.ref.outputIndex,
@@ -557,19 +535,15 @@ export async function buildDepositTx(args: BuildDepositArgs): Promise<DepositRes
   }
 
   // Output 0: new mix-box.
-  tx
-    .txOut(plan.mixBoxOutput.addressBech32, [
-      { unit: "lovelace", quantity: plan.mixBoxOutput.lovelace.toString() },
-    ])
-    .txOutInlineDatumValue(plan.mixBoxOutput.inlineDatumHex, "CBOR");
+  tx.txOut(plan.mixBoxOutput.addressBech32, [
+    { unit: "lovelace", quantity: plan.mixBoxOutput.lovelace.toString() },
+  ]).txOutInlineDatumValue(plan.mixBoxOutput.inlineDatumHex, "CBOR");
 
   // Output 1 (only when replenishing): the topped-up fee shard.
   if (plan.feeShardOutput) {
-    tx
-      .txOut(plan.feeShardOutput.addressBech32, [
-        { unit: "lovelace", quantity: plan.feeShardOutput.lovelace.toString() },
-      ])
-      .txOutInlineDatumValue(plan.feeShardOutput.inlineDatumHex, "CBOR");
+    tx.txOut(plan.feeShardOutput.addressBech32, [
+      { unit: "lovelace", quantity: plan.feeShardOutput.lovelace.toString() },
+    ]).txOutInlineDatumValue(plan.feeShardOutput.inlineDatumHex, "CBOR");
   }
 
   tx.changeAddress(changeAddress).selectUtxosFrom(walletUtxos);
@@ -739,19 +713,16 @@ export function planBulkDepositTx(args: PlanBulkDepositArgs): BulkDepositPlan {
   );
   // Fee shards live at the enterprise (unstaked) script address — see
   // planDepositTx for the rationale.
-  const feeAddress = buildScriptAddress(
-    args.addresses.feeScriptHash,
-    args.networkId,
-    null,
-  );
+  const feeAddress = buildScriptAddress(args.addresses.feeScriptHash, args.networkId, null);
 
   const seenDatums = new Set<string>();
   const boxes: BulkDepositBoxPlan[] = [];
   for (let i = 0; i < n; i++) {
     const x = args.ownerSecrets[i]!;
-    const d: Scalar | null = args.rerandomizations === undefined
-      ? generateRerandomizationScalar()
-      : args.rerandomizations[i]!;
+    const d: Scalar | null =
+      args.rerandomizations === undefined
+        ? generateRerandomizationScalar()
+        : args.rerandomizations[i]!;
     let aPoint;
     let bPoint;
     if (d === null) {
@@ -793,9 +764,7 @@ export function planBulkDepositTx(args: PlanBulkDepositArgs): BulkDepositPlan {
     throw new Error(`rounds must be a positive integer, got ${args.rounds}`);
   }
   if (args.minRounds !== undefined && args.rounds < args.minRounds) {
-    throw new Error(
-      `rounds=${args.rounds} below minRounds=${args.minRounds}; UI should reject`,
-    );
+    throw new Error(`rounds=${args.rounds} below minRounds=${args.minRounds}; UI should reject`);
   }
 
   // Shard-less bulk deposit: emit only the N mix-boxes.
@@ -816,8 +785,7 @@ export function planBulkDepositTx(args: PlanBulkDepositArgs): BulkDepositPlan {
   // but we keep the convention that bulk depositors top up the same
   // per-box share they would have for N single deposits.
   const perBoxContribution = BigInt(args.rounds) * args.params.maxFeePerMixLovelace;
-  const replenishedLovelace: Lovelace =
-    args.feeShard.lovelace + perBoxContribution * BigInt(n);
+  const replenishedLovelace: Lovelace = args.feeShard.lovelace + perBoxContribution * BigInt(n);
 
   return {
     boxes,
@@ -875,31 +843,26 @@ export interface BulkDepositResult {
  * of `ownerSecrets`); position N is the replenished fee shard. mesh
  * appends the wallet change after the explicit outputs.
  */
-export async function buildBulkDepositTx(
-  args: BuildBulkDepositArgs,
-): Promise<BulkDepositResult> {
+export async function buildBulkDepositTx(args: BuildBulkDepositArgs): Promise<BulkDepositResult> {
   if (args.ownerSecrets.length === 0) {
     throw new Error("buildBulkDepositTx: ownerSecrets must contain at least one secret");
   }
   const networkId = networkIdFor(args.network);
 
   const { params } = await fetchProtocolParams(args.addresses, args.provider);
-  const feeAddress = buildScriptAddress(
-    args.addresses.feeScriptHash,
-    networkId,
-    null,
-  );
+  const feeAddress = buildScriptAddress(args.addresses.feeScriptHash, networkId, null);
   // `undefined` → auto-pick (or null when no shards on chain); `null`
   // → explicit shard-less; a `Utxo` → explicit shard.
-  const feeShard = args.feeShard !== undefined
-    ? args.feeShard
-    : await pickFeeShardOptional({
-        provider: args.provider,
-        feeScriptAddressBech32: feeAddress,
-        ...(args.excludeFeeShardRefs && args.excludeFeeShardRefs.length > 0
-          ? { excludeRefs: args.excludeFeeShardRefs }
-          : {}),
-      });
+  const feeShard =
+    args.feeShard !== undefined
+      ? args.feeShard
+      : await pickFeeShardOptional({
+          provider: args.provider,
+          feeScriptAddressBech32: feeAddress,
+          ...(args.excludeFeeShardRefs && args.excludeFeeShardRefs.length > 0
+            ? { excludeRefs: args.excludeFeeShardRefs }
+            : {}),
+        });
 
   const plan = planBulkDepositTx({
     ownerSecrets: args.ownerSecrets,
@@ -936,10 +899,7 @@ export async function buildBulkDepositTx(
   // Reference UTxO is always read; the fee-shard spend is only added when
   // the plan included a shard (otherwise the bulk deposit is mix-boxes-only
   // and the fee_contract isn't invoked).
-  txBuilder.readOnlyTxInReference(
-    plan.referenceUtxoRef.txId,
-    plan.referenceUtxoRef.outputIndex,
-  );
+  txBuilder.readOnlyTxInReference(plan.referenceUtxoRef.txId, plan.referenceUtxoRef.outputIndex);
   if (
     plan.feeShardInput &&
     plan.feeShardOutput &&

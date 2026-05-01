@@ -8,15 +8,7 @@
 // the `useCollateralStatus` hook so the Mix button can grey itself out
 // without re-implementing the polling.
 
-import {
-  createContext,
-  useContext,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-  type ReactNode,
-} from "react";
+import { createContext, useContext, useMemo, useRef, useState, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 
 import {
@@ -103,12 +95,7 @@ export function useRefreshCollateralStatus(): () => void {
  */
 export function CollateralProviderPill({ status }: { status: CollateralStatus }) {
   const { t } = useTranslation();
-  const tone =
-    status === "online"
-      ? "lj-dot--ok"
-      : status === "down"
-        ? "lj-dot--bad"
-        : "";
+  const tone = status === "online" ? "lj-dot--ok" : status === "down" ? "lj-dot--bad" : "";
   const label =
     status === "online"
       ? t("collateral_provider.ok")

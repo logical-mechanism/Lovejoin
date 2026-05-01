@@ -48,9 +48,7 @@ export function Modal({ open, onClose, title, className, children }: ModalProps)
     // Capture the element that opened the modal so focus can return to
     // it on close. document.activeElement is HTMLElement when present.
     restoreRef.current =
-      (document.activeElement instanceof HTMLElement
-        ? document.activeElement
-        : null);
+      document.activeElement instanceof HTMLElement ? document.activeElement : null;
 
     // Move initial focus inside the dialog. Defer one frame so
     // descendants have mounted.
@@ -72,9 +70,9 @@ export function Modal({ open, onClose, title, className, children }: ModalProps)
       if (e.key !== "Tab") return;
       const root = dialogRef.current;
       if (!root) return;
-      const focusables = Array.from(
-        root.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR),
-      ).filter((el) => !el.hasAttribute("inert"));
+      const focusables = Array.from(root.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR)).filter(
+        (el) => !el.hasAttribute("inert"),
+      );
       if (focusables.length === 0) {
         e.preventDefault();
         root.focus();
@@ -157,7 +155,9 @@ export function Modal({ open, onClose, title, className, children }: ModalProps)
         {/* Visually-hidden title node referenced by aria-labelledby. We
          * still let consumers render a custom visible header inside; the
          * sr-only copy keeps the accessible name stable regardless. */}
-        <span id={titleId} className="sr-only">{title}</span>
+        <span id={titleId} className="sr-only">
+          {title}
+        </span>
         {children}
       </div>
     </div>,

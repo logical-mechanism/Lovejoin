@@ -78,9 +78,7 @@ export function Deposit() {
             <h2 className="lj-card__title">{t("deposit.section_title")}</h2>
           </div>
         </header>
-        <p className="text-sm text-muted leading-relaxed max-w-prose">
-          {t("vault.locked_lede")}
-        </p>
+        <p className="text-sm text-muted leading-relaxed max-w-prose">{t("vault.locked_lede")}</p>
         <div className="mt-6">
           <button
             type="button"
@@ -88,15 +86,11 @@ export function Deposit() {
             disabled={!wallet || vaultBusy}
             onClick={() => void unlockWithWallet()}
           >
-            {vaultBusy && (
-              <span className="lj-spinner lj-spinner--sm" aria-hidden="true" />
-            )}
+            {vaultBusy && <span className="lj-spinner lj-spinner--sm" aria-hidden="true" />}
             {vaultBusy ? t("vault.unlocking") : t("vault.unlock_with_wallet")}
           </button>
         </div>
-        {!wallet && (
-          <p className="mt-4 text-sm text-whisper">{t("vault.no_wallet")}</p>
-        )}
+        {!wallet && <p className="mt-4 text-sm text-whisper">{t("vault.no_wallet")}</p>}
         <div className="mt-6 border-t border-rule pt-4">
           <button
             type="button"
@@ -145,8 +139,7 @@ export function Deposit() {
   // false-negatives at the form level are worse than letting the user
   // attempt and surface mesh's authoritative error if it really fails.
   const requiredLovelace = denomLovelace * BigInt(count) + 5_000_000n;
-  const balanceShort =
-    walletLovelace !== null && walletLovelace < requiredLovelace;
+  const balanceShort = walletLovelace !== null && walletLovelace < requiredLovelace;
 
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -156,8 +149,9 @@ export function Deposit() {
       // Derive N owner secrets at consecutive HKDF indices so each new
       // mix-box has a distinct (a, b) and the vault rescan can find them
       // by sweeping the index range on next unlock.
-      const ownerSecrets = Array.from({ length: count }, (_, i) =>
-        deriveDepositSecret(vault.seed, nextDepositIndex + i).secret,
+      const ownerSecrets = Array.from(
+        { length: count },
+        (_, i) => deriveDepositSecret(vault.seed, nextDepositIndex + i).secret,
       );
       // Best-effort mempool snapshot so we don't pick a fee shard that's
       // already an input to an in-flight tx. Backend-only feature; on
@@ -166,8 +160,7 @@ export function Deposit() {
       // live shards.
       let excludeFeeShardRefs: Array<{ txId: string; outputIndex: number }> | undefined;
       const useBackend =
-        !!config.backendUrl &&
-        (backend?.status === "synced" || backend?.status === "syncing");
+        !!config.backendUrl && (backend?.status === "synced" || backend?.status === "syncing");
       if (useBackend) {
         try {
           const client = new BackendClient(config.backendUrl);
@@ -224,9 +217,7 @@ export function Deposit() {
           </span>
         </div>
       </header>
-      <p className="text-sm text-muted leading-relaxed max-w-prose">
-        {t("deposit.lede")}
-      </p>
+      <p className="text-sm text-muted leading-relaxed max-w-prose">{t("deposit.lede")}</p>
 
       <form
         className="mt-6 flex flex-col gap-6"
@@ -248,17 +239,17 @@ export function Deposit() {
                 value={count}
                 onChange={(e) =>
                   setCount(
-                    Math.min(
-                      MAX_BULK_COUNT,
-                      Math.max(1, Number.parseInt(e.target.value, 10) || 1),
-                    ),
+                    Math.min(MAX_BULK_COUNT, Math.max(1, Number.parseInt(e.target.value, 10) || 1)),
                   )
                 }
                 className="lj-input max-w-[10rem]"
                 aria-describedby="deposit-count-help"
               />
               <span id="deposit-count-help" className="lj-field__hint">
-                {t("deposit.count_help", { denom: denomAda, total: formatAda(denomLovelace * BigInt(count)) })}
+                {t("deposit.count_help", {
+                  denom: denomAda,
+                  total: formatAda(denomLovelace * BigInt(count)),
+                })}
               </span>
             </div>
 
@@ -302,9 +293,7 @@ export function Deposit() {
               disabled={submitting || rounds <= 0 || count <= 0}
               className="lj-btn lj-btn--primary lj-btn--lg"
             >
-              {submitting && (
-                <span className="lj-spinner lj-spinner--sm" aria-hidden="true" />
-              )}
+              {submitting && <span className="lj-spinner lj-spinner--sm" aria-hidden="true" />}
               {submitting ? t("deposit.submitting") : t("deposit.submit")}
             </button>
             {balanceShort && walletLovelace !== null && (

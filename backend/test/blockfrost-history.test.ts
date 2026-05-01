@@ -4,10 +4,7 @@
 
 import { describe, expect, it } from "vitest";
 
-import {
-  BlockfrostHistoryClient,
-  type FetchFn,
-} from "../src/db/blockfrost-history.js";
+import { BlockfrostHistoryClient, type FetchFn } from "../src/db/blockfrost-history.js";
 
 const ADDR = "addr_test1qprx";
 const PROJECT_ID = "preprodtestkey";
@@ -91,7 +88,10 @@ describe("BlockfrostHistoryClient.addressHistory", () => {
             // Native asset on our address: ignored (only lovelace counted).
             {
               address: ADDR,
-              amount: [{ unit: "lovelace", quantity: "1500000" }, { unit: "deadbeef", quantity: "10" }],
+              amount: [
+                { unit: "lovelace", quantity: "1500000" },
+                { unit: "deadbeef", quantity: "10" },
+              ],
             },
           ],
         },
@@ -99,9 +99,7 @@ describe("BlockfrostHistoryClient.addressHistory", () => {
       [`/txs/${"bb".repeat(32)}/utxos`]: {
         status: 200,
         body: {
-          outputs: [
-            { address: ADDR, amount: [{ unit: "lovelace", quantity: "12345678" }] },
-          ],
+          outputs: [{ address: ADDR, amount: [{ unit: "lovelace", quantity: "12345678" }] }],
         },
       },
     };
@@ -125,7 +123,10 @@ describe("BlockfrostHistoryClient.addressHistory", () => {
 
   it("treats 404 from address-tx endpoint as empty history", async () => {
     const routes: Routes = {
-      [`/addresses/${ADDR}/transactions?count=10&order=desc`]: { status: 404, body: { error: "Not Found" } },
+      [`/addresses/${ADDR}/transactions?count=10&order=desc`]: {
+        status: 404,
+        body: { error: "Not Found" },
+      },
     };
     const client = new BlockfrostHistoryClient({
       baseUrl: BASE_URL,

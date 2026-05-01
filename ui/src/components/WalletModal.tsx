@@ -110,10 +110,7 @@ export function WalletModal({ open, onClose, onConnected }: WalletModalProps) {
       )}
 
       {wallets !== null && wallets.length > 0 && (
-        <ul
-          className="flex flex-col divide-y divide-rule"
-          aria-label={t("wallet.list_aria_label")}
-        >
+        <ul className="flex flex-col divide-y divide-rule" aria-label={t("wallet.list_aria_label")}>
           {wallets.map((w) => {
             const isConnecting = busyId === w.id;
             const isOtherBusy = busyId !== null && !isConnecting;
@@ -137,14 +134,13 @@ export function WalletModal({ open, onClose, onConnected }: WalletModalProps) {
                   <span className="flex-1 capitalize">{w.name || w.id}</span>
                   {isConnecting ? (
                     <span className="flex items-center gap-2 text-xs text-paper">
-                      <span
-                        className="lj-spinner lj-spinner--sm"
-                        aria-hidden="true"
-                      />
+                      <span className="lj-spinner lj-spinner--sm" aria-hidden="true" />
                       {t("wallet.connecting")}
                     </span>
                   ) : (
-                    <span className="text-xs text-whisper" aria-hidden="true">→</span>
+                    <span className="text-xs text-whisper" aria-hidden="true">
+                      →
+                    </span>
                   )}
                 </button>
               </li>

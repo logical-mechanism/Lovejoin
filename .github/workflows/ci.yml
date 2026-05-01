@@ -45,8 +45,36 @@ jobs:
         working-directory: contracts
         run: aiken check
 
+  lint:
+    name: TS (eslint + prettier + tsc)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install
+        run: pnpm install --frozen-lockfile
+
+      # The UI imports @lovejoin/sdk which resolves to offchain/dist/. On
+      # a clean checkout that doesn't exist yet, so build the SDK before
+      # linting consumers — otherwise UI's tsc step fails with TS2307.
+      - name: Build SDK (for downstream tsc resolution)
+        run: pnpm --filter @lovejoin/sdk run build
+
+      # `pnpm lint` runs tsc + eslint per workspace, then prettier --check
+      # once across the repo.
+      - name: Lint (tsc + eslint + prettier)
+        run: pnpm lint
+
   ts:
-    name: TS (lint + build + test)
+    name: TS (build + test)
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
@@ -70,9 +98,6 @@ jobs:
       # linting consumers — otherwise UI's tsc fails with TS2307.
       - name: Build SDK (for downstream lint resolution)
         run: pnpm --filter @lovejoin/sdk run build
-
-      - name: Lint
-        run: pnpm -r --filter ./offchain --filter ./backend --filter ./ui run lint
 
       - name: Build
         run: pnpm -r --filter ./offchain --filter ./backend --filter ./ui run build

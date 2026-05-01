@@ -85,7 +85,9 @@ describe("tx/params — decodeReferenceDatum", () => {
     expect(params.denomLovelace).toBe(10_000_000n);
     expect(params.maxFeePerMixLovelace).toBe(800_000n);
     expect(params.mixScriptHash).toBe("ba176a7604f3e062a7ed315780801495ed0ffb0191c6f8e7d88362e2");
-    expect(params.mixLogicScriptHash).toBe("ca2d95fe9fe368e8ad1c89e2009a5ad292ff016e353144ea0ef829ff");
+    expect(params.mixLogicScriptHash).toBe(
+      "ca2d95fe9fe368e8ad1c89e2009a5ad292ff016e353144ea0ef829ff",
+    );
     expect(params.feeScriptHash).toBe("5efd8fdd7e4d35b04de427337220dcb30352136d739055b305dd2d66");
   });
 
@@ -126,7 +128,10 @@ describe("tx/params — fetchProtocolParams", () => {
 
   function utxoWith(datumCborHex: string | null): Utxo {
     return {
-      ref: { txId: "b809b4e363067886174b57fd04101eb2e59f654220b6c11530c77b75f25ec945", outputIndex: 0 },
+      ref: {
+        txId: "b809b4e363067886174b57fd04101eb2e59f654220b6c11530c77b75f25ec945",
+        outputIndex: 0,
+      },
       address: "addr_test1...",
       lovelace: 5_000_000n,
       assets: { ["310d0d4ff25e73a4a0442eac873e68810e11c824aa0e858acc56f1df6c6f76656a6f696e"]: 1n },
@@ -142,7 +147,7 @@ describe("tx/params — fetchProtocolParams", () => {
       getUtxoByRef: async () => null,
       awaitConfirmation: async () => undefined,
       getReferenceUtxo: async () => referenceUtxo,
-      getProtocolParameters: async () => ({} as never),
+      getProtocolParameters: async () => ({}) as never,
     };
   }
 
@@ -155,13 +160,17 @@ describe("tx/params — fetchProtocolParams", () => {
   });
 
   it("throws if the reference UTxO has no inline datum", async () => {
-    await expect(fetchProtocolParams(addresses, fakeProvider(utxoWith(null)))).rejects.toThrow(/no inline datum/);
+    await expect(fetchProtocolParams(addresses, fakeProvider(utxoWith(null)))).rejects.toThrow(
+      /no inline datum/,
+    );
   });
 
   it("throws on script-hash mismatch between datum and addresses.json", async () => {
     const tampered = [...SAMPLE_FIELDS];
     tampered[2] = bytes("00".repeat(28));
     const utxo = utxoWith(buildReferenceDatumCborHex(tampered));
-    await expect(fetchProtocolParams(addresses, fakeProvider(utxo))).rejects.toThrow(/mix_box hash mismatch/);
+    await expect(fetchProtocolParams(addresses, fakeProvider(utxo))).rejects.toThrow(
+      /mix_box hash mismatch/,
+    );
   });
 });

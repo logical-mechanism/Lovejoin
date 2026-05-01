@@ -27,9 +27,7 @@ export function Hash({ value, edge = 6, copyable = true }: HashProps) {
   const { t } = useTranslation();
   const [copied, setCopied] = useState(false);
   const display =
-    value.length <= edge * 2 + 1
-      ? value
-      : `${value.slice(0, edge)}…${value.slice(-edge)}`;
+    value.length <= edge * 2 + 1 ? value : `${value.slice(0, edge)}…${value.slice(-edge)}`;
   if (!copyable) {
     // Use <code> so AT can switch to character-by-character spelling on
     // these monospace blobs if the user asks for it. aria-label gives

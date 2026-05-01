@@ -22,6 +22,7 @@ Complete API documentation for `MeshTxBuilder` from `@meshsdk/transaction`.
 ## Inputs
 
 ### txIn
+
 Add a transaction input (UTxO to spend).
 
 ```typescript
@@ -35,6 +36,7 @@ txIn(
 ```
 
 ### txInCollateral
+
 Add collateral input (required for script transactions).
 
 ```typescript
@@ -47,6 +49,7 @@ txInCollateral(
 ```
 
 ### readOnlyTxInReference
+
 Add a read-only reference input (visible to scripts but not spent).
 
 ```typescript
@@ -62,6 +65,7 @@ readOnlyTxInReference(
 ## Outputs
 
 ### txOut
+
 Add a transaction output.
 
 ```typescript
@@ -72,6 +76,7 @@ txOut(
 ```
 
 ### txOutDatumHashValue
+
 Attach datum hash to output.
 
 ```typescript
@@ -82,6 +87,7 @@ txOutDatumHashValue(
 ```
 
 ### txOutInlineDatumValue
+
 Attach inline datum to output (stored on-chain with the UTxO).
 
 ```typescript
@@ -92,6 +98,7 @@ txOutInlineDatumValue(
 ```
 
 ### txOutDatumEmbedValue
+
 Embed datum in transaction (hash stored in output, full datum in tx body).
 
 ```typescript
@@ -102,6 +109,7 @@ txOutDatumEmbedValue(
 ```
 
 ### txOutReferenceScript
+
 Attach a reference script to output (for later use via reference).
 
 ```typescript
@@ -116,6 +124,7 @@ txOutReferenceScript(
 ## Scripts - Spending
 
 ### spendingPlutusScript / spendingPlutusScriptV1 / V2 / V3
+
 Signal that the next `txIn()` is a Plutus script input.
 
 ```typescript
@@ -133,6 +142,7 @@ spendingPlutusScriptV3(): this  // Plutus V3 (Conway)
 **Usage:** Call BEFORE `txIn()` for script inputs. Both forms are equivalent — `.spendingPlutusScript("V3")` and `.spendingPlutusScriptV3()` produce identical results.
 
 ### txInScript
+
 Provide the spending script CBOR.
 
 ```typescript
@@ -140,6 +150,7 @@ txInScript(scriptCbor: string): this
 ```
 
 ### txInDatumValue
+
 Provide datum for script input.
 
 ```typescript
@@ -150,6 +161,7 @@ txInDatumValue(
 ```
 
 ### txInInlineDatumPresent
+
 Indicate the input UTxO has an inline datum (no need to provide it).
 
 ```typescript
@@ -157,6 +169,7 @@ txInInlineDatumPresent(): this
 ```
 
 ### txInRedeemerValue
+
 Provide redeemer for script input.
 
 ```typescript
@@ -168,6 +181,7 @@ txInRedeemerValue(
 ```
 
 ### spendingTxInReference
+
 Use a reference script instead of providing the script inline.
 
 ```typescript
@@ -180,6 +194,7 @@ spendingTxInReference(
 ```
 
 ### spendingReferenceTxInInlineDatumPresent
+
 Signal that the reference script input has an inline datum. **Alias of `txInInlineDatumPresent()`** — both are equivalent.
 
 ```typescript
@@ -187,6 +202,7 @@ spendingReferenceTxInInlineDatumPresent(): this
 ```
 
 ### spendingReferenceTxInRedeemerValue
+
 Provide redeemer for a reference script input. **Alias of `txInRedeemerValue()`** — both are equivalent.
 
 ```typescript
@@ -198,6 +214,7 @@ spendingReferenceTxInRedeemerValue(
 ```
 
 ### simpleScriptTxInReference
+
 Use a native (simple) script reference.
 
 ```typescript
@@ -214,6 +231,7 @@ simpleScriptTxInReference(
 ## Scripts - Minting
 
 ### mintPlutusScript / mintPlutusScriptV1 / V2 / V3
+
 Signal that the next `mint()` uses a Plutus minting policy.
 
 ```typescript
@@ -227,6 +245,7 @@ mintPlutusScriptV3(): this
 ```
 
 ### mint
+
 Add a minting operation.
 
 ```typescript
@@ -238,6 +257,7 @@ mint(
 ```
 
 ### mintingScript
+
 Provide the minting policy script CBOR.
 
 ```typescript
@@ -245,6 +265,7 @@ mintingScript(scriptCBOR: string): this
 ```
 
 ### mintTxInReference
+
 Use a reference script for minting (Plutus only).
 
 ```typescript
@@ -257,6 +278,7 @@ mintTxInReference(
 ```
 
 ### mintReferenceTxInRedeemerValue
+
 Provide redeemer for minting (primary method).
 
 ```typescript
@@ -268,6 +290,7 @@ mintReferenceTxInRedeemerValue(
 ```
 
 ### mintRedeemerValue
+
 Provide redeemer for minting. **Alias of `mintReferenceTxInRedeemerValue()`** — both are equivalent.
 
 ```typescript
@@ -283,6 +306,7 @@ mintRedeemerValue(
 ## Scripts - Withdrawal
 
 ### withdrawalPlutusScript / withdrawalPlutusScriptV1 / V2 / V3
+
 Signal that the next `withdrawal()` uses a Plutus script.
 
 ```typescript
@@ -296,6 +320,7 @@ withdrawalPlutusScriptV3(): this
 ```
 
 ### withdrawal
+
 Withdraw staking rewards.
 
 ```typescript
@@ -306,6 +331,7 @@ withdrawal(
 ```
 
 ### withdrawalScript
+
 Provide withdrawal script CBOR.
 
 ```typescript
@@ -313,6 +339,7 @@ withdrawalScript(scriptCbor: string): this
 ```
 
 ### withdrawalTxInReference
+
 Use a reference script for withdrawal.
 
 ```typescript
@@ -325,6 +352,7 @@ withdrawalTxInReference(
 ```
 
 ### withdrawalRedeemerValue
+
 Provide redeemer for script withdrawal.
 
 ```typescript
@@ -340,6 +368,7 @@ withdrawalRedeemerValue(
 ## Scripts - Voting
 
 ### votePlutusScript / votePlutusScriptV1 / V2 / V3
+
 Signal that the next `vote()` uses a Plutus script.
 
 ```typescript
@@ -353,6 +382,7 @@ votePlutusScriptV3(): this
 ```
 
 ### vote
+
 Add a governance vote.
 
 ```typescript
@@ -364,6 +394,7 @@ vote(
 ```
 
 ### voteScript
+
 Provide voting script CBOR.
 
 ```typescript
@@ -371,6 +402,7 @@ voteScript(scriptCbor: string): this
 ```
 
 ### voteTxInReference
+
 Use a reference script for voting.
 
 ```typescript
@@ -383,6 +415,7 @@ voteTxInReference(
 ```
 
 ### voteRedeemerValue
+
 Provide redeemer for script vote.
 
 ```typescript
@@ -398,6 +431,7 @@ voteRedeemerValue(
 ## Staking Certificates
 
 ### registerStakeCertificate
+
 Register a stake address.
 
 ```typescript
@@ -405,6 +439,7 @@ registerStakeCertificate(rewardAddress: string): this
 ```
 
 ### deregisterStakeCertificate
+
 Deregister a stake address (reclaim deposit).
 
 ```typescript
@@ -412,6 +447,7 @@ deregisterStakeCertificate(rewardAddress: string): this
 ```
 
 ### delegateStakeCertificate
+
 Delegate stake to a pool.
 
 ```typescript
@@ -422,6 +458,7 @@ delegateStakeCertificate(
 ```
 
 ### registerPoolCertificate
+
 Register a stake pool.
 
 ```typescript
@@ -429,6 +466,7 @@ registerPoolCertificate(poolParams: PoolParams): this
 ```
 
 ### retirePoolCertificate
+
 Retire a stake pool.
 
 ```typescript
@@ -439,6 +477,7 @@ retirePoolCertificate(
 ```
 
 ### certificateScript
+
 Add script witness to certificate.
 
 ```typescript
@@ -449,6 +488,7 @@ certificateScript(
 ```
 
 ### certificateTxInReference
+
 Use reference script for certificate.
 
 ```typescript
@@ -462,6 +502,7 @@ certificateTxInReference(
 ```
 
 ### certificateRedeemerValue
+
 Provide redeemer for script certificate.
 
 ```typescript
@@ -477,6 +518,7 @@ certificateRedeemerValue(
 ## Governance (Conway Era)
 
 ### drepRegistrationCertificate
+
 Register as a DRep (Delegated Representative).
 
 ```typescript
@@ -488,6 +530,7 @@ drepRegistrationCertificate(
 ```
 
 ### drepDeregistrationCertificate
+
 Unregister as DRep (reclaim deposit).
 
 ```typescript
@@ -498,6 +541,7 @@ drepDeregistrationCertificate(
 ```
 
 ### drepUpdateCertificate
+
 Update DRep metadata.
 
 ```typescript
@@ -508,6 +552,7 @@ drepUpdateCertificate(
 ```
 
 ### voteDelegationCertificate
+
 Delegate voting power to a DRep.
 
 ```typescript
@@ -518,6 +563,7 @@ voteDelegationCertificate(
 ```
 
 ### proposal
+
 Create a governance proposal.
 
 ```typescript
@@ -530,6 +576,7 @@ proposal(
 ```
 
 ### proposalScript
+
 Add Plutus script witness to proposal.
 
 ```typescript
@@ -540,6 +587,7 @@ proposalScript(
 ```
 
 ### proposalTxInReference
+
 Use reference script for proposal.
 
 ```typescript
@@ -553,6 +601,7 @@ proposalTxInReference(
 ```
 
 ### proposalRedeemerValue
+
 Provide redeemer for script proposal.
 
 ```typescript
@@ -568,6 +617,7 @@ proposalRedeemerValue(
 ## Transaction Configuration
 
 ### changeAddress
+
 Set the address to receive change (REQUIRED for `complete()`).
 
 ```typescript
@@ -575,6 +625,7 @@ changeAddress(addr: string): this
 ```
 
 ### invalidBefore
+
 Transaction valid only after this slot.
 
 ```typescript
@@ -582,6 +633,7 @@ invalidBefore(slot: number): this
 ```
 
 ### invalidHereafter
+
 Transaction valid only before this slot.
 
 ```typescript
@@ -589,6 +641,7 @@ invalidHereafter(slot: number): this
 ```
 
 ### requiredSignerHash
+
 Require a specific signer.
 
 ```typescript
@@ -596,6 +649,7 @@ requiredSignerHash(pubKeyHash: string): this
 ```
 
 ### metadataValue
+
 Add transaction metadata.
 
 ```typescript
@@ -606,6 +660,7 @@ metadataValue(
 ```
 
 ### signingKey
+
 Add a signing key for offline signing.
 
 ```typescript
@@ -613,6 +668,7 @@ signingKey(skeyHex: string): this
 ```
 
 ### selectUtxosFrom
+
 Provide UTxOs for automatic coin selection.
 
 ```typescript
@@ -620,6 +676,7 @@ selectUtxosFrom(extraInputs: UTxO[]): this
 ```
 
 ### protocolParams
+
 Override protocol parameters.
 
 ```typescript
@@ -627,6 +684,7 @@ protocolParams(params: Partial<Protocol>): this
 ```
 
 ### setNetwork
+
 Set the network for cost model lookup.
 
 ```typescript
@@ -634,6 +692,7 @@ setNetwork(network: "testnet" | "preview" | "preprod" | "mainnet"): this
 ```
 
 ### setFee
+
 Manually set transaction fee.
 
 ```typescript
@@ -641,6 +700,7 @@ setFee(fee: string): this
 ```
 
 ### setTotalCollateral
+
 Set total collateral amount.
 
 ```typescript
@@ -648,6 +708,7 @@ setTotalCollateral(collateral: string): this
 ```
 
 ### setCollateralReturnAddress
+
 Set collateral return address (defaults to change address).
 
 ```typescript
@@ -655,6 +716,7 @@ setCollateralReturnAddress(address: string): this
 ```
 
 ### chainTx
+
 Add a chained (not yet on-chain) transaction for evaluation.
 
 ```typescript
@@ -662,6 +724,7 @@ chainTx(txHex: string): this
 ```
 
 ### inputForEvaluation
+
 Provide UTxO data for offline evaluation.
 
 ```typescript
@@ -673,6 +736,7 @@ inputForEvaluation(input: UTxO): this
 ## Completion Methods
 
 ### complete
+
 Build balanced transaction with automatic coin selection and fee calculation.
 
 ```typescript
@@ -682,11 +746,13 @@ async complete(customizedTx?: Partial<MeshTxBuilderBody>): Promise<string>
 **Returns:** Transaction hex (unsigned)
 
 **Requirements:**
+
 - `changeAddress()` must be set
 - `selectUtxosFrom()` should provide UTxOs for selection
 - `fetcher` needed if input info is incomplete
 
 ### completeSync
+
 Synchronous build (no balancing).
 
 ```typescript
@@ -694,6 +760,7 @@ completeSync(customizedTx?: MeshTxBuilderBody): string
 ```
 
 ### completeUnbalanced
+
 Build without balancing (async).
 
 ```typescript
@@ -701,6 +768,7 @@ completeUnbalanced(customizedTx?: MeshTxBuilderBody): string
 ```
 
 ### completeUnbalancedSync
+
 Build without balancing (sync).
 
 ```typescript
@@ -708,6 +776,7 @@ completeUnbalancedSync(customizedTx?: MeshTxBuilderBody): string
 ```
 
 ### completeSigning
+
 Add signatures to the transaction.
 
 ```typescript
@@ -717,6 +786,7 @@ completeSigning(): string
 **Returns:** Signed transaction hex
 
 ### submitTx
+
 Submit transaction to the blockchain.
 
 ```typescript
@@ -730,6 +800,7 @@ async submitTx(txHex: string): Promise<string | undefined>
 ## Utility Methods
 
 ### reset
+
 Clear all builder state.
 
 ```typescript
@@ -737,6 +808,7 @@ reset(): void
 ```
 
 ### txHex
+
 Property containing the last built transaction hex.
 
 ```typescript
@@ -744,6 +816,7 @@ txBuilder.txHex: string
 ```
 
 ### calculateFee
+
 Calculate transaction fee.
 
 ```typescript
@@ -751,6 +824,7 @@ calculateFee(): bigint
 ```
 
 ### getSerializedSize
+
 Get transaction size in bytes.
 
 ```typescript
@@ -758,6 +832,7 @@ getSerializedSize(): number
 ```
 
 ### getTotalExecutionUnits
+
 Get total script execution units.
 
 ```typescript
@@ -793,14 +868,16 @@ parser.toTester();
 ## Type Reference
 
 ### Asset
+
 ```typescript
 interface Asset {
-  unit: string;      // "lovelace" or policyId + assetName
-  quantity: string;  // Amount as string
+  unit: string; // "lovelace" or policyId + assetName
+  quantity: string; // Amount as string
 }
 ```
 
 ### UTxO
+
 ```typescript
 interface UTxO {
   input: {
@@ -819,14 +896,16 @@ interface UTxO {
 ```
 
 ### Voter
+
 ```typescript
 type Voter =
   | { type: "ConstitutionalCommittee"; hotCred: Credential }
   | { type: "DRep"; drepId: string }
-  | { type: "StakingPool"; keyHash: string }
+  | { type: "StakingPool"; keyHash: string };
 ```
 
 ### VotingProcedure
+
 ```typescript
 interface VotingProcedure {
   vote: "Yes" | "No" | "Abstain";
@@ -835,6 +914,7 @@ interface VotingProcedure {
 ```
 
 ### Anchor
+
 ```typescript
 interface Anchor {
   anchorUrl: string;

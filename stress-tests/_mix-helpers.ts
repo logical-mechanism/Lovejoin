@@ -29,28 +29,20 @@ export interface CalibrationWalletOpts {
   network: string;
 }
 
-export async function loadCalibrationWallet(
-  opts: CalibrationWalletOpts,
-): Promise<LovejoinWallet> {
+export async function loadCalibrationWallet(opts: CalibrationWalletOpts): Promise<LovejoinWallet> {
   const networkId = networkIdFor(opts.network);
   if (process.env.LOVEJOIN_PAYMENT_SKEY) {
     return createCliMeshWallet({
       networkId,
       payment: process.env.LOVEJOIN_PAYMENT_SKEY,
-      ...(process.env.LOVEJOIN_STAKE_SKEY
-        ? { stake: process.env.LOVEJOIN_STAKE_SKEY }
-        : {}),
+      ...(process.env.LOVEJOIN_STAKE_SKEY ? { stake: process.env.LOVEJOIN_STAKE_SKEY } : {}),
     });
   }
   if (process.env.LOVEJOIN_MNEMONIC) {
-    const words = process.env.LOVEJOIN_MNEMONIC.split(/[\s,]+/).filter(
-      (w) => w.length > 0,
-    );
+    const words = process.env.LOVEJOIN_MNEMONIC.split(/[\s,]+/).filter((w) => w.length > 0);
     return createMnemonicMeshWallet({ networkId, mnemonic: words });
   }
-  throw new Error(
-    "calibration wallet: set LOVEJOIN_PAYMENT_SKEY or LOVEJOIN_MNEMONIC",
-  );
+  throw new Error("calibration wallet: set LOVEJOIN_PAYMENT_SKEY or LOVEJOIN_MNEMONIC");
 }
 
 /**

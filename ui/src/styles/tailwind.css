@@ -76,7 +76,9 @@
  * --------------------------------------------------------------------------- */
 
 @layer base {
-  html, body, #root {
+  html,
+  body,
+  #root {
     height: 100%;
     background: var(--color-ink);
     color: var(--color-paper);
@@ -97,7 +99,12 @@
     color: var(--color-signal-ink);
   }
 
-  .lj-num, code, kbd, samp, pre, [data-num] {
+  .lj-num,
+  code,
+  kbd,
+  samp,
+  pre,
+  [data-num] {
     font-family: var(--font-mono);
     font-variant-numeric: tabular-nums;
     font-feature-settings: "tnum";
@@ -192,9 +199,16 @@
     gap: 0.6rem;
     flex-wrap: wrap;
   }
-  .lj-footer__mark { color: var(--color-muted); letter-spacing: 0.16em; }
-  .lj-footer__sep { opacity: 0.5; }
-  .lj-footer__warn { color: var(--color-amber); }
+  .lj-footer__mark {
+    color: var(--color-muted);
+    letter-spacing: 0.16em;
+  }
+  .lj-footer__sep {
+    opacity: 0.5;
+  }
+  .lj-footer__warn {
+    color: var(--color-amber);
+  }
 
   .lj-header {
     border-bottom: 1px solid var(--color-rule);
@@ -248,13 +262,17 @@
     padding: 0.4rem 0;
     transition: color 120ms ease;
   }
-  .lj-nav a:hover { color: var(--color-paper); }
+  .lj-nav a:hover {
+    color: var(--color-paper);
+  }
   .lj-nav a:focus-visible {
     outline: 2px solid var(--color-signal);
     outline-offset: 4px;
     color: var(--color-paper);
   }
-  .lj-nav a[aria-current="page"] { color: var(--color-paper); }
+  .lj-nav a[aria-current="page"] {
+    color: var(--color-paper);
+  }
   .lj-nav a[aria-current="page"]::after {
     content: "";
     position: absolute;
@@ -271,7 +289,10 @@
 
   /* Language picker — sits between nav and wallet pill, styled to read
      as a quiet metadata control rather than a CTA. */
-  .lj-lang { display: inline-flex; align-items: center; }
+  .lj-lang {
+    display: inline-flex;
+    align-items: center;
+  }
   .lj-lang__select {
     appearance: none;
     background: transparent;
@@ -283,12 +304,19 @@
     letter-spacing: 0.06em;
     padding: 0.4rem 1.6rem 0.4rem 0.6rem;
     cursor: pointer;
-    background-image: linear-gradient(45deg, transparent 50%, var(--color-muted) 50%),
-                      linear-gradient(135deg, var(--color-muted) 50%, transparent 50%);
-    background-position: calc(100% - 0.7rem) 50%, calc(100% - 0.45rem) 50%;
-    background-size: 0.25rem 0.25rem, 0.25rem 0.25rem;
+    background-image:
+      linear-gradient(45deg, transparent 50%, var(--color-muted) 50%),
+      linear-gradient(135deg, var(--color-muted) 50%, transparent 50%);
+    background-position:
+      calc(100% - 0.7rem) 50%,
+      calc(100% - 0.45rem) 50%;
+    background-size:
+      0.25rem 0.25rem,
+      0.25rem 0.25rem;
     background-repeat: no-repeat;
-    transition: border-color 120ms ease, color 120ms ease;
+    transition:
+      border-color 120ms ease,
+      color 120ms ease;
   }
   .lj-lang__select:hover {
     border-color: var(--color-rule-strong);
@@ -327,7 +355,11 @@
     padding: 0.65rem 1.1rem;
     border-radius: var(--radius-sm);
     cursor: pointer;
-    transition: background 120ms ease, color 120ms ease, border-color 120ms ease, transform 80ms ease;
+    transition:
+      background 120ms ease,
+      color 120ms ease,
+      border-color 120ms ease,
+      transform 80ms ease;
     line-height: 1;
     display: inline-flex;
     align-items: center;
@@ -335,10 +367,18 @@
     gap: 0.5rem;
     white-space: nowrap;
   }
-  .lj-btn:hover:not(:disabled) { border-color: var(--color-paper); }
-  .lj-btn:active:not(:disabled) { transform: translateY(1px); }
-  .lj-btn:disabled { cursor: not-allowed; }
-  .lj-btn:not(.lj-btn--primary):disabled { opacity: 0.35; }
+  .lj-btn:hover:not(:disabled) {
+    border-color: var(--color-paper);
+  }
+  .lj-btn:active:not(:disabled) {
+    transform: translateY(1px);
+  }
+  .lj-btn:disabled {
+    cursor: not-allowed;
+  }
+  .lj-btn:not(.lj-btn--primary):disabled {
+    opacity: 0.35;
+  }
   .lj-btn:focus-visible {
     outline: 2px solid var(--color-signal);
     outline-offset: 2px;
@@ -378,10 +418,19 @@
     --btn-fg: var(--color-coral);
     --btn-border: color-mix(in oklab, var(--color-coral) 50%, transparent);
   }
-  .lj-btn--danger:hover:not(:disabled) { --btn-border: var(--color-coral); }
-  .lj-btn--lg { padding: 0.85rem 1.5rem; font-size: 0.84rem; }
+  .lj-btn--danger:hover:not(:disabled) {
+    --btn-border: var(--color-coral);
+  }
+  .lj-btn--lg {
+    padding: 0.85rem 1.5rem;
+    font-size: 0.84rem;
+  }
 
-  .lj-field { display: flex; flex-direction: column; gap: 0.4rem; }
+  .lj-field {
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+  }
   .lj-field__label {
     font-size: 0.7rem;
     letter-spacing: 0.14em;
@@ -394,7 +443,9 @@
     color: var(--color-whisper);
     line-height: 1.5;
   }
-  .lj-input, .lj-textarea, .lj-select {
+  .lj-input,
+  .lj-textarea,
+  .lj-select {
     appearance: none;
     background: var(--color-surface);
     border: 1px solid var(--color-rule);
@@ -406,13 +457,20 @@
     transition: border-color 120ms ease;
     width: 100%;
   }
-  .lj-input:focus, .lj-textarea:focus, .lj-select:focus {
+  .lj-input:focus,
+  .lj-textarea:focus,
+  .lj-select:focus {
     outline: none;
     border-color: var(--color-signal);
     box-shadow: 0 0 0 2px var(--color-signal);
   }
-  .lj-textarea { min-height: 6.5rem; resize: vertical; }
-  .lj-select { font-family: var(--font-body); }
+  .lj-textarea {
+    min-height: 6.5rem;
+    resize: vertical;
+  }
+  .lj-select {
+    font-family: var(--font-body);
+  }
   /* Validation states for form inputs — coral border + matching ring on
    * focus. Used by Withdraw destination and any future client-validated
    * fields. */
@@ -446,7 +504,9 @@
     border-radius: var(--radius-md);
     padding: 1.5rem;
   }
-  .lj-card--quiet { background: transparent; }
+  .lj-card--quiet {
+    background: transparent;
+  }
   .lj-card__head {
     display: flex;
     align-items: flex-start;
@@ -463,7 +523,11 @@
     line-height: 1.2;
   }
 
-  .lj-stat { display: flex; flex-direction: column; gap: 0.3rem; }
+  .lj-stat {
+    display: flex;
+    flex-direction: column;
+    gap: 0.3rem;
+  }
   .lj-stat__label {
     font-size: 0.68rem;
     letter-spacing: 0.18em;
@@ -479,20 +543,35 @@
     color: var(--color-paper);
     font-variant-numeric: tabular-nums;
   }
-  .lj-stat__value--mono { font-family: var(--font-mono); font-size: 1.35rem; }
-  .lj-stat__sub { font-size: 0.78rem; color: var(--color-whisper); font-family: var(--font-mono); }
+  .lj-stat__value--mono {
+    font-family: var(--font-mono);
+    font-size: 1.35rem;
+  }
+  .lj-stat__sub {
+    font-size: 0.78rem;
+    color: var(--color-whisper);
+    font-family: var(--font-mono);
+  }
 
   .lj-dot {
     display: inline-block;
-    width: 6px; height: 6px;
+    width: 6px;
+    height: 6px;
     border-radius: 999px;
     background: var(--color-whisper);
     flex-shrink: 0;
   }
   /* Amber is the live/connected tell — vintage power-LED, not a CTA. */
-  .lj-dot--ok { background: var(--color-amber); box-shadow: 0 0 10px color-mix(in oklab, var(--color-amber) 70%, transparent); }
-  .lj-dot--warn { background: var(--color-amber); }
-  .lj-dot--bad { background: var(--color-coral); }
+  .lj-dot--ok {
+    background: var(--color-amber);
+    box-shadow: 0 0 10px color-mix(in oklab, var(--color-amber) 70%, transparent);
+  }
+  .lj-dot--warn {
+    background: var(--color-amber);
+  }
+  .lj-dot--bad {
+    background: var(--color-coral);
+  }
 
   /* Pre-submit review block — used by Withdraw + Pool to show what's
    * actually about to commit. Heavier than a banner, lighter than a
@@ -520,7 +599,10 @@
     align-items: baseline;
   }
   @media (max-width: 480px) {
-    .lj-review__row { grid-template-columns: 1fr; gap: 0.15rem; }
+    .lj-review__row {
+      grid-template-columns: 1fr;
+      gap: 0.15rem;
+    }
   }
   .lj-review__label {
     margin: 0;
@@ -565,14 +647,34 @@
     padding: 0.75rem 0.9rem;
     border-radius: var(--radius-sm);
   }
-  .lj-banner__title { font-size: 0.85rem; color: var(--color-paper); }
-  .lj-banner__detail { font-size: 0.76rem; color: var(--color-whisper); font-family: var(--font-mono); word-break: break-all; }
-  .lj-banner--amber { border-left-color: var(--color-amber); }
-  .lj-banner--amber .lj-banner__title { color: var(--color-amber); }
-  .lj-banner--coral { border-left-color: var(--color-coral); }
-  .lj-banner--coral .lj-banner__title { color: var(--color-coral); }
-  .lj-banner--signal { border-left-color: var(--color-signal); }
-  .lj-banner--signal .lj-banner__title { color: var(--color-signal); }
+  .lj-banner__title {
+    font-size: 0.85rem;
+    color: var(--color-paper);
+  }
+  .lj-banner__detail {
+    font-size: 0.76rem;
+    color: var(--color-whisper);
+    font-family: var(--font-mono);
+    word-break: break-all;
+  }
+  .lj-banner--amber {
+    border-left-color: var(--color-amber);
+  }
+  .lj-banner--amber .lj-banner__title {
+    color: var(--color-amber);
+  }
+  .lj-banner--coral {
+    border-left-color: var(--color-coral);
+  }
+  .lj-banner--coral .lj-banner__title {
+    color: var(--color-coral);
+  }
+  .lj-banner--signal {
+    border-left-color: var(--color-signal);
+  }
+  .lj-banner--signal .lj-banner__title {
+    color: var(--color-signal);
+  }
 
   .lj-modal-backdrop {
     position: fixed;
@@ -594,9 +696,27 @@
     padding: 1.75rem;
     animation: lj-rise 180ms ease;
   }
-  .lj-modal--wide { max-width: 36rem; }
-  @keyframes lj-fade { from { opacity: 0; } to { opacity: 1; } }
-  @keyframes lj-rise { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+  .lj-modal--wide {
+    max-width: 36rem;
+  }
+  @keyframes lj-fade {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
+  }
+  @keyframes lj-rise {
+    from {
+      opacity: 0;
+      transform: translateY(4px);
+    }
+    to {
+      opacity: 1;
+      transform: none;
+    }
+  }
 
   .lj-wallet-pill {
     display: inline-flex;
@@ -613,15 +733,21 @@
     cursor: pointer;
     transition: border-color 120ms ease;
   }
-  .lj-wallet-pill:hover { border-color: var(--color-paper); }
+  .lj-wallet-pill:hover {
+    border-color: var(--color-paper);
+  }
   .lj-wallet-pill:focus-visible {
     outline: 2px solid var(--color-signal);
     outline-offset: 2px;
     border-color: var(--color-paper);
   }
-  .lj-wallet-pill__addr { color: var(--color-muted); font-size: 0.74rem; }
+  .lj-wallet-pill__addr {
+    color: var(--color-muted);
+    font-size: 0.74rem;
+  }
   .lj-wallet-pill__icon {
-    width: 16px; height: 16px;
+    width: 16px;
+    height: 16px;
     border-radius: var(--radius-xs);
     background: var(--color-rise);
   }
@@ -679,19 +805,29 @@
     border-bottom: 1px solid var(--color-rule);
   }
   @media (max-width: 720px) {
-    .lj-pillars { grid-template-columns: 1fr; }
-    .lj-pillars > * + * { border-top: 1px solid var(--color-rule); }
+    .lj-pillars {
+      grid-template-columns: 1fr;
+    }
+    .lj-pillars > * + * {
+      border-top: 1px solid var(--color-rule);
+    }
   }
   .lj-pillar {
     padding: 1.5rem 1.25rem;
     border-left: 1px solid var(--color-rule);
     transition: background 120ms ease;
   }
-  .lj-pillar:first-child { border-left: none; }
-  @media (max-width: 720px) {
-    .lj-pillar { border-left: none; }
+  .lj-pillar:first-child {
+    border-left: none;
   }
-  .lj-pillar:hover { background: var(--color-surface); }
+  @media (max-width: 720px) {
+    .lj-pillar {
+      border-left: none;
+    }
+  }
+  .lj-pillar:hover {
+    background: var(--color-surface);
+  }
   .lj-pillar:focus-visible {
     outline: 2px solid var(--color-signal);
     outline-offset: -2px;
@@ -727,24 +863,34 @@
     height: 22px;
     background: transparent;
   }
-  .lj-slider::-webkit-slider-runnable-track { height: 1px; background: var(--color-rule-strong); }
-  .lj-slider::-moz-range-track { height: 1px; background: var(--color-rule-strong); }
+  .lj-slider::-webkit-slider-runnable-track {
+    height: 1px;
+    background: var(--color-rule-strong);
+  }
+  .lj-slider::-moz-range-track {
+    height: 1px;
+    background: var(--color-rule-strong);
+  }
   .lj-slider::-webkit-slider-thumb {
     appearance: none;
-    width: 14px; height: 14px;
+    width: 14px;
+    height: 14px;
     margin-top: -7px;
     background: var(--color-signal);
     border-radius: var(--radius-xs);
     cursor: grab;
   }
   .lj-slider::-moz-range-thumb {
-    width: 14px; height: 14px;
+    width: 14px;
+    height: 14px;
     background: var(--color-signal);
     border-radius: var(--radius-xs);
     border: none;
     cursor: grab;
   }
-  .lj-slider:active::-webkit-slider-thumb { cursor: grabbing; }
+  .lj-slider:active::-webkit-slider-thumb {
+    cursor: grabbing;
+  }
   .lj-slider:focus-visible::-webkit-slider-thumb {
     outline: 2px solid var(--color-amber);
     outline-offset: 2px;
@@ -753,11 +899,24 @@
     outline: 2px solid var(--color-amber);
     outline-offset: 2px;
   }
-  .lj-slider:focus { outline: none; }
+  .lj-slider:focus {
+    outline: none;
+  }
 
-  .lj-meter { display: flex; gap: 3px; margin-top: 0.4rem; }
-  .lj-meter__seg { flex: 1; height: 4px; background: var(--color-rule); border-radius: 0; }
-  .lj-meter__seg--lit { background: var(--color-signal); }
+  .lj-meter {
+    display: flex;
+    gap: 3px;
+    margin-top: 0.4rem;
+  }
+  .lj-meter__seg {
+    flex: 1;
+    height: 4px;
+    background: var(--color-rule);
+    border-radius: 0;
+  }
+  .lj-meter__seg--lit {
+    background: var(--color-signal);
+  }
 
   .lj-table {
     width: 100%;
@@ -781,7 +940,9 @@
     color: var(--color-paper);
     vertical-align: middle;
   }
-  .lj-table tr:hover td { background: color-mix(in oklab, var(--color-surface) 70%, transparent); }
+  .lj-table tr:hover td {
+    background: color-mix(in oklab, var(--color-surface) 70%, transparent);
+  }
   /* Row focus (when a checkbox inside the row receives focus, browsers
    * don't propagate :focus-within unless we ask). Highlight the row so
    * keyboard users can see which row their checkbox belongs to. */
@@ -820,17 +981,23 @@
     font-family: var(--font-mono);
     cursor: pointer;
     border-right: 1px solid var(--color-rule);
-    transition: color 120ms ease, background 120ms ease;
+    transition:
+      color 120ms ease,
+      background 120ms ease;
     white-space: nowrap;
   }
-  .lj-toggle button:last-child { border-right: none; }
+  .lj-toggle button:last-child {
+    border-right: none;
+  }
   .lj-toggle button[aria-pressed="true"] {
     background: var(--color-rise);
     color: var(--color-paper);
     font-weight: 500;
     box-shadow: inset 0 -1px 0 var(--color-paper);
   }
-  .lj-toggle button:hover:not([aria-pressed="true"]) { color: var(--color-paper); }
+  .lj-toggle button:hover:not([aria-pressed="true"]) {
+    color: var(--color-paper);
+  }
   .lj-toggle button:focus-visible {
     outline: 2px solid var(--color-signal);
     outline-offset: -2px;
@@ -862,12 +1029,21 @@
   }
   .lj-loading::before {
     content: "";
-    width: 6px; height: 6px;
+    width: 6px;
+    height: 6px;
     border-radius: 999px;
     background: var(--color-signal);
     animation: lj-pulse 1.2s ease-in-out infinite;
   }
-  @keyframes lj-pulse { 0%, 100% { opacity: 0.3; } 50% { opacity: 1; } }
+  @keyframes lj-pulse {
+    0%,
+    100% {
+      opacity: 0.3;
+    }
+    50% {
+      opacity: 1;
+    }
+  }
 
   .lj-hash {
     font-family: var(--font-mono);
@@ -878,7 +1054,9 @@
   .lj-hash--copy {
     cursor: pointer;
     border-bottom: 1px dashed transparent;
-    transition: border-color 120ms ease, color 120ms ease;
+    transition:
+      border-color 120ms ease,
+      color 120ms ease;
   }
   .lj-hash--copy:hover {
     color: var(--color-paper);
@@ -918,12 +1096,24 @@
     box-shadow: 0 12px 32px rgba(0, 0, 0, 0.35);
     animation: lj-toast-in 220ms cubic-bezier(0.2, 0.8, 0.2, 1);
   }
-  .lj-toast--closing { animation: lj-toast-out 220ms cubic-bezier(0.5, 0, 0.6, 0) forwards; }
-  .lj-toast--success { border-left-color: var(--color-amber); }
-  .lj-toast--success .lj-toast__title { color: var(--color-amber); }
-  .lj-toast--error { border-left-color: var(--color-coral); }
-  .lj-toast--error .lj-toast__title { color: var(--color-coral); }
-  .lj-toast--info { border-left-color: var(--color-paper); }
+  .lj-toast--closing {
+    animation: lj-toast-out 220ms cubic-bezier(0.5, 0, 0.6, 0) forwards;
+  }
+  .lj-toast--success {
+    border-left-color: var(--color-amber);
+  }
+  .lj-toast--success .lj-toast__title {
+    color: var(--color-amber);
+  }
+  .lj-toast--error {
+    border-left-color: var(--color-coral);
+  }
+  .lj-toast--error .lj-toast__title {
+    color: var(--color-coral);
+  }
+  .lj-toast--info {
+    border-left-color: var(--color-paper);
+  }
   .lj-toast__body {
     display: flex;
     flex-direction: column;
@@ -953,7 +1143,9 @@
     border-bottom: 1px dashed transparent;
     width: fit-content;
   }
-  .lj-toast__link:hover { border-bottom-color: var(--color-amber); }
+  .lj-toast__link:hover {
+    border-bottom-color: var(--color-amber);
+  }
   .lj-toast__link:focus-visible {
     outline: 2px solid var(--color-amber);
     outline-offset: 2px;
@@ -975,14 +1167,28 @@
     padding: 0.2rem 0.3rem;
     transition: color 120ms ease;
   }
-  .lj-toast__close:hover { color: var(--color-paper); }
+  .lj-toast__close:hover {
+    color: var(--color-paper);
+  }
   @keyframes lj-toast-in {
-    from { opacity: 0; transform: translateX(12px); }
-    to { opacity: 1; transform: none; }
+    from {
+      opacity: 0;
+      transform: translateX(12px);
+    }
+    to {
+      opacity: 1;
+      transform: none;
+    }
   }
   @keyframes lj-toast-out {
-    from { opacity: 1; transform: none; }
-    to { opacity: 0; transform: translateX(20px); }
+    from {
+      opacity: 1;
+      transform: none;
+    }
+    to {
+      opacity: 0;
+      transform: translateX(20px);
+    }
   }
 
   /* In-flight overlay — shown over forms during async submit so the
@@ -1045,7 +1251,9 @@
     border-color: color-mix(in oklab, var(--color-signal-ink) 30%, transparent);
   }
   @keyframes lj-spin {
-    to { transform: rotate(360deg); }
+    to {
+      transform: rotate(360deg);
+    }
   }
 
   /* In-flight tx progress — phase ticker + animated bar. Sits inside
@@ -1080,8 +1288,12 @@
     color: var(--color-whisper);
     transition: color 200ms ease;
   }
-  .lj-tx-progress__step--active { color: var(--color-paper); }
-  .lj-tx-progress__step--done { color: var(--color-muted); }
+  .lj-tx-progress__step--active {
+    color: var(--color-paper);
+  }
+  .lj-tx-progress__step--done {
+    color: var(--color-muted);
+  }
   .lj-tx-progress__dot {
     width: 8px;
     height: 8px;
@@ -1089,7 +1301,9 @@
     border: 1.5px solid var(--color-rule-strong);
     background: transparent;
     flex-shrink: 0;
-    transition: background-color 200ms ease, border-color 200ms ease;
+    transition:
+      background-color 200ms ease,
+      border-color 200ms ease;
   }
   .lj-tx-progress__step--active .lj-tx-progress__dot {
     border-color: var(--color-amber);
@@ -1130,20 +1344,40 @@
   .lj-tx-progress__bar-fill--done {
     transition: width 280ms cubic-bezier(0.2, 0.8, 0.2, 1);
   }
-  .lj-tx-progress__bar-fill--done::after { display: none; }
+  .lj-tx-progress__bar-fill--done::after {
+    display: none;
+  }
   @keyframes lj-tx-progress-pulse {
-    0%, 100% { box-shadow: 0 0 0 0 color-mix(in oklab, var(--color-amber) 60%, transparent); }
-    50% { box-shadow: 0 0 0 4px color-mix(in oklab, var(--color-amber) 0%, transparent); }
+    0%,
+    100% {
+      box-shadow: 0 0 0 0 color-mix(in oklab, var(--color-amber) 60%, transparent);
+    }
+    50% {
+      box-shadow: 0 0 0 4px color-mix(in oklab, var(--color-amber) 0%, transparent);
+    }
   }
   @keyframes lj-tx-progress-shimmer {
-    from { transform: translateX(-100%); }
-    to { transform: translateX(100%); }
+    from {
+      transform: translateX(-100%);
+    }
+    to {
+      transform: translateX(100%);
+    }
   }
   @media (prefers-reduced-motion: reduce) {
-    .lj-tx-progress__step--active .lj-tx-progress__dot { animation: none; }
-    .lj-tx-progress__bar-fill::after { animation: none; display: none; }
-    .lj-tx-progress__bar-fill { transition: none; }
-    .lj-tx-progress { animation: none; }
+    .lj-tx-progress__step--active .lj-tx-progress__dot {
+      animation: none;
+    }
+    .lj-tx-progress__bar-fill::after {
+      animation: none;
+      display: none;
+    }
+    .lj-tx-progress__bar-fill {
+      transition: none;
+    }
+    .lj-tx-progress {
+      animation: none;
+    }
   }
 
   /* Math display block — used on the protocol page. */
@@ -1205,8 +1439,14 @@
     margin-top: 1.5rem;
     margin-bottom: 0.4rem;
   }
-  .lj-prose p { margin-bottom: 1rem; color: var(--color-muted); }
-  .lj-prose p strong { color: var(--color-paper); font-weight: 500; }
+  .lj-prose p {
+    margin-bottom: 1rem;
+    color: var(--color-muted);
+  }
+  .lj-prose p strong {
+    color: var(--color-paper);
+    font-weight: 500;
+  }
   .lj-prose code {
     background: var(--color-surface);
     border: 1px solid var(--color-rule);
@@ -1286,14 +1526,22 @@
       scrollbar-width: none;
       padding-bottom: 0.1rem;
     }
-    .lj-nav::-webkit-scrollbar { display: none; }
+    .lj-nav::-webkit-scrollbar {
+      display: none;
+    }
     .lj-nav a {
       flex-shrink: 0;
       padding: 0.3rem 0;
     }
-    .lj-brand { font-size: 0.95rem; }
-    .lj-wallet-pill { margin-left: auto; }
-    .lj-wallet-pill__addr { display: none; }
+    .lj-brand {
+      font-size: 0.95rem;
+    }
+    .lj-wallet-pill {
+      margin-left: auto;
+    }
+    .lj-wallet-pill__addr {
+      display: none;
+    }
 
     /* Buttons hit the WCAG 2.5.5 enhanced 44px target on mobile. The
      * desktop sizing reads as instrument-sized; phone fingers want more. */
@@ -1321,28 +1569,47 @@
     /* Hero: tighten the top padding and let the lede wrap. CTAs stack
      * full-width; one is the primary "Connect wallet", which we want
      * unmissable on first touch. */
-    .lj-hero { padding: 1.75rem 0 1rem; }
-    .lj-hero__title { font-size: clamp(2rem, 8vw, 3rem); }
-    .lj-hero__cta { flex-direction: column; align-items: stretch; }
-    .lj-hero__cta .lj-btn { width: 100%; }
+    .lj-hero {
+      padding: 1.75rem 0 1rem;
+    }
+    .lj-hero__title {
+      font-size: clamp(2rem, 8vw, 3rem);
+    }
+    .lj-hero__cta {
+      flex-direction: column;
+      align-items: stretch;
+    }
+    .lj-hero__cta .lj-btn {
+      width: 100%;
+    }
 
     /* Pillars already collapse to one column at this breakpoint via the
      * existing rule; just give the inner padding some air. */
-    .lj-pillar { padding: 1.25rem 1rem; }
+    .lj-pillar {
+      padding: 1.25rem 1rem;
+    }
 
     /* Modal padding shrinks so sheet takes less of the viewport on tiny
      * screens, and dialog content has actual room to breathe. */
-    .lj-modal-backdrop { padding: 0.75rem; }
-    .lj-modal { padding: 1.25rem; }
+    .lj-modal-backdrop {
+      padding: 0.75rem;
+    }
+    .lj-modal {
+      padding: 1.25rem;
+    }
 
     /* Table wrapper already does overflow-x-auto. Make the scroll
      * smoother on iOS and force a sensible minimum width so the cells
      * don't squish to two-character columns before the user pages. */
-    .lj-table { min-width: 32rem; }
+    .lj-table {
+      min-width: 32rem;
+    }
 
     /* Field hints on phone screens were hugging the input edge; bump the
      * top space so they don't read as part of the value. */
-    .lj-field__hint { font-size: 0.78rem; }
+    .lj-field__hint {
+      font-size: 0.78rem;
+    }
 
     /* Footer: text-transform: uppercase + letter-spacing fights the small
      * width hard. Drop the spacing a notch and let it wrap. */
@@ -1401,4 +1668,3 @@
     opacity: 0.6;
   }
 }
-

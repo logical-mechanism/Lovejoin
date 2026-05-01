@@ -10,12 +10,7 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 
-import {
-  type Network,
-  NETWORKS,
-  type RuntimeConfig,
-  saveConfig,
-} from "../lib/sdk.js";
+import { type Network, NETWORKS, type RuntimeConfig, saveConfig } from "../lib/sdk.js";
 
 export interface ConfigPanelProps {
   config: RuntimeConfig;
@@ -42,9 +37,7 @@ export function ConfigPanel({ config, onChange }: ConfigPanelProps) {
           <select
             className="mt-1 rounded border border-gray-300 px-2 py-1"
             value={draft.network}
-            onChange={(e) =>
-              setDraft({ ...draft, network: e.target.value as Network })
-            }
+            onChange={(e) => setDraft({ ...draft, network: e.target.value as Network })}
           >
             {NETWORKS.map((n) => (
               <option key={n} value={n}>
@@ -60,14 +53,10 @@ export function ConfigPanel({ config, onChange }: ConfigPanelProps) {
             autoComplete="off"
             className="mt-1 rounded border border-gray-300 px-2 py-1 font-mono"
             value={draft.blockfrostProjectId}
-            onChange={(e) =>
-              setDraft({ ...draft, blockfrostProjectId: e.target.value })
-            }
+            onChange={(e) => setDraft({ ...draft, blockfrostProjectId: e.target.value })}
             placeholder={t("config.blockfrost_placeholder")}
           />
-          <span className="mt-1 text-xs text-gray-500">
-            {t("config.blockfrost_help")}
-          </span>
+          <span className="mt-1 text-xs text-gray-500">{t("config.blockfrost_help")}</span>
         </label>
         <label className="flex flex-col text-sm">
           <span className="font-medium">{t("config.backend_url_label")}</span>
@@ -79,27 +68,19 @@ export function ConfigPanel({ config, onChange }: ConfigPanelProps) {
             onChange={(e) => setDraft({ ...draft, backendUrl: e.target.value })}
             placeholder={t("config.backend_url_placeholder")}
           />
-          <span className="mt-1 text-xs text-gray-500">
-            {t("config.backend_url_help")}
-          </span>
+          <span className="mt-1 text-xs text-gray-500">{t("config.backend_url_help")}</span>
         </label>
         <label className="flex flex-col text-sm">
-          <span className="font-medium">
-            {t("config.collateral_endpoint_label")}
-          </span>
+          <span className="font-medium">{t("config.collateral_endpoint_label")}</span>
           <input
             type="text"
             autoComplete="off"
             className="mt-1 rounded border border-gray-300 px-2 py-1 font-mono"
             value={draft.collateralProviderEndpoint}
-            onChange={(e) =>
-              setDraft({ ...draft, collateralProviderEndpoint: e.target.value })
-            }
+            onChange={(e) => setDraft({ ...draft, collateralProviderEndpoint: e.target.value })}
             placeholder={t("config.collateral_endpoint_placeholder")}
           />
-          <span className="mt-1 text-xs text-gray-500">
-            {t("config.collateral_endpoint_help")}
-          </span>
+          <span className="mt-1 text-xs text-gray-500">{t("config.collateral_endpoint_help")}</span>
         </label>
       </div>
       <div className="mt-4 flex items-center gap-3">
@@ -116,9 +97,7 @@ export function ConfigPanel({ config, onChange }: ConfigPanelProps) {
         >
           {t("config.save")}
         </button>
-        {savedAt !== null && (
-          <span className="text-xs text-green-700">{t("config.saved")}</span>
-        )}
+        {savedAt !== null && <span className="text-xs text-green-700">{t("config.saved")}</span>}
       </div>
     </section>
   );

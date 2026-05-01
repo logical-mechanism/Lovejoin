@@ -31,9 +31,7 @@ describe("crypto/bls", () => {
   });
 
   it("scalar order matches spec r", () => {
-    expect(SCALAR_ORDER).toBe(
-      0x73eda753299d7d483339d80809a1d80553bda402fffe5bfeffffffff00000001n,
-    );
+    expect(SCALAR_ORDER).toBe(0x73eda753299d7d483339d80809a1d80553bda402fffe5bfeffffffff00000001n);
   });
 
   it("scalarToBytes / scalarFromBytes is round-trip and 32 bytes", () => {
@@ -87,8 +85,7 @@ describe("crypto/bls", () => {
 
   it("bytesToBigIntBE matches naive reduction for 32-byte FS challenges", () => {
     const allOnes = new Uint8Array(32).fill(0xff);
-    const expected =
-      (1n << 256n) - 1n; // 2^256 - 1
+    const expected = (1n << 256n) - 1n; // 2^256 - 1
     expect(bytesToBigIntBE(allOnes)).toBe(expected);
   });
 

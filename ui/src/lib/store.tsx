@@ -36,13 +36,7 @@ import type { BrowserWallet } from "@meshsdk/core";
 import type { LovejoinAddresses, ChainProvider } from "@lovejoin/sdk";
 
 import { BackendClient } from "./backend.js";
-import {
-  loadAddresses,
-  loadConfig,
-  makeProvider,
-  saveConfig,
-  type RuntimeConfig,
-} from "./sdk.js";
+import { loadAddresses, loadConfig, makeProvider, saveConfig, type RuntimeConfig } from "./sdk.js";
 import { useAfterFirstPaint } from "./use-after-first-paint.js";
 import {
   scanPool,
@@ -163,9 +157,7 @@ export function AppStateProvider({ children, testOverrides }: AppStateProviderPr
   // ref was marked so the safety timer can sweep stale entries even if
   // a rescan never confirms the spend (e.g. the user's tx got orphaned
   // and the box reappeared). Both maps are kept in lockstep.
-  const [pendingTxRefs, setPendingTxRefs] = useState<ReadonlySet<string>>(
-    () => new Set(),
-  );
+  const [pendingTxRefs, setPendingTxRefs] = useState<ReadonlySet<string>>(() => new Set());
   const pendingExpiryRef = useRef<Map<string, number>>(new Map());
   const PENDING_SAFETY_MS = 90_000;
   const markTxPending = useCallback((refs: ReadonlyArray<string>) => {
@@ -186,10 +178,7 @@ export function AppStateProvider({ children, testOverrides }: AppStateProviderPr
     setConfigState(next);
   }, []);
 
-  const provider = useMemo<ChainProvider | null>(
-    () => makeProvider(config),
-    [config],
-  );
+  const provider = useMemo<ChainProvider | null>(() => makeProvider(config), [config]);
   const providerError = useMemo<string | null>(
     () =>
       provider
@@ -223,12 +212,7 @@ export function AppStateProvider({ children, testOverrides }: AppStateProviderPr
     return () => {
       cancelled = true;
     };
-  }, [
-    config.network,
-    addressesReady,
-    testOverrides?.addresses,
-    testOverrides?.skipAddressLoad,
-  ]);
+  }, [config.network, addressesReady, testOverrides?.addresses, testOverrides?.skipAddressLoad]);
 
   const setWallet = useCallback(
     (args: { wallet: BrowserWallet; walletId: string; changeAddress: string } | null) => {

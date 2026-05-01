@@ -71,8 +71,7 @@ export function envDefaults(): RuntimeConfig {
   //                  direct Blockfrost queries.
   //   - any value  → use that URL.
   const rawBackend = import.meta.env.VITE_BACKEND_URL;
-  const backendUrl =
-    rawBackend === undefined ? DEFAULT_BACKEND_URL : rawBackend.trim();
+  const backendUrl = rawBackend === undefined ? DEFAULT_BACKEND_URL : rawBackend.trim();
   const network = envNetwork();
   // VITE_COLLATERAL_ENDPOINT semantics:
   //   - undefined / ""  → use the SDK's pinned host for this network
@@ -128,13 +127,9 @@ export function loadConfig(): RuntimeConfig {
       // For backendUrl: an explicit "" override means the user disabled the
       // backend (UI falls back to direct Blockfrost). Only `undefined` (key
       // absent from the persisted blob) falls back to the env default.
-      backendUrl:
-        parsed.backendUrl === undefined
-          ? defaults.backendUrl
-          : parsed.backendUrl.trim(),
+      backendUrl: parsed.backendUrl === undefined ? defaults.backendUrl : parsed.backendUrl.trim(),
       collateralProviderEndpoint:
-        (parsed.collateralProviderEndpoint ?? "").trim() ||
-        defaults.collateralProviderEndpoint,
+        (parsed.collateralProviderEndpoint ?? "").trim() || defaults.collateralProviderEndpoint,
     };
   } catch {
     return defaults;
@@ -202,9 +197,7 @@ export function makeProvider(cfg: RuntimeConfig): ChainProvider | null {
  * static asset under ui/public/addresses.<network>.json copied from
  * artifacts/<network>/addresses.json by the bootstrap operator.
  */
-export async function loadAddresses(
-  network: Network,
-): Promise<LovejoinAddresses> {
+export async function loadAddresses(network: Network): Promise<LovejoinAddresses> {
   const url = `${import.meta.env.BASE_URL}addresses.${network}.json`;
   const res = await fetch(url, { cache: "no-cache" });
   if (!res.ok) {
@@ -236,9 +229,7 @@ export async function listInstalledWallets(): Promise<
  * Connect to a CIP-30 wallet by its id (e.g. "lace", "eternl", "nami") and
  * return the wallet handle the SDK tx builders accept.
  */
-export async function connectWallet(
-  id: string,
-): Promise<import("@meshsdk/core").BrowserWallet> {
+export async function connectWallet(id: string): Promise<import("@meshsdk/core").BrowserWallet> {
   const { BrowserWallet } = await import("@meshsdk/core");
   return BrowserWallet.enable(id);
 }

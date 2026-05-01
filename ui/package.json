@@ -12,7 +12,11 @@
     "test": "vitest run --passWithNoTests",
     "test:watch": "vitest",
     "test:e2e": "playwright test",
-    "lint": "tsc -p tsconfig.app.json --noEmit && node scripts/check-i18n.mjs"
+    "typecheck": "tsc -p tsconfig.app.json --noEmit",
+    "lint": "tsc -p tsconfig.app.json --noEmit && eslint . && node scripts/check-i18n.mjs",
+    "lint:eslint": "eslint .",
+    "format": "prettier --write .",
+    "format:check": "prettier --check ."
   },
   "dependencies": {
     "@fontsource-variable/dm-sans": "^5.2.8",
