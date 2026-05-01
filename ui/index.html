@@ -17,6 +17,20 @@
 
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
 
+    <!--
+      Preconnect hints for the two third-party origins the UI talks to on
+      first interaction: the collateral provider (probed once the React
+      tree mounts, then once every 30s) and Blockfrost (chain reads + tx
+      submit). The browser opens TLS to these in parallel with the JS
+      bundle download so the first probe is sub-50ms instead of one
+      full TLS round-trip after parse. PageSpeed flagged giveme.my as
+      worth ~330ms of LCP savings; Blockfrost is the same shape of
+      request but on a CDN.
+    -->
+    <link rel="preconnect" href="https://www.giveme.my" crossorigin />
+    <link rel="preconnect" href="https://cardano-preprod.blockfrost.io" crossorigin />
+    <link rel="dns-prefetch" href="https://cardano-mainnet.blockfrost.io" />
+
     <meta property="og:type" content="website" />
     <meta property="og:url" content="https://lovejo.in/" />
     <meta property="og:title" content="Lovejoin · privacy mixer on Cardano" />
@@ -34,9 +48,83 @@
       content="A Cardano-native privacy mixer using N-way sigma-OR re-randomization. Deposit in public, withdraw in private."
     />
     <meta name="twitter:image" content="https://lovejo.in/favicon.svg" />
+
+    <!--
+      Inline first-paint styles for the LCP element (hero).
+      The full Tailwind/design-token sheet ships as a separate <link>
+      that Vite injects below; that sheet is render-blocking but small
+      (~12 KB gzipped) and arrives in parallel with the JS bundle. The
+      shape of these rules MUST stay in sync with the equivalent
+      `.lj-hero*` rules in src/styles/tailwind.css — they exist here
+      only so the static hero markup below paints before either sheet
+      lands. They get overridden cleanly when the real CSS arrives.
+    -->
+    <style>
+      html, body, #root {
+        height: 100%;
+        margin: 0;
+        background: #0a0a0c;
+        color: #f1efe9;
+        font-family: "DM Sans Variable", "DM Sans", ui-sans-serif, system-ui, sans-serif;
+        -webkit-font-smoothing: antialiased;
+      }
+      .lj-prepaint {
+        max-width: 64rem;
+        margin: 0 auto;
+        padding: 3rem 1rem 1.5rem;
+      }
+      .lj-prepaint__title {
+        font-family: "JetBrains Mono Variable", "JetBrains Mono", ui-monospace, monospace;
+        font-weight: 500;
+        font-size: clamp(2.5rem, 5.5vw, 4.5rem);
+        letter-spacing: -0.04em;
+        line-height: 1.02;
+        color: #f1efe9;
+        margin: 0;
+      }
+      .lj-prepaint__title em {
+        font-style: normal;
+        color: #f1efe9;
+        font-weight: 500;
+      }
+      .lj-prepaint__lede {
+        margin-top: 1.5rem;
+        font-size: 0.98rem;
+        line-height: 1.55;
+        color: #bcb8b3;
+        max-width: 38rem;
+      }
+      @media (max-width: 720px) {
+        .lj-prepaint { padding: 1.75rem 1rem 1rem; }
+        .lj-prepaint__title { font-size: clamp(2rem, 8vw, 3rem); }
+      }
+    </style>
   </head>
   <body>
-    <div id="root"></div>
+    <!--
+      Static hero markup: identical strings + structure to what
+      <Home /> renders in src/routes/Home.tsx, so the LCP element
+      paints during HTML parse instead of waiting on the React bundle
+      download + parse + first render. React's createRoot().render()
+      replaces these children on mount; for English users (the default
+      lang= above) the swap is visually identical, so no flash.
+      Non-English visitors see one tick of English before i18next
+      hydrates their locale — same behaviour as before, just shifted
+      a couple hundred ms earlier. Keep both copies in sync with the
+      `home.headline_a/headline_b/lede` keys in i18n/locales/en.json.
+    -->
+    <div id="root">
+      <section class="lj-prepaint">
+        <h2 class="lj-prepaint__title">
+          Deposit in public.
+          <br />
+          <em>Withdraw in private.</em>
+        </h2>
+        <p class="lj-prepaint__lede">
+          A Cardano-native privacy mixer with fixed-denomination boxes and N-way sigma-OR re-randomization.
+        </p>
+      </section>
+    </div>
     <noscript>
       Lovejoin requires JavaScript to build and submit transactions. Please
       enable JavaScript and reload.
