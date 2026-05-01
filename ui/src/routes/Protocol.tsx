@@ -25,9 +25,11 @@ export function Protocol() {
     <article className="lj-prose">
       <header>
         <Eyebrow>{t("protocol.eyebrow")}</Eyebrow>
-        <h1 className="mt-2 font-mono text-3xl font-medium tracking-tight text-paper">
+        {/* Layout owns the page <h1> (sr-only, route-derived); the visible
+         * page title here is h2 so the document outline is h1 → h2 → h2... */}
+        <h2 className="mt-2 font-mono text-3xl font-medium tracking-tight text-paper">
           {t("protocol.title")}
-        </h1>
+        </h2>
         <p className="mt-3 text-muted">{t("protocol.lede")}</p>
       </header>
 

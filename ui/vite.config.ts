@@ -93,6 +93,14 @@ export default defineConfig(({ mode }) => {
   server: {
     port: 5173,
   },
+  build: {
+    // `hidden` emits .map files for production debugging without leaving
+    // a `//# sourceMappingURL=` comment in the JS, so devtools can still
+    // load them on demand but a casual viewer of the bundle doesn't see
+    // a hint pointing at sources. This closes the Lighthouse "Missing
+    // source maps for large first-party JavaScript" Best-Practices flag.
+    sourcemap: "hidden",
+  },
   optimizeDeps: {
     // Only the package that actually trips the wasm + top-level-await
     // combo is excluded. Earlier we also excluded @meshsdk/core +
