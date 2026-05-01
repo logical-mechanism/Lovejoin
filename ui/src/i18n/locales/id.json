@@ -415,7 +415,18 @@
     "page_indicator": "Halaman {{current}} dari {{total}}",
     "prev_page": "Sebelumnya",
     "next_page": "Berikutnya",
-    "recover_strength_announce_prefix": "Kekuatan kata sandi: "
+    "recover_strength_announce_prefix": "Kekuatan kata sandi: ",
+    "column_rounds": "ronde",
+    "column_rounds_long": "Ronde mix: berapa kali kotak ini sudah di-randomisasi ulang sejak disetorkan.",
+    "column_action": "Aksi kotak",
+    "mix_row": "Mix",
+    "mix_row_submitting": "Sedang mencampur…",
+    "mix_row_confirm_eyebrow": "Majukan satu kotak",
+    "mix_row_confirm_title": "Mix kotak ini",
+    "mix_row_confirm_lede": "Mengirimkan tx mix berbiaya shard yang menyertakan kotak ini ditambah {{n}} - 1 kotak lain yang dipilih secara acak dari pool aktif. Wallet tetap di luar tx; biayanya dibayar oleh fee shard. Penghitung ronde kotak ini bertambah satu setelah tx terkonfirmasi.",
+    "mix_row_confirm_submit": "Mix kotak ini",
+    "mix_disabled_collateral": "Penyedia collateral tidak terjangkau. Pengiriman mix dinonaktifkan.",
+    "mix_disabled_pool": "Pool terlalu kecil untuk mix kotak ini. Butuh {{need}} kotak aktif; tersedia {{have}}."
   },
   "secret_card": {
     "title": "Simpan secret ini sekarang",

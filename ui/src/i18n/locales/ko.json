@@ -415,7 +415,18 @@
     "page_indicator": "{{total}} 페이지 중 {{current}} 페이지",
     "prev_page": "이전",
     "next_page": "다음",
-    "recover_strength_announce_prefix": "비밀번호 강도: "
+    "recover_strength_announce_prefix": "비밀번호 강도: ",
+    "column_rounds": "라운드",
+    "column_rounds_long": "믹스 라운드: 이 박스가 입금된 이후 다시 랜덤화된 횟수입니다.",
+    "column_action": "박스 작업",
+    "mix_row": "믹스",
+    "mix_row_submitting": "믹스 중…",
+    "mix_row_confirm_eyebrow": "박스를 한 단계 진행",
+    "mix_row_confirm_title": "이 박스를 믹스",
+    "mix_row_confirm_lede": "이 박스와 함께 라이브 풀에서 무작위로 선택한 {{n}} - 1개의 박스를 포함한 샤드 수수료 믹스 트랜잭션을 제출합니다. 지갑은 트랜잭션에서 제외되며, 수수료는 fee shard가 지불합니다. 트랜잭션이 확정되면 이 박스의 라운드 카운터가 1 증가합니다.",
+    "mix_row_confirm_submit": "이 박스를 믹스",
+    "mix_disabled_collateral": "콜래터럴 제공자에 도달할 수 없습니다. 믹스 제출이 비활성화되었습니다.",
+    "mix_disabled_pool": "이 박스를 믹스하기에 풀이 너무 작습니다. {{need}}개의 라이브 박스가 필요하며, 현재 {{have}}개입니다."
   },
   "secret_card": {
     "title": "이 시크릿을 지금 저장하세요",

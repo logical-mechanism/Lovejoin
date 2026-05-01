@@ -86,6 +86,13 @@ export interface OwnedBox {
   secretHex: string;
   /** Scalar form of the owner secret. */
   secret: Scalar;
+  /**
+   * Number of Mix txs this box has been re-randomised through since its
+   * deposit, as tracked by the self-hosted indexer. 0 for fresh deposits.
+   * `undefined` when no backend is configured or the lookup failed —
+   * the field is indexer-only metadata, not on-chain state.
+   */
+  generation?: number;
 }
 
 export interface VaultScanResult {

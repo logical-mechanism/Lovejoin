@@ -866,7 +866,12 @@ export async function buildMixTx(args: BuildMixArgs): Promise<MixResult> {
   // would build the same tx and fail again, exhausting maxAttempts.
   return withInputCollisionRetry(async (attempt) => {
   // Resolve the fee shard. Shard mode picks one if not supplied; wallet
-  // mode skips this entirely (no shard input on the tx).
+  // mode skips this entirely (no shard input on the tx). The 3-ADA floor
+  // skips depleted shards. Mix recreates the shard output minus tx.fee,
+  // and going below min-utxo on the new shard is an unrecoverable submit
+  // failure. Donate / Deposit don't pass this floor on purpose: they top
+  // shards up and MUST be allowed to target depleted ones.
+  const MIN_FEE_SHARD_LOVELACE = 3_000_000n;
   let feeShard: Utxo | undefined;
   if (feePayer === "shard") {
     feeShard = (attempt === 1 && args.feeShard)
@@ -878,6 +883,7 @@ export async function buildMixTx(args: BuildMixArgs): Promise<MixResult> {
             networkId,
             null,
           ),
+          minLovelace: MIN_FEE_SHARD_LOVELACE,
           ...(args.excludeFeeShardRefs && args.excludeFeeShardRefs.length > 0
             ? { excludeRefs: args.excludeFeeShardRefs }
             : {}),

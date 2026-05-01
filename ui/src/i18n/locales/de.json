@@ -415,7 +415,18 @@
     "page_indicator": "Seite {{current}} von {{total}}",
     "prev_page": "Zurück",
     "next_page": "Weiter",
-    "recover_strength_announce_prefix": "Passwortstärke: "
+    "recover_strength_announce_prefix": "Passwortstärke: ",
+    "column_rounds": "Runden",
+    "column_rounds_long": "Mix-Runden: wie oft diese Box seit dem Deposit neu randomisiert wurde.",
+    "column_action": "Box-Aktion",
+    "mix_row": "Mix",
+    "mix_row_submitting": "Mische…",
+    "mix_row_confirm_eyebrow": "Eine Box weiter",
+    "mix_row_confirm_title": "Diese Box mixen",
+    "mix_row_confirm_lede": "Reicht eine Shard-Fee-Mix-Tx ein, die diese Box plus {{n}} - 1 weitere Boxes enthält, zufällig aus dem Live-Pool gezogen. Die Wallet bleibt aus der Tx heraus; die Gebühr zahlt ein Fee-Shard. Der Runden-Zähler dieser Box steigt um eins, sobald die Tx bestätigt ist.",
+    "mix_row_confirm_submit": "Diese Box mixen",
+    "mix_disabled_collateral": "Collateral-Anbieter nicht erreichbar. Mix-Einreichung ist deaktiviert.",
+    "mix_disabled_pool": "Pool zu klein, um diese Box zu mixen. Benötigt {{need}} Live-Boxes; vorhanden {{have}}."
   },
   "secret_card": {
     "title": "Dieses Geheimnis jetzt sichern",

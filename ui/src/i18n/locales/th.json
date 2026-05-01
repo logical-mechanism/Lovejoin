@@ -415,7 +415,18 @@
     "page_indicator": "หน้า {{current}} จาก {{total}}",
     "prev_page": "ก่อนหน้า",
     "next_page": "ถัดไป",
-    "recover_strength_announce_prefix": "ความแข็งแรงของรหัสผ่าน: "
+    "recover_strength_announce_prefix": "ความแข็งแรงของรหัสผ่าน: ",
+    "column_rounds": "รอบ",
+    "column_rounds_long": "รอบมิกซ์: กล่องนี้ถูกสุ่มใหม่กี่ครั้งตั้งแต่ถูกฝาก",
+    "column_action": "การกระทำของกล่อง",
+    "mix_row": "มิกซ์",
+    "mix_row_submitting": "กำลังมิกซ์…",
+    "mix_row_confirm_eyebrow": "เลื่อนกล่องหนึ่งใบ",
+    "mix_row_confirm_title": "มิกซ์กล่องนี้",
+    "mix_row_confirm_lede": "ส่ง tx มิกซ์แบบค่าธรรมเนียมชาร์ดที่รวมกล่องนี้กับกล่องอื่นอีก {{n}} - 1 ใบที่สุ่มเลือกจาก pool ที่ใช้งานอยู่ กระเป๋าเงินอยู่นอก tx ค่าธรรมเนียมชำระโดย fee shard ตัวนับรอบของกล่องนี้จะเพิ่มขึ้นหนึ่งเมื่อ tx ยืนยัน",
+    "mix_row_confirm_submit": "มิกซ์กล่องนี้",
+    "mix_disabled_collateral": "ผู้ให้บริการ collateral เข้าถึงไม่ได้ การส่งมิกซ์ถูกปิดใช้งาน",
+    "mix_disabled_pool": "Pool เล็กเกินไปสำหรับมิกซ์กล่องนี้ ต้องการ {{need}} กล่องที่ใช้งานอยู่; มี {{have}}"
   },
   "secret_card": {
     "title": "บันทึก secret นี้ตอนนี้",

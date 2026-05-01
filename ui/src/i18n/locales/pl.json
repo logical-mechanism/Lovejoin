@@ -415,7 +415,18 @@
     "page_indicator": "Strona {{current}} z {{total}}",
     "prev_page": "Poprzednia",
     "next_page": "Następna",
-    "recover_strength_announce_prefix": "Siła hasła: "
+    "recover_strength_announce_prefix": "Siła hasła: ",
+    "column_rounds": "rundy",
+    "column_rounds_long": "Rundy mixu: ile razy ten box został ponownie zrandomizowany od momentu depozytu.",
+    "column_action": "Akcja boxa",
+    "mix_row": "Mix",
+    "mix_row_submitting": "Mixowanie…",
+    "mix_row_confirm_eyebrow": "Przesuń jeden box",
+    "mix_row_confirm_title": "Zmiksuj ten box",
+    "mix_row_confirm_lede": "Wysyła tx mixu z opłatą shard, która zawiera ten box plus {{n}} - 1 innych boxów wybranych losowo z aktywnego poola. Wallet pozostaje poza tx; opłatę pokrywa fee shard. Licznik rund tego boxa rośnie o jeden po potwierdzeniu tx.",
+    "mix_row_confirm_submit": "Zmiksuj ten box",
+    "mix_disabled_collateral": "Dostawca collateralu nieosiągalny. Wysyłanie mixu jest wyłączone.",
+    "mix_disabled_pool": "Pool jest za mały, aby zmiksować ten box. Potrzeba {{need}} aktywnych boxów; jest {{have}}."
   },
   "secret_card": {
     "title": "Zapisz teraz ten sekret",

@@ -418,7 +418,18 @@
     "recover_strength_weak": "Too weak",
     "recover_strength_fair": "Fair",
     "recover_strength_strong": "Strong",
-    "recover_strength_announce_prefix": "Password strength: "
+    "recover_strength_announce_prefix": "Password strength: ",
+    "column_rounds": "rounds",
+    "column_rounds_long": "Mix rounds: how many times this box has been re-randomised since it was deposited.",
+    "column_action": "Box action",
+    "mix_row": "Mix",
+    "mix_row_submitting": "Mixing…",
+    "mix_row_confirm_eyebrow": "Advance one box",
+    "mix_row_confirm_title": "Mix this box",
+    "mix_row_confirm_lede": "Submits a shard-fee mix tx that includes this box plus {{n}} - 1 other boxes picked at random from the live pool. Wallet stays off the tx; the fee is paid by a fee shard. The rounds counter for this box increases by one once the tx confirms.",
+    "mix_row_confirm_submit": "Mix this box",
+    "mix_disabled_collateral": "Collateral provider is unreachable. Mix submission is disabled.",
+    "mix_disabled_pool": "Pool too small to mix this box. Need {{need}} live boxes; have {{have}}."
   },
   "secret_card": {
     "title": "Save this secret now",
