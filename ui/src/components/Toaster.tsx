@@ -101,9 +101,14 @@ function ToastStack({
 }) {
   const { t } = useTranslation();
   return (
+    // `<ol>` already has an implicit list role; tagging it `role="region"`
+    // overrode that and made Lighthouse flag the element under "Uses ARIA
+    // roles only on compatible elements". `aria-live="polite"` (for the
+    // toast announcement) and `aria-label` (for the accessible name) work
+    // without a role override; we lose the landmark, but a toast stack
+    // is not really a landmark anyway.
     <ol
       className="lj-toaster"
-      role="region"
       aria-live="polite"
       aria-label={t("toast.region_label")}
     >

@@ -371,7 +371,9 @@ export function MixButton({
           <div className="flex justify-between gap-4">
             <dt className="lj-eyebrow">{t("pool.review_collateral")}</dt>
             <dd className="text-sm text-muted">
-              {t("pool.review_collateral_value")}
+              {feePayer === "shard"
+                ? t("pool.review_collateral_value_shard")
+                : t("pool.review_collateral_value_wallet")}
             </dd>
           </div>
         </dl>

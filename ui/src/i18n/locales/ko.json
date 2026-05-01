@@ -13,12 +13,14 @@
     "tx_hash": "Tx",
     "address": "주소",
     "amount": "금액",
-    "fee": "수수료"
+    "fee": "수수료",
+    "copy_value": "{{value}}을(를) 클립보드에 복사"
   },
   "page_title": {
     "app": "Lovejoin",
     "home": "Lovejoin · 프라이버시 믹서",
     "deposit": "예치 · Lovejoin",
+    "donate": "기부 · Lovejoin",
     "pool": "믹스 · Lovejoin",
     "vault": "볼트 · Lovejoin",
     "box": "박스 상세 · Lovejoin",
@@ -28,12 +30,19 @@
     "region_label": "알림",
     "deposit_success": "예치 전송됨",
     "deposit_failed": "예치 실패",
+    "donate_success": "기부가 전송되었습니다",
+    "donate_failed": "기부 실패",
     "mix_success": "N = {{n}}로 믹스 전송됨",
     "mix_failed": "믹스 실패",
     "withdraw_success": "출금 전송됨",
     "withdraw_failed": "출금 실패",
     "view_on_scan": "cardanoscan에서 보기 ↗",
     "dismiss": "닫기"
+  },
+  "tx": {
+    "retrying_collision": "대상 UTxO가 방금 소비되었습니다. 새로 선택해 재시도 중입니다 (시도 {{attempt}})…",
+    "busy_title": "잠시 후 다시 시도하세요",
+    "busy_detail": "프로토콜이 혼잡합니다: 대상 UTxO가 모두 다른 트랜잭션에 의해 소비되었습니다. 몇 초 기다린 뒤 다시 제출하세요."
   },
   "errors": {
     "network": "네트워크 오류. 연결을 확인하고 다시 시도해 주세요.",
@@ -67,6 +76,7 @@
     "deposit": "예치",
     "pool": "믹스",
     "vault": "볼트",
+    "donate": "기부",
     "protocol": "프로토콜"
   },
   "language": {
@@ -109,7 +119,6 @@
   "wallet": {
     "modal_title": "지갑 선택",
     "modal_eyebrow": "CIP-30",
-    "modal_lede": "지갑은 세 가지 일을 합니다. 볼트를 도출하기 위한 한 번의 서명, 그리고 각 예치 및 출금 서명. 믹스 tx에는 절대 등장하지 않습니다.",
     "scanning": "설치된 지갑을 검색 중…",
     "no_wallets_title": "지갑을 찾지 못했습니다",
     "no_wallets": "Lace, Eternl, Nami, Flint 중 하나를 설치한 뒤 페이지를 새로고침해 주세요.",
@@ -124,12 +133,13 @@
     "disconnect_eyebrow": "지갑",
     "disconnect_title": "지갑 연결을 해제하시겠습니까?",
     "disconnect_lede": "세션 볼트가 잠기고 다음 연결 시 서명을 다시 요청합니다. 박스는 영향을 받지 않으며 체인에 남아 있습니다.",
-    "disconnect_confirm": "연결 해제"
+    "disconnect_confirm": "연결 해제",
+    "connect_to": "{{name}}에 연결",
+    "list_aria_label": "설치된 지갑",
+    "modal_lede": "지갑은 기본적으로 세 가지를 합니다: 볼트를 유도하는 서명 한 번, 그리고 매 입금과 매 출금마다 한 번씩의 서명. Mix 트랜잭션은 shard 모드(기본값)에서 지갑에 대해 익명이라 지갑이 트랜잭션에 전혀 나타나지 않습니다."
   },
   "pool": {
     "section_title": "믹스",
-    "eyebrow": "Pool · 풀 전체에서 선택",
-    "lede": "누구나 pool을 믹스할 수 있습니다. 각 믹스는 N개의 풀 박스를 재무작위화합니다. 수수료는 공유 샤드에서 지불(지갑이 tx에서 빠짐)하거나 지갑이 직접 지불(지갑이 tx에 노출)할 수 있습니다.",
     "size": "풀 크기",
     "estimated_mixes_available": "사용 가능한 믹스 수",
     "mix_n_random_boxes": "{{n}}개의 무작위 박스 믹스",
@@ -152,16 +162,12 @@
     "pool_loaded": "{{count}}개의 풀 박스를 로드했습니다.",
     "fee_payer_label": "수수료 지불자",
     "fee_payer_shard": "수수료 샤드",
-    "fee_payer_shard_hint": "기본값. 공유 수수료 풀에서 인출. 온체인 max_fee_per_mix 한도 적용.",
     "fee_payer_wallet": "지갑",
-    "fee_payer_wallet_hint": "제출자가 직접 지불. 온체인 한도는 없으나 지갑의 신원이 tx에 노출됩니다.",
     "tx_preview_title": "트랜잭션 미리보기",
     "tx_preview_fee_shard": "수수료는 fee_contract 샤드에서 지불됩니다. 콜래터럴은 설정된 서비스가 제공합니다. 이 tx에 지갑은 관여하지 않습니다.",
-    "tx_preview_fee_wallet": "수수료는 지갑이 지불합니다. 콜래터럴은 설정된 서비스가 제공합니다. 지갑이 tx에 노출됩니다.",
     "review_title": "트랜잭션 미리보기",
     "review_width": "믹스 폭",
     "review_linkage": "연결성",
-    "review_linkage_value": "라운드당 1/{{n}} → k 라운드 후 (1/{{n}})^k",
     "review_selection": "풀 선택",
     "review_selection_loading": "풀을 스캔 중…",
     "review_selection_value": "{{pool}}개의 활성 박스에서 {{n}}개를 무작위로 선택",
@@ -169,20 +175,26 @@
     "review_fee_path_shard": "수수료 샤드 · 지갑은 tx에 없음",
     "review_fee_path_wallet": "지갑 · 지갑 신원이 tx에 있음",
     "review_collateral": "콜래터럴",
-    "review_collateral_value": "설정된 콜래터럴 서비스가 제공",
     "empty_title": "풀이 비어 있습니다",
     "empty_hint": "이 네트워크에는 아직 예치된 박스가 없습니다. 예치로 풀을 시작하세요. 활성 박스가 2개 이상이면 누구나 믹스할 수 있습니다.",
     "empty_cta": "예치하기",
     "confirm_eyebrow": "최종 확인",
     "confirm_title": "믹스 tx 확정",
-    "confirm_lede_shard": "Lovejoin이 N개의 박스를 무작위로 골라 콜래터럴을 요청한 뒤 믹스 tx를 전송합니다. 샤드 모드에서는 서명이 없습니다. 확정 후 자동 진행됩니다.",
-    "confirm_lede_wallet": "Lovejoin이 N개의 박스를 무작위로 골라 콜래터럴을 요청한 뒤 믹스 tx를 전송합니다. 지갑이 tx에 등장하며 수수료를 직접 지불합니다.",
-    "confirm_submit": "확정 후 전송"
+    "confirm_submit": "확정 후 전송",
+    "eyebrow": "2 단계 · 풀 섞기",
+    "lede": "누구나 풀을 섞을 수 있습니다; 운영자가 없습니다. 각 Mix 트랜잭션은 한 번에 N 개의 풀 박스를 재무작위화하며, 결제 방법은 두 가지입니다. 공유 fee shard 에서 결제하면 지갑이 트랜잭션에 전혀 나타나지 않습니다(지갑 익명). 또는 자기 지갑에서 결제하면 트랜잭션이 더 빠르지만 지갑 신원이 함께 실립니다.",
+    "fee_payer_shard_hint": "기본값. 수수료는 온체인 공유 풀(믹스당 {{cap}} ADA 상한)에서 나오고, 담보는 구성된 담보 서비스에서 옵니다. 지갑은 트랜잭션에 전혀 나타나지 않습니다.",
+    "fee_payer_wallet_hint": "지갑이 수수료를 내고 담보를 제공합니다. 온체인 상한은 없지만, 지갑 신원이 트랜잭션에 올라갑니다.",
+    "tx_preview_fee_wallet": "수수료는 지갑이 지불하고, 담보도 지갑이 제공합니다. 지갑 신원이 트랜잭션에 올라갑니다.",
+    "review_collateral_value_shard": "구성된 담보 서비스에서 제공",
+    "review_collateral_value_wallet": "연결된 지갑에서 제공",
+    "review_linkage_value": "라운드당 1/{{n}}",
+    "confirm_lede_shard": "Lovejoin 이 무작위로 N 개의 박스를 고르고, 구성된 서비스에 담보를 요청한 뒤 Mix 트랜잭션을 제출합니다. shard 모드에서는 아무것도 서명하지 않습니다; 지갑은 트랜잭션 바깥에 머무릅니다.",
+    "confirm_lede_wallet": "Lovejoin 이 무작위로 N 개의 박스를 골라 Mix 트랜잭션을 제출합니다. 지갑이 수수료를 내고, 담보를 제공하며, 서명합니다."
   },
   "deposit": {
     "section_title": "예치",
     "eyebrow": "1단계 · 풀에 들어가기",
-    "lede": "고정 액면을 새 믹스 박스에 잠급니다. 풀은 결정적입니다. 첫 잠금 해제 시 지갑이 Lovejoin 소유자 키를 도출하며, 동일한 지갑이 어떤 브라우저에서든 모든 예치를 복구합니다.",
     "rounds_label": "믹스 라운드",
     "rounds_help": "라운드가 많을수록 프라이버시가 커집니다. 향후 믹스를 위해 수수료 샤드를 충당합니다.",
     "count_label": "tx당 박스 수",
@@ -196,7 +208,26 @@
     "tx_preview_title": "트랜잭션 미리보기",
     "tx_preview_copy": "지갑이 {{denom}} ADA의 액면과 수수료 샤드 보충 톱업을 지불합니다. 지갑 서명이 필요합니다.",
     "tx_preview_copy_bulk": "지갑이 {{total}} ADA ({{count}} × {{denom}} ADA)와 수수료 샤드 보충 톱업을 지불합니다. 배치 전체에 서명 한 번.",
-    "index_help": "이 예치의 소유자 시크릿용 볼트 카운터."
+    "index_help": "이 예치의 소유자 시크릿용 볼트 카운터.",
+    "lede": "고정 액면을 새 mix-box 에 잠그세요. 첫 해제 때 지갑이 Lovejoin 소유자 키를 유도하므로, 같은 지갑이면 어떤 브라우저에서도 모든 입금을 복구합니다. 별도로 적어 둘 문구는 없습니다."
+  },
+  "donate": {
+    "section_title": "수수료 풀에 기부",
+    "eyebrow": "공유 수수료 샤드 보충",
+    "lede": "Mix 트랜잭션은 공유 수수료 샤드 풀에서 끌어옵니다. 기부는 새 mix-box를 발행하지 않고 그 풀을 보충합니다. 본인에게는 프라이버시 이득이 없지만 (당신의 지갑은 tx에 노출됩니다), 기부 한 건마다 다른 사람들의 mix 여유 자원을 늘립니다.",
+    "pool_label": "풀 크기",
+    "shard_count": "{{count}}개의 샤드에 분산",
+    "shards_title": "수수료 샤드",
+    "shards_caption": "공유 수수료 풀의 샤드별 현재 잔액.",
+    "shard_ref": "샤드",
+    "shard_balance": "잔액",
+    "amount_label": "금액 (ADA)",
+    "amount_help": "온체인에서는 양수 어떤 금액이든 받습니다. Replenish 규칙은 샤드가 lovelace를 얻기만 하면 됩니다.",
+    "tx_preview_title": "트랜잭션 미리보기",
+    "tx_preview_copy": "지갑이 무작위로 선택된 수수료 샤드에 {{amount}} ADA를 지불합니다. 지갑 서명이 필요합니다.",
+    "submit": "기부",
+    "submitting": "기부 트랜잭션 구성 중…",
+    "preconditions_missing": "기부하려면 지갑을 연결하세요."
   },
   "boxes": {
     "section_title": "내 박스",
@@ -269,7 +300,11 @@
     "net_testnet": "testnet",
     "net_mainnet": "mainnet",
     "empty_title": "출금할 예치 박스가 없습니다.",
-    "empty_hint": "예치 후 확정을 기다리세요. 박스는 한 블록 안에 여기에 나타납니다."
+    "empty_hint": "예치 후 확정을 기다리세요. 박스는 한 블록 안에 여기에 나타납니다.",
+    "column_b_long": "박스의 공개키 b",
+    "column_index_long": "볼트 인덱스: 이 소유자 비밀의 유도 카운터",
+    "column_select": "박스 선택",
+    "table_caption": "출금 가능한 소유 mix-box."
   },
   "collateral_provider": {
     "ok": "콜래터럴 제공자 온라인",
@@ -291,18 +326,30 @@
   "protocol": {
     "eyebrow": "Sigmajoin · BLS12-381 · Plutus V3",
     "title": "프로토콜",
-    "lede": "Lovejoin 뒤편 수학을 5분 만에 둘러보는 투어. 완전한 보안 논증은 Sigmajoin 논문을 참고하세요. 이 페이지는 구현자를 위한 투어입니다.",
-    "primitives_h": "프리미티브",
-    "primitives_p": "Lovejoin은 세 가지를 사용합니다:",
     "deposit_h": "예치",
     "mix_h": "믹스",
     "privacy_h": "연결성",
     "withdraw_h": "출금",
-    "further_h": "더 읽기"
+    "further_h": "더 읽기",
+    "lede": "Lovejoin 이 실제로 어떻게 동작하는지 5 분으로 훑어봅니다. 수식 블록은 원하면 참고하면 되고, 본문만으로도 흐름은 따라갈 수 있습니다. 완전한 보안 논증은 Sigmajoin 논문에 있습니다.",
+    "primitives_h": "세 가지 구성 블록",
+    "primitives_p": "Lovejoin 의 모든 것은 이 세 조각으로 조립됩니다. 한 번만 훑으면 페이지의 나머지가 매끄럽게 읽힙니다.",
+    "primitive_g": "<b>g</b>: BLS12-381 의 G1 군의 표준 생성원. 곡선 위의 한 고정된 점입니다. 표기 <c>[k] · g</c> 는 \"g 를 자기 자신에 k 번 더한다\" 는 뜻이며, 곡선 위의 또 다른 점을 만듭니다. 핵심: <c>[k] · g</c> 가 주어졌을 때 <c>k</c> 를 복원하는 것은 <e>이산 로그 문제</e>이며, 이 곡선 크기에서는 실현 불가능하다고 여겨집니다. Lovejoin 의 모든 비밀이 이 격차 뒤에 숨습니다.",
+    "primitive_x": "<b>x</b>: 당신의 <e>소유자 비밀</e>. 그저 비밀로 보관되는 난수입니다. Lovejoin 은 당신 지갑의 서명에서 입금마다 하나를 결정적으로 유도하므로, 직접 관리할 필요가 없고 같은 지갑이면 어떤 브라우저에서도 복구됩니다.",
+    "primitive_hash": "<b>blake2b-256</b>: 해시 함수. <e>Fiat–Shamir 변환</e>에 사용합니다. 이 변환은 상호작용 증명(증명자와 검증자가 메시지를 주고받는 것)을 증명자가 온체인에 게시할 수 있는 단일 데이터로 압축합니다. 아래에서 두 번 등장합니다: Mix 증명과 Withdraw 증명에서.",
+    "deposit_p1": "입금은 신선한 난수 <c>d</c> 를 골라 고정 액면을 mix-box 스크립트에 잠급니다. box 는 인라인 datum <c>(a, b)</c>, 즉 곡선 위의 48 바이트 압축점 두 개를 들고 다닙니다:",
+    "deposit_p2": "체인을 보는 누구든 <c>(a, b)</c> 는 보지만 <c>x</c> 나 <c>d</c> 에 대해서는 아무것도 알지 못합니다: 둘 다 균등 난수이고 이산 로그는 어렵기 때문입니다. 점 <c>b</c> 는 당신의 <e>소유 표식</e>입니다. <c>x</c> 를 가진 사람만이 나중에 그 뒤에 있다고 증명할 수 있으며, 인출 시 box 를 푸는 것이 바로 그 증명입니다.",
+    "mix_p1": "한 번의 Mix tx 는 풀에서 살아 있는 mix-box <b>N</b> 개를 골라 각각을 새로운 스칼라 <c>y_i</c> 로 재무작위화합니다. 출력은 <c>0..N</c> 의 무작위 순열 <c>π</c> 에 의해 입력 위에서 <e>치환</e>됩니다:",
+    "mix_p2": "결정적인 성질: 입력 측에서 <c>b_i = [x_i] · a_i</c> 라면, 출력 측에서는 <c>b'_i = [x_π(i)] · a'_i</c> 입니다. 바이트열 <c>(a, b)</c> 가 완전히 바뀌어도 같은 비밀 <c>x</c> 가 여전히 box 를 풀어냅니다. 외부 관찰자는 N 개 입력과 N 개 출력을 보지만, 어떤 입력이 어떤 출력이 되었는지는 말할 수 없습니다.",
+    "mix_p3": "물론 tx 는 재무작위화가 정직했음을 <e>증명</e>해야 합니다; 그렇지 않으면 악의적인 제출자가 쓰레기 출력을 써서 모두의 자금을 훔칠 수 있습니다. 각 입력은 <b>N 진 sigma-OR</b> 증명과 짝을 이룹니다: 이 입력이 N 개 출력 중 하나로 재무작위화되었다는 비대화형 영지식 증명이며, <e>어느</e> 출력인지는 밝히지 않습니다. 참인 가지의 증인은 새로운 스칼라 <c>y_i</c> 이며, 다른 가지는 시뮬레이션됩니다. 입력당 한 번의 증명이면 모든 출력이 설명되고, 위의 소유권 논증은 배치 전체로 이어집니다. Fiat–Shamir 는 증명을 이 tx 의 구체적인 출력에 묶기 때문에, 다른 tx 로 가져갈 수 없습니다.",
+    "privacy_p1": "폭이 <c>N</c> 인 Mix 를 한 번 거치면, 외부 관찰자가 당신의 출력을 맞추는 최선의 확률은 <c>1/N</c> 입니다. Mix 는 합쳐집니다: 독립된 <c>k</c> 라운드는 연결 확률을 기하급수적으로 끌어내립니다:",
+    "privacy_p2": "Lovejoin 의 현재 Preprod 보정: 공유 fee shard 를 통한 <b>N = 3</b>(지갑 익명 경로) 또는 제출자가 자기 지갑에서 수수료를 낼 때의 <b>N = 4</b>. 이 상한은 검증자의 CPU 예산 문제이지 보안 문제가 아닙니다. N = 3 에서 열 라운드면 연결 확률을 약 6 만 분의 1 까지, 스무 라운드면 약 35 억 분의 1 까지 떨어뜨립니다. N = 4 에서 열 라운드면 약 백만 분의 1, 스무 라운드면 약 1 조 분의 1 에 도달합니다.",
+    "withdraw_p1": "풀에서 빠져나오려면 <c>b = [x] · a</c> 뒤의 <c>x</c> 를 안다는 <e>Schnorr 증명</e>을 곁들여 <c>mix_box</c> 스크립트의 소유자 분기에서 mix-box 를 소비합니다. Schnorr 는 가장 단순한 sigma 프로토콜입니다: 증명자가 무작위 점을 커밋하고, 검증자가 챌린지를 던지고, 증명자가 응답합니다. Fiat–Shamir 는 검증자의 챌린지를 해시로 대체하여, 전체 교환을 단일 데이터 한 조각으로 만듭니다:",
+    "withdraw_p2": "<c>c</c> 를 만드는 해시는 <c>tx.outputs</c> 를 덮으므로, 증명은 당신이 서명한 정확한 목적지 주소에 묶입니다. 출력을 바꾸면 <c>c</c> 가 무효가 되어, 악의적인 제출자가 당신이 요청하지 않은 어디로도 출금을 우회시킬 수 없습니다. box 자체에는 지갑 서명이 없습니다; 목적지 출력만 (수수료를 내는) 제출자 지갑에 의해 tx 에서 승인됩니다.",
+    "further_p": "완전한 구성과 보안 증명은 <paper>Sigmajoin 논문</paper>에 있습니다. 온체인 검증기는 <c>contracts/validators/mix_logic.ak</c> 에, 오프체인 빌더는 <c>offchain/src/tx/mix.ts</c> 에, 언어 간 테스트 벡터는 <c>crypto/test-vectors/</c> 에 있습니다."
   },
   "vault": {
     "title": "볼트",
-    "eyebrow": "지갑에서 도출된 볼트",
     "lede": "지갑으로 메시지에 한 번 서명합니다. Lovejoin은 그 서명에서 모든 소유자 시크릿을 결정적으로 도출합니다. 새 브라우저에서 복구는 클릭 한 번. 기본적으로 적어둘 문구가 없습니다.",
     "lock": "잠금",
     "locked_title": "볼트 잠김",
@@ -330,7 +377,14 @@
     "recover_unlocking": "시드 도출 중…",
     "recover_strength_weak": "너무 약함",
     "recover_strength_fair": "보통",
-    "recover_strength_strong": "강함"
+    "recover_strength_strong": "강함",
+    "eyebrow": "3 단계 · 풀에서 나가기",
+    "eyebrow_recovery": "3 단계 · 풀에서 나가기 (복구)",
+    "pagination_aria": "볼트 박스 목록 페이지네이션",
+    "page_indicator": "{{total}} 페이지 중 {{current}} 페이지",
+    "prev_page": "이전",
+    "next_page": "다음",
+    "recover_strength_announce_prefix": "비밀번호 강도: "
   },
   "secret_card": {
     "title": "이 시크릿을 지금 저장하세요",
@@ -354,5 +408,8 @@
     "not_found": "그 ref의 박스를 찾을 수 없습니다. 출금되었거나, 믹스되어 사라졌거나, 가져온 적이 없을 수 있습니다.",
     "back_to_vault": "볼트로 돌아가기",
     "preconditions_missing": "출금하려면 지갑을 연결하고 볼트를 잠금 해제하세요."
+  },
+  "a11y": {
+    "skip_to_main": "본문으로 건너뛰기"
   }
 }

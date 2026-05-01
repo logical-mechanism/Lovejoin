@@ -6,8 +6,8 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "build": "tsc -p tsconfig.app.json --noEmit && vite build",
-    "dev": "vite",
+    "build": "node scripts/copy-papers.mjs && tsc -p tsconfig.app.json --noEmit && vite build",
+    "dev": "node scripts/copy-papers.mjs && vite",
     "preview": "vite preview",
     "test": "vitest run --passWithNoTests",
     "test:watch": "vitest",

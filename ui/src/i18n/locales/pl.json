@@ -13,12 +13,14 @@
     "tx_hash": "Tx",
     "address": "Adres",
     "amount": "Kwota",
-    "fee": "Opłata"
+    "fee": "Opłata",
+    "copy_value": "Skopiuj {{value}} do schowka"
   },
   "page_title": {
     "app": "Lovejoin",
     "home": "Lovejoin · mikser prywatności",
     "deposit": "Wpłata · Lovejoin",
+    "donate": "Wsparcie · Lovejoin",
     "pool": "Mix · Lovejoin",
     "vault": "Sejf · Lovejoin",
     "box": "Szczegóły boxa · Lovejoin",
@@ -28,12 +30,19 @@
     "region_label": "Powiadomienia",
     "deposit_success": "Wpłatę wysłano",
     "deposit_failed": "Wpłata nieudana",
+    "donate_success": "Wsparcie wysłane",
+    "donate_failed": "Wsparcie nieudane",
     "mix_success": "Mix wysłano przy N = {{n}}",
     "mix_failed": "Mix nieudany",
     "withdraw_success": "Wypłatę wysłano",
     "withdraw_failed": "Wypłata nieudana",
     "view_on_scan": "zobacz na cardanoscan ↗",
     "dismiss": "Zamknij"
+  },
+  "tx": {
+    "retrying_collision": "Wybrany UTxO właśnie został zużyty. Ponawiam z nowym wyborem (próba {{attempt}})…",
+    "busy_title": "Spróbuj ponownie za chwilę",
+    "busy_detail": "Protokół jest zajęty: każdy wybrany UTxO został zużyty przez inną transakcję. Poczekaj kilka sekund i wyślij ponownie."
   },
   "errors": {
     "network": "Błąd sieci. Sprawdź połączenie i spróbuj ponownie.",
@@ -67,6 +76,7 @@
     "deposit": "Wpłata",
     "pool": "Mix",
     "vault": "Sejf",
+    "donate": "Wsparcie",
     "protocol": "Protokół"
   },
   "language": {
@@ -109,7 +119,6 @@
   "wallet": {
     "modal_title": "Wybierz portfel",
     "modal_eyebrow": "CIP-30",
-    "modal_lede": "Twój portfel robi trzy rzeczy: jeden podpis do wyprowadzenia sejfu oraz podpisanie każdej wpłaty i wypłaty. Nigdy nie pojawia się w tx Mix.",
     "scanning": "Szukanie zainstalowanych portfeli…",
     "no_wallets_title": "Nie wykryto portfela",
     "no_wallets": "Zainstaluj Lace, Eternl, Nami lub Flint i odśwież stronę.",
@@ -124,12 +133,13 @@
     "disconnect_eyebrow": "Portfel",
     "disconnect_title": "Rozłączyć portfel?",
     "disconnect_lede": "Sejf sesji zostanie zablokowany, a kolejne połączenie znów poprosi o podpis. Boxy nie są ruszane, żyją na chainie.",
-    "disconnect_confirm": "Rozłącz"
+    "disconnect_confirm": "Rozłącz",
+    "connect_to": "Połącz z {{name}}",
+    "list_aria_label": "Zainstalowane portfele",
+    "modal_lede": "Twój portfel domyślnie robi trzy rzeczy: jeden podpis do wyprowadzenia twojego sejfu plus po jednym podpisie na każdy depozyt i każdą wypłatę. Tx Mix w trybie shard (domyślnym) są anonimowe dla portfela, więc twój portfel całkowicie pozostaje poza tx."
   },
   "pool": {
     "section_title": "Mix",
-    "eyebrow": "Pool · wybór z całego poolu",
-    "lede": "Każdy może mixować pool. Każdy Mix re-randomizuje N boxów z poolu. Opłatę można pokryć z udziałowego shardu (twój portfel pozostaje poza tx) lub bezpośrednio z portfela (twój portfel pojawia się w tx).",
     "size": "Rozmiar poolu",
     "estimated_mixes_available": "Dostępne mixy",
     "mix_n_random_boxes": "Mixuj {{n}} losowych boxów",
@@ -152,16 +162,12 @@
     "pool_loaded": "Załadowano {{count}} boxów z poolu.",
     "fee_payer_label": "Płatnik opłaty",
     "fee_payer_shard": "Fee shard",
-    "fee_payer_shard_hint": "Domyślny. Czerpie ze wspólnej puli opłat. Limit on-chain: max_fee_per_mix.",
     "fee_payer_wallet": "Portfel",
-    "fee_payer_wallet_hint": "Wysyłający płaci bezpośrednio. Brak limitu on-chain, ale tożsamość portfela jest na tx.",
     "tx_preview_title": "Podgląd transakcji",
     "tx_preview_fee_shard": "Opłatę pokrywa shard fee_contract. Collateral dostarcza skonfigurowana usługa. Twój portfel nie bierze udziału w tej tx.",
-    "tx_preview_fee_wallet": "Opłatę pokrywa twój portfel. Collateral dostarcza skonfigurowana usługa. Twój portfel jest na tx.",
     "review_title": "Podgląd transakcji",
     "review_width": "Szerokość mixu",
     "review_linkage": "Powiązanie",
-    "review_linkage_value": "1/{{n}} na rundę → po k rundach (1/{{n}})^k",
     "review_selection": "Wybór z poolu",
     "review_selection_loading": "Skanowanie poolu…",
     "review_selection_value": "{{n}} boxów wybranych losowo z {{pool}} aktywnych",
@@ -169,20 +175,26 @@
     "review_fee_path_shard": "Fee shard · twój portfel nie jest w tx",
     "review_fee_path_wallet": "Twój portfel · tożsamość portfela jest w tx",
     "review_collateral": "Collateral",
-    "review_collateral_value": "Dostarcza skonfigurowana usługa collateralu",
     "empty_title": "Pool jest pusty",
     "empty_hint": "W tej sieci nie ma jeszcze żadnych wpłaconych boxów. Wpłać, by zasiać pool. Gdy aktywne będą co najmniej 2 boxy, każdy może mixować.",
     "empty_cta": "Wpłać",
     "confirm_eyebrow": "Ostatnie sprawdzenie",
     "confirm_title": "Potwierdź tx Mix",
-    "confirm_lede_shard": "Lovejoin wybierze losowo N boxów, poprosi o collateral i wyśle tx Mix. W trybie shard nic nie podpisujesz. Po potwierdzeniu wszystko leci automatycznie.",
-    "confirm_lede_wallet": "Lovejoin wybierze losowo N boxów, poprosi o collateral i wyśle tx Mix. Twój portfel będzie w tx i opłaci ją bezpośrednio.",
-    "confirm_submit": "Potwierdź i wyślij"
+    "confirm_submit": "Potwierdź i wyślij",
+    "eyebrow": "Krok II · zmiksować pulę",
+    "lede": "Każdy może mieszać pulę; nie ma operatora. Każda tx Mix re-randomizuje N boxów puli za jednym razem, a zapłacić można na dwa sposoby. Zapłać z dzielonego fee shard i twój portfel zostanie całkowicie poza tx (anonimowo). Albo zapłać z portfela, a tx jest szybsza, ale niesie tożsamość portfela.",
+    "fee_payer_shard_hint": "Domyślnie. Opłata idzie z dzielonej puli on-chain (limit {{cap}} ADA na miks), a kolateral pochodzi ze skonfigurowanej usługi kolateralu. Twój portfel zostaje całkowicie poza tx.",
+    "fee_payer_wallet_hint": "Twój portfel płaci opłatę i dostarcza kolateral. Brak limitu on-chain, ale tożsamość portfela trafia na tx.",
+    "tx_preview_fee_wallet": "Opłatę płaci twój portfel, on też dostarcza kolateral. Tożsamość portfela jest na tx.",
+    "review_collateral_value_shard": "Dostarczany przez skonfigurowaną usługę kolateralu",
+    "review_collateral_value_wallet": "Dostarczany przez twój podłączony portfel",
+    "review_linkage_value": "1/{{n}} na rundę",
+    "confirm_lede_shard": "Lovejoin wybierze N losowych boxów, poprosi o kolateral ze skonfigurowanej usługi i wyśle tx Mix. W trybie shard niczego nie podpisujesz; portfel pozostaje poza tx.",
+    "confirm_lede_wallet": "Lovejoin wybierze N losowych boxów i wyśle tx Mix. Twój portfel zapłaci opłatę, dostarczy kolateral i podpisze."
   },
   "deposit": {
     "section_title": "Wpłata",
     "eyebrow": "Krok I · wejście do poolu",
-    "lede": "Zablokuj stały nominał w nowym boxie miksera. Pool jest deterministyczny. Przy pierwszym odblokowaniu portfel wyprowadza klucz właściciela Lovejoin, a ten sam portfel odzyskuje każdą wpłatę w dowolnej przeglądarce.",
     "rounds_label": "Rundy mixu",
     "rounds_help": "Więcej rund = więcej prywatności. Doładowuje fee shard na przyszłe mixy.",
     "count_label": "Boxów na tx",
@@ -196,7 +208,26 @@
     "tx_preview_title": "Podgląd transakcji",
     "tx_preview_copy": "Twój portfel płaci nominał {{denom}} ADA plus małe doładowanie fee shardu. Wymagany podpis portfela.",
     "tx_preview_copy_bulk": "Twój portfel płaci {{total}} ADA ({{count}} × {{denom}} ADA) plus doładowanie fee shardu. Jeden podpis na całą partię.",
-    "index_help": "Licznik sejfu dla sekretu właściciela tej wpłaty."
+    "index_help": "Licznik sejfu dla sekretu właściciela tej wpłaty.",
+    "lede": "Zablokuj stały nominał w świeżej mix-box. Twój portfel wyprowadza klucz właściciela Lovejoin przy pierwszym odblokowaniu, więc ten sam portfel odzyskuje każdy depozyt w dowolnej przeglądarce. Żadnej dodatkowej frazy do zapisania."
+  },
+  "donate": {
+    "section_title": "Wsparcie puli opłat",
+    "eyebrow": "Doładuj wspólne shardy opłat",
+    "lede": "Transakcje Mix czerpią ze wspólnej puli shardów opłat. Wpłaty doładowują tę pulę bez tworzenia nowego mix-boxa. Nie masz tu osobistego zysku w prywatności (twój portfel jest w tx), ale każda wpłata wydłuża zasięg miksów innych.",
+    "pool_label": "Rozmiar puli",
+    "shard_count": "w {{count}} shardach",
+    "shards_title": "Shardy opłat",
+    "shards_caption": "Aktualny stan na shard wspólnej puli opłat.",
+    "shard_ref": "Shard",
+    "shard_balance": "Saldo",
+    "amount_label": "Kwota (ADA)",
+    "amount_help": "On-chain akceptowana jest dowolna dodatnia kwota. Reguła Replenish wymaga jedynie, by shard zyskał lovelace.",
+    "tx_preview_title": "Podgląd transakcji",
+    "tx_preview_copy": "Twój portfel płaci {{amount}} ADA do losowo wybranego sharda opłat. Wymagany podpis portfela.",
+    "submit": "Wesprzyj",
+    "submitting": "Buduję wsparcie…",
+    "preconditions_missing": "Połącz portfel, aby wesprzeć."
   },
   "boxes": {
     "section_title": "Moje boxy",
@@ -269,7 +300,11 @@
     "net_testnet": "testnet",
     "net_mainnet": "mainnet",
     "empty_title": "Brak wpłaconych boxów do wypłaty.",
-    "empty_hint": "Wpłać i poczekaj na potwierdzenie. Box pojawi się tu w ciągu bloku."
+    "empty_hint": "Wpłać i poczekaj na potwierdzenie. Box pojawi się tu w ciągu bloku.",
+    "column_b_long": "Klucz publiczny b boxu",
+    "column_index_long": "Indeks sejfu: licznik wyprowadzania dla tego sekretu właściciela",
+    "column_select": "Wybierz box",
+    "table_caption": "Posiadane mix-boxy dostępne do wypłaty."
   },
   "collateral_provider": {
     "ok": "Dostawca collateralu online",
@@ -291,18 +326,30 @@
   "protocol": {
     "eyebrow": "Sigmajoin · BLS12-381 · Plutus V3",
     "title": "Protokół",
-    "lede": "Pięciominutowa wycieczka po matematyce stojącej za Lovejoin. Pełny dowód bezpieczeństwa znajdziesz w pracy Sigmajoin; ta strona to wycieczka dla implementatora.",
-    "primitives_h": "Prymitywy",
-    "primitives_p": "Lovejoin używa trzech:",
     "deposit_h": "Wpłata",
     "mix_h": "Mix",
     "privacy_h": "Powiązanie",
     "withdraw_h": "Wypłata",
-    "further_h": "Dalsza lektura"
+    "further_h": "Dalsza lektura",
+    "lede": "Pięciominutowe omówienie tego, jak Lovejoin właściwie działa. Bloki matematyki są tu, jeśli ich potrzebujesz, ale sam tekst wystarczy, by uchwycić formę. Pełna argumentacja bezpieczeństwa żyje w pracy Sigmajoin.",
+    "primitives_h": "Trzy klocki bazowe",
+    "primitives_p": "Wszystko w Lovejoin składa się z tych trzech elementów. Przejrzyj je raz, a reszta strony czyta się płynnie.",
+    "primitive_g": "<b>g</b>: standardowy generator grupy G1 krzywej BLS12-381. Stały punkt na krzywej. Notacja <c>[k] · g</c> oznacza „dodać g do samego siebie k razy”, co daje kolejny punkt na krzywej. Kluczowe: mając <c>[k] · g</c>, odzyskanie <c>k</c> to <e>problem logarytmu dyskretnego</e>, uznawany za niewykonalny przy tym rozmiarze krzywej. Każdy sekret w Lovejoin chowa się za tą luką.",
+    "primitive_x": "<b>x</b>: twój <e>sekret właściciela</e>. Po prostu liczba losowa, trzymana w prywatności. Lovejoin wyprowadza po jednej na depozyt deterministycznie z podpisu twojego portfela, więc nie zarządzasz nimi ręcznie, a ten sam portfel odzyskuje je w dowolnej przeglądarce.",
+    "primitive_hash": "<b>blake2b-256</b>: funkcja skrótu. Używamy jej do <e>transformacji Fiata–Shamira</e>, która zwija dowód interaktywny (prover i verifier wymieniają wiadomości) w jeden kawałek danych, który prover może opublikować on-chain. Pojawia się dwa razy niżej: w dowodzie Mix i w dowodzie Withdraw.",
+    "deposit_p1": "Depozyt wybiera świeżą liczbę losową <c>d</c> i blokuje stały nominał na skrypcie mix-box. Box niesie inline datum <c>(a, b)</c>, dwa skompresowane 48-bajtowe punkty krzywej:",
+    "deposit_p2": "Każdy, kto obserwuje łańcuch, widzi <c>(a, b)</c>, ale niczego się nie dowiaduje o <c>x</c> ani <c>d</c>: oba są jednorodnie losowe, a logarytm dyskretny jest trudny. Punkt <c>b</c> to twój <e>znacznik własności</e>. Tylko ten, kto zna <c>x</c>, może później udowodnić, że za nim stoi, i to ten dowód odblokowuje box przy wypłacie.",
+    "mix_p1": "Tx Mix wybiera <b>N</b> żywych mix-boxów z puli i re-randomizuje każdy świeżym skalarem <c>y_i</c>. Wyjścia są <e>permutowane</e> nad wejściami losową permutacją <c>π</c> z <c>0..N</c>:",
+    "mix_p2": "Kluczowa własność: jeśli po stronie wejścia <c>b_i = [x_i] · a_i</c>, to po stronie wyjścia <c>b'_i = [x_π(i)] · a'_i</c>. Ten sam sekret <c>x</c> wciąż odblokowuje box, mimo że bajty <c>(a, b)</c> zmieniły się całkowicie. Zewnętrzny obserwator widzi N wejść i N wyjść, ale nie potrafi powiedzieć, które wejście zostało którym wyjściem.",
+    "mix_p3": "Tx oczywiście musi <e>udowodnić</e>, że re-randomizacja jest uczciwa; w przeciwnym razie złośliwy submitter mógłby zapisać byle jakie wyjścia i ukraść środki wszystkich. Każde wejście jest sparowane z dowodem <b>N-drogowy sigma-OR</b>: nieinteraktywny dowód z wiedzą zerową, że to wejście zostało re-randomizowane do jednego z N wyjść, bez zdradzania <e>którego</e>. Świadkiem prawdziwej gałęzi jest świeży skalar <c>y_i</c>; pozostałe gałęzie są symulowane. Z jednym dowodem na wejście każde wyjście jest pokryte, a argument własności z góry przenosi się na cały batch. Fiat–Shamir wiąże dowody z konkretnymi wyjściami tej tx, więc nie da się ich przenieść na inną.",
+    "privacy_p1": "Po pojedynczym Mix o szerokości <c>N</c> najlepsze przypuszczenie zewnętrznego obserwatora co do twojego wyjścia wynosi <c>1/N</c>. Mixy składają się: <c>k</c> niezależnych rund pcha prawdopodobieństwo powiązania w dół geometrycznie:",
+    "privacy_p2": "Aktualna kalibracja Lovejoin na Preprod: <b>N = 3</b> przez współdzielony fee shard (ścieżka anonimowa dla portfela) lub <b>N = 4</b>, gdy submitter płaci opłatę z własnego portfela. Pułap to kwestia budżetu CPU walidatora, nie bezpieczeństwa. Przy N = 3 dziesięć rund spycha powiązanie do mniej więcej jeden na 60 000, a dwadzieścia rund — do około jeden na 3,5 miliarda. Przy N = 4 dziesięć rund prowadzi cię do około jeden na milion, a dwadzieścia rund — do około jeden na bilion.",
+    "withdraw_p1": "Aby opuścić pulę, wydajesz mix-box na gałęzi właściciela skryptu <c>mix_box</c> z <e>dowodem Schnorra</e>, że znasz <c>x</c> stojące za <c>b = [x] · a</c>. Schnorr to najprostszy protokół sigma: prover commituje losowy punkt, verifier rzuca wyzwanie, prover odpowiada. Fiat–Shamir zastępuje wyzwanie verifiera hashem, czyniąc całą wymianę jednym kawałkiem danych:",
+    "withdraw_p2": "Hash dający <c>c</c> obejmuje <c>tx.outputs</c>, co oznacza, że dowód jest związany z dokładnymi adresami docelowymi, na które się podpisałeś. Podmiana wyjść unieważnia <c>c</c>, więc złośliwy submitter nie może przekierować twojej wypłaty gdzie indziej. Na samym boksie nie ma podpisu portfela; jedynie wyjścia docelowe są autoryzowane w tx przez portfel submittera (który płaci opłatę).",
+    "further_p": "Pełna konstrukcja + dowody bezpieczeństwa w <paper>pracy Sigmajoin</paper>. Walidator on-chain znajduje się w <c>contracts/validators/mix_logic.ak</c>; builder off-chain to <c>offchain/src/tx/mix.ts</c>; międzyjęzykowe wektory testowe są w <c>crypto/test-vectors/</c>."
   },
   "vault": {
     "title": "Sejf",
-    "eyebrow": "Sejf wyprowadzony z portfela",
     "lede": "Podpisz jednorazowo wiadomość portfelem. Lovejoin wyprowadzi z tego podpisu deterministycznie każdy sekret właściciela. Odzyskanie w nowej przeglądarce to jedno kliknięcie. Domyślnie nie ma frazy do zapisywania.",
     "lock": "Zablokuj",
     "locked_title": "Sejf zablokowany",
@@ -330,7 +377,14 @@
     "recover_unlocking": "Wyprowadzam seed…",
     "recover_strength_weak": "Zbyt słabe",
     "recover_strength_fair": "Średnie",
-    "recover_strength_strong": "Silne"
+    "recover_strength_strong": "Silne",
+    "eyebrow": "Krok III · opuścić pulę",
+    "eyebrow_recovery": "Krok III · opuścić pulę (odzyskiwanie)",
+    "pagination_aria": "Stronicowanie listy boxów sejfu",
+    "page_indicator": "Strona {{current}} z {{total}}",
+    "prev_page": "Poprzednia",
+    "next_page": "Następna",
+    "recover_strength_announce_prefix": "Siła hasła: "
   },
   "secret_card": {
     "title": "Zapisz teraz ten sekret",
@@ -354,5 +408,8 @@
     "not_found": "Nie znaleziono boxa pod tą ref. Mógł zostać wypłacony, zmiksowany albo nigdy zaimportowany.",
     "back_to_vault": "Powrót do sejfu",
     "preconditions_missing": "Aby wypłacić, połącz portfel i odblokuj sejf."
+  },
+  "a11y": {
+    "skip_to_main": "Przejdź do głównej treści"
   }
 }

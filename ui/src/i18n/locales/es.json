@@ -13,12 +13,14 @@
     "tx_hash": "Tx",
     "address": "Dirección",
     "amount": "Cantidad",
-    "fee": "Comisión"
+    "fee": "Comisión",
+    "copy_value": "Copiar {{value}} al portapapeles"
   },
   "page_title": {
     "app": "Lovejoin",
     "home": "Lovejoin · mezclador privado",
     "deposit": "Depósito · Lovejoin",
+    "donate": "Donar · Lovejoin",
     "pool": "Mezcla · Lovejoin",
     "vault": "Bóveda · Lovejoin",
     "box": "Detalle de caja · Lovejoin",
@@ -28,12 +30,19 @@
     "region_label": "Notificaciones",
     "deposit_success": "Depósito enviado",
     "deposit_failed": "Depósito fallido",
+    "donate_success": "Donación enviada",
+    "donate_failed": "Donación fallida",
     "mix_success": "Mezcla enviada con N = {{n}}",
     "mix_failed": "Mezcla fallida",
     "withdraw_success": "Retiro enviado",
     "withdraw_failed": "Retiro fallido",
     "view_on_scan": "ver en cardanoscan ↗",
     "dismiss": "Descartar"
+  },
+  "tx": {
+    "retrying_collision": "Una UTxO objetivo acaba de ser consumida. Reintentando con una selección nueva (intento {{attempt}})…",
+    "busy_title": "Inténtalo de nuevo en un momento",
+    "busy_detail": "El protocolo está ocupado: cada UTxO objetivo fue consumida por otra transacción. Espera unos segundos y vuelve a enviar."
   },
   "errors": {
     "network": "Error de red. Revisa tu conexión y vuelve a intentar.",
@@ -67,6 +76,7 @@
     "deposit": "Depósito",
     "pool": "Mezcla",
     "vault": "Bóveda",
+    "donate": "Donar",
     "protocol": "Protocolo"
   },
   "language": {
@@ -109,7 +119,6 @@
   "wallet": {
     "modal_title": "Elige una cartera",
     "modal_eyebrow": "CIP-30",
-    "modal_lede": "Tu cartera hace tres cosas: una firma para derivar tu bóveda, y firma cada depósito y retiro. Nunca aparece en una tx de Mezcla.",
     "scanning": "Buscando carteras instaladas…",
     "no_wallets_title": "No se detectó cartera",
     "no_wallets": "Instala Lace, Eternl, Nami o Flint, y recarga esta página.",
@@ -124,12 +133,13 @@
     "disconnect_eyebrow": "Cartera",
     "disconnect_title": "¿Desconectar la cartera?",
     "disconnect_lede": "La bóveda de sesión se bloqueará y la próxima reconexión volverá a pedir una firma. Las cajas no se ven afectadas. Viven en cadena.",
-    "disconnect_confirm": "Desconectar"
+    "disconnect_confirm": "Desconectar",
+    "connect_to": "Conectar con {{name}}",
+    "list_aria_label": "Billeteras instaladas",
+    "modal_lede": "Tu billetera hace tres cosas por defecto: una firma para derivar tu bóveda, más una firma por cada depósito y cada retiro. Las txs de Mix son anónimas para la billetera en modo shard (el predeterminado), así tu billetera queda fuera de la tx por completo."
   },
   "pool": {
     "section_title": "Mezcla",
-    "eyebrow": "Pool · selección global",
-    "lede": "Cualquiera puede mezclar la pool. Cada Mezcla rerandomiza N cajas. La comisión puede pagarse con el shard compartido (mantiene tu cartera fuera de la tx) o con tu cartera directamente (revela tu cartera en la tx).",
     "size": "Tamaño de la pool",
     "estimated_mixes_available": "Mezclas disponibles",
     "mix_n_random_boxes": "Mezclar {{n}} cajas al azar",
@@ -152,16 +162,12 @@
     "pool_loaded": "{{count}} cajas de la pool cargadas.",
     "fee_payer_label": "Pagador de la comisión",
     "fee_payer_shard": "Shard de comisión",
-    "fee_payer_shard_hint": "Por defecto. Toma del pool de comisiones compartido. Tope en cadena por max_fee_per_mix.",
     "fee_payer_wallet": "Cartera",
-    "fee_payer_wallet_hint": "El emisor paga directamente. Sin tope en cadena, pero tu identidad de cartera queda en la tx.",
     "tx_preview_title": "Vista previa de la transacción",
     "tx_preview_fee_shard": "Comisión pagada por el shard de fee_contract. Colateral aportado por el servicio configurado. Tu cartera no participa en esta tx.",
-    "tx_preview_fee_wallet": "Comisión pagada por tu cartera. Colateral aportado por el servicio configurado. Tu cartera está en la tx.",
     "review_title": "Vista previa de la transacción",
     "review_width": "Ancho de mezcla",
     "review_linkage": "Enlace",
-    "review_linkage_value": "1/{{n}} por ronda → (1/{{n}})^k tras k rondas",
     "review_selection": "Selección de la pool",
     "review_selection_loading": "Escaneando la pool…",
     "review_selection_value": "{{n}} cajas elegidas al azar de {{pool}} activas",
@@ -169,20 +175,26 @@
     "review_fee_path_shard": "Shard de comisión · tu cartera no está en la tx",
     "review_fee_path_wallet": "Tu cartera · tu identidad de cartera está en la tx",
     "review_collateral": "Colateral",
-    "review_collateral_value": "Aportado por el servicio de colateral configurado",
     "empty_title": "La pool está vacía",
     "empty_hint": "Aún no se ha depositado ninguna caja en esta red. Haz un depósito para sembrar la pool. Cuando haya al menos 2 cajas activas, cualquiera puede mezclar.",
     "empty_cta": "Hacer un depósito",
     "confirm_eyebrow": "Verificación final",
     "confirm_title": "Confirmar tx de Mezcla",
-    "confirm_lede_shard": "Lovejoin elegirá N cajas al azar, pedirá colateral y enviará la tx de Mezcla. En modo shard no firmas nada. Una vez confirmado se procesa automáticamente.",
-    "confirm_lede_wallet": "Lovejoin elegirá N cajas al azar, pedirá colateral y enviará la tx de Mezcla. Tu cartera estará en la tx y pagará la comisión directamente.",
-    "confirm_submit": "Confirmar y enviar"
+    "confirm_submit": "Confirmar y enviar",
+    "eyebrow": "Paso II · mezclar el pool",
+    "lede": "Cualquiera puede mezclar el pool; no hay operador. Cada tx de Mix re-aleatoriza N cajas del pool de una vez, y puedes pagar de dos maneras. Paga desde el fee shard compartido y tu billetera queda fuera de la tx por completo (anónima para la billetera). O paga desde tu billetera y la tx es más rápida, pero lleva tu identidad de billetera.",
+    "fee_payer_shard_hint": "Por defecto. La comisión sale del pool compartido on-chain (con tope de {{cap}} ADA por mezcla), y el colateral viene del servicio de colateral configurado. Tu billetera queda fuera de la tx por completo.",
+    "fee_payer_wallet_hint": "Tu billetera paga la comisión y aporta el colateral. Sin tope on-chain, pero tu identidad de billetera queda en la tx.",
+    "tx_preview_fee_wallet": "La comisión la paga tu billetera, y tu billetera también aporta el colateral. Tu identidad de billetera queda en la tx.",
+    "review_collateral_value_shard": "Provisto por el servicio de colateral configurado",
+    "review_collateral_value_wallet": "Provisto por tu billetera conectada",
+    "review_linkage_value": "1/{{n}} por ronda",
+    "confirm_lede_shard": "Lovejoin elegirá N cajas al azar, pedirá colateral al servicio configurado y enviará la tx de Mix. En modo shard no firmas nada; la billetera queda fuera de la tx.",
+    "confirm_lede_wallet": "Lovejoin elegirá N cajas al azar y enviará la tx de Mix. Tu billetera pagará la comisión, aportará el colateral y firmará."
   },
   "deposit": {
     "section_title": "Depósito",
     "eyebrow": "Paso I · entrar en la pool",
-    "lede": "Bloquea la denominación fija en una caja de mezcla nueva. La pool es determinista. Tu cartera deriva una clave de propietario Lovejoin en el primer desbloqueo, y la misma cartera recupera cada depósito en cualquier navegador.",
     "rounds_label": "Rondas de mezcla",
     "rounds_help": "Más rondas = más privacidad. Financia el shard de comisión para futuras mezclas.",
     "count_label": "Cajas por tx",
@@ -196,7 +208,26 @@
     "tx_preview_title": "Vista previa de la transacción",
     "tx_preview_copy": "Tu cartera paga la denominación de {{denom}} ADA más un pequeño top-up de comisión al shard. Se requiere firma de la cartera.",
     "tx_preview_copy_bulk": "Tu cartera paga {{total}} ADA ({{count}} × {{denom}} ADA) más un top-up al shard de comisión. Una sola firma para todo el lote.",
-    "index_help": "Contador de la bóveda para el secreto de propietario de este depósito."
+    "index_help": "Contador de la bóveda para el secreto de propietario de este depósito.",
+    "lede": "Bloquea la denominación fija en una mix-box nueva. Tu billetera deriva una clave de propietario de Lovejoin al primer desbloqueo, así la misma billetera recupera cada depósito que hagas en cualquier navegador. Sin frase extra que anotar."
+  },
+  "donate": {
+    "section_title": "Donar al pool de comisión",
+    "eyebrow": "Recarga los shards de comisión compartidos",
+    "lede": "Las txs de Mezcla recurren a un pool compartido de shards de comisión. Las donaciones recargan ese pool sin acuñar una nueva caja de mezcla. No hay ganancia de privacidad para ti aquí (tu cartera está en la tx), pero cada donación extiende la pista para las mezclas de los demás.",
+    "pool_label": "Tamaño del pool",
+    "shard_count": "en {{count}} shards",
+    "shards_title": "Shards de comisión",
+    "shards_caption": "Saldo actual por shard del pool de comisión compartido.",
+    "shard_ref": "Shard",
+    "shard_balance": "Saldo",
+    "amount_label": "Cantidad (ADA)",
+    "amount_help": "Cualquier cantidad positiva se acepta en cadena. La regla Replenish solo exige que el shard gane lovelace.",
+    "tx_preview_title": "Vista previa de la transacción",
+    "tx_preview_copy": "Tu cartera paga {{amount}} ADA a un shard de comisión elegido al azar. Se requiere firma de la cartera.",
+    "submit": "Donar",
+    "submitting": "Construyendo la donación…",
+    "preconditions_missing": "Conecta una cartera para donar."
   },
   "boxes": {
     "section_title": "Mis cajas",
@@ -269,7 +300,11 @@
     "net_testnet": "testnet",
     "net_mainnet": "mainnet",
     "empty_title": "No hay cajas depositadas para retirar.",
-    "empty_hint": "Haz un depósito y espera a que se confirme. La caja aparecerá aquí en menos de un bloque."
+    "empty_hint": "Haz un depósito y espera a que se confirme. La caja aparecerá aquí en menos de un bloque.",
+    "column_b_long": "Clave pública b de la caja",
+    "column_index_long": "Índice de la bóveda: contador de derivación para este secreto de propietario",
+    "column_select": "Seleccionar caja",
+    "table_caption": "Mix-boxes propias disponibles para retirar."
   },
   "collateral_provider": {
     "ok": "Proveedor de colateral en línea",
@@ -291,18 +326,30 @@
   "protocol": {
     "eyebrow": "Sigmajoin · BLS12-381 · Plutus V3",
     "title": "Protocolo",
-    "lede": "Un recorrido de cinco minutos por la matemática detrás de Lovejoin. Lee el paper de Sigmajoin para el argumento de seguridad completo; esta página es el tour del implementador.",
-    "primitives_h": "Primitivas",
-    "primitives_p": "Lovejoin usa tres:",
     "deposit_h": "Depósito",
     "mix_h": "Mezcla",
     "privacy_h": "Enlace",
     "withdraw_h": "Retiro",
-    "further_h": "Lectura adicional"
+    "further_h": "Lectura adicional",
+    "lede": "Un recorrido de cinco minutos por cómo funciona Lovejoin en realidad. Los bloques de matemáticas están ahí si los quieres, pero el texto basta para seguir la forma. La argumentación de seguridad completa está en el paper de Sigmajoin.",
+    "primitives_h": "Los tres bloques de construcción",
+    "primitives_p": "Todo en Lovejoin se compone de estas tres piezas. Léelas una vez y el resto de la página fluye sin problemas.",
+    "primitive_g": "<b>g</b>: el generador estándar del grupo G1 de BLS12-381. Es un punto fijo en la curva. La notación <c>[k] · g</c> significa \"sumar g consigo mismo k veces\", lo que produce otro punto en la curva. Lo crucial: dado <c>[k] · g</c>, recuperar <c>k</c> es el <e>problema del logaritmo discreto</e>, considerado inviable a este tamaño de curva. Todo secreto en Lovejoin se esconde detrás de esta brecha.",
+    "primitive_x": "<b>x</b>: tu <e>secreto de propietario</e>. Solo un número aleatorio, mantenido en privado. Lovejoin deriva uno por depósito de forma determinista a partir de la firma de tu billetera, así no los gestionas a mano y la misma billetera los recupera en cualquier navegador.",
+    "primitive_hash": "<b>blake2b-256</b>: una función hash. La usamos para la <e>transformación Fiat–Shamir</e>, que colapsa una prueba interactiva (prover y verificador intercambiando mensajes) en un solo dato que el prover puede publicar en cadena. Aparece dos veces más abajo: en la prueba del Mix y en la del Withdraw.",
+    "deposit_p1": "Un depósito elige un número aleatorio fresco <c>d</c> y bloquea la denominación fija en el script de mix-box. La caja lleva un datum inline <c>(a, b)</c>, dos puntos comprimidos de 48 bytes en la curva:",
+    "deposit_p2": "Cualquiera que mire la cadena ve <c>(a, b)</c> pero no aprende nada sobre <c>x</c> o <c>d</c>: ambos son aleatorios uniformes y el logaritmo discreto es difícil. El punto <c>b</c> es tu <e>marca de propiedad</e>. Solo quien posee <c>x</c> puede demostrar después que está detrás de él, y esa prueba es la que desbloquea la caja al retirar.",
+    "mix_p1": "Una tx de Mix selecciona <b>N</b> mix-boxes vivas del pool y re-aleatoriza cada una con un escalar fresco <c>y_i</c>. Las salidas se <e>permutan</e> sobre las entradas mediante una permutación aleatoria <c>π</c> de <c>0..N</c>:",
+    "mix_p2": "La propiedad crucial: si <c>b_i = [x_i] · a_i</c> en el lado de entrada, entonces <c>b'_i = [x_π(i)] · a'_i</c> en el lado de salida. El mismo secreto <c>x</c> sigue desbloqueando la caja, aunque los bytes <c>(a, b)</c> hayan cambiado por completo. Un observador externo ve N entradas y N salidas pero no puede saber qué entrada se convirtió en qué salida.",
+    "mix_p3": "Por supuesto la tx tiene que <e>probar</e> que la re-aleatorización es honesta; si no, un emisor malicioso podría escribir salidas basura y robar los fondos de todos. Cada entrada se acompaña de una prueba <b>sigma-OR de N vías</b>: una prueba de conocimiento cero no interactiva de que esta entrada fue re-aleatorizada en una de las N salidas, sin decir <e>cuál</e>. El testigo de la rama verdadera es el escalar fresco <c>y_i</c>; las otras ramas se simulan. Con una prueba por entrada, todas las salidas quedan cubiertas, y el argumento de propiedad de arriba se mantiene a lo largo del lote. Fiat–Shamir liga las pruebas a las salidas concretas de esta tx, así no se pueden trasladar a otra distinta.",
+    "privacy_p1": "Después de un único Mix con anchura <c>N</c>, la mejor conjetura de un observador externo sobre cuál es tu salida es <c>1/N</c>. Los Mix se componen: <c>k</c> rondas independientes empujan la probabilidad de enlace hacia abajo geométricamente:",
+    "privacy_p2": "La calibración actual de Lovejoin en Preprod: <b>N = 3</b> a través del fee shard compartido (la ruta anónima de billetera), o <b>N = 4</b> cuando el emisor paga la comisión desde su propia billetera. El tope es una preocupación de presupuesto de CPU del validador, no de seguridad. En N = 3, diez rondas llevan el enlace a aproximadamente uno entre 60.000, y veinte rondas a aproximadamente uno entre 3.500 millones. En N = 4, diez rondas te llevan a aproximadamente uno entre un millón, y veinte rondas a aproximadamente uno entre un billón.",
+    "withdraw_p1": "Para salir del pool gastas la mix-box en la rama de propietario del script <c>mix_box</c> con una <e>prueba de Schnorr</e> de que conoces la <c>x</c> detrás de <c>b = [x] · a</c>. Schnorr es el protocolo sigma más simple: el prover compromete un punto aleatorio, el verificador desafía, el prover responde. Fiat–Shamir reemplaza el desafío del verificador con un hash, convirtiendo todo el intercambio en un solo dato:",
+    "withdraw_p2": "El hash que produce <c>c</c> cubre <c>tx.outputs</c>, lo que significa que la prueba queda atada a las direcciones de destino exactas que firmaste. Sustituir salidas invalida <c>c</c>, así un emisor malicioso no puede redirigir tu retiro a un sitio que no pediste. No hay firma de billetera sobre la propia caja; solo las salidas de destino están autorizadas en la tx por la billetera del emisor (que paga la comisión).",
+    "further_p": "Construcción completa + pruebas de seguridad en el <paper>paper de Sigmajoin</paper>. El verificador on-chain está en <c>contracts/validators/mix_logic.ak</c>; el constructor off-chain es <c>offchain/src/tx/mix.ts</c>; los vectores de prueba multi-lenguaje están en <c>crypto/test-vectors/</c>."
   },
   "vault": {
     "title": "Bóveda",
-    "eyebrow": "Bóveda derivada de la cartera",
     "lede": "Firma un único mensaje con tu cartera. Lovejoin deriva cada secreto de propietario de forma determinista a partir de esa firma. La recuperación en un navegador nuevo es un clic. Sin frase que apuntar por defecto.",
     "lock": "Bloquear",
     "locked_title": "Bóveda bloqueada",
@@ -330,7 +377,14 @@
     "recover_unlocking": "Derivando la semilla…",
     "recover_strength_weak": "Demasiado débil",
     "recover_strength_fair": "Aceptable",
-    "recover_strength_strong": "Fuerte"
+    "recover_strength_strong": "Fuerte",
+    "eyebrow": "Paso III · salir del pool",
+    "eyebrow_recovery": "Paso III · salir del pool (recuperación)",
+    "pagination_aria": "Paginación de la lista de cajas de la bóveda",
+    "page_indicator": "Página {{current}} de {{total}}",
+    "prev_page": "Anterior",
+    "next_page": "Siguiente",
+    "recover_strength_announce_prefix": "Fortaleza de la contraseña: "
   },
   "secret_card": {
     "title": "Guarda este secreto ahora",
@@ -354,5 +408,8 @@
     "not_found": "No se encontró ninguna caja con esa ref. Puede haber sido retirada, mezclada o nunca importada.",
     "back_to_vault": "Volver a la bóveda",
     "preconditions_missing": "Conecta una cartera y desbloquea la bóveda para retirar."
+  },
+  "a11y": {
+    "skip_to_main": "Saltar al contenido principal"
   }
 }

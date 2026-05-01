@@ -70,6 +70,12 @@ RUN pnpm --filter @lovejoin/sdk run build
 
 COPY ui ui
 
+# Whitepaper PDFs live at the workspace root; the UI's `pnpm build`
+# script copies them into ui/public/papers/ so vite emits them under
+# /papers/*.pdf. Without this COPY the build script fails because
+# the source files don't exist in the Docker context.
+COPY papers papers
+
 # Vite reads .env from the workspace root (ui/vite.config.ts envDir:
 # ".."). On a fresh build context there is no .env file, so all VITE_*
 # values must come from the build environment. Re-declare each ARG

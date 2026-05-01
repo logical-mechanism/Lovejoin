@@ -39,6 +39,7 @@ import {
 import { Eyebrow } from "../components/ui/Eyebrow.js";
 import { useToast } from "../components/Toaster.js";
 import { BackendClient } from "../lib/backend.js";
+import { formatAda } from "../lib/format.js";
 import { fetchPoolDirect, type DirectPoolEntry } from "../lib/pool.js";
 import { useAppState } from "../lib/store.js";
 import { friendlyErrorMessage } from "../lib/errors.js";
@@ -68,6 +69,9 @@ export function Pool() {
   const legacyMaxN = protocol?.max_n ?? 2;
   const maxNShard = protocol?.max_n_shard ?? legacyMaxN;
   const maxNWallet = protocol?.max_n_wallet ?? legacyMaxN;
+  const maxFeePerMixAda = protocol?.max_fee_per_mix_lovelace
+    ? formatAda(BigInt(protocol.max_fee_per_mix_lovelace))
+    : "?";
   // Persist the fee-payer toggle across reloads so power users who
   // prefer wallet-mode don't have to re-flip it every session. Lazy
   // init avoids hydration churn; the key is namespaced under
@@ -203,14 +207,14 @@ export function Pool() {
                 aria-pressed={feePayer === "shard"}
                 onClick={() => setFeePayer("shard")}
               >
-                {t("pool.fee_payer_shard")} (N={maxNShard})
+                {t("pool.fee_payer_shard")}
               </button>
               <button
                 type="button"
                 aria-pressed={feePayer === "wallet"}
                 onClick={() => setFeePayer("wallet")}
               >
-                {t("pool.fee_payer_wallet")} (N={maxNWallet})
+                {t("pool.fee_payer_wallet")}
               </button>
             </div>
             <p
@@ -218,7 +222,7 @@ export function Pool() {
               className="text-xs text-whisper basis-full leading-relaxed"
             >
               {feePayer === "shard"
-                ? t("pool.fee_payer_shard_hint")
+                ? t("pool.fee_payer_shard_hint", { cap: maxFeePerMixAda })
                 : t("pool.fee_payer_wallet_hint")}
             </p>
           </div>
@@ -265,7 +269,9 @@ export function Pool() {
             <div className="lj-review__row">
               <dt className="lj-review__label">{t("pool.review_collateral")}</dt>
               <dd className="lj-review__value lj-review__value--muted">
-                {t("pool.review_collateral_value")}
+                {feePayer === "shard"
+                  ? t("pool.review_collateral_value_shard")
+                  : t("pool.review_collateral_value_wallet")}
               </dd>
             </div>
           </dl>

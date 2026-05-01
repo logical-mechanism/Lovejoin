@@ -13,12 +13,14 @@
     "tx_hash": "Tx",
     "address": "Alamat",
     "amount": "Jumlah",
-    "fee": "Biaya"
+    "fee": "Biaya",
+    "copy_value": "Salin {{value}} ke clipboard"
   },
   "page_title": {
     "app": "Lovejoin",
     "home": "Lovejoin · pencampur privasi",
     "deposit": "Setor · Lovejoin",
+    "donate": "Donasi · Lovejoin",
     "pool": "Mix · Lovejoin",
     "vault": "Brankas · Lovejoin",
     "box": "Detail kotak · Lovejoin",
@@ -28,12 +30,19 @@
     "region_label": "Notifikasi",
     "deposit_success": "Setoran terkirim",
     "deposit_failed": "Setoran gagal",
+    "donate_success": "Donasi terkirim",
+    "donate_failed": "Donasi gagal",
     "mix_success": "Mix terkirim dengan N = {{n}}",
     "mix_failed": "Mix gagal",
     "withdraw_success": "Penarikan terkirim",
     "withdraw_failed": "Penarikan gagal",
     "view_on_scan": "lihat di cardanoscan ↗",
     "dismiss": "Tutup"
+  },
+  "tx": {
+    "retrying_collision": "Sebuah UTxO target baru saja terpakai. Mengulang dengan pilihan baru (percobaan {{attempt}})…",
+    "busy_title": "Coba lagi sebentar",
+    "busy_detail": "Protokol sedang sibuk: setiap UTxO target sudah dipakai oleh transaksi lain. Tunggu beberapa detik lalu kirim lagi."
   },
   "errors": {
     "network": "Kesalahan jaringan. Periksa koneksi Anda dan coba lagi.",
@@ -67,6 +76,7 @@
     "deposit": "Setor",
     "pool": "Mix",
     "vault": "Brankas",
+    "donate": "Donasi",
     "protocol": "Protokol"
   },
   "language": {
@@ -109,7 +119,6 @@
   "wallet": {
     "modal_title": "Pilih dompet",
     "modal_eyebrow": "CIP-30",
-    "modal_lede": "Dompet Anda melakukan tiga hal: satu tanda tangan untuk menurunkan brankas, dan menandatangani setiap setoran dan penarikan. Ia tidak pernah ada di tx Mix.",
     "scanning": "Memindai dompet terpasang…",
     "no_wallets_title": "Dompet tidak terdeteksi",
     "no_wallets": "Pasang Lace, Eternl, Nami, atau Flint, lalu muat ulang halaman ini.",
@@ -124,12 +133,13 @@
     "disconnect_eyebrow": "Dompet",
     "disconnect_title": "Putuskan dompet?",
     "disconnect_lede": "Brankas sesi akan terkunci dan koneksi berikutnya akan meminta tanda tangan lagi. Kotak tidak terpengaruh, mereka hidup di chain.",
-    "disconnect_confirm": "Putuskan"
+    "disconnect_confirm": "Putuskan",
+    "connect_to": "Hubungkan ke {{name}}",
+    "list_aria_label": "Dompet terpasang",
+    "modal_lede": "Dompetmu secara default melakukan tiga hal: satu tanda tangan untuk menurunkan vault-mu, ditambah satu tanda tangan per setoran dan per penarikan. Tx Mix bersifat anonim bagi dompet pada mode shard (default), jadi dompetmu sama sekali tidak muncul di tx."
   },
   "pool": {
     "section_title": "Mix",
-    "eyebrow": "Pool · pemilihan seluruh pool",
-    "lede": "Siapa pun bisa me-mix pool. Setiap Mix me-randomisasi ulang N kotak pool. Biaya bisa dibayar dari shard bersama (dompet Anda tidak masuk tx) atau langsung dari dompet Anda (dompet Anda tampak di tx).",
     "size": "Ukuran pool",
     "estimated_mixes_available": "Mix tersedia",
     "mix_n_random_boxes": "Mix {{n}} kotak acak",
@@ -152,16 +162,12 @@
     "pool_loaded": "{{count}} kotak pool dimuat.",
     "fee_payer_label": "Pembayar biaya",
     "fee_payer_shard": "Fee shard",
-    "fee_payer_shard_hint": "Default. Mengambil dari pool biaya bersama. Dibatasi on-chain oleh max_fee_per_mix.",
     "fee_payer_wallet": "Dompet",
-    "fee_payer_wallet_hint": "Pengirim membayar langsung. Tidak ada batas on-chain, tapi identitas dompet Anda ada di tx.",
     "tx_preview_title": "Pratinjau transaksi",
     "tx_preview_fee_shard": "Biaya dibayar dari shard fee_contract. Collateral disediakan oleh layanan terkonfigurasi. Dompet Anda tidak terlibat di tx ini.",
-    "tx_preview_fee_wallet": "Biaya dibayar oleh dompet Anda. Collateral disediakan oleh layanan terkonfigurasi. Dompet Anda ada di tx.",
     "review_title": "Pratinjau transaksi",
     "review_width": "Lebar mix",
     "review_linkage": "Keterhubungan",
-    "review_linkage_value": "1/{{n}} per ronde → (1/{{n}})^k setelah k ronde",
     "review_selection": "Seleksi pool",
     "review_selection_loading": "Memindai pool…",
     "review_selection_value": "{{n}} kotak diambil acak dari {{pool}} yang aktif",
@@ -169,20 +175,26 @@
     "review_fee_path_shard": "Fee shard · dompet Anda tidak ada di tx",
     "review_fee_path_wallet": "Dompet Anda · identitas dompet Anda ada di tx",
     "review_collateral": "Collateral",
-    "review_collateral_value": "Disediakan oleh layanan collateral terkonfigurasi",
     "empty_title": "Pool kosong",
     "empty_hint": "Belum ada kotak yang disetor di jaringan ini. Setor untuk memulai pool. Begitu ada minimal 2 kotak hidup, siapa pun bisa me-mix.",
     "empty_cta": "Setor",
     "confirm_eyebrow": "Cek akhir",
     "confirm_title": "Konfirmasi tx Mix",
-    "confirm_lede_shard": "Lovejoin akan mengambil N kotak acak, meminta collateral, dan mengirim tx Mix. Dalam mode shard Anda tidak menandatangani apa pun. Begitu dikonfirmasi, semuanya berjalan otomatis.",
-    "confirm_lede_wallet": "Lovejoin akan mengambil N kotak acak, meminta collateral, dan mengirim tx Mix. Dompet Anda akan ada di tx dan membayar biaya secara langsung.",
-    "confirm_submit": "Konfirmasi dan kirim"
+    "confirm_submit": "Konfirmasi dan kirim",
+    "eyebrow": "Langkah II · acak pool",
+    "lede": "Siapa saja boleh mengacak pool; tidak ada operator. Setiap tx Mix mengacak ulang N box pool sekaligus, dan kamu bisa membayar dengan dua cara. Bayar dari fee shard bersama dan dompetmu sama sekali tidak masuk ke tx (anonim untuk dompet). Atau bayar dari dompetmu sendiri dan tx-nya lebih cepat, tetapi membawa identitas dompetmu.",
+    "fee_payer_shard_hint": "Default. Biaya berasal dari pool bersama on-chain (dibatasi {{cap}} ADA per mix), dan jaminan datang dari layanan collateral yang dikonfigurasi. Dompetmu sepenuhnya tidak masuk ke tx.",
+    "fee_payer_wallet_hint": "Dompetmu membayar biaya dan menyediakan jaminan. Tanpa batas on-chain, tapi identitas dompetmu masuk ke tx.",
+    "tx_preview_fee_wallet": "Biaya dibayar dompetmu, dan dompetmu juga menyediakan jaminan. Identitas dompetmu masuk ke tx.",
+    "review_collateral_value_shard": "Disediakan oleh layanan collateral yang dikonfigurasi",
+    "review_collateral_value_wallet": "Disediakan oleh dompet yang terhubung",
+    "review_linkage_value": "1/{{n}} per ronde",
+    "confirm_lede_shard": "Lovejoin akan memilih N box secara acak, meminta jaminan dari layanan yang dikonfigurasi, lalu mengirim tx Mix. Dalam mode shard kamu tidak menandatangani apa pun; dompet tetap di luar tx.",
+    "confirm_lede_wallet": "Lovejoin akan memilih N box secara acak dan mengirim tx Mix. Dompetmu akan membayar biaya, menyediakan jaminan, dan menandatangani."
   },
   "deposit": {
     "section_title": "Setor",
     "eyebrow": "Langkah I · masuk ke pool",
-    "lede": "Kunci denominasi tetap ke dalam kotak mix baru. Pool bersifat deterministik. Pada unlock pertama dompet Anda menurunkan kunci pemilik Lovejoin, dan dompet yang sama dapat memulihkan setiap setoran di browser mana pun.",
     "rounds_label": "Ronde mix",
     "rounds_help": "Lebih banyak ronde = lebih privat. Mendanai fee shard untuk mix mendatang.",
     "count_label": "Kotak per tx",
@@ -196,7 +208,26 @@
     "tx_preview_title": "Pratinjau transaksi",
     "tx_preview_copy": "Dompet Anda membayar denominasi {{denom}} ADA plus top-up kecil ke fee shard. Tanda tangan dompet diperlukan.",
     "tx_preview_copy_bulk": "Dompet Anda membayar {{total}} ADA ({{count}} × {{denom}} ADA) plus top-up ke fee shard. Satu tanda tangan untuk seluruh batch.",
-    "index_help": "Penghitung brankas untuk owner secret setoran ini."
+    "index_help": "Penghitung brankas untuk owner secret setoran ini.",
+    "lede": "Kunci denominasi tetap ke mix-box baru. Dompetmu menurunkan kunci pemilik Lovejoin pada pembukaan kunci pertama, jadi dompet yang sama memulihkan setiap setoranmu di browser mana pun. Tidak ada frasa tambahan untuk dicatat."
+  },
+  "donate": {
+    "section_title": "Donasi ke pool biaya",
+    "eyebrow": "Isi ulang shard biaya bersama",
+    "lede": "Tx Mix mengambil dari pool shard biaya bersama. Donasi mengisi ulang pool itu tanpa mencetak mix-box baru. Tidak ada keuntungan privasi untuk Anda di sini (dompet Anda berada di tx), tetapi setiap donasi memperpanjang ketersediaan untuk mix orang lain.",
+    "pool_label": "Ukuran pool",
+    "shard_count": "tersebar di {{count}} shard",
+    "shards_title": "Shard biaya",
+    "shards_caption": "Saldo per shard saat ini di pool biaya bersama.",
+    "shard_ref": "Shard",
+    "shard_balance": "Saldo",
+    "amount_label": "Jumlah (ADA)",
+    "amount_help": "Jumlah positif berapa pun diterima on-chain. Aturan Replenish hanya mengharuskan shard mendapat lovelace.",
+    "tx_preview_title": "Pratinjau transaksi",
+    "tx_preview_copy": "Dompet Anda membayar {{amount}} ADA ke shard biaya yang dipilih acak. Diperlukan tanda tangan dompet.",
+    "submit": "Donasi",
+    "submitting": "Membangun donasi…",
+    "preconditions_missing": "Hubungkan dompet untuk berdonasi."
   },
   "boxes": {
     "section_title": "Kotak saya",
@@ -269,7 +300,11 @@
     "net_testnet": "testnet",
     "net_mainnet": "mainnet",
     "empty_title": "Tidak ada kotak setoran untuk ditarik.",
-    "empty_hint": "Setor lalu tunggu sampai terkonfirmasi. Kotak akan muncul di sini dalam satu blok."
+    "empty_hint": "Setor lalu tunggu sampai terkonfirmasi. Kotak akan muncul di sini dalam satu blok.",
+    "column_b_long": "Kunci publik b dari box",
+    "column_index_long": "Indeks vault: penghitung penurunan untuk rahasia pemilik ini",
+    "column_select": "Pilih box",
+    "table_caption": "Mix-box milikmu yang siap untuk ditarik."
   },
   "collateral_provider": {
     "ok": "Penyedia collateral online",
@@ -291,18 +326,30 @@
   "protocol": {
     "eyebrow": "Sigmajoin · BLS12-381 · Plutus V3",
     "title": "Protokol",
-    "lede": "Tur lima menit melalui matematika di balik Lovejoin. Baca paper Sigmajoin untuk argumen keamanan lengkap; halaman ini tur untuk pengembang.",
-    "primitives_h": "Primitif",
-    "primitives_p": "Lovejoin memakai tiga:",
     "deposit_h": "Setor",
     "mix_h": "Mix",
     "privacy_h": "Keterhubungan",
     "withdraw_h": "Tarik",
-    "further_h": "Bacaan lanjut"
+    "further_h": "Bacaan lanjut",
+    "lede": "Tinjauan lima menit tentang cara Lovejoin sebenarnya bekerja. Blok matematika ada di sana kalau dibutuhkan, tapi teksnya saja sudah cukup untuk mengikuti bentuknya. Argumen keamanan lengkap ada di paper Sigmajoin.",
+    "primitives_h": "Tiga blok pembangun",
+    "primitives_p": "Semua di Lovejoin disusun dari tiga keping ini. Lihat sekilas sekali, lalu sisa halaman ini terbaca lancar.",
+    "primitive_g": "<b>g</b>: pembangkit standar grup G1 BLS12-381. Sebuah titik tetap pada kurva. Notasi <c>[k] · g</c> berarti \"jumlahkan g terhadap dirinya sendiri sebanyak k kali\", yang menghasilkan titik lain pada kurva. Yang krusial: diberikan <c>[k] · g</c>, mengembalikan <c>k</c> adalah <e>masalah logaritma diskret</e>, dianggap tidak mungkin dilakukan pada ukuran kurva ini. Setiap rahasia di Lovejoin bersembunyi di balik celah ini.",
+    "primitive_x": "<b>x</b>: <e>rahasia pemilik</e>-mu. Hanya sebuah angka acak yang dijaga rahasia. Lovejoin menurunkan satu per setoran secara deterministik dari tanda tangan dompetmu, jadi kamu tidak perlu mengelola manual dan dompet yang sama akan memulihkan semuanya di browser mana pun.",
+    "primitive_hash": "<b>blake2b-256</b>: fungsi hash. Kami pakai untuk <e>transformasi Fiat–Shamir</e>, yang melipat bukti interaktif (prover dan verifier saling berkirim pesan) menjadi sepotong data tunggal yang bisa diunggah prover on-chain. Akan muncul dua kali di bawah: pada bukti Mix dan pada bukti Withdraw.",
+    "deposit_p1": "Sebuah setoran memilih angka acak baru <c>d</c> dan mengunci denominasi tetap pada script mix-box. Box membawa datum inline <c>(a, b)</c>, dua titik kurva terkompresi 48 byte:",
+    "deposit_p2": "Siapa pun yang mengamati rantai melihat <c>(a, b)</c> tetapi tidak mendapat apa-apa tentang <c>x</c> atau <c>d</c>: keduanya acak seragam dan logaritma diskret itu sulit. Titik <c>b</c> adalah <e>tanda kepemilikan</e>-mu. Hanya pemegang <c>x</c> yang nantinya bisa membuktikan dialah yang berdiri di belakangnya, dan bukti itulah yang membuka box saat penarikan.",
+    "mix_p1": "Sebuah tx Mix mengambil <b>N</b> mix-box hidup dari pool dan mengacak ulang setiapnya dengan skalar baru <c>y_i</c>. Output <e>dipermutasikan</e> di atas input lewat permutasi acak <c>π</c> dari <c>0..N</c>:",
+    "mix_p2": "Sifat krusial: kalau di sisi input berlaku <c>b_i = [x_i] · a_i</c>, di sisi output berlaku <c>b'_i = [x_π(i)] · a'_i</c>. Rahasia <c>x</c> yang sama tetap membuka box, walau byte-byte <c>(a, b)</c> sudah berubah total. Pengamat luar melihat N input dan N output, tapi tak bisa menunjuk input mana jadi output mana.",
+    "mix_p3": "Tentu saja tx harus <e>membuktikan</e> bahwa pengacakan ulang itu jujur; kalau tidak, pengirim jahat bisa menulis output sampah dan mencuri dana semua orang. Setiap input dipasangkan dengan bukti <b>sigma-OR N-jalur</b>: bukti zero-knowledge non-interaktif bahwa input ini telah diacak ulang ke salah satu dari N output, tanpa bilang <e>mana</e>. Saksi cabang yang benar adalah skalar baru <c>y_i</c>; cabang lain disimulasikan. Dengan satu bukti per input, setiap output terlindungi, dan argumen kepemilikan di atas mengalir sepanjang batch. Fiat–Shamir mengikat bukti pada output spesifik tx ini, sehingga tidak bisa dipindahkan ke tx lain.",
+    "privacy_p1": "Setelah satu Mix dengan lebar <c>N</c>, tebakan terbaik pengamat luar tentang output mana milikmu adalah <c>1/N</c>. Mix bersifat komposisional: <c>k</c> ronde independen menekan probabilitas keterhubungan turun secara geometris:",
+    "privacy_p2": "Kalibrasi Preprod Lovejoin saat ini: <b>N = 3</b> melalui fee shard bersama (jalur anonim untuk dompet), atau <b>N = 4</b> ketika pengirim membayar fee dari dompetnya sendiri. Batas atas itu soal anggaran CPU validator, bukan keamanan. Pada N = 3, sepuluh ronde menurunkan keterhubungan ke sekitar satu banding 60.000, dan dua puluh ronde ke sekitar satu banding 3,5 miliar. Pada N = 4, sepuluh ronde membawa kamu ke sekitar satu banding sejuta, dan dua puluh ronde ke sekitar satu banding satu triliun.",
+    "withdraw_p1": "Untuk keluar dari pool, kamu membelanjakan mix-box di cabang pemilik script <c>mix_box</c> dengan <e>bukti Schnorr</e> bahwa kamu tahu <c>x</c> di balik <c>b = [x] · a</c>. Schnorr adalah protokol sigma paling sederhana: prover berkomitmen pada titik acak, verifier menantang, prover menjawab. Fiat–Shamir mengganti tantangan verifier dengan sebuah hash, sehingga seluruh interaksi menjadi sepotong data tunggal:",
+    "withdraw_p2": "Hash yang menghasilkan <c>c</c> mencakup <c>tx.outputs</c>, artinya bukti terikat pada alamat tujuan persis yang kamu tanda tangani. Mengganti output membatalkan <c>c</c>, jadi pengirim jahat tak bisa mengalihkan penarikanmu ke tempat yang tidak kamu minta. Tidak ada tanda tangan dompet pada box itu sendiri; hanya output tujuan yang diotorisasi dalam tx oleh dompet pengirim (yang membayar fee).",
+    "further_p": "Konstruksi lengkap + bukti keamanan ada di <paper>paper Sigmajoin</paper>. Verifier on-chain ada di <c>contracts/validators/mix_logic.ak</c>; builder off-chain adalah <c>offchain/src/tx/mix.ts</c>; vektor uji lintas-bahasa ada di <c>crypto/test-vectors/</c>."
   },
   "vault": {
     "title": "Brankas",
-    "eyebrow": "Brankas hasil derivasi dompet",
     "lede": "Tandatangani satu pesan dengan dompet Anda. Lovejoin menurunkan setiap owner secret secara deterministik dari tanda tangan itu. Pemulihan di browser baru cukup satu klik. Default-nya tidak ada frasa untuk dicatat.",
     "lock": "Kunci",
     "locked_title": "Brankas terkunci",
@@ -330,7 +377,14 @@
     "recover_unlocking": "Menurunkan seed…",
     "recover_strength_weak": "Terlalu lemah",
     "recover_strength_fair": "Lumayan",
-    "recover_strength_strong": "Kuat"
+    "recover_strength_strong": "Kuat",
+    "eyebrow": "Langkah III · keluar dari pool",
+    "eyebrow_recovery": "Langkah III · keluar dari pool (pemulihan)",
+    "pagination_aria": "Paginasi daftar box vault",
+    "page_indicator": "Halaman {{current}} dari {{total}}",
+    "prev_page": "Sebelumnya",
+    "next_page": "Berikutnya",
+    "recover_strength_announce_prefix": "Kekuatan kata sandi: "
   },
   "secret_card": {
     "title": "Simpan secret ini sekarang",
@@ -354,5 +408,8 @@
     "not_found": "Tidak ada kotak pada ref itu. Mungkin sudah ditarik, di-mix, atau tidak pernah diimpor.",
     "back_to_vault": "Kembali ke brankas",
     "preconditions_missing": "Hubungkan dompet dan buka brankas untuk menarik."
+  },
+  "a11y": {
+    "skip_to_main": "Lewati ke konten utama"
   }
 }

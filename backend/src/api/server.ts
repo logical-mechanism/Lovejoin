@@ -121,17 +121,23 @@ function registerHealth(fastify: FastifyInstance, deps: ApiServerDeps): void {
       tip && chainTip ? Math.max(0, chainTip.slot - tip.slot) : null;
     const fatalError = deps.runtime?.fatalError() ?? null;
     // Surface unhealthy as HTTP 503 only when the indexer runtime has a
-    // *fatal* error — i.e., the chainsync loop is gone and no amount of
-    // waiting will recover it. Container orchestrators (DO App
-    // Platform, k8s) interpret 503 as "restart me", and a fresh
-    // process re-establishes the ogmios connection. We deliberately do
-    // NOT 503 on `state.alarm()` (reference-UTxO compromise) — that's
-    // a real on-chain anomaly a restart cannot fix, so /params already
+    // *fatal* error — i.e., the chainsync loop is permanently gone
+    // (after the runtime exhausted its in-process reconnect attempts).
+    // While the runtime is actively reconnecting `fatalError()` stays
+    // null and we keep returning 200 so DO doesn't recycle the
+    // container during a recoverable transient: cached state still
+    // serves /params, /pool, /box/*, /fee. The reconnect status is
+    // surfaced separately via `chainsyncReconnect` for operator
+    // visibility.
+    //
+    // We deliberately do NOT 503 on `state.alarm()` either — that's a
+    // real on-chain anomaly a restart cannot fix, so /params already
     // 503s but /health stays 200 to keep the container alive for
     // operator inspection.
     if (fatalError) {
       reply.code(503);
     }
+    const reconnect = deps.runtime?.reconnecting() ?? null;
     return {
       ok: deps.state.alarm() === null && fatalError === null,
       tip,
@@ -140,6 +146,7 @@ function registerHealth(fastify: FastifyInstance, deps: ApiServerDeps): void {
       referenceUtxoOk: deps.state.snapshot().referenceUtxoOk,
       runtimeRunning: deps.runtime?.isRunning() ?? null,
       runtimeError: fatalError?.message ?? null,
+      chainsyncReconnect: reconnect,
     };
   });
 }
