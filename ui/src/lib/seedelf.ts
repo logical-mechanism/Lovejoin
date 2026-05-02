@@ -143,7 +143,7 @@ export function validateDestination(bech32: string, expectedNetwork: Network): D
     return { status: "invalid", reason: "stake addresses can't receive payments" };
   }
   if (!hrp.startsWith("addr")) {
-    return { status: "invalid", reason: `unrecognised prefix "${hrp}"` };
+    return { status: "invalid", reason: `unrecognized prefix "${hrp}"` };
   }
   const isTestnet = hrp.startsWith("addr_test");
   const expectIsTestnet = expectedNetwork === "preprod" || expectedNetwork === "preview";
