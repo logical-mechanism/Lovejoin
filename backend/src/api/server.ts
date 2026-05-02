@@ -14,6 +14,21 @@ import type { IndexerRuntime } from "../indexer/runtime.js";
 import type { OgmiosTxClient } from "../indexer/ogmios-tx.js";
 import type { MempoolPoller } from "../indexer/mempool.js";
 
+// Per-route override for /submit and /evaluate: tighter than the global
+// limit, since they touch the node mempool and are the most expensive
+// endpoints (security review v1, finding H2). 60/minute matches the
+// upper bound of how often a sane client would resubmit.
+const TX_ROUTE_RATE_LIMIT = { max: 60, timeWindow: "1 minute" } as const;
+// Cardano transactions are bounded by `max_tx_size` (≤16 KiB on
+// mainnet/preprod). Hex-encoded that doubles to ≤32 KiB; 64 KiB leaves
+// headroom for any future protocol-param bump without inviting 1 MiB
+// junk uploads at the global default (security review v1, finding H2).
+const TX_ROUTE_BODY_LIMIT = 64 * 1024;
+// `/submit` and `/evaluate` operate on hex CBOR strings; cap the
+// payload length explicitly so a malformed request can't burn cycles
+// in `Buffer.from(hex)` before we reject it.
+const TX_HEX_MAX_LENGTH = TX_ROUTE_BODY_LIMIT;
+
 export interface ApiServerDeps {
   state: IndexerState;
   runtime: IndexerRuntime | null;
@@ -70,14 +85,42 @@ export async function buildServer(deps: ApiServerDeps): Promise<FastifyInstance>
     // instead of calling our handler. 256 leaves room for any future
     // address scheme without exposing a meaningful DoS surface.
     maxParamLength: 256,
+    // Trust the immediate proxy so `request.ip` reflects the real client
+    // IP from `X-Forwarded-For` rather than the LB's internal IP. Without
+    // this, `@fastify/rate-limit` keys every request behind DO App
+    // Platform / Cloudflare on the same proxy address and the per-IP
+    // ceiling collapses to a single global counter (security review v1,
+    // finding H1). `true` accepts the first hop; tighten to a CIDR list
+    // if we ever sit behind multiple proxies.
+    trustProxy: true,
   });
   fastify.setReplySerializer((payload) => JSON.stringify(payload, PRESERVE_BIGINT_REPLACER));
+  // Add baseline security headers on every JSON response. Helmet would
+  // do the same with more knobs; we keep the dependency footprint flat
+  // and apply only the headers that matter for a JSON API behind a
+  // browser UI on a separate origin.
+  fastify.addHook("onSend", async (_req, reply, payload) => {
+    reply.header("X-Content-Type-Options", "nosniff");
+    reply.header("Referrer-Policy", "no-referrer");
+    reply.header("X-Frame-Options", "DENY");
+    reply.header("Strict-Transport-Security", "max-age=31536000; includeSubDomains");
+    reply.header("Cross-Origin-Resource-Policy", "cross-origin");
+    return payload;
+  });
   await fastify.register(cors, {
+    // `corsOrigins === "*"` reflects any origin — only used in tests +
+    // local dev. In production set CORS_ORIGINS to the explicit list of
+    // UI origins (e.g. https://lovejo.in,https://preprod.lovejo.in).
     origin: deps.config.corsOrigins === "*" ? true : deps.config.corsOrigins,
   });
   await fastify.register(rateLimit, {
     max: deps.config.rateLimitPerMin,
     timeWindow: "1 minute",
+    // `keyGenerator` defaults to `req.ip`; with `trustProxy: true` above
+    // that resolves to the first X-Forwarded-For hop. We set it
+    // explicitly so a future Fastify-default change can't silently
+    // re-introduce H1.
+    keyGenerator: (req) => req.ip,
   });
 
   registerHealth(fastify, deps);
@@ -131,6 +174,12 @@ function registerHealth(fastify: FastifyInstance, deps: ApiServerDeps): void {
       reply.code(503);
     }
     const reconnect = deps.runtime?.reconnecting() ?? null;
+    // Redact host/URL fragments from runtime + reconnect error
+    // messages so /health doesn't leak ogmios endpoints to a public
+    // caller (security review v1, finding H3).
+    const redactedReconnect = reconnect
+      ? { ...reconnect, lastErrorMessage: redactUpstreamMessage(reconnect.lastErrorMessage) }
+      : null;
     return {
       ok: deps.state.alarm() === null && fatalError === null,
       tip,
@@ -138,8 +187,8 @@ function registerHealth(fastify: FastifyInstance, deps: ApiServerDeps): void {
       lagSeconds,
       referenceUtxoOk: deps.state.snapshot().referenceUtxoOk,
       runtimeRunning: deps.runtime?.isRunning() ?? null,
-      runtimeError: fatalError?.message ?? null,
-      chainsyncReconnect: reconnect,
+      runtimeError: fatalError ? redactUpstreamMessage(fatalError.message) : null,
+      chainsyncReconnect: redactedReconnect,
     };
   });
 }
@@ -196,10 +245,12 @@ function registerProtocolParams(fastify: FastifyInstance, deps: ApiServerDeps): 
       const params = await deps.ogmiosTx.protocolParameters();
       return params;
     } catch (err) {
+      const raw = (err as Error).message ?? "ogmios error";
+      console.error(`[/protocol-params] ogmios error: ${raw}`);
       reply.code(502);
       return {
         error: "ogmios_error",
-        message: (err as Error).message,
+        message: redactUpstreamMessage(raw),
       };
     }
   });
@@ -382,8 +433,11 @@ function registerHistory(fastify: FastifyInstance, deps: ApiServerDeps): void {
           source = "dbsync";
         } catch (err) {
           dbsyncError = err as Error;
-          fastify.log?.warn?.(
-            `/history dbsync failed: ${dbsyncError.message}` +
+          // Log full error server-side (operator visibility); never
+          // forward it to the client (it carries pg connection
+          // strings and host metadata) — security review v1, H3.
+          console.error(
+            `[/history] dbsync failed: ${dbsyncError.message}` +
               (fallback ? "; falling back to Blockfrost" : "; no fallback configured"),
           );
         }
@@ -396,9 +450,7 @@ function registerHistory(fastify: FastifyInstance, deps: ApiServerDeps): void {
         reply.code(503);
         return {
           error: "history_unavailable",
-          message: dbsyncError
-            ? `dbsync error: ${dbsyncError.message}`
-            : "history backend unreachable",
+          message: "history backend unreachable",
         };
       }
 
@@ -423,30 +475,39 @@ interface SubmitBody {
 function registerSubmit(fastify: FastifyInstance, deps: ApiServerDeps): void {
   fastify.post(
     "/submit",
+    {
+      bodyLimit: TX_ROUTE_BODY_LIMIT,
+      config: { rateLimit: TX_ROUTE_RATE_LIMIT },
+    },
     async (req: FastifyRequest<{ Body: SubmitBody }>, reply: FastifyReply) => {
       if (!deps.ogmiosTx) {
         reply.code(503);
         return { error: "submit_unavailable", message: "ogmios tx client not configured" };
       }
       const cbor = (req.body?.cbor ?? "").trim();
-      if (!/^[0-9a-fA-F]+$/.test(cbor) || cbor.length === 0 || cbor.length % 2 !== 0) {
+      if (!isValidTxHex(cbor)) {
         reply.code(400);
         return {
           error: "bad_request",
-          message: "body.cbor must be a non-empty even-length hex string",
+          message: "body.cbor must be a non-empty even-length hex string within size cap",
         };
       }
       try {
         const txHash = await deps.ogmiosTx.submitTransaction(cbor);
         return { txHash };
       } catch (err) {
-        // Bubble the ogmios error verbatim — the SDK + UI already know
-        // how to render ledger rejection messages, and translating
-        // here would lose detail.
+        // Bubble the ogmios error to the client so the SDK + UI can
+        // render ledger rejection messages. We redact host/credential
+        // patterns first so a transport-layer failure in front of
+        // ogmios (websocket close, Cloudflare Access) doesn't leak
+        // infrastructure topology to the caller (security review v1,
+        // finding H3). Full message is logged server-side.
+        const raw = (err as Error).message ?? "submit failed";
+        console.error(`[/submit] ogmios error: ${raw}`);
         reply.code(400);
         return {
           error: "submit_failed",
-          message: (err as Error).message,
+          message: redactUpstreamMessage(raw),
         };
       }
     },
@@ -456,30 +517,45 @@ function registerSubmit(fastify: FastifyInstance, deps: ApiServerDeps): void {
 function registerEvaluate(fastify: FastifyInstance, deps: ApiServerDeps): void {
   fastify.post(
     "/evaluate",
+    {
+      bodyLimit: TX_ROUTE_BODY_LIMIT,
+      config: { rateLimit: TX_ROUTE_RATE_LIMIT },
+    },
     async (req: FastifyRequest<{ Body: SubmitBody }>, reply: FastifyReply) => {
       if (!deps.ogmiosTx) {
         reply.code(503);
         return { error: "evaluate_unavailable", message: "ogmios tx client not configured" };
       }
       const cbor = (req.body?.cbor ?? "").trim();
-      if (!/^[0-9a-fA-F]+$/.test(cbor) || cbor.length === 0 || cbor.length % 2 !== 0) {
+      if (!isValidTxHex(cbor)) {
         reply.code(400);
         return {
           error: "bad_request",
-          message: "body.cbor must be a non-empty even-length hex string",
+          message: "body.cbor must be a non-empty even-length hex string within size cap",
         };
       }
       try {
         const budgets = await deps.ogmiosTx.evaluateTransaction(cbor);
         return { redeemers: budgets };
       } catch (err) {
+        const raw = (err as Error).message ?? "evaluate failed";
+        console.error(`[/evaluate] ogmios error: ${raw}`);
         reply.code(400);
         return {
           error: "evaluate_failed",
-          message: (err as Error).message,
+          message: redactUpstreamMessage(raw),
         };
       }
     },
+  );
+}
+
+function isValidTxHex(cbor: string): boolean {
+  return (
+    /^[0-9a-fA-F]+$/.test(cbor) &&
+    cbor.length > 0 &&
+    cbor.length <= TX_HEX_MAX_LENGTH &&
+    cbor.length % 2 === 0
   );
 }
 
@@ -511,8 +587,10 @@ function registerAddressUtxos(fastify: FastifyInstance, deps: ApiServerDeps): vo
           utxos: utxos.map(serializeUtxo),
         };
       } catch (err) {
+        const raw = (err as Error).message ?? "dbsync error";
+        console.error(`[dbsync] ${req.url}: ${raw}`);
         reply.code(502);
-        return { error: "dbsync_error", message: (err as Error).message };
+        return { error: "dbsync_error", message: "internal database error" };
       }
     },
   );
@@ -546,8 +624,10 @@ function registerTxQueries(fastify: FastifyInstance, deps: ApiServerDeps): void 
         }
         return summary;
       } catch (err) {
+        const raw = (err as Error).message ?? "dbsync error";
+        console.error(`[dbsync] ${req.url}: ${raw}`);
         reply.code(502);
-        return { error: "dbsync_error", message: (err as Error).message };
+        return { error: "dbsync_error", message: "internal database error" };
       }
     },
   );
@@ -576,8 +656,10 @@ function registerTxQueries(fastify: FastifyInstance, deps: ApiServerDeps): void 
         }
         return { txHash, utxos: utxos.map(serializeUtxo) };
       } catch (err) {
+        const raw = (err as Error).message ?? "dbsync error";
+        console.error(`[dbsync] ${req.url}: ${raw}`);
         reply.code(502);
-        return { error: "dbsync_error", message: (err as Error).message };
+        return { error: "dbsync_error", message: "internal database error" };
       }
     },
   );
@@ -631,4 +713,27 @@ function parsePagination(q: PoolQuery): { cursor: number; limit: number } {
 function clamp(value: number, min: number, max: number, fallback: number): number {
   if (!Number.isFinite(value)) return fallback;
   return Math.max(min, Math.min(max, Math.floor(value)));
+}
+
+/**
+ * Redact infrastructure topology from an upstream error message before
+ * returning it to the client. Strips: postgres connection strings,
+ * Blockfrost project ids, IPv4 addresses with optional ports, and bare
+ * URLs. Caps the result at 256 chars so a chatty upstream stack trace
+ * can't be used as an amplifier for log spam (security review v1,
+ * finding H3). Operators get the full message via console.error;
+ * clients get a redacted, length-bounded summary.
+ */
+export function redactUpstreamMessage(raw: string | undefined | null): string {
+  if (!raw) return "upstream error";
+  let s = String(raw);
+  s = s.replace(/postgres(?:ql)?:\/\/[^\s"'`]+/gi, "postgres://***");
+  s = s.replace(/\bproject_id[=:]\s*[a-z0-9]{20,}/gi, "project_id=***");
+  s = s.replace(/\bpreprod[a-z0-9]{20,}\b/gi, "preprod***");
+  s = s.replace(/\bmainnet[a-z0-9]{20,}\b/gi, "mainnet***");
+  s = s.replace(/\bpreview[a-z0-9]{20,}\b/gi, "preview***");
+  s = s.replace(/(https?|wss?):\/\/[^\s"'`]+/gi, "$1://***");
+  s = s.replace(/\b\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}(?::\d+)?/g, "***");
+  if (s.length > 256) s = s.slice(0, 253) + "...";
+  return s;
 }
