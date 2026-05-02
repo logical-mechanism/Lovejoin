@@ -49,51 +49,90 @@ In priority order:
 
 ## High-level architecture
 
+```mermaid
+flowchart TB
+    subgraph browser["Browser (React 19 + Vite + Tailwind v4 + react-i18next)"]
+        Deposit["Deposit"]
+        Pool["Pool / Mix<br/>(N-slider)"]
+        Vault["Vault"]
+        Withdraw["Withdraw<br/>(→ seedelf)"]
+        SDK["lovejoin-sdk (TypeScript)<br/>prover (BLS12-381 G1, RFC 6979)<br/>tx builder (mesh)<br/>CIP-30 wallet<br/>collateral provider client"]
+        Deposit --> SDK
+        Pool --> SDK
+        Vault --> SDK
+        Withdraw --> SDK
+    end
+
+    subgraph services["External services"]
+        BE["lovejoin-backend (Node + Fastify)<br/>second ChainProvider"]
+        CP["Collateral provider<br/>(giveme.my by default)<br/>collateral UTxOs + on-request signing"]
+        BF["Blockfrost<br/>(default ChainProvider)"]
+    end
+
+    subgraph chain["cardano-node (Preprod)"]
+        Ogmios["ogmios"]
+        DBSync["db-sync"]
+        Node["cardano-node socket"]
+        Ogmios --> Node
+        DBSync --> Node
+    end
+
+    subgraph onchain["On-chain (Aiken 1.1.21, Plutus V3, BLS12-381 G1)"]
+        MB["mix_box<br/>(spend-side delegator)"]
+        ML["mix_logic<br/>(withdraw-zero;<br/>variable N sigma-OR)"]
+        FC["fee_contract<br/>(10 shards;<br/>PayMixFee + Replenish)"]
+        RH["reference_holder<br/>(always-False;<br/>NFT + ProtocolParams)"]
+        MB -.delegates to.-> ML
+        ML -.reads params.-> RH
+        FC -.reads params.-> RH
+        MB -.reads params.-> RH
+    end
+
+    SDK -->|HTTP/JSON| BE
+    SDK -->|HTTP/JSON| BF
+    SDK -->|HTTP/JSON| CP
+    BE --> Ogmios
+    BE --> DBSync
+    CP --> Node
+    BF --> Node
+    Node --> onchain
 ```
-┌──────────────────────────────────────────────────────────────────┐
-│                      Browser (React + Tailwind, i18n)            │
-│  ┌──────────────┐ ┌──────────────┐ ┌────────────┐ ┌───────────┐  │
-│  │   Deposit    │ │  Pool / Mix  │ │   Vault    │ │  Withdraw │  │
-│  │              │ │ (N-slider)   │ │            │ │  → seedelf│  │
-│  └──────┬───────┘ └──────┬───────┘ └─────┬──────┘ └────┬──────┘  │
-│         │                │               │             │         │
-│         └─────────── lovejoin-sdk (TS) ──┴─────────────┘         │
-│                  • prover (BLS12-381, RFC 6979)                  │
-│                  • tx builder (mesh)                             │
-│                  • CIP-30 wallet                                 │
-│                  • collateral provider client                    │
-└──────────────────────┬─────────────────┬─────────────────────────┘
-                       │ HTTP/JSON       │ HTTP/JSON
-                       ▼                 ▼
-              ┌─────────────────┐  ┌─────────────────────┐
-              │  lovejoin-      │  │ collateral provider │
-              │  backend (Node) │  │ (e.g. giveme.my)    │
-              │                 │  │  • collateral UTxOs │
-              │                 │  │  • signs on request │
-              └────────┬────────┘  └─────────┬───────────┘
-                       │                     │
-              ┌────────┴────────────┐        │
-              ▼                     ▼        │
-        ┌──────────┐          ┌──────────┐   │
-        │ ogmios   │          │ db-sync  │   │
-        └────┬─────┘          └────┬─────┘   │
-             └──────────┬──────────┘         │
-                        ▼                    │
-                ┌────────────────┐           │
-                │  cardano-node  │ ◄─────────┘
-                │   (Preprod)    │
-                └────────┬───────┘
-                         │
-       ┌────────────┬────┴───────┬──────────────────┐
-       ▼            ▼            ▼                  ▼
-┌──────────────┐ ┌───────────────┐ ┌─────────────────────┐
-│   mix_box    │ │ fee_contract  │ │  reference_holder   │
-│  validator   │ │   (10 shards) │ │ (always-False; NFT  │
-│  variable-N  │ │  PayMixFee +  │ │  + ProtocolParams)  │
-│              │ │  Replenish    │ │                     │
-└──────┬───────┘ └───────┬───────┘ └──────────┬──────────┘
-       │                 │                     │
-       └─── reads params ┴── via reference_inputs ┘
+
+The on-chain validators read protocol parameters from a single permanent UTxO at the always-False `reference_holder` script, identified by a one-of-one NFT, via `tx.reference_inputs` at every spend.
+
+## Three operations
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor U as User wallet (CIP-30)
+    participant SDK as Lovejoin SDK
+    participant CN as cardano-node (Preprod)
+    participant CP as Collateral provider
+    participant Pool as Pool (mix_box UTxOs)
+    participant Fee as fee_contract (10 shards)
+
+    Note over U,Fee: DEPOSIT (wallet-signed)
+    U->>SDK: pick denomination, derive owner secret
+    SDK->>SDK: build deposit tx (locks ADA into mix_box;<br/>tops up one fee shard via Replenish)
+    SDK->>U: request signature
+    U->>CN: submit signed tx
+    CN-->>Pool: new mix_box UTxO appears
+    CN-->>Fee: shard balance increases
+
+    Note over U,Fee: MIX (fully wallet-anonymous)
+    SDK->>SDK: select N pool boxes; build N-way<br/>sigma-OR proofs bound to tx.outputs hash
+    SDK->>CP: request collateral UTxO + witness
+    CP-->>SDK: collateral input + signature
+    SDK->>CN: submit Mix tx (no submitter signature;<br/>tx.fee paid from a fee shard)
+    CN-->>Pool: N old mix_box UTxOs replaced<br/>by N new indistinguishable ones
+    CN-->>Fee: shard balance decreases by tx.fee
+
+    Note over U,Fee: WITHDRAW (Schnorr proof, no box signer)
+    U->>SDK: choose box; derive Schnorr proof from<br/>owner secret bound to tx.outputs hash
+    SDK->>U: request signature on payment tx
+    U->>CN: submit (proof spends the box)
+    CN-->>Pool: mix_box consumed; ADA leaves the pool
 ```
 
 ## Reading guide
