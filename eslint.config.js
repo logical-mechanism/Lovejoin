@@ -158,6 +158,27 @@ export default tseslint.config(
     },
   },
 
+  // Playwright e2e specs: same relaxations as vitest tests, plus rules
+  // that fight Playwright's fixture pattern. `test.extend({ ctx: async
+  // ({}, use) => ... })` is canonical Playwright — the empty destructure
+  // means "no upstream fixtures consumed", and `use` is the fixture
+  // injector callback (not React's `use` hook).
+  {
+    files: ["ui/e2e/**/*.{ts,tsx}"],
+    languageOptions: {
+      globals: {
+        ...globals.node,
+        ...globals.browser,
+      },
+    },
+    rules: {
+      "@typescript-eslint/no-non-null-assertion": "off",
+      "@typescript-eslint/no-unused-expressions": "off",
+      "no-empty-pattern": "off",
+      "react-hooks/rules-of-hooks": "off",
+    },
+  },
+
   // Build / config / script files run on Node only.
   {
     files: [
