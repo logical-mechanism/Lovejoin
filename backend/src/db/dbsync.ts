@@ -97,7 +97,21 @@ export interface DbSyncClient extends HistoryClient {
 export class PostgresDbSyncClient implements DbSyncClient {
   private pool: pg.Pool;
   constructor(connectionString: string) {
-    this.pool = new Pool({ connectionString, max: 5 });
+    // Bounded pool with explicit timeouts. Without these, a slow query
+    // can pin a connection forever; five slow callers stall every other
+    // history/utxo request behind the pool's `max: 5` cap (security
+    // review v1, finding M5). `query_timeout` is a client-side cap so
+    // a stuck query gets cancelled even if the server doesn't honour
+    // `statement_timeout`; `connectionTimeoutMillis` makes a dead db
+    // surface as an error fast instead of hanging the request.
+    this.pool = new Pool({
+      connectionString,
+      max: 5,
+      idleTimeoutMillis: 30_000,
+      connectionTimeoutMillis: 5_000,
+      query_timeout: 10_000,
+      statement_timeout: 10_000,
+    });
   }
 
   async addressHistory(address: string, limit: number): Promise<AddressTxHistoryEntry[]> {

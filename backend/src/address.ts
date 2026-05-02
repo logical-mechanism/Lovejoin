@@ -100,6 +100,31 @@ function bech32CreateChecksum(hrp: string, data: number[]): number[] {
   return out;
 }
 
+/**
+ * Cheap structural check for a Cardano shelley/base address. Confirms
+ * length + that the bech32 HRP is `addr` (mainnet) or `addr_test`
+ * (preprod/preview) and matches the configured network. Does NOT
+ * verify the bech32 charset or checksum — both are heavier than we
+ * need on a hot path, and a malformed body still hits a parameterised
+ * SQL lookup that simply returns zero rows (no SQLi). The goal here
+ * is just to reject obvious junk and wrong-network addresses early so
+ * `/history` + `/utxos` don't burn DB CPU on hopeless lookups
+ * (security review v1, finding M4). Returns null on accept; an error
+ * message string on reject.
+ */
+export function validateBech32AddressForNetwork(
+  address: string,
+  network: "preprod" | "preview" | "mainnet",
+): string | null {
+  if (typeof address !== "string") return "address must be a string";
+  if (address.length < 10 || address.length > 200) return "address length out of range";
+  const expectedHrp = network === "mainnet" ? HRP_MAINNET : HRP_TESTNET;
+  if (!address.startsWith(`${expectedHrp}1`)) {
+    return `wrong network prefix (expected ${expectedHrp})`;
+  }
+  return null;
+}
+
 function hexToBytes(hex: string): Uint8Array {
   const cleaned = hex.startsWith("0x") || hex.startsWith("0X") ? hex.slice(2) : hex;
   if (cleaned.length % 2 !== 0) throw new Error("hex string must have even length");

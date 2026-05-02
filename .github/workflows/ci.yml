@@ -17,6 +17,15 @@ on:
     branches: [main]
   pull_request:
 
+# Least-privilege default. Repo-level Settings → Actions defaults to
+# `permissions: write-all`, which gives every CI job a GITHUB_TOKEN
+# scoped to write contents/issues/packages/etc. CI here only needs to
+# clone the repo; `release.yml` requests broader scopes per-job. Lock
+# the token down explicitly so a compromised dependency can't escalate
+# (security review v1, CI finding).
+permissions:
+  contents: read
+
 concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true

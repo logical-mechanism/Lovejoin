@@ -275,7 +275,15 @@ function parseIntegerEnv(raw: string | undefined, fallback: number, name: string
 }
 
 function parseCorsOrigins(raw: string | undefined): string[] | "*" {
-  if (!raw || raw.trim() === "" || raw.trim() === "*") return "*";
+  // Closed by default. Same-origin works without CORS — only set
+  // CORS_ORIGINS when the UI lives on a different origin from the API
+  // (e.g. lovejo.in fetching api.lovejo.in). Operators can opt into
+  // reflect-any-origin by setting CORS_ORIGINS=* explicitly; that's
+  // useful for staging / local dev only (security review v1, finding
+  // M2 — eliminates the "I forgot to set CORS_ORIGINS in prod" trap
+  // where the previous default reflected any caller).
+  if (!raw || raw.trim() === "") return [];
+  if (raw.trim() === "*") return "*";
   return raw
     .split(",")
     .map((s) => s.trim())

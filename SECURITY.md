@@ -44,8 +44,6 @@ Email **support@logicalmechanism.io** with:
 
 If you want to encrypt the report, ask in your first email and we will reply with a public key.
 
-We will acknowledge receipt within **5 business days** and aim to provide a substantive response within **14 days**.
-
 ## Disclosure process
 
 1. You report privately.
@@ -66,7 +64,3 @@ Because lovejoin is **alpha on Preprod with no real funds at stake**, we do not 
 - **Swag and modest gratitude payments** at the maintainer's discretion for high-quality reports, especially ones that find on-chain protocol issues.
 
 A formal bounty program will be considered alongside the pre-mainnet audit. Until then, treat reports as a contribution to the project's safety, not as a transaction.
-
-## Supported versions
-
-Until v1.0.0 ships, only the current `main` and `dev` branches are supported. After v1.0.0, security patches will land on the `main` branch and be tagged via semver.

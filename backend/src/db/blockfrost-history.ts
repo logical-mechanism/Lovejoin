@@ -113,8 +113,14 @@ export class BlockfrostHistoryClient implements HistoryClient {
       headers: { project_id: this.projectId },
     });
     if (!res.ok) {
+      // Drain + log the body server-side; do not include it in the
+      // thrown error. Blockfrost upstream bodies have been observed
+      // echoing the project id in 4xx responses, and that error then
+      // bubbles into the `/history` fallback path on the API surface
+      // (security review v1, finding M3).
       const body = await res.text();
-      throw new Error(`Blockfrost /health ${res.status}: ${body.slice(0, 200)}`);
+      console.error(`[blockfrost] /health ${res.status}: ${body.slice(0, 200)}`);
+      throw new Error(`Blockfrost /health ${res.status}`);
     }
   }
 
@@ -129,9 +135,10 @@ export class BlockfrostHistoryClient implements HistoryClient {
     if (res.status === 404) return null;
     if (!res.ok) {
       const body = await res.text();
-      throw new Error(
-        `Blockfrost GET ${path} (${res.status} ${res.statusText}): ${body.slice(0, 200)}`,
+      console.error(
+        `[blockfrost] GET ${path} (${res.status} ${res.statusText}): ${body.slice(0, 200)}`,
       );
+      throw new Error(`Blockfrost GET ${path} (${res.status} ${res.statusText})`);
     }
     return await res.json();
   }
