@@ -63,12 +63,7 @@ function ext(href: string) {
  * like `<a>`. The `to` prop is set at the call site.
  */
 function intern(to: string) {
-  return (
-    <Link
-      to={to}
-      className="text-amber underline-offset-4 hover:underline"
-    />
-  );
+  return <Link to={to} className="text-amber underline-offset-4 hover:underline" />;
 }
 
 export function Help() {
@@ -109,9 +104,7 @@ export function Help() {
               aria-selected={isActive}
               aria-controls={`help-panel-${id}`}
               id={`help-tab-${id}`}
-              className={
-                isActive ? "lj-btn lj-btn--primary" : "lj-btn lj-btn--quiet"
-              }
+              className={isActive ? "lj-btn lj-btn--primary" : "lj-btn lj-btn--quiet"}
               onClick={() => navigate(`/help?doc=${id}`, { replace: false })}
             >
               {t(`help.tab_${id}`)}
@@ -457,7 +450,7 @@ function Glossary() {
 //
 // Visibility threshold: 240px (~two paragraphs on desktop) so the
 // button doesn't clutter the first viewport. `behavior: smooth` is
-// honoured by browsers; users with `prefers-reduced-motion` get the
+// honored by browsers; users with `prefers-reduced-motion` get the
 // instant jump natively.
 function BackToTopButton() {
   const { t } = useTranslation();

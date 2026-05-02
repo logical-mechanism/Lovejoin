@@ -55,7 +55,7 @@ function detectInitialLang(): LangCode {
 
 const initialLang = detectInitialLang();
 
-// i18next is initialised synchronously with English only so the first
+// i18next is initialized synchronously with English only so the first
 // React render has a working `t()` immediately — no flash of empty
 // strings. If the user's preferred language isn't English, we kick off
 // its bundle load below and switch when it lands. The hero is also

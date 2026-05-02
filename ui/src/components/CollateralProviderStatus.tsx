@@ -5,7 +5,7 @@
 // button. There is no fallback to wallet-collateral.
 //
 // Polls every 30s while mounted (cheap GET). Exposes the latest probe via
-// the `useCollateralStatus` hook so the Mix button can grey itself out
+// the `useCollateralStatus` hook so the Mix button can gray itself out
 // without re-implementing the polling.
 
 import { createContext, useContext, useMemo, useRef, useState, type ReactNode } from "react";
