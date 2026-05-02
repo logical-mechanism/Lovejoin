@@ -18,17 +18,18 @@
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
 
     <!--
-      Preconnect hints for the two third-party origins the UI talks to on
-      first interaction: the collateral provider (probed once the React
-      tree mounts, then once every 30s) and Blockfrost (chain reads + tx
-      submit). The browser opens TLS to these in parallel with the JS
-      bundle download so the first probe is sub-50ms instead of one
-      full TLS round-trip after parse. PageSpeed flagged giveme.my as
-      worth ~330ms of LCP savings; Blockfrost is the same shape of
-      request but on a CDN.
+      DNS-prefetch hints for the two third-party origins the UI talks to
+      on first interaction: the collateral provider (probed once the
+      React tree mounts, then once every 30s) and Blockfrost (chain
+      reads + tx submit). DNS resolution is the expensive piece on cold
+      mobile networks (~100-300ms); the TLS handshake itself runs after
+      the LCP window so we don't need preconnect's full pre-warm. An
+      earlier preconnect form was flagged by PageSpeed as "unused"
+      because the connections fire ~1s after mount, outside the LCP
+      audit window.
     -->
-    <link rel="preconnect" href="https://www.giveme.my" crossorigin />
-    <link rel="preconnect" href="https://cardano-preprod.blockfrost.io" crossorigin />
+    <link rel="dns-prefetch" href="https://www.giveme.my" />
+    <link rel="dns-prefetch" href="https://cardano-preprod.blockfrost.io" />
     <link rel="dns-prefetch" href="https://cardano-mainnet.blockfrost.io" />
 
     <meta property="og:type" content="website" />
