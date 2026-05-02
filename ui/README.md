@@ -69,13 +69,15 @@ Lint rule: raw English strings inside JSX are rejected. Strings live in `en.json
 
 ## E2E
 
+Two specs: `smoke` (route-shell, runs on every PR) and `full-flow`
+(funded-wallet Preprod, opt-in via `E2E_PREPROD_WALLET=1`). See
+[e2e/README.md](e2e/README.md) for env vars + the workflow_dispatch
+flow.
+
 ```sh
 pnpm --filter @lovejoin/ui exec playwright install --with-deps   # once
-BLOCKFROST_PROJECT_ID_PREPROD=preprod... \
-  pnpm --filter @lovejoin/ui test:e2e
+pnpm --filter @lovejoin/ui test:e2e                              # smoke only
 ```
-
-E2E is opt-in via env vars; the suite skips cleanly when creds aren't set.
 
 ## Privacy posture
 
