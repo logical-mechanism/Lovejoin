@@ -7,6 +7,7 @@ import cors from "@fastify/cors";
 import rateLimit from "@fastify/rate-limit";
 import Fastify, { type FastifyInstance, type FastifyReply, type FastifyRequest } from "fastify";
 
+import { validateBech32AddressForNetwork } from "../address.js";
 import type { BackendConfig } from "../config.js";
 import type { DbSyncClient, HistoryClient } from "../db/dbsync.js";
 import type { IndexerState } from "../indexer/state.js";
@@ -415,9 +416,10 @@ function registerHistory(fastify: FastifyInstance, deps: ApiServerDeps): void {
         };
       }
       const address = req.params.address;
-      if (typeof address !== "string" || address.length < 10 || address.length > 200) {
+      const addrErr = validateBech32AddressForNetwork(address, deps.config.network);
+      if (addrErr !== null) {
         reply.code(400);
-        return { error: "bad_request", message: "address malformed" };
+        return { error: "bad_request", message: `address malformed: ${addrErr}` };
       }
       const limit = clamp(Number(req.query.limit ?? "50"), 1, 500, 50);
 
@@ -575,9 +577,10 @@ function registerAddressUtxos(fastify: FastifyInstance, deps: ApiServerDeps): vo
         };
       }
       const address = req.params.address;
-      if (typeof address !== "string" || address.length < 4 || address.length > 200) {
+      const addrErr = validateBech32AddressForNetwork(address, deps.config.network);
+      if (addrErr !== null) {
         reply.code(400);
-        return { error: "bad_request", message: "address malformed" };
+        return { error: "bad_request", message: `address malformed: ${addrErr}` };
       }
       try {
         const utxos = await deps.dbsync.addressUtxos(address);
