@@ -156,14 +156,12 @@ export async function connectBrowserWallet(name: string): Promise<BrowserWallet>
  * but allowed by the IWallet contract. We surface a clear error on the
  * string case rather than pulling in a CBOR decoder here.
  */
-export function normalizeWalletUtxos(
-  raw: MeshUtxo[] | string[] | undefined,
-): MeshUtxo[] {
+export function normalizeWalletUtxos(raw: MeshUtxo[] | string[] | undefined): MeshUtxo[] {
   if (!raw || raw.length === 0) return [];
   if (typeof raw[0] === "string") {
     throw new Error(
       "wallet.getUtxos returned CBOR-hex strings; expected parsed UTxO[]. " +
-      "Wrap the wallet so utxos are pre-parsed (mesh's MeshWallet/BrowserWallet do this).",
+        "Wrap the wallet so utxos are pre-parsed (mesh's MeshWallet/BrowserWallet do this).",
     );
   }
   return raw as MeshUtxo[];

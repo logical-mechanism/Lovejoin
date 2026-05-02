@@ -20,10 +20,7 @@
 
 import { describe, expect, it } from "vitest";
 
-import {
-  SCALAR_ORDER,
-  scalarToBytes,
-} from "../../src/crypto/bls.js";
+import { SCALAR_ORDER, scalarToBytes } from "../../src/crypto/bls.js";
 import {
   RECOVERY_KDF_PARAMS_V1,
   RECOVERY_PASSWORD_MIN_LENGTH,
@@ -73,9 +70,7 @@ describe("deriveSeedFromSignatureBytes", () => {
   });
 
   it("rejects an empty signature", () => {
-    expect(() => deriveSeedFromSignatureBytes(new Uint8Array(0))).toThrow(
-      /non-empty/,
-    );
+    expect(() => deriveSeedFromSignatureBytes(new Uint8Array(0))).toThrow(/non-empty/);
   });
 });
 
@@ -83,9 +78,7 @@ describe("deriveSeedFromSignatureHex", () => {
   it("matches deriveSeedFromSignatureBytes on the same hex round-trip", () => {
     const hex = "deadbeef0001";
     const fromHex = deriveSeedFromSignatureHex(hex);
-    const fromBytes = deriveSeedFromSignatureBytes(
-      Uint8Array.from(Buffer.from(hex, "hex")),
-    );
+    const fromBytes = deriveSeedFromSignatureBytes(Uint8Array.from(Buffer.from(hex, "hex")));
     expect(fromHex).toEqual(fromBytes);
   });
 
@@ -103,9 +96,13 @@ describe("isStakeAddressBech32", () => {
   });
 
   it("rejects payment / enterprise / DRep / empty addresses", () => {
-    expect(isStakeAddressBech32("addr_test1qrpapegfgqcaqjlk2ksqcgfwhxqdwexlpwdvphmkr8slpmcwf6cf6")).toBe(false);
+    expect(
+      isStakeAddressBech32("addr_test1qrpapegfgqcaqjlk2ksqcgfwhxqdwexlpwdvphmkr8slpmcwf6cf6"),
+    ).toBe(false);
     expect(isStakeAddressBech32("addr1q9zhwcs7yp78x80")).toBe(false);
-    expect(isStakeAddressBech32("drep1ywaynjxd0eq2zr2vwkly0lnqxck6q08m32d5ej0eu5xpwgq77atjk")).toBe(false);
+    expect(isStakeAddressBech32("drep1ywaynjxd0eq2zr2vwkly0lnqxck6q08m32d5ej0eu5xpwgq77atjk")).toBe(
+      false,
+    );
     expect(isStakeAddressBech32("")).toBe(false);
     expect(isStakeAddressBech32("not-an-address")).toBe(false);
   });
@@ -157,10 +154,7 @@ describe("deriveVaultSeed", () => {
     // would equal blake2b(addr_utf8 || sig). Pin against that mistake.
     const expected = deriveVaultSeed({ signatureBytes: sigBytes, stakeAddrBech32: PREPROD_STAKE });
     const taglessLikeImitation = deriveSeedFromSignatureBytes(
-      concat(
-        new TextEncoder().encode(PREPROD_STAKE),
-        sigBytes,
-      ),
+      concat(new TextEncoder().encode(PREPROD_STAKE), sigBytes),
     );
     expect(expected).not.toEqual(taglessLikeImitation);
     // Sanity: SEED_DOMAIN_TAG_V1 is the v1 tag we documented.
@@ -195,12 +189,8 @@ describe("deriveOwnerSecret", () => {
   });
 
   it("rejects a wrong-length seed", () => {
-    expect(() =>
-      deriveOwnerSecret(new Uint8Array(31), 0),
-    ).toThrow(/32 bytes/);
-    expect(() =>
-      deriveOwnerSecret(new Uint8Array(33), 0),
-    ).toThrow(/32 bytes/);
+    expect(() => deriveOwnerSecret(new Uint8Array(31), 0)).toThrow(/32 bytes/);
+    expect(() => deriveOwnerSecret(new Uint8Array(33), 0)).toThrow(/32 bytes/);
   });
 
   it("rejects negative or non-uint32 indices", () => {
@@ -216,9 +206,7 @@ describe("deriveOwnerSecret", () => {
     const x = deriveOwnerSecret(seed, 0);
     const hex = Buffer.from(scalarToBytes(x)).toString("hex");
     expect(hex).toMatch(/^[0-9a-f]{64}$/);
-    expect(hex).toBe(
-      "35045fcfd4a128dee2a054463c39a90dad1e9393336ba311da6b1f53bb3ee867",
-    );
+    expect(hex).toBe("35045fcfd4a128dee2a054463c39a90dad1e9393336ba311da6b1f53bb3ee867");
   });
 });
 
@@ -275,13 +263,8 @@ describe("deriveSeedFromWalletSignature", () => {
   });
 
   it("throws clearly when the wallet exposes no reward address", async () => {
-    const wallet = fakeWallet(
-      async () => ({ signature: FIXED_SIG_HEX, key: "00" }),
-      [],
-    );
-    await expect(deriveSeedFromWalletSignature({ wallet })).rejects.toThrow(
-      /reward .*addresses/i,
-    );
+    const wallet = fakeWallet(async () => ({ signature: FIXED_SIG_HEX, key: "00" }), []);
+    await expect(deriveSeedFromWalletSignature({ wallet })).rejects.toThrow(/reward .*addresses/i);
   });
 
   it("refuses to sign with a non-stake address", async () => {
@@ -294,9 +277,7 @@ describe("deriveSeedFromWalletSignature", () => {
       // Wallet returns a payment address by mistake.
       ["addr_test1qrpapegfgqcaqjlk2ksqcgfwhxqdwexlpwdvphmkr8slpmcwf6cf6"],
     );
-    await expect(deriveSeedFromWalletSignature({ wallet })).rejects.toThrow(
-      /non-stake/,
-    );
+    await expect(deriveSeedFromWalletSignature({ wallet })).rejects.toThrow(/non-stake/);
     expect(signDataCalled).toBe(false);
   });
 });

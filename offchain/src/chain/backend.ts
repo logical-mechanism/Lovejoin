@@ -107,18 +107,14 @@ export class BackendChainProvider implements ChainProvider {
 
   constructor(config: BackendChainProviderConfig) {
     if (!/^https?:\/\//.test(config.baseUrl)) {
-      throw new Error(
-        `BackendChainProvider: baseUrl must include scheme, got ${config.baseUrl}`,
-      );
+      throw new Error(`BackendChainProvider: baseUrl must include scheme, got ${config.baseUrl}`);
     }
     this.baseUrl = config.baseUrl.replace(/\/$/, "");
     this.fallback = config.fallback ?? null;
     const injected = config.fetchFn;
     const globalFetch = (globalThis as { fetch?: FetchFn }).fetch;
     if (!injected && !globalFetch) {
-      throw new Error(
-        "BackendChainProvider: no fetch implementation. Pass fetchFn explicitly.",
-      );
+      throw new Error("BackendChainProvider: no fetch implementation. Pass fetchFn explicitly.");
     }
     this.fetchFn = injected ?? (globalFetch!.bind(globalThis) as FetchFn);
     this.pollIntervalMs = config.pollIntervalMs ?? 5000;
@@ -168,9 +164,7 @@ export class BackendChainProvider implements ChainProvider {
         }
         const utxos = (body as { utxos?: UtxoWire[] }).utxos;
         if (!Array.isArray(utxos)) {
-          throw new Error(
-            `BackendChainProvider.getUtxos: malformed response (no utxos array)`,
-          );
+          throw new Error(`BackendChainProvider.getUtxos: malformed response (no utxos array)`);
         }
         return utxos.map(wireToUtxo);
       },
@@ -182,10 +176,7 @@ export class BackendChainProvider implements ChainProvider {
     return this.tryWithFallback(
       "getUtxoByRef",
       async () => {
-        const res = await this.fetchFn(
-          `${this.baseUrl}/tx/${ref.txId}/utxos`,
-          {},
-        );
+        const res = await this.fetchFn(`${this.baseUrl}/tx/${ref.txId}/utxos`, {});
         if (res.status === 404) return null;
         const body = await readJson(res);
         if (!res.ok) {
@@ -232,10 +223,7 @@ export class BackendChainProvider implements ChainProvider {
     );
   }
 
-  async getReferenceUtxo(
-    nftPolicy: Hex28,
-    nftAssetNameHex: string,
-  ): Promise<Utxo> {
+  async getReferenceUtxo(nftPolicy: Hex28, nftAssetNameHex: string): Promise<Utxo> {
     return this.tryWithFallback(
       "getReferenceUtxo",
       async () => {
@@ -310,9 +298,7 @@ export class BackendChainProvider implements ChainProvider {
    */
   async meshProvider(): Promise<MeshFetcherSubmitter> {
     if (this._mesh) return this._mesh;
-    const fbMesh = this.fallback
-      ? await getMeshFromProvider(this.fallback)
-      : null;
+    const fbMesh = this.fallback ? await getMeshFromProvider(this.fallback) : null;
     this._mesh = new BackendMeshProvider({
       baseUrl: this.baseUrl,
       fetchFn: this.fetchFn,
@@ -335,7 +321,7 @@ export class BackendChainProvider implements ChainProvider {
       return await primary();
     } catch (err) {
       if (!this.fallback) throw err;
-      // eslint-disable-next-line no-console
+
       console.warn(
         `[BackendChainProvider] ${method} fell back to Blockfrost: ${(err as Error).message}`,
       );
@@ -405,7 +391,10 @@ function parseRatio(s: string | undefined): number {
   return num! / den!;
 }
 
-async function readJson(res: { json(): Promise<unknown>; text(): Promise<string> }): Promise<unknown> {
+async function readJson(res: {
+  json(): Promise<unknown>;
+  text(): Promise<string>;
+}): Promise<unknown> {
   try {
     return await res.json();
   } catch {
@@ -428,9 +417,7 @@ function sleep(ms: number): Promise<void> {
  * the fallback can't be coerced — BackendMeshProvider treats that as
  * "no fallback" and surfaces the primary error.
  */
-async function getMeshFromProvider(
-  provider: ChainProvider,
-): Promise<MeshFetcherSubmitter | null> {
+async function getMeshFromProvider(provider: ChainProvider): Promise<MeshFetcherSubmitter | null> {
   const maybe = provider as unknown as {
     meshProvider?: () => Promise<MeshFetcherSubmitter>;
   };

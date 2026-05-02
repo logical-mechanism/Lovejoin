@@ -19,6 +19,7 @@ Browser-based wallet for connecting to CIP-30 compatible wallets (Eternl, Nami, 
 ### Static Methods
 
 #### getInstalledWallets
+
 Get list of wallets installed in the browser.
 
 ```typescript
@@ -26,22 +27,25 @@ static getInstalledWallets(): Wallet[]
 ```
 
 **Returns:**
+
 ```typescript
 interface Wallet {
-  id: string;      // Wallet identifier (e.g., 'eternl', 'nami')
-  name: string;    // Display name
-  icon: string;    // Base64 icon
+  id: string; // Wallet identifier (e.g., 'eternl', 'nami')
+  name: string; // Display name
+  icon: string; // Base64 icon
   version: string; // API version
 }
 ```
 
 **Example:**
+
 ```typescript
 const wallets = MeshCardanoBrowserWallet.getInstalledWallets();
 // [{ id: 'eternl', name: 'Eternl', icon: 'data:image/...', version: '0.1.0' }]
 ```
 
 #### enable
+
 Connect to a wallet. Prompts user for permission.
 
 ```typescript
@@ -52,19 +56,22 @@ static async enable(
 ```
 
 **Parameters:**
+
 - `walletName` - Wallet ID from `getInstalledWallets()` (e.g., 'eternl', 'nami')
 - `extensions` - Optional CIP extensions to request (e.g., `[{ cip: 95 }]`)
 
 **Example:**
+
 ```typescript
-const wallet = await MeshCardanoBrowserWallet.enable('eternl');
+const wallet = await MeshCardanoBrowserWallet.enable("eternl");
 // With governance extension
-const wallet = await MeshCardanoBrowserWallet.enable('eternl', [{ cip: 95 }]);
+const wallet = await MeshCardanoBrowserWallet.enable("eternl", [{ cip: 95 }]);
 ```
 
 ### Instance Methods
 
 #### getNetworkId
+
 Get the network the wallet is connected to.
 
 ```typescript
@@ -76,6 +83,7 @@ async getNetworkId(): Promise<number>
 ---
 
 #### getUtxos / getUtxosMesh
+
 Get wallet UTxOs.
 
 ```typescript
@@ -84,6 +92,7 @@ async getUtxosMesh(): Promise<UTxO[]>      // Mesh format
 ```
 
 **Example:**
+
 ```typescript
 const utxos = await wallet.getUtxosMesh();
 // [{
@@ -95,6 +104,7 @@ const utxos = await wallet.getUtxosMesh();
 ---
 
 #### getCollateral / getCollateralMesh
+
 Get collateral UTxOs (for script transactions).
 
 ```typescript
@@ -107,6 +117,7 @@ async getCollateralMesh(): Promise<UTxO[]>  // Mesh format
 ---
 
 #### getBalance / getBalanceMesh
+
 Get wallet balance.
 
 ```typescript
@@ -115,6 +126,7 @@ async getBalanceMesh(): Promise<Asset[]>    // Mesh format
 ```
 
 **Example:**
+
 ```typescript
 const balance = await wallet.getBalanceMesh();
 // [{ unit: 'lovelace', quantity: '15000000' }, { unit: 'abc...', quantity: '100' }]
@@ -123,6 +135,7 @@ const balance = await wallet.getBalanceMesh();
 ---
 
 #### getUsedAddresses / getUsedAddressesBech32
+
 Get addresses that have been used.
 
 ```typescript
@@ -133,6 +146,7 @@ async getUsedAddressesBech32(): Promise<string[]> // Bech32 format
 ---
 
 #### getUnusedAddresses / getUnusedAddressesBech32
+
 Get addresses that haven't been used yet.
 
 ```typescript
@@ -143,6 +157,7 @@ async getUnusedAddressesBech32(): Promise<string[]> // Bech32 format
 ---
 
 #### getChangeAddress / getChangeAddressBech32
+
 Get address for receiving change.
 
 ```typescript
@@ -153,6 +168,7 @@ async getChangeAddressBech32(): Promise<string> // Bech32 format
 ---
 
 #### getRewardAddresses / getRewardAddressesBech32
+
 Get stake/reward addresses.
 
 ```typescript
@@ -161,6 +177,7 @@ async getRewardAddressesBech32(): Promise<string[]> // Bech32 format
 ```
 
 **Example:**
+
 ```typescript
 const stakeAddr = await wallet.getRewardAddressesBech32();
 // ['stake_test1uq...']
@@ -169,6 +186,7 @@ const stakeAddr = await wallet.getRewardAddressesBech32();
 ---
 
 #### signTx / signTxReturnFullTx
+
 Sign a transaction.
 
 ```typescript
@@ -177,14 +195,17 @@ async signTxReturnFullTx(tx: string, partialSign?: boolean): Promise<string>
 ```
 
 **Parameters:**
+
 - `tx` - Transaction in CBOR hex format
 - `partialSign` - If `true`, allows partial signing (for multi-sig)
 
 **Returns:**
+
 - `signTx` - Witness set only (CBOR hex)
 - `signTxReturnFullTx` - Full transaction with witnesses (CBOR hex)
 
 **Example:**
+
 ```typescript
 // Get full signed transaction (recommended)
 const signedTx = await wallet.signTxReturnFullTx(unsignedTxHex);
@@ -196,6 +217,7 @@ const partialSig = await wallet.signTxReturnFullTx(unsignedTxHex, true);
 ---
 
 #### signData
+
 Sign arbitrary data (CIP-8).
 
 ```typescript
@@ -203,27 +225,31 @@ async signData(addressBech32: string, data: string): Promise<DataSignature>
 ```
 
 **Parameters:**
+
 - `addressBech32` - Address to sign with (bech32)
 - `data` - Data to sign (string or hex)
 
 **Returns:**
+
 ```typescript
 interface DataSignature {
-  key: string;       // COSE key (hex)
+  key: string; // COSE key (hex)
   signature: string; // COSE signature (hex)
 }
 ```
 
 **Example:**
+
 ```typescript
 const address = await wallet.getChangeAddressBech32();
-const sig = await wallet.signData(address, 'Hello Cardano!');
+const sig = await wallet.signData(address, "Hello Cardano!");
 // { key: 'a401...', signature: '845846...' }
 ```
 
 ---
 
 #### submitTx
+
 Submit a signed transaction.
 
 ```typescript
@@ -231,6 +257,7 @@ async submitTx(tx: string): Promise<string>
 ```
 
 **Parameters:**
+
 - `tx` - Signed transaction in CBOR hex
 
 **Returns:** Transaction hash
@@ -244,6 +271,7 @@ Server-side wallet for backend/CLI use. Created from mnemonic, keys, or credenti
 ### Static Factory Methods
 
 #### fromMnemonic
+
 Create wallet from 24-word mnemonic.
 
 ```typescript
@@ -258,14 +286,25 @@ static async fromMnemonic(config: {
 ```
 
 **Example:**
+
 ```typescript
 const wallet = await MeshCardanoHeadlessWallet.fromMnemonic({
   mnemonic: [
-    'abandon', 'abandon', 'abandon', 'abandon', 'abandon', 'abandon',
-    'abandon', 'abandon', 'abandon', 'abandon', 'abandon', 'about'
+    "abandon",
+    "abandon",
+    "abandon",
+    "abandon",
+    "abandon",
+    "abandon",
+    "abandon",
+    "abandon",
+    "abandon",
+    "abandon",
+    "abandon",
+    "about",
   ],
   networkId: 0,
-  walletAddressType: 'Base',
+  walletAddressType: "Base",
   fetcher: provider,
   submitter: provider,
 });
@@ -274,6 +313,7 @@ const wallet = await MeshCardanoHeadlessWallet.fromMnemonic({
 ---
 
 #### fromBip32Root
+
 Create wallet from BIP32 root key (bech32 format).
 
 ```typescript
@@ -289,6 +329,7 @@ static async fromBip32Root(config: {
 ---
 
 #### fromBip32RootHex
+
 Create wallet from BIP32 root key (hex format).
 
 ```typescript
@@ -304,6 +345,7 @@ static async fromBip32RootHex(config: {
 ---
 
 #### fromCredentialSources
+
 Create wallet from explicit credential sources.
 
 ```typescript
@@ -321,6 +363,7 @@ static async fromCredentialSources(config: {
 ### Instance Methods
 
 Same as `MeshCardanoBrowserWallet`:
+
 - `getNetworkId()`
 - `getUtxos()` / `getUtxosMesh()`
 - `getCollateral()` / `getCollateralMesh()`
@@ -342,6 +385,7 @@ Same as `MeshCardanoBrowserWallet`:
 Low-level signing utilities.
 
 ### signTx
+
 Sign a transaction with explicit signers.
 
 ```typescript
@@ -353,6 +397,7 @@ static async signTx(
 ```
 
 **Parameters:**
+
 - `tx` - Transaction CBOR hex
 - `signers` - Array of signer instances
 - `returnFullTx` - If `true`, return full tx; otherwise witness set only
@@ -360,6 +405,7 @@ static async signTx(
 ---
 
 ### signData
+
 Sign data (CIP-8) with explicit signer.
 
 ```typescript
@@ -379,6 +425,7 @@ BIP32 key derivation and management.
 ### Static Factory Methods
 
 #### fromMnemonic
+
 Create from mnemonic phrase.
 
 ```typescript
@@ -391,6 +438,7 @@ static async fromMnemonic(
 ---
 
 #### fromEntropy
+
 Create from entropy.
 
 ```typescript
@@ -403,6 +451,7 @@ static async fromEntropy(
 ---
 
 #### fromKeyHex
+
 Create from BIP32 private key hex.
 
 ```typescript
@@ -412,6 +461,7 @@ static fromKeyHex(keyHex: string): InMemoryBip32
 ---
 
 #### fromBech32
+
 Create from bech32-encoded BIP32 key.
 
 ```typescript
@@ -421,6 +471,7 @@ static fromBech32(bech32: string): InMemoryBip32
 ### Instance Methods
 
 #### getPublicKey
+
 Get BIP32 public key.
 
 ```typescript
@@ -430,6 +481,7 @@ async getPublicKey(): Promise<string>  // Hex format
 ---
 
 #### getSigner
+
 Get a signer for a derivation path.
 
 ```typescript
@@ -437,6 +489,7 @@ async getSigner(derivationPath: DerivationPath): Promise<ISigner>
 ```
 
 **Example:**
+
 ```typescript
 const signer = await bip32.getSigner("m/1852'/1815'/0'/0/0");
 ```
@@ -446,6 +499,7 @@ const signer = await bip32.getSigner("m/1852'/1815'/0'/0/0");
 ## Types
 
 ### UTxO
+
 ```typescript
 interface UTxO {
   input: {
@@ -464,42 +518,47 @@ interface UTxO {
 ```
 
 ### Asset
+
 ```typescript
 interface Asset {
-  unit: string;      // 'lovelace' or policyId + assetName
+  unit: string; // 'lovelace' or policyId + assetName
   quantity: string;
 }
 ```
 
 ### DataSignature
+
 ```typescript
 interface DataSignature {
-  key: string;       // COSE_Key hex
+  key: string; // COSE_Key hex
   signature: string; // COSE_Sign1 hex
 }
 ```
 
 ### Extension
+
 ```typescript
 interface Extension {
-  cip: number;  // CIP number (e.g., 95 for governance)
+  cip: number; // CIP number (e.g., 95 for governance)
 }
 ```
 
 ### CredentialSource
+
 ```typescript
 type CredentialSource =
-  | { type: 'secretManager'; secretManager: ISecretManager }
-  | { type: 'pubKeyHash'; pubKeyHash: string }
-  | { type: 'scriptHash'; scriptHash: string };
+  | { type: "secretManager"; secretManager: ISecretManager }
+  | { type: "pubKeyHash"; pubKeyHash: string }
+  | { type: "scriptHash"; scriptHash: string };
 ```
 
 ### CardanoHeadlessWalletConfig
+
 ```typescript
 interface CardanoHeadlessWalletConfig {
   addressSource: AddressSource;
-  networkId: number;  // 0 = testnet, 1 = mainnet
-  walletAddressType: 'Base' | 'Enterprise';
+  networkId: number; // 0 = testnet, 1 = mainnet
+  walletAddressType: "Base" | "Enterprise";
   fetcher?: IFetcher;
   submitter?: ISubmitter;
 }

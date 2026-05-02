@@ -52,7 +52,7 @@ Inspect `$ARGUMENTS` and decide which shape this is:
     - `feat(m1): add BLS12-381 G1 wrappers in offchain/src/crypto/bls.ts`
     - `test(m1): TS↔Aiken FS hash parity over 1000 random inputs`
     - `fix(m1): RFC 6979 nonce counter increment when r_p == 0 mod r`
-    Push periodically (`git push -u origin <branch>` once, then `git push`).
+      Push periodically (`git push -u origin <branch>` once, then `git push`).
 11. **Maintain reproducibility.** No wall-clock, no locale, no unseeded RNG in tests. Pin tool versions, commit lockfiles.
 12. **Verify exit criteria.** Run each `check` from the milestone's `exit_criteria` array. Every one must exit 0. If any fails, fix the underlying issue. Don't lower the bar.
 13. **Mark done.** Edit `milestones.json` to set status to `done`. Commit as `chore(<id>): mark milestone done` and push.
@@ -67,11 +67,14 @@ Inspect `$ARGUMENTS` and decide which shape this is:
 ## Issue workflow
 
 1. **Fetch the issue.**
+
    ```bash
    gh issue view <n> --json number,title,body,state,labels,milestone,url
    ```
+
    - If `state` is `closed`, ask the user if they really want to reopen and work on it. Only proceed on confirmation; reopen with `gh issue reopen <n>`.
    - Note the milestone (`v1.0.0` if applicable) and labels — they hint at scope and priority.
+
 2. **Set up the branch.**
    - Slug the issue title: lowercase, replace non-alphanumerics with `-`, collapse repeats, trim, cap at ~50 chars. Drop common prefixes like `v1:`, `post-v1:`.
    - Branch name: `issue/<n>-<slug>`. Example: `issue/36-eslint-prettier-commit-hooks`.
@@ -92,11 +95,11 @@ Inspect `$ARGUMENTS` and decide which shape this is:
 6. **Tests where applicable.** New logic gets a test. Skip only if the issue is pure docs / config / DNS / external-service setup. If skipping tests, say so explicitly in the PR body.
 7. **Run tests after each substantial change.** Use the package-specific test command or `make test`.
 8. **Commit cadence — commit often.** Conventional Commits, scope = short identifier from the issue (not the issue number). Reference the issue in the trailer:
-    - `feat(eslint): add @typescript-eslint config at workspace root` ... trailer `Refs #36`
-    - `test(api): add OpenAPI schema snapshot test` ... trailer `Refs #41`
-    - `chore(deploy): templatize .do/app.yaml for prod + staging` ... trailer `Refs #46`
-    Don't put `#<n>` in the scope — it confuses Conventional Commits parsers.
-    Push the branch periodically (`git push -u origin <branch>` once, then `git push`).
+   - `feat(eslint): add @typescript-eslint config at workspace root` ... trailer `Refs #36`
+   - `test(api): add OpenAPI schema snapshot test` ... trailer `Refs #41`
+   - `chore(deploy): templatize .do/app.yaml for prod + staging` ... trailer `Refs #46`
+     Don't put `#<n>` in the scope — it confuses Conventional Commits parsers.
+     Push the branch periodically (`git push -u origin <branch>` once, then `git push`).
 9. **Verify the issue's "Verification" section.** Each bullet must pass. If any fails, fix the underlying issue. Don't lower the bar.
 10. **Open the PR.** `gh pr create --base main --head <branch>` with:
     - Title: the issue title with the `v1:` / `post-v1:` prefix dropped (PRs have their own labels).

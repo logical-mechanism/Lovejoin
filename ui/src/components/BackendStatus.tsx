@@ -44,9 +44,7 @@ export function BackendStatusProvider({
   children,
   testOverrides,
 }: BackendStatusProviderProps) {
-  const [result, setResult] = useState<BackendProbeResult | null>(
-    testOverrides?.initial ?? null,
-  );
+  const [result, setResult] = useState<BackendProbeResult | null>(testOverrides?.initial ?? null);
   const fetchFn = testOverrides?.fetchFn ?? fetch;
   const pollMs = testOverrides?.pollMs ?? POLL_MS;
   const skip = testOverrides?.skipPolling === true;
@@ -124,11 +122,7 @@ export function ProviderBadge() {
           ? t("provider.tooltip_down")
           : t("provider.tooltip_blockfrost");
   return (
-    <span
-      className="inline-flex items-center gap-1.5"
-      title={title}
-      aria-label={title}
-    >
+    <span className="inline-flex items-center gap-1.5" title={title} aria-label={title}>
       <span aria-hidden="true" className={`lj-dot ${tone}`.trim()} />
       {label}
     </span>

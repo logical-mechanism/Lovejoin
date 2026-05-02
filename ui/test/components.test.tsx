@@ -41,8 +41,6 @@ describe("ConfigPanel", () => {
       backendUrl: "",
       collateralProviderEndpoint: "https://giveme.my",
     });
-    expect(window.localStorage.getItem("lovejoin.config.v1")).toContain(
-      "preprodAbc",
-    );
+    expect(window.localStorage.getItem("lovejoin.config.v1")).toContain("preprodAbc");
   });
 });

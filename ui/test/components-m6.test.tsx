@@ -52,4 +52,3 @@ describe("MixWidthSlider", () => {
     expect(onChange).toHaveBeenCalledWith(4);
   });
 });
-

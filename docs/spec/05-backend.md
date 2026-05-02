@@ -43,6 +43,7 @@ backend/
 ## Environment / config
 
 `.env`:
+
 ```
 OGMIOS_URL=ws://localhost:1337
 DBSYNC_URL=postgres://...
@@ -52,6 +53,7 @@ PORT=3001
 ```
 
 `addresses.json` is the canonical handoff from the contract bootstrap step. Backend, SDK, and UI all consume it. Includes:
+
 - Reference NFT policy + asset name
 - Reference UTxO ref
 - mix_box and fee_contract script addresses + hashes
@@ -77,7 +79,7 @@ Subscribe to `chainSync` at the configured ogmios URL. For each block:
 type PoolEntry = {
   txHash: string;
   outputIndex: number;
-  datum: MixDatum;       // {a: hex, b: hex}
+  datum: MixDatum; // {a: hex, b: hex}
   slot: number;
   generation: number;
 };
@@ -90,15 +92,15 @@ type FeeShard = {
   slot: number;
 };
 type FeeState = {
-  shards: FeeShard[];        // unordered
+  shards: FeeShard[]; // unordered
   totalLovelace: bigint;
-  estimatedMixesAvailable: number;   // floor(totalLovelace / maxFeePerMix)
+  estimatedMixesAvailable: number; // floor(totalLovelace / maxFeePerMix)
 };
 
 type ReferenceState = {
   utxoRef: TxOutRef;
   params: ProtocolParams;
-  lastSeenSlot: number;       // ensures we noticed the reference UTxO; if it disappears, alarm
+  lastSeenSlot: number; // ensures we noticed the reference UTxO; if it disappears, alarm
 };
 ```
 
@@ -137,9 +139,11 @@ All endpoints return JSON. No auth. Fastify rate limit per IP.
 Paginated for pools > 1000 (`?cursor=...&limit=500`).
 
 ### `GET /pool/light`
+
 Just `{txHash, outputIndex, a, b}[]` — minimal payload for browser-side ownership scanning.
 
 ### `GET /box/:txhash/:idx`
+
 Detail view + lineage.
 
 ### `GET /fee`
@@ -160,9 +164,11 @@ Detail view + lineage.
 The SDK uses the `shards` array for shard selection. UI uses `totalLovelace` and `estimatedMixesAvailable`.
 
 ### `GET /history/:address?limit=50`
+
 For a destination address, recent withdrawal txs.
 
 ### `GET /health`
+
 ```json
 { "ok": true, "tip": {...}, "lagSeconds": 3, "referenceUtxoOk": true }
 ```

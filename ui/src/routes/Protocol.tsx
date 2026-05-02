@@ -76,10 +76,7 @@ b = [x · d] · g`}</code>
 
       <h2>{t("protocol.mix_h")}</h2>
       <p>
-        <Trans
-          i18nKey="protocol.mix_p1"
-          components={{ b: <strong />, c: <code />, e: <em /> }}
-        />
+        <Trans i18nKey="protocol.mix_p1" components={{ b: <strong />, c: <code />, e: <em /> }} />
       </p>
       <pre className="lj-math">
         <code>{`for each input i ∈ 0..N:
@@ -87,16 +84,10 @@ b = [x · d] · g`}</code>
     b'_i = [y_π(i)] · b_π(i)`}</code>
       </pre>
       <p>
-        <Trans
-          i18nKey="protocol.mix_p2"
-          components={{ b: <strong />, c: <code />, e: <em /> }}
-        />
+        <Trans i18nKey="protocol.mix_p2" components={{ b: <strong />, c: <code />, e: <em /> }} />
       </p>
       <p>
-        <Trans
-          i18nKey="protocol.mix_p3"
-          components={{ b: <strong />, c: <code />, e: <em /> }}
-        />
+        <Trans i18nKey="protocol.mix_p3" components={{ b: <strong />, c: <code />, e: <em /> }} />
       </p>
 
       <h2>{t("protocol.privacy_h")}</h2>

@@ -57,19 +57,13 @@ export function publicPointG(secret: Scalar): G1Point {
  * deterministic in `(secret, base, u, ctx)` thanks to RFC 6979 — the same call
  * site produces byte-identical proofs across runs and platforms.
  */
-export function proveSchnorr(
-  base: G1Point,
-  secret: Scalar,
-  ctx: Uint8Array,
-): SchnorrProof {
+export function proveSchnorr(base: G1Point, secret: Scalar, ctx: Uint8Array): SchnorrProof {
   const baseBytes = pointToBytes(base);
   const u = publicPoint(base, secret);
   const uBytes = pointToBytes(u);
 
   // Message that pins the nonce to this exact statement+context.
-  const nonceMessage = new Uint8Array(
-    baseBytes.length + uBytes.length + ctx.length,
-  );
+  const nonceMessage = new Uint8Array(baseBytes.length + uBytes.length + ctx.length);
   nonceMessage.set(baseBytes, 0);
   nonceMessage.set(uBytes, baseBytes.length);
   nonceMessage.set(ctx, baseBytes.length + uBytes.length);

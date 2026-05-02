@@ -329,9 +329,7 @@ export class IndexerState {
     let total = 0n;
     for (const s of shards) total += s.lovelace;
     const estimated =
-      this.maxFeePerMixLovelace === 0n
-        ? 0
-        : Number(total / this.maxFeePerMixLovelace);
+      this.maxFeePerMixLovelace === 0n ? 0 : Number(total / this.maxFeePerMixLovelace);
     return {
       shards,
       totalLovelace: total,

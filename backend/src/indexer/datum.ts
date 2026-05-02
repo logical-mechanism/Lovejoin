@@ -26,7 +26,7 @@ const MAJOR_UNSIGNED_INT = 0;
 const MAJOR_BYTE_STRING = 2;
 const MAJOR_ARRAY = 4;
 const MAJOR_TAG = 6;
-const MAJOR_FLOAT_OR_BREAK = 7;
+const _MAJOR_FLOAT_OR_BREAK = 7;
 
 const CBOR_BREAK = 0xff;
 

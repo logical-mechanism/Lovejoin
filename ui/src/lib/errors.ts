@@ -44,7 +44,8 @@ const PATTERNS: ErrorPattern[] = [
   // transactions terminated with error(s)" — a script eval failure
   // surfaced through the backend's evaluator path.
   {
-    match: /script (?:evaluation|execution).*fail|plutus.*fail|terminated with error|ogmios[^]*\berror\s*3010\b/i,
+    match:
+      /script (?:evaluation|execution).*fail|plutus.*fail|terminated with error|ogmios[^]*\berror\s*3010\b/i,
     key: "errors.script_eval",
   },
   { match: /cbor (?:decode|encod).*fail|invalid cbor/i, key: "errors.cbor" },
@@ -91,10 +92,7 @@ export function sanitizeErrorMessage(raw: string): string {
   s = s.replace(/\b[0-9a-fA-F]{120,}\b/g, "[hex omitted]");
   // The SDK's evaluator wrapper prefixes a long apology before the real
   // message. Drop it so the user sees the cause directly.
-  s = s.replace(
-    /^[^]*?evaluator failed and there is no fallback\.[^]*?Original error:\s*/i,
-    "",
-  );
+  s = s.replace(/^[^]*?evaluator failed and there is no fallback\.[^]*?Original error:\s*/i, "");
   // Common "Error: Tx evaluation failed: Error:" chains — collapse
   // repeated "Error: " prefixes that mesh layers stack.
   s = s.replace(/(?:Error:\s*){2,}/g, "Error: ");
@@ -112,10 +110,7 @@ export function sanitizeErrorMessage(raw: string): string {
  * stripped, capped at MAX_DETAIL_LEN). The translator must already
  * have an entry for every `FriendlyErrorKey` (en.json `errors.*`).
  */
-export function friendlyErrorMessage(
-  raw: string,
-  t: (key: string) => string,
-): string {
+export function friendlyErrorMessage(raw: string, t: (key: string) => string): string {
   const key = friendlyErrorKey(raw);
   return key ? t(key) : sanitizeErrorMessage(raw);
 }

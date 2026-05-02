@@ -3,15 +3,8 @@
 
 import { afterEach, describe, expect, it } from "vitest";
 
-import {
-  MempoolPoller,
-  inputRefKey,
-  type InputRefKey,
-} from "../src/indexer/mempool.js";
-import type {
-  OgmiosTxClient,
-  MempoolTransaction,
-} from "../src/indexer/ogmios-tx.js";
+import { MempoolPoller, inputRefKey, type InputRefKey } from "../src/indexer/mempool.js";
+import type { OgmiosTxClient, MempoolTransaction } from "../src/indexer/ogmios-tx.js";
 
 function makeFakeClient(scripts: MempoolTransaction[][]): {
   client: OgmiosTxClient;
@@ -89,9 +82,7 @@ describe("MempoolPoller", () => {
   it("drops inputs not in the relevance filter", async () => {
     const wantedKey = inputRefKey(ref(7).txId, 0);
     const noise = ref(99);
-    const { client } = makeFakeClient([
-      [tx("bb", ref(7), noise, ref(101))],
-    ]);
+    const { client } = makeFakeClient([[tx("bb", ref(7), noise, ref(101))]]);
     const poller = new MempoolPoller({
       client,
       intervalMs: 10,
@@ -113,10 +104,7 @@ describe("MempoolPoller", () => {
     const a = ref(10);
     const b = ref(11);
     let allowed: Set<InputRefKey> = new Set([inputRefKey(a.txId, 0)]);
-    const { client } = makeFakeClient([
-      [tx("c1", a, b)],
-      [tx("c2", a, b)],
-    ]);
+    const { client } = makeFakeClient([[tx("c1", a, b)], [tx("c2", a, b)]]);
     const poller = new MempoolPoller({
       client,
       intervalMs: 10,

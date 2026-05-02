@@ -50,9 +50,7 @@ async function main(): Promise<void> {
   console.log(`  reference UTxO: ${addresses.referenceUtxoRef}`);
 
   if (!process.env.LOVEJOIN_PAYMENT_SKEY && !process.env.LOVEJOIN_MNEMONIC) {
-    abortWithM4Notice(
-      "fuzz-runner: needs LOVEJOIN_PAYMENT_SKEY or LOVEJOIN_MNEMONIC for funding",
-    );
+    abortWithM4Notice("fuzz-runner: needs LOVEJOIN_PAYMENT_SKEY or LOVEJOIN_MNEMONIC for funding");
   }
   const wallet = await loadCalibrationWallet({ network });
   const { params } = await fetchProtocolParams(addresses as never, provider);
@@ -100,9 +98,10 @@ async function main(): Promise<void> {
     }
   }
 
-  const status =
-    unexpectedAccepts === 0 && unexpectedRejects === 0 ? "PASS" : "FAIL";
-  console.log(`fuzz-runner: total=${total} accepts=${unexpectedAccepts} rejects=${unexpectedRejects}`);
+  const status = unexpectedAccepts === 0 && unexpectedRejects === 0 ? "PASS" : "FAIL";
+  console.log(
+    `fuzz-runner: total=${total} accepts=${unexpectedAccepts} rejects=${unexpectedRejects}`,
+  );
   writeStatus(status);
 }
 
@@ -128,10 +127,7 @@ interface DispatchCtx {
   network: string;
 }
 
-async function dispatch(
-  a: FuzzAction,
-  ctx: DispatchCtx,
-): Promise<{ accepted: boolean }> {
+async function dispatch(a: FuzzAction, ctx: DispatchCtx): Promise<{ accepted: boolean }> {
   // For brevity we only implement the legitimate Mix and Deposit paths in
   // M4's fuzz shell; the fault paths and Withdraw are stubbed to return
   // "accepted=true" so they don't trip the unexpected-accept counter while

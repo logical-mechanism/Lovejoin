@@ -402,6 +402,54 @@ test mix_rejects_a_eq_b_output_datum() fail {
   )
 }
 
+test mix_rejects_short_bytes_output_datum() fail {
+  // Spec §2 Mix rule 3: output `MixDatum` well-formedness includes
+  // `length(a) == 48 && length(b) == 48`. A 1-byte `a` field must be
+  // rejected by `decode_mix_datum_strict`.
+  let inputs = build_mix_inputs_at_a(2)
+  let bad_out = mix_box_output(#"01", b48, denom_lovelace)
+  let good_out = mix_box_output(c48, b48, denom_lovelace)
+  let tx =
+    Transaction {
+      ..transaction.placeholder,
+      reference_inputs: [default_reference_input()],
+      inputs,
+      outputs: [bad_out, good_out],
+      fee: 200_000,
+    }
+  mix_logic.mix_logic.withdraw(
+    ref_nft_policy,
+    ref_nft_name,
+    Mix { proofs: [bogus_sigma_or(2), bogus_sigma_or(2)] },
+    script_address(mix_script_hash).payment_credential,
+    tx,
+  )
+}
+
+test mix_rejects_fewer_outputs_than_inputs() fail {
+  // Spec §2 Mix rule 2: `length(mix_outputs) == N` and they occupy positions
+  // 0..N-1. Two well-formed mix inputs but only one mix output → the
+  // `walk_outputs` prefix walk reaches end-of-list with `prefix_remaining == 1`
+  // and the `expect prefix_remaining == 0` aborts.
+  let inputs = build_mix_inputs_at_a(2)
+  let only_out = mix_box_output(b48, c48, denom_lovelace)
+  let tx =
+    Transaction {
+      ..transaction.placeholder,
+      reference_inputs: [default_reference_input()],
+      inputs,
+      outputs: [only_out],
+      fee: 200_000,
+    }
+  mix_logic.mix_logic.withdraw(
+    ref_nft_policy,
+    ref_nft_name,
+    Mix { proofs: [bogus_sigma_or(2), bogus_sigma_or(2)] },
+    script_address(mix_script_hash).payment_credential,
+    tx,
+  )
+}
+
 // ---------------------------------------------------------------------------
 // Reference UTxO present / absent
 // ---------------------------------------------------------------------------

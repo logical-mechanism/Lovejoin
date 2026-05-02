@@ -12,11 +12,7 @@
 
 import { describe, expect, it } from "vitest";
 
-import {
-  IndexerState,
-  ROLLBACK_BUFFER_BLOCKS,
-  DeepRollbackError,
-} from "../src/indexer/state.js";
+import { IndexerState, ROLLBACK_BUFFER_BLOCKS, DeepRollbackError } from "../src/indexer/state.js";
 import type { BlockDiff, ProducedUtxo } from "../src/indexer/types.js";
 import { utxoKey } from "../src/indexer/types.js";
 import type { LovejoinAddresses } from "../src/config.js";

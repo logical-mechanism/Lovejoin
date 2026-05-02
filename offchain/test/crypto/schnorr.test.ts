@@ -4,7 +4,6 @@ import {
   SCALAR_BYTES,
   SCALAR_ORDER,
   generator,
-  pointToBytes,
   scalarMul,
 } from "../../src/crypto/bls.js";
 import {
@@ -79,20 +78,10 @@ describe("crypto/schnorr — prove / verify with the canonical generator", () =>
     const u = publicPointG(x);
     const ctx = bytes("");
     expect(
-      verifySchnorr(
-        generator(),
-        u,
-        { t: new Uint8Array(47), z: new Uint8Array(32) },
-        ctx,
-      ),
+      verifySchnorr(generator(), u, { t: new Uint8Array(47), z: new Uint8Array(32) }, ctx),
     ).toBe(false);
     expect(
-      verifySchnorr(
-        generator(),
-        u,
-        { t: new Uint8Array(48), z: new Uint8Array(31) },
-        ctx,
-      ),
+      verifySchnorr(generator(), u, { t: new Uint8Array(48), z: new Uint8Array(31) }, ctx),
     ).toBe(false);
   });
 

@@ -141,7 +141,7 @@ describe("load: /pool with 50k boxes", () => {
     const p50 = samples[Math.floor(samples.length * 0.5)];
     const p99 = samples[Math.floor(samples.length * 0.99)];
     const max = samples[samples.length - 1];
-    // eslint-disable-next-line no-console
+
     console.log(
       `[/pool load] N=${POOL_SIZE} requests=${REQUESTS} pageLimit=${PAGE_LIMIT}: ` +
         `p50=${p50?.toFixed(2)}ms p99=${p99?.toFixed(2)}ms max=${max?.toFixed(2)}ms`,

@@ -16,11 +16,14 @@ afterEach(() => {
 function stubFetch(value: unknown, status = 200) {
   vi.stubGlobal(
     "fetch",
-    vi.fn(async () => ({
-      ok: status >= 200 && status < 300,
-      status,
-      json: async () => value,
-    } as unknown as Response)),
+    vi.fn(
+      async () =>
+        ({
+          ok: status >= 200 && status < 300,
+          status,
+          json: async () => value,
+        }) as unknown as Response,
+    ),
   );
 }
 

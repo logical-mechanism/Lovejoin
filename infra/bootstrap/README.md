@@ -21,16 +21,16 @@ After bootstrap finishes:
 Five operator commands, run sequentially. Stage 1 is split in two so each half
 can be inspected on-chain before the next runs.
 
-| # | script | what it does |
-|---|--------|--------------|
-| 0  | `00-build-reference.sh`     | offline. Parameterizes the validators, writes resolved hashes to `addresses.json`. |
-| 1a | `01a-publish.sh`            | builds + signs three publish txs offline (mix_box, mix_logic, fee_contract) using `build-raw`, chained via change outputs (manual fee + change math, since `transaction build` queries on-ledger UTxOs and would fail on the unconfirmed predecessors). Submits them in order. Writes `referenceScriptUtxos` and `stage1ChangeUtxo` to `addresses.json`. |
-| 1b | `01b-register.sh`           | registers the `mix_logic` stake credential. Run after `01a` confirms — uses `transaction build` (auto fee + change), references the published mix_logic ref script via `--certificate-tx-in-reference`, and consumes the chain's final change UTxO (`stage1ChangeUtxo` from `addresses.json`). |
-| 2  | `02-mint-and-lock.sh`       | **irreversible.** Spends `SEED`, mints the one-of-one NFT, locks at `reference_holder` with the inline `ReferenceDatum`. |
-| 3  | `03-fund-fee-contract.sh`   | seeds 10 shards at `fee_contract`. |
+| #   | script                    | what it does                                                                                                                                                                                                                                                                                                                                             |
+| --- | ------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 0   | `00-build-reference.sh`   | offline. Parameterizes the validators, writes resolved hashes to `addresses.json`.                                                                                                                                                                                                                                                                       |
+| 1a  | `01a-publish.sh`          | builds + signs three publish txs offline (mix_box, mix_logic, fee_contract) using `build-raw`, chained via change outputs (manual fee + change math, since `transaction build` queries on-ledger UTxOs and would fail on the unconfirmed predecessors). Submits them in order. Writes `referenceScriptUtxos` and `stage1ChangeUtxo` to `addresses.json`. |
+| 1b  | `01b-register.sh`         | registers the `mix_logic` stake credential. Run after `01a` confirms — uses `transaction build` (auto fee + change), references the published mix_logic ref script via `--certificate-tx-in-reference`, and consumes the chain's final change UTxO (`stage1ChangeUtxo` from `addresses.json`).                                                           |
+| 2   | `02-mint-and-lock.sh`     | **irreversible.** Spends `SEED`, mints the one-of-one NFT, locks at `reference_holder` with the inline `ReferenceDatum`.                                                                                                                                                                                                                                 |
+| 3   | `03-fund-fee-contract.sh` | seeds 10 shards at `fee_contract`.                                                                                                                                                                                                                                                                                                                       |
 
 > **Plutus collateral note.** Under the Babbage/Conway happy path, collateral
-> inputs are *preserved* (not consumed) — they're only seized if a script
+> inputs are _preserved_ (not consumed) — they're only seized if a script
 > fails. So the same `COLLATERAL` UTxO from `prep-utxos` works for `01b` and
 > stage 2 without rotation.
 
@@ -65,13 +65,13 @@ Fund `payment.preprod.addr` from the [Preprod faucet](https://docs.cardano.org/c
 Fund it from the [Preprod faucet](https://docs.cardano.org/cardano-testnets/tools/faucet/).
 Budget for a clean Preprod bootstrap (defaults assumed):
 
-| stage | what                               | ≈ ADA |
-|-------|------------------------------------|------:|
-| 1     | three ref-script outputs + cert    | 80    |
-| 2     | reference UTxO @ reference_holder  | 5     |
-| 3     | 10 fee shards × `max_fee × 5`      | 40    |
-|       | per-tx fees + collateral float     | 10    |
-| **total** |                                | **≈ 135** |
+| stage     | what                              |     ≈ ADA |
+| --------- | --------------------------------- | --------: |
+| 1         | three ref-script outputs + cert   |        80 |
+| 2         | reference UTxO @ reference_holder |         5 |
+| 3         | 10 fee shards × `max_fee × 5`     |        40 |
+|           | per-tx fees + collateral float    |        10 |
+| **total** |                                   | **≈ 135** |
 
 Round up to ~150 ADA so you don't have to top up mid-bootstrap.
 
@@ -83,13 +83,13 @@ need a distinct UTxO with specific properties (Cardano forbids
 be a separate input from the funding UTxO too). So before running the stages
 you split the faucet drop into the four shapes below:
 
-| label | size       | used by                                                      |
-|-------|-----------:|--------------------------------------------------------------|
-| **A** FUNDING (stage 1) |  85 ADA | funds `01a-publish`'s 3-tx chain; the chain's final change UTxO funds `01b-register` |
-| **B** COLLATERAL        |  10 ADA | `01b-register` + `02-mint-and-lock`; ada-only, returned by ledger so it persists across both |
-| **C** SEED              |   7 ADA | `02-mint-and-lock.sh` (consumed by `one_shot_mint`) |
-| **D** FUNDING (stage 3) |  45 ADA | `03-fund-fee-contract.sh` (10 shards × 4 ADA + fee) |
-|       | + change   | leftover, sits at the wallet for next time |
+| label                   |     size | used by                                                                                      |
+| ----------------------- | -------: | -------------------------------------------------------------------------------------------- |
+| **A** FUNDING (stage 1) |   85 ADA | funds `01a-publish`'s 3-tx chain; the chain's final change UTxO funds `01b-register`         |
+| **B** COLLATERAL        |   10 ADA | `01b-register` + `02-mint-and-lock`; ada-only, returned by ledger so it persists across both |
+| **C** SEED              |    7 ADA | `02-mint-and-lock.sh` (consumed by `one_shot_mint`)                                          |
+| **D** FUNDING (stage 3) |   45 ADA | `03-fund-fee-contract.sh` (10 shards × 4 ADA + fee)                                          |
+|                         | + change | leftover, sits at the wallet for next time                                                   |
 
 `prep-utxos.sh` does the split in one tx and prints the UTxO refs you need
 for each stage. Idempotent: if the wallet already has 4+ ada-only UTxOs at
@@ -173,8 +173,8 @@ The bootstrap reads two values out of `artifacts/<network>/addresses.json`'s
 `protocol` block when it constructs the inline `ReferenceDatum` (in
 `02-mint-and-lock.sh`):
 
-* `denom_lovelace` — the canonical mix-box denomination (10 ADA on Preprod).
-* `max_fee_per_mix_lovelace` — the upper bound the on-chain `fee_contract`
+- `denom_lovelace` — the canonical mix-box denomination (10 ADA on Preprod).
+- `max_fee_per_mix_lovelace` — the upper bound the on-chain `fee_contract`
   enforces for every Mix tx's fee.
 
 If you need to change either, edit `artifacts/<network>/addresses.json` AND
@@ -191,10 +191,11 @@ node accepts each tx because the chain is internally consistent (each input
 is the previous tx's known-shape change output). On Preprod that means 01a
 takes one block window (~20 s) end to end.
 
-`01b-register.sh` is the opposite shape: it runs *after* 01a confirms, so
+`01b-register.sh` is the opposite shape: it runs _after_ 01a confirms, so
 `transaction build` (which resolves on-ledger UTxOs and computes fee + change
-+ Plutus exec budget automatically) works directly. It picks up the chain's
-final change UTxO from `addresses.json`'s `stage1ChangeUtxo` field.
+
+- Plutus exec budget automatically) works directly. It picks up the chain's
+  final change UTxO from `addresses.json`'s `stage1ChangeUtxo` field.
 
 ## What can go wrong
 

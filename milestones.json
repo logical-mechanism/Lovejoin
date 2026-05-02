@@ -18,14 +18,32 @@
         "package.json at repo root wiring up pnpm workspaces"
       ],
       "exit_criteria": [
-        { "description": "Aiken version pinned to 1.1.21", "check": "grep -F '1.1.21' contracts/aiken.toml" },
+        {
+          "description": "Aiken version pinned to 1.1.21",
+          "check": "grep -F '1.1.21' contracts/aiken.toml"
+        },
         { "description": "make build exits 0", "check": "make build" },
         { "description": "make test exits 0", "check": "make test" },
-        { "description": "config/network.test.json exists and parses", "check": "node -e \"JSON.parse(require('fs').readFileSync('config/network.test.json','utf8'))\"" },
-        { "description": "config/network.preprod.json exists and parses", "check": "node -e \"JSON.parse(require('fs').readFileSync('config/network.preprod.json','utf8'))\"" },
-        { "description": "react-i18next is a UI dependency", "check": "grep -F 'react-i18next' ui/package.json" },
-        { "description": "en.json locale file exists", "check": "test -f ui/src/i18n/locales/en.json" },
-        { "description": "GitHub Actions workflow exists", "check": "test -f .github/workflows/ci.yml" }
+        {
+          "description": "config/network.test.json exists and parses",
+          "check": "node -e \"JSON.parse(require('fs').readFileSync('config/network.test.json','utf8'))\""
+        },
+        {
+          "description": "config/network.preprod.json exists and parses",
+          "check": "node -e \"JSON.parse(require('fs').readFileSync('config/network.preprod.json','utf8'))\""
+        },
+        {
+          "description": "react-i18next is a UI dependency",
+          "check": "grep -F 'react-i18next' ui/package.json"
+        },
+        {
+          "description": "en.json locale file exists",
+          "check": "test -f ui/src/i18n/locales/en.json"
+        },
+        {
+          "description": "GitHub Actions workflow exists",
+          "check": "test -f .github/workflows/ci.yml"
+        }
       ]
     },
     {
@@ -45,13 +63,31 @@
         "All negative vectors are rejected by all three impls"
       ],
       "exit_criteria": [
-        { "description": "TS encoding-parity test passes", "check": "pnpm --filter @lovejoin/sdk test -- encoding-parity" },
-        { "description": "TS crypto unit tests pass", "check": "pnpm --filter @lovejoin/sdk test -- crypto" },
+        {
+          "description": "TS encoding-parity test passes",
+          "check": "pnpm --filter @lovejoin/sdk test -- encoding-parity"
+        },
+        {
+          "description": "TS crypto unit tests pass",
+          "check": "pnpm --filter @lovejoin/sdk test -- crypto"
+        },
         { "description": "Aiken crypto tests pass", "check": "cd contracts && aiken check" },
-        { "description": "Rust reference tests pass", "check": "cd crypto/ref && cargo test --release" },
-        { "description": "KAT vector files exist", "check": "test -f crypto/test-vectors/provedlog.json && test -f crypto/test-vectors/provedhtuple.json && test -f crypto/test-vectors/sigma-or.json && test -f crypto/test-vectors/negative.json" },
-        { "description": "Sigma-OR KATs cover N values 2,3,4,6,8", "check": "node -e \"const v = JSON.parse(require('fs').readFileSync('crypto/test-vectors/sigma-or.json','utf8')); const ns = new Set(v.map(x => x.N)); for (const n of [2,3,4,6,8]) if (!ns.has(n)) { console.error('missing N=' + n); process.exit(1); }\"" },
-        { "description": "RFC 6979 reproducibility: same (x, msg) yields byte-identical proof", "check": "pnpm --filter @lovejoin/sdk test -- rfc6979-determinism" }
+        {
+          "description": "Rust reference tests pass",
+          "check": "cd crypto/ref && cargo test --release"
+        },
+        {
+          "description": "KAT vector files exist",
+          "check": "test -f crypto/test-vectors/provedlog.json && test -f crypto/test-vectors/provedhtuple.json && test -f crypto/test-vectors/sigma-or.json && test -f crypto/test-vectors/negative.json"
+        },
+        {
+          "description": "Sigma-OR KATs cover N values 2,3,4,6,8",
+          "check": "node -e \"const v = JSON.parse(require('fs').readFileSync('crypto/test-vectors/sigma-or.json','utf8')); const ns = new Set(v.map(x => x.N)); for (const n of [2,3,4,6,8]) if (!ns.has(n)) { console.error('missing N=' + n); process.exit(1); }\""
+        },
+        {
+          "description": "RFC 6979 reproducibility: same (x, msg) yields byte-identical proof",
+          "check": "pnpm --filter @lovejoin/sdk test -- rfc6979-determinism"
+        }
       ]
     },
     {
@@ -82,10 +118,22 @@
       ],
       "exit_criteria": [
         { "description": "All Aiken validator tests pass", "check": "cd contracts && aiken check" },
-        { "description": "Aiken contracts build successfully", "check": "cd contracts && aiken build" },
-        { "description": "ChainProvider abstraction exists and BlockfrostProvider implements it", "check": "test -f offchain/src/chain/provider.ts && grep -q 'BlockfrostProvider' offchain/src/chain/blockfrost.ts" },
-        { "description": "ChainProvider unit tests pass (with a mocked HTTP layer; no live Blockfrost call required)", "check": "pnpm --filter @lovejoin/sdk test -- chain-provider" },
-        { "description": "artifacts/preprod/addresses.json exists and has reference NFT info", "check": "node -e \"const a = JSON.parse(require('fs').readFileSync('artifacts/preprod/addresses.json','utf8')); if (!a.referenceNftPolicy || !a.referenceUtxoRef) { console.error('missing reference NFT'); process.exit(1); }\"" },
+        {
+          "description": "Aiken contracts build successfully",
+          "check": "cd contracts && aiken build"
+        },
+        {
+          "description": "ChainProvider abstraction exists and BlockfrostProvider implements it",
+          "check": "test -f offchain/src/chain/provider.ts && grep -q 'BlockfrostProvider' offchain/src/chain/blockfrost.ts"
+        },
+        {
+          "description": "ChainProvider unit tests pass (with a mocked HTTP layer; no live Blockfrost call required)",
+          "check": "pnpm --filter @lovejoin/sdk test -- chain-provider"
+        },
+        {
+          "description": "artifacts/preprod/addresses.json exists and has reference NFT info",
+          "check": "node -e \"const a = JSON.parse(require('fs').readFileSync('artifacts/preprod/addresses.json','utf8')); if (!a.referenceNftPolicy || !a.referenceUtxoRef) { console.error('missing reference NFT'); process.exit(1); }\""
+        },
         { "description": "docs/perf.md exists", "check": "test -f docs/perf.md" }
       ]
     },
@@ -105,11 +153,23 @@
         "Integration test on Preprod: deposit (with Replenish), withdraw to a different address — passes 10 consecutive runs"
       ],
       "exit_criteria": [
-        { "description": "SDK builds without errors", "check": "pnpm --filter @lovejoin/sdk build" },
+        {
+          "description": "SDK builds without errors",
+          "check": "pnpm --filter @lovejoin/sdk build"
+        },
         { "description": "SDK unit tests pass", "check": "pnpm --filter @lovejoin/sdk test" },
-        { "description": "lovejoin CLI is executable", "check": "test -x offchain/dist/cli/index.js || pnpm --filter @lovejoin/sdk run cli -- --help" },
-        { "description": "Preprod integration test deposit-withdraw passes", "check": "pnpm --filter integration-tests test -- deposit-withdraw" },
-        { "description": "Mesh viability decision documented", "check": "grep -F 'mesh viability' docs/spec/11-open-questions.md || grep -F 'mesh viability' docs/perf.md || grep -rli 'mesh viability' docs/" }
+        {
+          "description": "lovejoin CLI is executable",
+          "check": "test -x offchain/dist/cli/index.js || pnpm --filter @lovejoin/sdk run cli -- --help"
+        },
+        {
+          "description": "Preprod integration test deposit-withdraw passes",
+          "check": "pnpm --filter integration-tests test -- deposit-withdraw"
+        },
+        {
+          "description": "Mesh viability decision documented",
+          "check": "grep -F 'mesh viability' docs/spec/11-open-questions.md || grep -F 'mesh viability' docs/perf.md || grep -rli 'mesh viability' docs/"
+        }
       ]
     },
     {
@@ -133,7 +193,10 @@
       ],
       "exit_criteria": [
         { "description": "UI builds for production", "check": "pnpm --filter ui build" },
-        { "description": "Verification report exists with Preprod tx links", "check": "test -f docs/m3.5-verification.md" }
+        {
+          "description": "Verification report exists with Preprod tx links",
+          "check": "test -f docs/m3.5-verification.md"
+        }
       ]
     },
     {
@@ -158,15 +221,42 @@
         "30-minute fuzz run completes with no panics or unexpected accepts (deferred from M2)"
       ],
       "exit_criteria": [
-        { "description": "Mix tx builder unit tests pass", "check": "pnpm --filter @lovejoin/sdk test -- mix" },
-        { "description": "Pool selector unit tests pass", "check": "pnpm --filter @lovejoin/sdk test -- pool" },
-        { "description": "Preprod integration test full-lifecycle passes", "check": "pnpm --filter integration-tests test -- full-lifecycle" },
-        { "description": "Preprod integration test mix-n2 passes", "check": "pnpm --filter integration-tests test -- mix-n2" },
-        { "description": "Preprod integration test mix-at-max-n passes", "check": "pnpm --filter integration-tests test -- mix-at-max-n" },
-        { "description": "Preprod integration test fee-exhaustion passes", "check": "pnpm --filter integration-tests test -- fee-exhaustion" },
-        { "description": "max_n recorded in network.preprod.json", "check": "node -e \"const c = JSON.parse(require('fs').readFileSync('config/network.preprod.json','utf8')); if (!c.max_n || c.max_n < 2) { console.error('max_n not set or invalid'); process.exit(1); }\"" },
-        { "description": "Mix tx CPU at max_n is under 70% of mainnet limit", "check": "test -f docs/perf.md && grep -E 'cpu_pct.*[0-6][0-9]\\.|cpu_pct.*70\\.0' docs/perf.md" },
-        { "description": "Fuzz test passes a 30-minute run", "check": "test -f tests/fuzz/last-run-status.txt && grep -q PASS tests/fuzz/last-run-status.txt" }
+        {
+          "description": "Mix tx builder unit tests pass",
+          "check": "pnpm --filter @lovejoin/sdk test -- mix"
+        },
+        {
+          "description": "Pool selector unit tests pass",
+          "check": "pnpm --filter @lovejoin/sdk test -- pool"
+        },
+        {
+          "description": "Preprod integration test full-lifecycle passes",
+          "check": "pnpm --filter integration-tests test -- full-lifecycle"
+        },
+        {
+          "description": "Preprod integration test mix-n2 passes",
+          "check": "pnpm --filter integration-tests test -- mix-n2"
+        },
+        {
+          "description": "Preprod integration test mix-at-max-n passes",
+          "check": "pnpm --filter integration-tests test -- mix-at-max-n"
+        },
+        {
+          "description": "Preprod integration test fee-exhaustion passes",
+          "check": "pnpm --filter integration-tests test -- fee-exhaustion"
+        },
+        {
+          "description": "max_n recorded in network.preprod.json",
+          "check": "node -e \"const c = JSON.parse(require('fs').readFileSync('config/network.preprod.json','utf8')); if (!c.max_n || c.max_n < 2) { console.error('max_n not set or invalid'); process.exit(1); }\""
+        },
+        {
+          "description": "Mix tx CPU at max_n is under 70% of mainnet limit",
+          "check": "test -f docs/perf.md && grep -E 'cpu_pct.*[0-6][0-9]\\.|cpu_pct.*70\\.0' docs/perf.md"
+        },
+        {
+          "description": "Fuzz test passes a 30-minute run",
+          "check": "test -f tests/fuzz/last-run-status.txt && grep -q PASS tests/fuzz/last-run-status.txt"
+        }
       ]
     },
     {
@@ -187,11 +277,26 @@
         "Document the optimisation choices made + the ones rejected (and why) in docs/perf.md so future contributors can pick up where we left off."
       ],
       "exit_criteria": [
-        { "description": "Aiken validator tests still pass", "check": "cd contracts && aiken check" },
-        { "description": "All SDK unit tests still pass", "check": "pnpm --filter @lovejoin/sdk test" },
-        { "description": "max_n recorded in network.preprod.json is >= 4", "check": "node -e \"const c = JSON.parse(require('fs').readFileSync('config/network.preprod.json','utf8')); if (!c.max_n || c.max_n < 4) { console.error('max_n not >= 4 (is ' + c.max_n + ')'); process.exit(1); }\"" },
-        { "description": "Per-N exec-units table recorded in docs/perf.md", "check": "grep -E 'M4\\.5|max_n calibration' docs/perf.md" },
-        { "description": "Preprod integration test mix-at-max-n passes against the new deployment", "check": "pnpm --filter integration-tests test -- mix-at-max-n" }
+        {
+          "description": "Aiken validator tests still pass",
+          "check": "cd contracts && aiken check"
+        },
+        {
+          "description": "All SDK unit tests still pass",
+          "check": "pnpm --filter @lovejoin/sdk test"
+        },
+        {
+          "description": "max_n recorded in network.preprod.json is >= 4",
+          "check": "node -e \"const c = JSON.parse(require('fs').readFileSync('config/network.preprod.json','utf8')); if (!c.max_n || c.max_n < 4) { console.error('max_n not >= 4 (is ' + c.max_n + ')'); process.exit(1); }\""
+        },
+        {
+          "description": "Per-N exec-units table recorded in docs/perf.md",
+          "check": "grep -E 'M4\\.5|max_n calibration' docs/perf.md"
+        },
+        {
+          "description": "Preprod integration test mix-at-max-n passes against the new deployment",
+          "check": "pnpm --filter integration-tests test -- mix-at-max-n"
+        }
       ]
     },
     {
@@ -214,8 +319,14 @@
       "exit_criteria": [
         { "description": "Backend builds", "check": "pnpm --filter backend build" },
         { "description": "Backend unit tests pass", "check": "pnpm --filter backend test" },
-        { "description": "Load test exists and passes", "check": "pnpm --filter backend test -- load" },
-        { "description": "Rollback recovery test passes", "check": "pnpm --filter backend test -- reorg" },
+        {
+          "description": "Load test exists and passes",
+          "check": "pnpm --filter backend test -- load"
+        },
+        {
+          "description": "Rollback recovery test passes",
+          "check": "pnpm --filter backend test -- reorg"
+        },
         { "description": "API tests pass", "check": "pnpm --filter backend test -- api" }
       ]
     },
@@ -241,7 +352,10 @@
         { "description": "UI builds for production", "check": "pnpm --filter ui build" },
         { "description": "UI unit tests pass", "check": "pnpm --filter ui test" },
         { "description": "i18n lint rule passes", "check": "pnpm --filter ui lint" },
-        { "description": "E2E Playwright test passes on Preprod", "check": "pnpm --filter ui test:e2e" }
+        {
+          "description": "E2E Playwright test passes on Preprod",
+          "check": "pnpm --filter ui test:e2e"
+        }
       ]
     },
     {
@@ -273,12 +387,30 @@
         { "description": "UI builds for production", "check": "pnpm --filter ui build" },
         { "description": "UI unit + i18n tests pass", "check": "pnpm --filter ui test" },
         { "description": "i18n lint rule still passes", "check": "pnpm --filter ui lint" },
-        { "description": "Production UI ships no user-facing Configuration panel (the ConfigPanel component is gone or only mounted under ?advanced=1)", "check": "node -e \"const fs=require('fs'); if (fs.existsSync('ui/src/components/ConfigPanel.tsx')) { const t=fs.readFileSync('ui/src/components/ConfigPanel.tsx','utf8'); const layout=fs.readFileSync('ui/src/routes/Layout.tsx','utf8'); if (!/advanced/i.test(layout) || layout.includes('<ConfigPanel') && !/advanced/i.test(layout)) { console.error('ConfigPanel still mounted unconditionally in Layout.tsx'); process.exit(1); } }\"" },
-        { "description": "Pool slider max equals dynamic max_n at runtime (not hard-coded)", "check": "node -e \"const t=require('fs').readFileSync('ui/src/routes/Pool.tsx','utf8'); if (/DEFAULT_MAX_N\\s*=\\s*[0-9]/.test(t)) { console.error('Pool.tsx still has a hard-coded DEFAULT_MAX_N'); process.exit(1); }\"" },
-        { "description": "Vault stores a seed, not per-box secrets (no aHex/bHex/ownerSecretHex on the persisted schema)", "check": "node -e \"const t=require('fs').readFileSync('ui/src/storage/secrets.ts','utf8'); for (const f of ['aHex','bHex','ownerSecretHex']) { if (new RegExp(f+'\\\\s*:\\\\s*string').test(t)) { console.error('secrets.ts still persists '+f+' on the stored schema'); process.exit(1); } }\"" },
-        { "description": "SDK exposes wallet-derived seed + owner-secret derivation (default) and BIP-39 fallback", "check": "test -f offchain/src/wallet/seed.ts && grep -q 'deriveSeedFromWalletSignature' offchain/src/wallet/seed.ts && grep -q 'deriveOwnerSecret' offchain/src/wallet/seed.ts" },
-        { "description": "SDK seed-derivation has determinism tests (same wallet sig + same index → byte-identical x_i across runs)", "check": "pnpm --filter @lovejoin/sdk test -- seed" },
-        { "description": "Pool MixButton exposes the fee-payer toggle", "check": "grep -q 'feePayer' ui/src/components/MixButton.tsx" },
+        {
+          "description": "Production UI ships no user-facing Configuration panel (the ConfigPanel component is gone or only mounted under ?advanced=1)",
+          "check": "node -e \"const fs=require('fs'); if (fs.existsSync('ui/src/components/ConfigPanel.tsx')) { const t=fs.readFileSync('ui/src/components/ConfigPanel.tsx','utf8'); const layout=fs.readFileSync('ui/src/routes/Layout.tsx','utf8'); if (!/advanced/i.test(layout) || layout.includes('<ConfigPanel') && !/advanced/i.test(layout)) { console.error('ConfigPanel still mounted unconditionally in Layout.tsx'); process.exit(1); } }\""
+        },
+        {
+          "description": "Pool slider max equals dynamic max_n at runtime (not hard-coded)",
+          "check": "node -e \"const t=require('fs').readFileSync('ui/src/routes/Pool.tsx','utf8'); if (/DEFAULT_MAX_N\\s*=\\s*[0-9]/.test(t)) { console.error('Pool.tsx still has a hard-coded DEFAULT_MAX_N'); process.exit(1); }\""
+        },
+        {
+          "description": "Vault stores a seed, not per-box secrets (no aHex/bHex/ownerSecretHex on the persisted schema)",
+          "check": "node -e \"const t=require('fs').readFileSync('ui/src/storage/secrets.ts','utf8'); for (const f of ['aHex','bHex','ownerSecretHex']) { if (new RegExp(f+'\\\\s*:\\\\s*string').test(t)) { console.error('secrets.ts still persists '+f+' on the stored schema'); process.exit(1); } }\""
+        },
+        {
+          "description": "SDK exposes wallet-derived seed + owner-secret derivation (default) and BIP-39 fallback",
+          "check": "test -f offchain/src/wallet/seed.ts && grep -q 'deriveSeedFromWalletSignature' offchain/src/wallet/seed.ts && grep -q 'deriveOwnerSecret' offchain/src/wallet/seed.ts"
+        },
+        {
+          "description": "SDK seed-derivation has determinism tests (same wallet sig + same index → byte-identical x_i across runs)",
+          "check": "pnpm --filter @lovejoin/sdk test -- seed"
+        },
+        {
+          "description": "Pool MixButton exposes the fee-payer toggle",
+          "check": "grep -q 'feePayer' ui/src/components/MixButton.tsx"
+        },
         { "description": "E2E Playwright suite passes", "check": "pnpm --filter ui test:e2e" }
       ]
     },
@@ -305,13 +437,31 @@
         "DEFERRED: integration nightly on Preprod + 30-min fuzz nightly. See notes for the reasoning. Re-introduce as a manual workflow_dispatch pre-release gate on a self-hosted runner when we tag a real version post-M4.5."
       ],
       "exit_criteria": [
-        { "description": "GitHub Actions workflow exists with all jobs", "check": "grep -E 'integration|fuzz|publish|docker|ui-bundle' .github/workflows/*.yml" },
-        { "description": "Reproducible build script exists and passes", "check": "test -x scripts/check-reproducibility.sh && ./scripts/check-reproducibility.sh" },
-        { "description": "Backend Dockerfile bakes addresses.json via NETWORK build-arg", "check": "grep -q 'COPY artifacts/.\\+/addresses.json /srv/lovejoin/addresses.json' backend/Dockerfile" },
-        { "description": "UI Dockerfile + nginx site config exist", "check": "test -f ui/Dockerfile && test -f ui/nginx.conf" },
-        { "description": "DigitalOcean App spec committed", "check": "test -f .do/app.yaml && grep -q 'dockerfile_path: backend/Dockerfile' .do/app.yaml && grep -q 'dockerfile_path: ui/Dockerfile' .do/app.yaml" },
+        {
+          "description": "GitHub Actions workflow exists with all jobs",
+          "check": "grep -E 'integration|fuzz|publish|docker|ui-bundle' .github/workflows/*.yml"
+        },
+        {
+          "description": "Reproducible build script exists and passes",
+          "check": "test -x scripts/check-reproducibility.sh && ./scripts/check-reproducibility.sh"
+        },
+        {
+          "description": "Backend Dockerfile bakes addresses.json via NETWORK build-arg",
+          "check": "grep -q 'COPY artifacts/.\\+/addresses.json /srv/lovejoin/addresses.json' backend/Dockerfile"
+        },
+        {
+          "description": "UI Dockerfile + nginx site config exist",
+          "check": "test -f ui/Dockerfile && test -f ui/nginx.conf"
+        },
+        {
+          "description": "DigitalOcean App spec committed",
+          "check": "test -f .do/app.yaml && grep -q 'dockerfile_path: backend/Dockerfile' .do/app.yaml && grep -q 'dockerfile_path: ui/Dockerfile' .do/app.yaml"
+        },
         { "description": "Deploy guide exists", "check": "test -f docs/deploy.md" },
-        { "description": "Backend exposes a start script", "check": "node -e \"const p=require('./backend/package.json'); if (!p.scripts.start) { process.exit(1); }\"" }
+        {
+          "description": "Backend exposes a start script",
+          "check": "node -e \"const p=require('./backend/package.json'); if (!p.scripts.start) { process.exit(1); }\""
+        }
       ]
     },
     {
@@ -345,12 +495,30 @@
         "Step 16: Pre-launch verification + tag v1.0.0 (issue #50)"
       ],
       "exit_criteria": [
-        { "description": "All v1 milestone issues closed", "check": "test \"$(gh issue list --milestone v1.0.0 --state open --json number --jq 'length')\" = 0" },
-        { "description": "v1.0.0 tag exists", "check": "git tag --list 'v1.0.0' | grep -q '^v1.0.0$'" },
-        { "description": "GitHub Release v1.0.0 published", "check": "gh release view v1.0.0 --json tagName --jq .tagName | grep -q '^v1.0.0$'" },
-        { "description": "lovejo.in serves the production UI", "check": "curl -sf -o /dev/null -w '%{http_code}' https://lovejo.in/ | grep -q '^200$'" },
-        { "description": "lovejo.in backend health check passes", "check": "curl -sf -o /dev/null -w '%{http_code}' https://lovejo.in/api/health | grep -q '^200$'" },
-        { "description": "preprod.lovejo.in staging is up", "check": "curl -sf -o /dev/null -w '%{http_code}' https://preprod.lovejo.in/ | grep -q '^200$'" }
+        {
+          "description": "All v1 milestone issues closed",
+          "check": "test \"$(gh issue list --milestone v1.0.0 --state open --json number --jq 'length')\" = 0"
+        },
+        {
+          "description": "v1.0.0 tag exists",
+          "check": "git tag --list 'v1.0.0' | grep -q '^v1.0.0$'"
+        },
+        {
+          "description": "GitHub Release v1.0.0 published",
+          "check": "gh release view v1.0.0 --json tagName --jq .tagName | grep -q '^v1.0.0$'"
+        },
+        {
+          "description": "lovejo.in serves the production UI",
+          "check": "curl -sf -o /dev/null -w '%{http_code}' https://lovejo.in/ | grep -q '^200$'"
+        },
+        {
+          "description": "lovejo.in backend health check passes",
+          "check": "curl -sf -o /dev/null -w '%{http_code}' https://lovejo.in/api/health | grep -q '^200$'"
+        },
+        {
+          "description": "preprod.lovejo.in staging is up",
+          "check": "curl -sf -o /dev/null -w '%{http_code}' https://preprod.lovejo.in/ | grep -q '^200$'"
+        }
       ]
     }
   ]

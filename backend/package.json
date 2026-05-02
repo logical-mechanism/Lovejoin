@@ -10,7 +10,11 @@
     "start": "node dist/index.js",
     "test": "vitest run --passWithNoTests",
     "test:watch": "vitest",
-    "lint": "tsc -p tsconfig.json --noEmit",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "lint": "tsc -p tsconfig.json --noEmit && eslint .",
+    "lint:eslint": "eslint .",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
     "dev": "node --env-file-if-exists=../.env --import tsx --watch src/index.ts"
   },
   "dependencies": {
@@ -24,6 +28,7 @@
     "@types/node": "^22.10.0",
     "@types/pg": "^8.20.0",
     "@types/ws": "^8.18.1",
+    "@vitest/coverage-v8": "^2.1.9",
     "tsx": "^4.19.2",
     "typescript": "^5.7.2",
     "vitest": "^2.1.8"

@@ -79,9 +79,7 @@ export async function loadWallet(): Promise<LovejoinWallet> {
 }
 
 export function loadAddresses(): LovejoinAddresses {
-  return JSON.parse(
-    readFileSync(resolvePath(ADDRESSES_PATH), "utf8"),
-  ) as LovejoinAddresses;
+  return JSON.parse(readFileSync(resolvePath(ADDRESSES_PATH), "utf8")) as LovejoinAddresses;
 }
 
 /**
@@ -136,9 +134,7 @@ export async function depositSeries(args: {
  * Resolve the mix-script address for the configured network — used to
  * fetch the pool view when the test wants to verify post-mix invariants.
  */
-export async function mixBoxAddressBech32(
-  addresses: LovejoinAddresses,
-): Promise<string> {
+export async function mixBoxAddressBech32(addresses: LovejoinAddresses): Promise<string> {
   return buildScriptAddress(
     addresses.mixBoxScriptHash,
     networkIdFor(NETWORK),
@@ -146,14 +142,7 @@ export async function mixBoxAddressBech32(
   );
 }
 
-export {
-  buildDepositTx,
-  buildMixTx,
-  buildWithdrawTx,
-  fetchPool,
-  fetchProtocolParams,
-  ownsBox,
-};
+export { buildDepositTx, buildMixTx, buildWithdrawTx, fetchPool, fetchProtocolParams, ownsBox };
 export type { LovejoinAddresses, MixInput, PoolEntry };
 
 export function hexToBytes(hex: string): Uint8Array {

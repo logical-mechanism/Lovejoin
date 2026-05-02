@@ -6,11 +6,7 @@ import {
   generator,
   scalarMul,
 } from "../../src/crypto/bls.js";
-import {
-  dhPair,
-  proveDHTuple,
-  verifyDHTuple,
-} from "../../src/crypto/dhtuple.js";
+import { dhPair, proveDHTuple, verifyDHTuple } from "../../src/crypto/dhtuple.js";
 
 const hex = (b: Uint8Array): string =>
   Array.from(b, (x) => x.toString(16).padStart(2, "0")).join("");
@@ -80,7 +76,7 @@ describe("crypto/dhtuple", () => {
     const g = generator();
     const h = scalarMul(2n, g);
     const x = 5n;
-    const { u, v } = dhPair(g, h, x);
+    const { u } = dhPair(g, h, x);
     const proof = proveDHTuple(g, h, x, bytes(""));
 
     // Crafted "bad" pair: (u, v) where u and v are unrelated by the same x.

@@ -37,11 +37,7 @@ export type DHTupleProof = {
 };
 
 /** Compute the DH-tuple statement points: u = [x]·g, v = [x]·h. */
-export function dhPair(
-  g: G1Point,
-  h: G1Point,
-  secret: Scalar,
-): { u: G1Point; v: G1Point } {
+export function dhPair(g: G1Point, h: G1Point, secret: Scalar): { u: G1Point; v: G1Point } {
   if (secret <= 0n || secret >= SCALAR_ORDER) {
     throw new Error("secret must be in [1, r)");
   }
@@ -65,8 +61,7 @@ export function proveDHTuple(
   const vBytes = pointToBytes(v);
 
   // Nonce binds to the full statement so distinct (g,h,u,v,ctx) get distinct r_p.
-  const msgLen =
-    gBytes.length + hBytes.length + uBytes.length + vBytes.length + ctx.length;
+  const msgLen = gBytes.length + hBytes.length + uBytes.length + vBytes.length + ctx.length;
   const nonceMessage = new Uint8Array(msgLen);
   let off = 0;
   nonceMessage.set(gBytes, off);

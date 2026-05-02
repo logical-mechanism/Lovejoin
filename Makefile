@@ -14,7 +14,7 @@ NETWORK_CONFIG ?= config/network.preprod.json
 ENV_FILE ?= .env
 NODE_ENV_FLAG := --env-file-if-exists=$(ENV_FILE)
 
-.PHONY: help install build test lint contracts ui-dev backend-dev clean \
+.PHONY: help install build test lint format contracts ui-dev backend-dev clean \
         cli deposit withdraw integration-test sdk-test sdk-build \
         probe-evaluator diff-validators sync-ui-addresses \
         do-deploy do-update docker-build-backend docker-build-ui
@@ -26,7 +26,8 @@ help:
 	@echo "  make install            # pnpm install (workspace deps)"
 	@echo "  make build              # builds contracts + offchain + backend + ui"
 	@echo "  make test               # runs all package tests + aiken check"
-	@echo "  make lint               # tsc --noEmit on TS workspaces + aiken fmt --check"
+	@echo "  make lint               # tsc --noEmit + eslint + prettier --check on TS workspaces + aiken fmt --check"
+	@echo "  make format             # prettier --write + eslint --fix across the repo"
 	@echo "  make sdk-build          # builds just the @lovejoin/sdk package"
 	@echo "  make sdk-test           # runs just the SDK unit tests"
 	@echo "  make contracts          # aiken build + emits artifacts/<network>/{blueprint.json, *.plutus, addresses.json}"
@@ -76,18 +77,27 @@ test:
 	cd contracts && $(AIKEN) check
 	$(PNPM) -r --filter ./offchain --filter ./backend --filter ./ui run test
 
-# Lint: type-check every TS workspace + check Aiken formatting. Each
-# workspace's `lint` script is `tsc --noEmit` against its own tsconfig.
-# `aiken fmt --check` is the format-only check (no test runs, no compile)
-# so it stays cheap and catches whitespace / import-ordering drift.
-# `aiken check` (typecheck + tests) lives under `make test`.
+# Lint: each TS workspace runs (1) tsc --noEmit against its own tsconfig
+# and (2) eslint against the repo-root flat config. Then prettier --check
+# runs once across the repo (faster than per-workspace because it loads
+# the config once). `aiken fmt --check` is the cheap whitespace /
+# import-ordering check; `aiken check` (typecheck + tests) lives under
+# `make test`.
 #
 # Depends on `sdk-build` because @lovejoin/ui imports `@lovejoin/sdk`,
 # which resolves to offchain/dist/. On a clean checkout (CI) the dist
 # directory doesn't exist yet and the UI's tsc step fails with TS2307.
 lint: sdk-build
 	cd contracts && $(AIKEN) fmt --check
-	$(PNPM) -r --filter ./offchain --filter ./backend --filter ./ui run lint
+	$(PNPM) -r --filter ./offchain --filter ./backend --filter ./ui --filter ./integration-tests --filter ./stress-tests run lint
+	$(PNPM) exec prettier --check .
+
+# Bulk format: prettier rewrites style, then eslint --fix sweeps any
+# auto-fixable issues prettier doesn't own (unused imports, unused
+# eslint-disable directives). Use `make lint` to verify after.
+format:
+	$(PNPM) exec prettier --write .
+	$(PNPM) exec eslint . --fix
 
 sdk-build:
 	$(PNPM) --filter @lovejoin/sdk build

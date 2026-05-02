@@ -32,9 +32,7 @@ export function buildScriptAddress(
   }
   const stakeHash = hexToBytes(stakeKeyHashHex);
   if (stakeHash.length !== 28) {
-    throw new Error(
-      `script address: stake-key hash must be 28 bytes, got ${stakeHash.length}`,
-    );
+    throw new Error(`script address: stake-key hash must be 28 bytes, got ${stakeHash.length}`);
   }
   const header = BASE_SCRIPT_KEY_HEADER_HIGH_NIBBLE | networkId;
   const payload = new Uint8Array(57);
@@ -53,12 +51,7 @@ function bech32Encode(hrp: string, data: Uint8Array): string {
   return out;
 }
 
-function convertBits(
-  data: Uint8Array,
-  fromBits: number,
-  toBits: number,
-  pad: boolean,
-): number[] {
+function convertBits(data: Uint8Array, fromBits: number, toBits: number, pad: boolean): number[] {
   let acc = 0;
   let bits = 0;
   const out: number[] = [];

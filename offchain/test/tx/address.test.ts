@@ -8,10 +8,7 @@
 
 import { describe, expect, it } from "vitest";
 
-import {
-  buildEnterpriseScriptAddress,
-  buildScriptAddress,
-} from "../../src/tx/address.js";
+import { buildEnterpriseScriptAddress, buildScriptAddress } from "../../src/tx/address.js";
 
 describe("tx/address — buildEnterpriseScriptAddress", () => {
   it("encodes a preprod fee_contract enterprise address", () => {
@@ -68,9 +65,7 @@ describe("tx/address — buildScriptAddress (with optional stake key)", () => {
   const PREPROD_STAKE = "1e3105f23f2ac91b3fb4c35fa4fe301421028e356e114944e902005b";
 
   it("falls back to enterprise when no stake hash is given", () => {
-    expect(buildScriptAddress(FEE_SCRIPT, 0)).toBe(
-      buildEnterpriseScriptAddress(FEE_SCRIPT, 0),
-    );
+    expect(buildScriptAddress(FEE_SCRIPT, 0)).toBe(buildEnterpriseScriptAddress(FEE_SCRIPT, 0));
   });
 
   it("treats null + undefined as 'no stake' for ergonomics", () => {

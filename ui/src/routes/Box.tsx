@@ -42,15 +42,7 @@ export function Box() {
   const navigate = useNavigate();
   const { txid, idx } = useParams<{ txid: string; idx: string }>();
   const toast = useToast();
-  const {
-    config,
-    provider,
-    addresses,
-    wallet,
-    vault,
-    ownedBoxes,
-    rescan,
-  } = useAppState();
+  const { config, provider, addresses, wallet, vault, ownedBoxes, rescan } = useAppState();
   const [destination, setDestination] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [retryAttempt, setRetryAttempt] = useState<number | null>(null);
@@ -181,14 +173,8 @@ export function Box() {
             label={t("box.deposit_tx")}
             valueNode={<Hash value={box.entry.ref.txId} edge={8} />}
           />
-          <Row
-            label="b"
-            valueNode={<Hash value={hex(box.entry.b)} edge={6} copyable={false} />}
-          />
-          <Row
-            label="a"
-            valueNode={<Hash value={hex(box.entry.a)} edge={6} copyable={false} />}
-          />
+          <Row label="b" valueNode={<Hash value={hex(box.entry.b)} edge={6} copyable={false} />} />
+          <Row label="a" valueNode={<Hash value={hex(box.entry.a)} edge={6} copyable={false} />} />
         </dl>
         <p className="mt-6 text-xs text-whisper leading-relaxed max-w-prose">
           {t("box.linkage_explainer")}
@@ -210,11 +196,7 @@ export function Box() {
               ← {t("box.back_to_vault")}
             </Link>
           </header>
-          <form
-            className="space-y-6"
-            onSubmit={(e) => void onWithdraw(e)}
-            aria-busy={submitting}
-          >
+          <form className="space-y-6" onSubmit={(e) => void onWithdraw(e)} aria-busy={submitting}>
             <fieldset disabled={submitting} className="space-y-6 contents">
               <div className="lj-field">
                 <label className="lj-field__label" htmlFor="box-destination">
@@ -229,14 +211,12 @@ export function Box() {
                   autoComplete="off"
                   placeholder={t("withdraw.destination_placeholder")}
                   className={`lj-input${
-                    validation.status === "invalid" ||
-                    validation.status === "wrong-network"
+                    validation.status === "invalid" || validation.status === "wrong-network"
                       ? " lj-input--error"
                       : ""
                   }`}
                   aria-invalid={
-                    validation.status === "invalid" ||
-                    validation.status === "wrong-network"
+                    validation.status === "invalid" || validation.status === "wrong-network"
                   }
                   aria-describedby="box-destination-help"
                 />
@@ -257,18 +237,12 @@ export function Box() {
                       })}
                     </p>
                   )}
-                  {validation.status === "ok" &&
-                    validation.kind.kind === "regular-key" && (
-                      <p className="lj-field__hint">
-                        {t("withdraw.dest_regular_key")}
-                      </p>
-                    )}
-                  {validation.status === "ok" &&
-                    validation.kind.kind === "stealth" && (
-                      <p className="lj-field__hint">
-                        {t("withdraw.dest_stealth")}
-                      </p>
-                    )}
+                  {validation.status === "ok" && validation.kind.kind === "regular-key" && (
+                    <p className="lj-field__hint">{t("withdraw.dest_regular_key")}</p>
+                  )}
+                  {validation.status === "ok" && validation.kind.kind === "stealth" && (
+                    <p className="lj-field__hint">{t("withdraw.dest_stealth")}</p>
+                  )}
                 </div>
               </div>
 
@@ -280,9 +254,7 @@ export function Box() {
 
               <div className="lj-banner lj-banner--signal">
                 <span className="lj-eyebrow">{t("withdraw.tx_preview_title")}</span>
-                <span className="lj-banner__detail">
-                  {t("withdraw.tx_preview_copy")}
-                </span>
+                <span className="lj-banner__detail">{t("withdraw.tx_preview_copy")}</span>
               </div>
 
               <div>
@@ -291,9 +263,7 @@ export function Box() {
                   disabled={!canSubmit}
                   className="lj-btn lj-btn--primary lj-btn--lg"
                 >
-                  {submitting && (
-                    <span className="lj-spinner lj-spinner--sm" aria-hidden="true" />
-                  )}
+                  {submitting && <span className="lj-spinner lj-spinner--sm" aria-hidden="true" />}
                   {submitting ? t("withdraw.submitting") : t("withdraw.submit")}
                 </button>
                 {retryAttempt !== null && (

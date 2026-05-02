@@ -143,8 +143,7 @@ for (const t of targets) {
       }
     }
     if (diffAt >= 0) {
-      const ctx = (s) =>
-        s.slice(Math.max(0, diffAt - 8), diffAt + 16);
+      const ctx = (s) => s.slice(Math.max(0, diffAt - 8), diffAt + 16);
       console.log(`    first byte diff at hex offset ${diffAt / 2}:`);
       console.log(`      on-chain: …${ctx(onChainCbor)}…`);
       console.log(`      local:    …${ctx(localCbor)}…`);

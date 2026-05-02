@@ -4,11 +4,7 @@
 
 import { describe, expect, it } from "vitest";
 
-import {
-  OgmiosClient,
-  blockToDiff,
-  type OgmiosSocket,
-} from "../src/indexer/ogmios.js";
+import { OgmiosClient, blockToDiff, type OgmiosSocket } from "../src/indexer/ogmios.js";
 import type { AddressFilter } from "../src/indexer/state.js";
 
 class FakeSocket implements OgmiosSocket {
@@ -74,9 +70,7 @@ describe("OgmiosClient", () => {
               transactions: [
                 {
                   id: "11".repeat(32),
-                  inputs: [
-                    { transaction: { id: "22".repeat(32) }, index: 0 },
-                  ],
+                  inputs: [{ transaction: { id: "22".repeat(32) }, index: 0 }],
                   outputs: [
                     {
                       address: "addr_test1mix",
@@ -122,9 +116,7 @@ describe("OgmiosClient", () => {
     if (event.kind !== "forward") throw new Error();
     expect(event.block.slot).toBe(101);
     expect(event.block.height).toBe(49);
-    expect(event.block.consumed).toEqual([
-      { txId: "22".repeat(32), outputIndex: 0 },
-    ]);
+    expect(event.block.consumed).toEqual([{ txId: "22".repeat(32), outputIndex: 0 }]);
     // Output is at mix-box address but datum won't decode → produced array still includes
     // it (filtering by address happens here, datum decoding happens later in state.ts).
     expect(event.block.produced).toHaveLength(1);
@@ -171,8 +163,16 @@ describe("blockToDiff", () => {
             inputs: [],
             outputs: [
               { address: "addr_test1unrelated", value: { ada: { lovelace: 1_000_000 } } },
-              { address: "addr_test1mix", value: { ada: { lovelace: 10_000_000 } }, datum: "d87980" },
-              { address: "addr_test1fee", value: { ada: { lovelace: 5_000_000 } }, datum: "d87980" },
+              {
+                address: "addr_test1mix",
+                value: { ada: { lovelace: 10_000_000 } },
+                datum: "d87980",
+              },
+              {
+                address: "addr_test1fee",
+                value: { ada: { lovelace: 5_000_000 } },
+                datum: "d87980",
+              },
               {
                 address: "addr_test1ref",
                 value: {

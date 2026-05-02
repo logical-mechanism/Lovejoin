@@ -2,10 +2,7 @@
 
 import { describe, expect, it, vi } from "vitest";
 
-import {
-  isInputCollisionError,
-  withInputCollisionRetry,
-} from "../../src/tx/retry.js";
+import { isInputCollisionError, withInputCollisionRetry } from "../../src/tx/retry.js";
 
 describe("tx/retry isInputCollisionError", () => {
   it("matches BadInputsUTxO in a Blockfrost-shaped error body", () => {
@@ -37,18 +34,18 @@ describe("tx/retry isInputCollisionError", () => {
   });
 
   it("matches the bare `unknownOutputReferences` token (ogmios data field)", () => {
-    expect(
-      isInputCollisionError(new Error('{"data":{"unknownOutputReferences":[...]}}')),
-    ).toBe(true);
+    expect(isInputCollisionError(new Error('{"data":{"unknownOutputReferences":[...]}}'))).toBe(
+      true,
+    );
   });
 
   it("does not match unrelated errors", () => {
     expect(
       isInputCollisionError(new Error("ScriptEvaluationFailure: validator returned False")),
     ).toBe(false);
-    expect(
-      isInputCollisionError(new Error("FeeTooSmall: minimum fee 200000 lovelace")),
-    ).toBe(false);
+    expect(isInputCollisionError(new Error("FeeTooSmall: minimum fee 200000 lovelace"))).toBe(
+      false,
+    );
     expect(isInputCollisionError(new Error("network unreachable"))).toBe(false);
   });
 
@@ -91,9 +88,7 @@ describe("tx/retry withInputCollisionRetry", () => {
     const fn = vi.fn(async () => {
       throw new Error("BadInputsUTxO permanent");
     });
-    await expect(
-      withInputCollisionRetry(fn, { maxAttempts: 2 }),
-    ).rejects.toThrow(/BadInputsUTxO/);
+    await expect(withInputCollisionRetry(fn, { maxAttempts: 2 })).rejects.toThrow(/BadInputsUTxO/);
     expect(fn).toHaveBeenCalledTimes(2);
   });
 
@@ -101,9 +96,9 @@ describe("tx/retry withInputCollisionRetry", () => {
     const fn = vi.fn(async () => {
       throw new Error("ScriptEvaluationFailure");
     });
-    await expect(
-      withInputCollisionRetry(fn, { maxAttempts: 5 }),
-    ).rejects.toThrow(/ScriptEvaluationFailure/);
+    await expect(withInputCollisionRetry(fn, { maxAttempts: 5 })).rejects.toThrow(
+      /ScriptEvaluationFailure/,
+    );
     expect(fn).toHaveBeenCalledTimes(1);
   });
 
@@ -151,10 +146,10 @@ describe("tx/retry withInputCollisionRetry", () => {
 
   it("does not delay on success or non-collision errors", async () => {
     const t0 = Date.now();
-    const ok = await withInputCollisionRetry(
-      async () => "fast",
-      { maxAttempts: 3, delayBetweenAttemptsMs: 100 },
-    );
+    const ok = await withInputCollisionRetry(async () => "fast", {
+      maxAttempts: 3,
+      delayBetweenAttemptsMs: 100,
+    });
     expect(ok).toBe("fast");
     expect(Date.now() - t0).toBeLessThan(50);
   });

@@ -66,12 +66,7 @@ const TAG_SIM_C = new TextEncoder().encode("lovejoin/sigma-or/sim-c/v1");
 const TAG_SIM_Z = new TextEncoder().encode("lovejoin/sigma-or/sim-z/v1");
 
 function u32be(x: number): Uint8Array {
-  return new Uint8Array([
-    (x >>> 24) & 0xff,
-    (x >>> 16) & 0xff,
-    (x >>> 8) & 0xff,
-    x & 0xff,
-  ]);
+  return new Uint8Array([(x >>> 24) & 0xff, (x >>> 16) & 0xff, (x >>> 8) & 0xff, x & 0xff]);
 }
 
 function concatBytes(...parts: Uint8Array[]): Uint8Array {
@@ -187,9 +182,7 @@ export function proveSigmaOr(
   );
 
   // c_b = c XOR (XOR of all simulated c_i).
-  const xorOfSims = xorAll(
-    cPerBranch.flatMap((v, i) => (i === realIndex ? [] : [v])),
-  );
+  const xorOfSims = xorAll(cPerBranch.flatMap((v, i) => (i === realIndex ? [] : [v])));
   const c_b = new Uint8Array(cGlobal);
   xorInPlace(c_b, xorOfSims);
   cPerBranch[realIndex] = c_b;

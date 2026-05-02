@@ -24,10 +24,7 @@ import { parseArgs } from "node:util";
 import { readFileSync } from "node:fs";
 import { resolve as resolvePath } from "node:path";
 
-import {
-  BlockfrostProvider,
-  type ChainProvider,
-} from "../chain/index.js";
+import { BlockfrostProvider, type ChainProvider } from "../chain/index.js";
 import {
   buildDepositTx,
   buildMixTx,
@@ -36,11 +33,7 @@ import {
   type MixBoxRef,
   type MixInput,
 } from "../tx/index.js";
-import {
-  fetchPool,
-  pickRandomNTuple,
-  type PoolEntry,
-} from "../pool/index.js";
+import { fetchPool, pickRandomNTuple, type PoolEntry } from "../pool/index.js";
 import { fetchProtocolParams } from "../tx/params.js";
 import { buildScriptAddress } from "../tx/address.js";
 import {
@@ -211,9 +204,9 @@ async function cmdWithdraw(argv: string[]): Promise<void> {
   if (!values["box-ref"]) fatal("--box-ref <txid#idx> is required");
   if (!values["box-a"]) fatal("--box-a <48-byte-hex> is required");
   if (!values["box-b"]) fatal("--box-b <48-byte-hex> is required");
-  const secretHex = values.secret ?? (values["secret-file"]
-    ? readFileSync(values["secret-file"]!, "utf8").trim()
-    : undefined);
+  const secretHex =
+    values.secret ??
+    (values["secret-file"] ? readFileSync(values["secret-file"]!, "utf8").trim() : undefined);
   if (!secretHex) fatal("--secret <hex> or --secret-file <path> is required");
   const ownerSecret = BigInt(`0x${secretHex.replace(/^0x/i, "")}`);
 
@@ -305,9 +298,7 @@ async function cmdMix(argv: string[]): Promise<void> {
     if (pool.length < 2) {
       fatal(`mix: pool has ${pool.length} entries; need at least 2`);
     }
-    const targetN = values.n
-      ? Number.parseInt(values.n, 10)
-      : Math.min(pool.length, 6); // legacy default; UI/calibration drives the real cap
+    const targetN = values.n ? Number.parseInt(values.n, 10) : Math.min(pool.length, 6); // legacy default; UI/calibration drives the real cap
     if (!Number.isInteger(targetN) || targetN < 2) {
       fatal(`--n must be a positive integer >= 2`);
     }
@@ -361,8 +352,7 @@ async function cmdMix(argv: string[]): Promise<void> {
   }
   if (rounds > 1) {
     process.stdout.write(
-      JSON.stringify({ action: "mix-summary", rounds, txIds: recordedTxs }, null, 2) +
-        "\n",
+      JSON.stringify({ action: "mix-summary", rounds, txIds: recordedTxs }, null, 2) + "\n",
     );
   }
 }
@@ -379,8 +369,7 @@ async function resolveExplicitRefs(
     const entry = byRef.get(r.toLowerCase());
     if (!entry) {
       fatal(
-        `mix: --box-ref ${r} not found in pool at ${mixBoxAddress}; ` +
-          `bad ref or already spent.`,
+        `mix: --box-ref ${r} not found in pool at ${mixBoxAddress}; ` + `bad ref or already spent.`,
       );
     }
     out.push({ ref: entry.ref, a: entry.a, b: entry.b, utxo: entry.utxo });

@@ -28,47 +28,29 @@ test.describe("M6.5 router smoke", () => {
     await expect(page.getByRole("navigation", { name: /main/i })).toBeVisible();
   });
 
-  test("Pool route shows the mix-width slider + fee-payer toggle", async ({
-    page,
-  }) => {
+  test("Pool route shows the mix-width slider + fee-payer toggle", async ({ page }) => {
     await page.goto("/pool");
     await expect(page.getByRole("slider")).toBeVisible();
     await expect(page.getByText(/Mix width/i).first()).toBeVisible();
     await expect(page.getByText(/Fee payer/i).first()).toBeVisible();
-    await expect(
-      page.getByRole("button", { name: /Fee shard/i }),
-    ).toBeVisible();
-    await expect(
-      page.getByRole("button", { name: /^Wallet$/i }),
-    ).toBeVisible();
+    await expect(page.getByRole("button", { name: /Fee shard/i })).toBeVisible();
+    await expect(page.getByRole("button", { name: /^Wallet$/i })).toBeVisible();
   });
 
-  test("Vault route shows the wallet-derived unlock CTA when locked", async ({
-    page,
-  }) => {
+  test("Vault route shows the wallet-derived unlock CTA when locked", async ({ page }) => {
     await page.goto("/vault");
-    await expect(
-      page.getByRole("heading", { name: /Vault locked/i }),
-    ).toBeVisible();
-    await expect(
-      page.getByRole("button", { name: /Unlock with wallet/i }),
-    ).toBeVisible();
+    await expect(page.getByRole("heading", { name: /Vault locked/i })).toBeVisible();
+    await expect(page.getByRole("button", { name: /Unlock with wallet/i })).toBeVisible();
     // The tier-2 fallback link is present but de-emphasised.
-    await expect(
-      page.getByRole("button", { name: /recovery phrase/i }),
-    ).toBeVisible();
+    await expect(page.getByRole("button", { name: /recovery phrase/i })).toBeVisible();
   });
 
-  test("Deposit route shows preconditions copy when no wallet is connected", async ({
-    page,
-  }) => {
+  test("Deposit route shows preconditions copy when no wallet is connected", async ({ page }) => {
     await page.goto("/deposit");
     await expect(page.getByText(/Connect a wallet/i).first()).toBeVisible();
   });
 
-  test("Withdraw route shows preconditions copy when no wallet is connected", async ({
-    page,
-  }) => {
+  test("Withdraw route shows preconditions copy when no wallet is connected", async ({ page }) => {
     await page.goto("/withdraw");
     await expect(page.getByText(/Connect a wallet/i).first()).toBeVisible();
   });

@@ -9,11 +9,7 @@
 import { describe, expect, it } from "vitest";
 
 import type { Utxo } from "../../src/chain/provider.js";
-import {
-  lovejoinUtxoToMesh,
-  meshUtxoToLovejoin,
-  networkIdFor,
-} from "../../src/wallet/cip30.js";
+import { lovejoinUtxoToMesh, meshUtxoToLovejoin, networkIdFor } from "../../src/wallet/cip30.js";
 
 describe("wallet/cip30 — networkIdFor", () => {
   it.each([

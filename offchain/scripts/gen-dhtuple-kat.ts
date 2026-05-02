@@ -3,12 +3,7 @@
 import { mkdirSync, writeFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import {
-  SCALAR_ORDER,
-  generator,
-  pointToBytes,
-  scalarMul,
-} from "../src/crypto/bls.js";
+import { SCALAR_ORDER, generator, pointToBytes, scalarMul } from "../src/crypto/bls.js";
 import { dhPair, proveDHTuple } from "../src/crypto/dhtuple.js";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
@@ -60,11 +55,7 @@ function buildCases(): Case[] {
     [0xa1n, 0xb1n],
   ];
   const secrets = [1n, 7n, 0xdeadbeefn, SCALAR_ORDER - 1n];
-  const ctxs = [
-    new Uint8Array(0),
-    new TextEncoder().encode("ctx"),
-    new Uint8Array(64).fill(0xa5),
-  ];
+  const ctxs = [new Uint8Array(0), new TextEncoder().encode("ctx"), new Uint8Array(64).fill(0xa5)];
   for (const [gK, hK] of ghPairs) {
     for (const x of secrets) {
       for (const ctx of ctxs) {

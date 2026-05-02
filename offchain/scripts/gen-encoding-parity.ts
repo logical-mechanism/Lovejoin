@@ -270,16 +270,11 @@ function main() {
   }
   // Throw in a couple of edge cases — empty ctx, all-zero a/b/etc. — by patching.
   // (Keep the test purely deterministic; no in-place randomness past this point.)
-  const aikenPath = resolve(
-    REPO_ROOT,
-    "contracts/lib/lovejoin/encoding_parity_kat.test.ak",
-  );
+  const aikenPath = resolve(REPO_ROOT, "contracts/lib/lovejoin/encoding_parity_kat.test.ak");
   mkdirSync(dirname(aikenPath), { recursive: true });
   writeFileSync(aikenPath, emitAiken(aikenVecs));
 
-  console.log(
-    `wrote ${tsVecs.length} TS parity vectors to ${tsPath}`,
-  );
+  console.log(`wrote ${tsVecs.length} TS parity vectors to ${tsPath}`);
   console.log(`wrote ${aikenVecs.length} Aiken parity tests to ${aikenPath}`);
 }
 

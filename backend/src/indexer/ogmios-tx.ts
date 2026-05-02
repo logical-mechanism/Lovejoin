@@ -128,9 +128,7 @@ export class OgmiosTxClient {
     })) as { transaction?: { id?: string } };
     const id = result?.transaction?.id;
     if (typeof id !== "string" || !/^[0-9a-fA-F]{64}$/.test(id)) {
-      throw new Error(
-        `ogmios-tx: submitTransaction returned no txid (${JSON.stringify(result)})`,
-      );
+      throw new Error(`ogmios-tx: submitTransaction returned no txid (${JSON.stringify(result)})`);
     }
     return id.toLowerCase();
   }
@@ -145,9 +143,7 @@ export class OgmiosTxClient {
       transaction: { cbor: cborHex },
     });
     if (!Array.isArray(result)) {
-      throw new Error(
-        `ogmios-tx: evaluateTransaction returned ${typeof result}, expected array`,
-      );
+      throw new Error(`ogmios-tx: evaluateTransaction returned ${typeof result}, expected array`);
     }
     return result as RedeemerBudget[];
   }
@@ -250,9 +246,7 @@ export class OgmiosTxClient {
     this.pending.delete(parsed.id);
     if (parsed.error) {
       handler.reject(
-        new Error(
-          `ogmios JSON-RPC error ${parsed.error.code}: ${parsed.error.message}`,
-        ),
+        new Error(`ogmios JSON-RPC error ${parsed.error.code}: ${parsed.error.message}`),
       );
       return;
     }

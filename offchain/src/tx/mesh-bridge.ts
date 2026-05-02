@@ -25,9 +25,7 @@ import {
  * implementation (M5's self-hosted provider, test fakes) the caller can
  * implement a `meshProvider()` method that returns the same shape.
  */
-export async function getMeshProvider(
-  provider: ChainProvider,
-): Promise<MeshFetcherSubmitter> {
+export async function getMeshProvider(provider: ChainProvider): Promise<MeshFetcherSubmitter> {
   if (provider instanceof BlockfrostProvider) {
     return provider.meshProvider();
   }

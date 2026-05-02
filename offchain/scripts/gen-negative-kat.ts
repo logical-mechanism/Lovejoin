@@ -114,7 +114,9 @@ for (const p of dhtuplePositives.slice(0, 8)) {
 }
 
 // Sigma-OR: tamper c[0] (breaks XOR), z[0] (breaks per-branch eq), t0[0] of branch 0.
-for (const p of sigmaPositives) {
+// (No-op selection pass intentionally left for future-N expansion; the
+//  real per-mutation work happens in the loop below.)
+for (const _p of sigmaPositives) {
   // Take 4 per N value.
   // (Selection: simply take some indices that hit each N.)
 }
@@ -123,9 +125,7 @@ for (const p of sigmaPositives) {
   if ((seenN[p.N] ?? 0) >= 4) continue;
   seenN[p.N] = (seenN[p.N] ?? 0) + 1;
   // Mutation A: flip c[0] of branch 0.
-  const aBranches = p.branches.map((br, i) =>
-    i === 0 ? { ...br, c: flipFirstByte(br.c) } : br,
-  );
+  const aBranches = p.branches.map((br, i) => (i === 0 ? { ...br, c: flipFirstByte(br.c) } : br));
   negatives.push({
     kind: "sigma_or",
     mutation: "branch[0].c first-byte flip (breaks XOR check)",
@@ -133,9 +133,7 @@ for (const p of sigmaPositives) {
     branches: aBranches,
   });
   // Mutation B: flip z[0] of branch 0.
-  const bBranches = p.branches.map((br, i) =>
-    i === 0 ? { ...br, z: flipFirstByte(br.z) } : br,
-  );
+  const bBranches = p.branches.map((br, i) => (i === 0 ? { ...br, z: flipFirstByte(br.z) } : br));
   negatives.push({
     kind: "sigma_or",
     mutation: "branch[0].z first-byte flip",
@@ -143,9 +141,7 @@ for (const p of sigmaPositives) {
     branches: bBranches,
   });
   // Mutation C: flip t0[0] of branch 0.
-  const cBranches = p.branches.map((br, i) =>
-    i === 0 ? { ...br, t0: flipFirstByte(br.t0) } : br,
-  );
+  const cBranches = p.branches.map((br, i) => (i === 0 ? { ...br, t0: flipFirstByte(br.t0) } : br));
   negatives.push({
     kind: "sigma_or",
     mutation: "branch[0].t0 first-byte flip",

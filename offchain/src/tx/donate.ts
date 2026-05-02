@@ -13,22 +13,12 @@
 // mesh-driven `buildDonateTx` that wires it up against MeshTxBuilder.
 
 import type { ChainProvider, Lovelace, Utxo, UtxoRef } from "../chain/provider.js";
-import {
-  type CollateralProvider,
-  WalletProvider,
-} from "./collateral.js";
+import { type CollateralProvider, WalletProvider } from "./collateral.js";
 import { mergeExternalCollateralWitness } from "./witness-merge.js";
 import { getMeshProtocolParams, getMeshProvider } from "./mesh-bridge.js";
 import { pickRandomFeeShard } from "./fee.js";
-import {
-  REPLENISH_REDEEMER_CBOR_HEX,
-  UNIT_DATUM_CBOR_HEX,
-} from "./deposit.js";
-import {
-  fetchProtocolParams,
-  type LovejoinAddresses,
-  parseUtxoRef,
-} from "./params.js";
+import { REPLENISH_REDEEMER_CBOR_HEX, UNIT_DATUM_CBOR_HEX } from "./deposit.js";
+import { fetchProtocolParams, type LovejoinAddresses, parseUtxoRef } from "./params.js";
 import { type RetryOptions, withInputCollisionRetry } from "./retry.js";
 import { buildScriptAddress } from "./address.js";
 import {
@@ -74,16 +64,10 @@ export interface PlanDonateArgs {
 
 export function planDonateTx(args: PlanDonateArgs): DonatePlan {
   if (args.donationLovelace <= 0n) {
-    throw new Error(
-      `donationLovelace must be a positive integer, got ${args.donationLovelace}`,
-    );
+    throw new Error(`donationLovelace must be a positive integer, got ${args.donationLovelace}`);
   }
   // Fee shards live at the enterprise (unstaked) fee_contract address.
-  const feeAddress = buildScriptAddress(
-    args.addresses.feeScriptHash,
-    args.networkId,
-    null,
-  );
+  const feeAddress = buildScriptAddress(args.addresses.feeScriptHash, args.networkId, null);
   return {
     feeShardInput: args.feeShard,
     feeShardOutput: {
@@ -93,9 +77,7 @@ export function planDonateTx(args: PlanDonateArgs): DonatePlan {
     },
     replenishRedeemerHex: REPLENISH_REDEEMER_CBOR_HEX,
     referenceUtxoRef: parseUtxoRef(args.addresses.referenceUtxoRef),
-    feeContractRefScriptUtxoRef: parseUtxoRef(
-      args.addresses.referenceScriptUtxos.fee_contract,
-    ),
+    feeContractRefScriptUtxoRef: parseUtxoRef(args.addresses.referenceScriptUtxos.fee_contract),
   };
 }
 
@@ -166,9 +148,7 @@ export interface DonateResult {
  */
 export async function buildDonateTx(args: BuildDonateArgs): Promise<DonateResult> {
   if (args.donationLovelace <= 0n) {
-    throw new Error(
-      `donationLovelace must be a positive integer, got ${args.donationLovelace}`,
-    );
+    throw new Error(`donationLovelace must be a positive integer, got ${args.donationLovelace}`);
   }
   const networkId = networkIdFor(args.network);
 
@@ -178,11 +158,7 @@ export async function buildDonateTx(args: BuildDonateArgs): Promise<DonateResult
   // the chain. Same defense-in-depth as `buildDepositTx`.
   await fetchProtocolParams(args.addresses, args.provider);
 
-  const feeAddress = buildScriptAddress(
-    args.addresses.feeScriptHash,
-    networkId,
-    null,
-  );
+  const feeAddress = buildScriptAddress(args.addresses.feeScriptHash, networkId, null);
   const collateral = args.collateralProvider ?? new WalletProvider(args.wallet);
 
   // Build + sign + submit, with retry on input collision. Retry semantics:

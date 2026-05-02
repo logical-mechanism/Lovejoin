@@ -88,9 +88,7 @@ export function Header() {
           <h2 className="mt-2 font-display text-2xl font-light tracking-tight text-paper">
             {t("wallet.disconnect_title")}
           </h2>
-          <p className="mt-2 text-sm text-muted">
-            {t("wallet.disconnect_lede")}
-          </p>
+          <p className="mt-2 text-sm text-muted">{t("wallet.disconnect_lede")}</p>
         </header>
         <footer className="mt-6 flex justify-end gap-2">
           <button

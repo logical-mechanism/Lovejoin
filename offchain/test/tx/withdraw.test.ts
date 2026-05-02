@@ -237,10 +237,7 @@ describe("tx/withdraw — buildScriptRewardAddress", () => {
     //   --testnet-magic 1
     //   →  stake_test17r9zm9075lrg5w955wgnzqz3yk6f9lspmsmrz98z5wlzn7ckh85m4
     expect(
-      buildScriptRewardAddress(
-        "ca2d95fe9fe368e8ad1c89e2009a5ad292ff016e353144ea0ef829ff",
-        0,
-      ),
+      buildScriptRewardAddress("ca2d95fe9fe368e8ad1c89e2009a5ad292ff016e353144ea0ef829ff", 0),
     ).toBe("stake_test17r9zm907nl3k369drjy7yqy6ttff9lcpdc6nz382pmuznlcxkza08");
   });
 

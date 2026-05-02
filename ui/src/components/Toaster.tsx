@@ -70,17 +70,14 @@ export function ToasterProvider({ children }: { children: ReactNode }) {
     (t: Omit<Toast, "id">) => {
       idRef.current += 1;
       const id = idRef.current;
-      const effectiveTtl =
-        t.ttl ?? (t.tone === "error" ? ERROR_TTL : DEFAULT_TTL);
+      const effectiveTtl = t.ttl ?? (t.tone === "error" ? ERROR_TTL : DEFAULT_TTL);
       const queued: Toast = { ...t, id, ttl: effectiveTtl };
       setToasts((cur) => {
         const next = [...cur, queued];
         // Evict the oldest entries past the cap so a flurry of
         // failures (e.g. multiple retry collisions) doesn't bury the
         // newest message under a wall of stale ones.
-        return next.length > MAX_VISIBLE
-          ? next.slice(next.length - MAX_VISIBLE)
-          : next;
+        return next.length > MAX_VISIBLE ? next.slice(next.length - MAX_VISIBLE) : next;
       });
       if (effectiveTtl > 0) {
         window.setTimeout(() => dismiss(id), effectiveTtl);
@@ -107,13 +104,7 @@ export function useToast(): ToasterApi {
   return v;
 }
 
-function ToastStack({
-  toasts,
-  onDismiss,
-}: {
-  toasts: Toast[];
-  onDismiss: (id: number) => void;
-}) {
+function ToastStack({ toasts, onDismiss }: { toasts: Toast[]; onDismiss: (id: number) => void }) {
   const { t } = useTranslation();
   return (
     // `<ol>` already has an implicit list role; tagging it `role="region"`
@@ -122,17 +113,9 @@ function ToastStack({
     // toast announcement) and `aria-label` (for the accessible name) work
     // without a role override; we lose the landmark, but a toast stack
     // is not really a landmark anyway.
-    <ol
-      className="lj-toaster"
-      aria-live="polite"
-      aria-label={t("toast.region_label")}
-    >
+    <ol className="lj-toaster" aria-live="polite" aria-label={t("toast.region_label")}>
       {toasts.map((toast) => (
-        <ToastItem
-          key={toast.id}
-          toast={toast}
-          onDismiss={() => onDismiss(toast.id)}
-        />
+        <ToastItem key={toast.id} toast={toast} onDismiss={() => onDismiss(toast.id)} />
       ))}
     </ol>
   );
@@ -152,11 +135,9 @@ function ToastItem({ toast, onDismiss }: { toast: Toast; onDismiss: () => void }
     return () => window.clearTimeout(id);
   }, [toast.ttl]);
 
-  const cls = [
-    "lj-toast",
-    `lj-toast--${toast.tone}`,
-    closing ? "lj-toast--closing" : "",
-  ].filter(Boolean).join(" ");
+  const cls = ["lj-toast", `lj-toast--${toast.tone}`, closing ? "lj-toast--closing" : ""]
+    .filter(Boolean)
+    .join(" ");
 
   // Errors fire `role="alert"` so AT announces them assertively even
   // when the parent region's `aria-live="polite"` would defer. Success

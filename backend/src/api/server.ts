@@ -5,11 +5,7 @@
 
 import cors from "@fastify/cors";
 import rateLimit from "@fastify/rate-limit";
-import Fastify, {
-  type FastifyInstance,
-  type FastifyReply,
-  type FastifyRequest,
-} from "fastify";
+import Fastify, { type FastifyInstance, type FastifyReply, type FastifyRequest } from "fastify";
 
 import type { BackendConfig } from "../config.js";
 import type { DbSyncClient, HistoryClient } from "../db/dbsync.js";
@@ -75,9 +71,7 @@ export async function buildServer(deps: ApiServerDeps): Promise<FastifyInstance>
     // address scheme without exposing a meaningful DoS surface.
     maxParamLength: 256,
   });
-  fastify.setReplySerializer((payload) =>
-    JSON.stringify(payload, PRESERVE_BIGINT_REPLACER),
-  );
+  fastify.setReplySerializer((payload) => JSON.stringify(payload, PRESERVE_BIGINT_REPLACER));
   await fastify.register(cors, {
     origin: deps.config.corsOrigins === "*" ? true : deps.config.corsOrigins,
   });
@@ -117,8 +111,7 @@ function registerHealth(fastify: FastifyInstance, deps: ApiServerDeps): void {
     // in seconds anyway; we keep the field name `lagSeconds` for
     // backward compat with the spec but populate it from
     // `chainTip.slot - indexerTip.slot`.
-    const lagSeconds =
-      tip && chainTip ? Math.max(0, chainTip.slot - tip.slot) : null;
+    const lagSeconds = tip && chainTip ? Math.max(0, chainTip.slot - tip.slot) : null;
     const fatalError = deps.runtime?.fatalError() ?? null;
     // Surface unhealthy as HTTP 503 only when the indexer runtime has a
     // *fatal* error — i.e., the chainsync loop is permanently gone
@@ -191,28 +184,25 @@ function registerProtocolParams(fastify: FastifyInstance, deps: ApiServerDeps): 
   //
   // Body is an ogmios v6 object — same shape the SDK already knows how
   // to translate via its mesh-bridge.
-  fastify.get(
-    "/protocol-params",
-    async (_req, reply: FastifyReply) => {
-      if (!deps.ogmiosTx) {
-        reply.code(503);
-        return {
-          error: "protocol_params_unavailable",
-          message: "ogmios tx client not configured",
-        };
-      }
-      try {
-        const params = await deps.ogmiosTx.protocolParameters();
-        return params;
-      } catch (err) {
-        reply.code(502);
-        return {
-          error: "ogmios_error",
-          message: (err as Error).message,
-        };
-      }
-    },
-  );
+  fastify.get("/protocol-params", async (_req, reply: FastifyReply) => {
+    if (!deps.ogmiosTx) {
+      reply.code(503);
+      return {
+        error: "protocol_params_unavailable",
+        message: "ogmios tx client not configured",
+      };
+    }
+    try {
+      const params = await deps.ogmiosTx.protocolParameters();
+      return params;
+    } catch (err) {
+      reply.code(502);
+      return {
+        error: "ogmios_error",
+        message: (err as Error).message,
+      };
+    }
+  });
 }
 
 interface PoolQuery {
@@ -242,23 +232,20 @@ function registerPool(fastify: FastifyInstance, deps: ApiServerDeps): void {
   });
 
   // /pool/light — minimal payload for browser ownership-scan.
-  fastify.get(
-    "/pool/light",
-    async (req: FastifyRequest<{ Querystring: PoolQuery }>) => {
-      const { cursor, limit } = parsePagination(req.query);
-      const { rows, nextCursor } = deps.state.poolPage(cursor, limit);
-      return {
-        size: deps.state.poolSize(),
-        nextCursor,
-        boxes: rows.map((b) => ({
-          txHash: b.txHash,
-          outputIndex: b.outputIndex,
-          a: b.a,
-          b: b.b,
-        })),
-      };
-    },
-  );
+  fastify.get("/pool/light", async (req: FastifyRequest<{ Querystring: PoolQuery }>) => {
+    const { cursor, limit } = parsePagination(req.query);
+    const { rows, nextCursor } = deps.state.poolPage(cursor, limit);
+    return {
+      size: deps.state.poolSize(),
+      nextCursor,
+      boxes: rows.map((b) => ({
+        txHash: b.txHash,
+        outputIndex: b.outputIndex,
+        a: b.a,
+        b: b.b,
+      })),
+    };
+  });
 }
 
 interface BoxParams {
@@ -274,7 +261,10 @@ function registerBox(fastify: FastifyInstance, deps: ApiServerDeps): void {
       const outputIndex = Number(req.params.idx);
       if (!/^[0-9a-f]{64}$/.test(txId) || !Number.isInteger(outputIndex) || outputIndex < 0) {
         reply.code(400);
-        return { error: "bad_request", message: "txhash must be 64 lowercase hex; idx must be int" };
+        return {
+          error: "bad_request",
+          message: "txhash must be 64 lowercase hex; idx must be int",
+        };
       }
       const entry = deps.state.poolGet({ txId, outputIndex });
       if (!entry) {
@@ -370,8 +360,7 @@ function registerHistory(fastify: FastifyInstance, deps: ApiServerDeps): void {
         reply.code(503);
         return {
           error: "history_unavailable",
-          message:
-            "Neither DBSYNC_URL nor BLOCKFROST_PROJECT_ID is configured",
+          message: "Neither DBSYNC_URL nor BLOCKFROST_PROJECT_ID is configured",
         };
       }
       const address = req.params.address;
@@ -434,10 +423,7 @@ interface SubmitBody {
 function registerSubmit(fastify: FastifyInstance, deps: ApiServerDeps): void {
   fastify.post(
     "/submit",
-    async (
-      req: FastifyRequest<{ Body: SubmitBody }>,
-      reply: FastifyReply,
-    ) => {
+    async (req: FastifyRequest<{ Body: SubmitBody }>, reply: FastifyReply) => {
       if (!deps.ogmiosTx) {
         reply.code(503);
         return { error: "submit_unavailable", message: "ogmios tx client not configured" };
@@ -445,7 +431,10 @@ function registerSubmit(fastify: FastifyInstance, deps: ApiServerDeps): void {
       const cbor = (req.body?.cbor ?? "").trim();
       if (!/^[0-9a-fA-F]+$/.test(cbor) || cbor.length === 0 || cbor.length % 2 !== 0) {
         reply.code(400);
-        return { error: "bad_request", message: "body.cbor must be a non-empty even-length hex string" };
+        return {
+          error: "bad_request",
+          message: "body.cbor must be a non-empty even-length hex string",
+        };
       }
       try {
         const txHash = await deps.ogmiosTx.submitTransaction(cbor);
@@ -467,10 +456,7 @@ function registerSubmit(fastify: FastifyInstance, deps: ApiServerDeps): void {
 function registerEvaluate(fastify: FastifyInstance, deps: ApiServerDeps): void {
   fastify.post(
     "/evaluate",
-    async (
-      req: FastifyRequest<{ Body: SubmitBody }>,
-      reply: FastifyReply,
-    ) => {
+    async (req: FastifyRequest<{ Body: SubmitBody }>, reply: FastifyReply) => {
       if (!deps.ogmiosTx) {
         reply.code(503);
         return { error: "evaluate_unavailable", message: "ogmios tx client not configured" };
@@ -478,7 +464,10 @@ function registerEvaluate(fastify: FastifyInstance, deps: ApiServerDeps): void {
       const cbor = (req.body?.cbor ?? "").trim();
       if (!/^[0-9a-fA-F]+$/.test(cbor) || cbor.length === 0 || cbor.length % 2 !== 0) {
         reply.code(400);
-        return { error: "bad_request", message: "body.cbor must be a non-empty even-length hex string" };
+        return {
+          error: "bad_request",
+          message: "body.cbor must be a non-empty even-length hex string",
+        };
       }
       try {
         const budgets = await deps.ogmiosTx.evaluateTransaction(cbor);
@@ -501,10 +490,7 @@ interface AddressParams {
 function registerAddressUtxos(fastify: FastifyInstance, deps: ApiServerDeps): void {
   fastify.get(
     "/utxos/:address",
-    async (
-      req: FastifyRequest<{ Params: AddressParams }>,
-      reply: FastifyReply,
-    ) => {
+    async (req: FastifyRequest<{ Params: AddressParams }>, reply: FastifyReply) => {
       if (!deps.dbsync) {
         reply.code(503);
         return {
@@ -542,10 +528,7 @@ function registerTxQueries(fastify: FastifyInstance, deps: ApiServerDeps): void 
   // "still pending" code path.
   fastify.get(
     "/tx/:txhash",
-    async (
-      req: FastifyRequest<{ Params: TxHashParams }>,
-      reply: FastifyReply,
-    ) => {
+    async (req: FastifyRequest<{ Params: TxHashParams }>, reply: FastifyReply) => {
       if (!deps.dbsync) {
         reply.code(503);
         return { error: "dbsync_unavailable", message: "DBSYNC_URL not configured" };
@@ -572,10 +555,7 @@ function registerTxQueries(fastify: FastifyInstance, deps: ApiServerDeps): void 
   // UTxOs produced by a specific tx. Resolves SDK getUtxoByRef.
   fastify.get(
     "/tx/:txhash/utxos",
-    async (
-      req: FastifyRequest<{ Params: TxHashParams }>,
-      reply: FastifyReply,
-    ) => {
+    async (req: FastifyRequest<{ Params: TxHashParams }>, reply: FastifyReply) => {
       if (!deps.dbsync) {
         reply.code(503);
         return { error: "dbsync_unavailable", message: "DBSYNC_URL not configured" };

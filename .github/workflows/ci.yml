@@ -45,8 +45,36 @@ jobs:
         working-directory: contracts
         run: aiken check
 
+  lint:
+    name: TS (eslint + prettier + tsc)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install
+        run: pnpm install --frozen-lockfile
+
+      # The UI imports @lovejoin/sdk which resolves to offchain/dist/. On
+      # a clean checkout that doesn't exist yet, so build the SDK before
+      # linting consumers — otherwise UI's tsc step fails with TS2307.
+      - name: Build SDK (for downstream tsc resolution)
+        run: pnpm --filter @lovejoin/sdk run build
+
+      # `pnpm lint` runs tsc + eslint per workspace, then prettier --check
+      # once across the repo.
+      - name: Lint (tsc + eslint + prettier)
+        run: pnpm lint
+
   ts:
-    name: TS (lint + build + test)
+    name: TS (build + test)
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
@@ -70,9 +98,6 @@ jobs:
       # linting consumers — otherwise UI's tsc fails with TS2307.
       - name: Build SDK (for downstream lint resolution)
         run: pnpm --filter @lovejoin/sdk run build
-
-      - name: Lint
-        run: pnpm -r --filter ./offchain --filter ./backend --filter ./ui run lint
 
       - name: Build
         run: pnpm -r --filter ./offchain --filter ./backend --filter ./ui run build
@@ -111,3 +136,53 @@ jobs:
 
       - name: scripts/check-reproducibility.sh
         run: ./scripts/check-reproducibility.sh
+
+  coverage:
+    name: TS coverage (v8 lcov artifact)
+    # Soft target: 70% lines on offchain/src/crypto/. Numbers are tracked
+    # in docs/test-coverage.md. We do not enforce a vitest threshold here
+    # — per CLAUDE.md "no third-party telemetry", we never wired Codecov,
+    # so the lcov artifact is the audit trail. Failing CI on a coverage
+    # dip would punish unrelated PRs; the doc + artifact is the contract.
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install
+        run: pnpm install --frozen-lockfile
+
+      - name: Build SDK (for downstream resolution)
+        run: pnpm --filter @lovejoin/sdk run build
+
+      # `pnpm --filter X test --coverage` forwards `--coverage` to vitest;
+      # `pnpm --filter X run test -- --coverage` does NOT in pnpm 10 (the
+      # `--` form swallows the flag silently and produces no lcov, which
+      # then fails actions/upload-artifact's if-no-files-found gate). Use
+      # the implicit-script shorthand.
+      - name: Coverage — offchain
+        run: pnpm --filter @lovejoin/sdk test --coverage
+
+      - name: Coverage — backend
+        run: pnpm --filter @lovejoin/backend test --coverage
+
+      - name: Coverage — ui
+        run: pnpm --filter @lovejoin/ui test --coverage
+
+      - name: Upload lcov reports
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-lcov
+          path: |
+            offchain/coverage/lcov.info
+            backend/coverage/lcov.info
+            ui/coverage/lcov.info
+          if-no-files-found: error
+          retention-days: 30
