@@ -209,6 +209,67 @@
   .lj-footer__warn {
     color: var(--color-amber);
   }
+  .lj-footer__link {
+    color: var(--color-muted);
+    text-decoration: none;
+  }
+  .lj-footer__link:hover {
+    color: var(--color-paper);
+  }
+
+  /* Floating "back to top" button used by the Help route. The user
+   * guide alone is several screens of scroll and tab swaps swap the
+   * panel content but not scroll position; this gives a one-click
+   * jump back to the tab strip. Sits in the bottom-end corner above
+   * the footer, mirrors to the left edge in RTL layouts via
+   * [dir="rtl"], and shrinks to a 44×44 icon-only target on small
+   * viewports (WCAG 2.5.5 Target Size). */
+  .lj-back-to-top {
+    position: fixed;
+    bottom: 1.25rem;
+    right: 1.25rem;
+    z-index: 30;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
+    padding: 0.55rem 0.9rem;
+    background: var(--color-surface);
+    color: var(--color-paper);
+    border: 1px solid var(--color-rule-strong);
+    border-radius: var(--radius-sm);
+    font-family: var(--font-mono);
+    font-size: 0.78rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition:
+      background 120ms ease,
+      border-color 120ms ease,
+      color 120ms ease;
+  }
+  .lj-back-to-top:hover {
+    background: var(--color-rise);
+    border-color: var(--color-paper);
+  }
+  .lj-back-to-top:focus-visible {
+    outline: 2px solid var(--color-amber);
+    outline-offset: 2px;
+  }
+  [dir="rtl"] .lj-back-to-top {
+    right: auto;
+    left: 1.25rem;
+  }
+  @media (max-width: 480px) {
+    .lj-back-to-top {
+      padding: 0.55rem 0.7rem;
+      min-width: 44px;
+      min-height: 44px;
+      justify-content: center;
+    }
+    .lj-back-to-top__label {
+      display: none;
+    }
+  }
 
   .lj-header {
     border-bottom: 1px solid var(--color-rule);
@@ -1488,10 +1549,23 @@
     position: relative;
     margin-bottom: 0.5rem;
   }
-  .lj-prose li::before {
+  /* Bullet marker is scoped to <ul> only; <ol> uses native decimal
+   * numbering so the Help guide's three numbered "Deposit / Mix /
+   * Withdraw" steps read as "1." / "2." / "3." without an extra dot. */
+  .lj-prose ul > li::before {
     content: "·";
     position: absolute;
     left: -1.25rem;
+    color: var(--color-amber);
+    font-weight: 700;
+  }
+  .lj-prose ol {
+    margin-bottom: 1rem;
+    padding-left: 1.5rem;
+    list-style: decimal;
+    color: var(--color-muted);
+  }
+  .lj-prose ol > li::marker {
     color: var(--color-amber);
     font-weight: 700;
   }

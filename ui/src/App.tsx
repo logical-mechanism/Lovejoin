@@ -28,6 +28,7 @@ import { AppStateProvider, useAppState } from "./lib/store.js";
 const Box = lazy(() => import("./routes/Box.js").then((m) => ({ default: m.Box })));
 const Deposit = lazy(() => import("./routes/Deposit.js").then((m) => ({ default: m.Deposit })));
 const Donate = lazy(() => import("./routes/Donate.js").then((m) => ({ default: m.Donate })));
+const Help = lazy(() => import("./routes/Help.js").then((m) => ({ default: m.Help })));
 const Pool = lazy(() => import("./routes/Pool.js").then((m) => ({ default: m.Pool })));
 const Protocol = lazy(() => import("./routes/Protocol.js").then((m) => ({ default: m.Protocol })));
 const Vault = lazy(() => import("./routes/Vault.js").then((m) => ({ default: m.Vault })));
@@ -99,6 +100,14 @@ export function App() {
                       element={
                         <Suspense fallback={<RouteFallback />}>
                           <Protocol />
+                        </Suspense>
+                      }
+                    />
+                    <Route
+                      path="help"
+                      element={
+                        <Suspense fallback={<RouteFallback />}>
+                          <Help />
                         </Suspense>
                       }
                     />
