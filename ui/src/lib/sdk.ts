@@ -138,7 +138,7 @@ export function loadConfig(): RuntimeConfig {
 
 /**
  * Persist a config override to localStorage. No-op outside the browser and
- * outside `?advanced=1`. Persisted state is only honoured when the
+ * outside `?advanced=1`. Persisted state is only honored when the
  * advanced flag is set on a future load.
  */
 export function saveConfig(cfg: RuntimeConfig): void {

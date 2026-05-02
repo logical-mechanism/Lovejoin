@@ -33,7 +33,7 @@ type Strength = "weak" | "fair" | "strong";
 
 interface StrengthAssessment {
   strength: Strength;
-  /** Estimated bits of entropy — used to pick the meter colour band. */
+  /** Estimated bits of entropy — used to pick the meter color band. */
   bits: number;
   /** i18n key for the user-facing label under the input. */
   labelKey: string;
@@ -197,7 +197,7 @@ function StrengthMeter({
  * Calibration:
  *   - "weak"   : < 50 bits — the unlock button stays disabled.
  *   - "fair"   : 50–69 bits — submit allowed but meter shows amber.
- *   - "strong" : ≥ 70 bits — full meter, paper colour.
+ *   - "strong" : ≥ 70 bits — full meter, paper color.
  *
  * 50 bits corresponds to ~7.5 random ASCII printable chars or a
  * 4-word EFF-style passphrase. The Argon2id wall sits at 4 iterations

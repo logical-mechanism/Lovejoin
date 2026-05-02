@@ -66,7 +66,7 @@ export function useVisibleRefresh(
 
   // Latest-fire ref the consumer-facing `refresh()` thunk reads from.
   // The thunk identity stays stable across renders even though the
-  // underlying behaviour rebinds when `enabled` flips.
+  // underlying behavior rebinds when `enabled` flips.
   const fireRef = useRef<((trigger: RefreshTrigger) => void) | null>(null);
 
   useEffect(() => {

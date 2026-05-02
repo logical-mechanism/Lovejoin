@@ -126,7 +126,7 @@ export class BackendClient {
    * picking so a donate or mix doesn't grab a shard that's already an
    * input to an in-flight tx. Returns null on error or unreachable
    * backend; callers treat null the same as "no mempool data, fall
-   * through to retry-only behaviour."
+   * through to retry-only behavior."
    */
   async mempoolInputs(signal?: AbortSignal): Promise<MempoolInputsSnapshot | null> {
     return this.getJson<MempoolInputsSnapshot>("/mempool/inputs", signal);

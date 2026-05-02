@@ -44,7 +44,7 @@
   --color-signal-ink: var(--color-ink);
   --color-signal-deep: #d6d4ce;
 
-  /* Amber is the ONLY chromatic colour. It marks state, not brand:
+  /* Amber is the ONLY chromatic color. It marks state, not brand:
    * connected wallet dot, live-pool indicator, success toast, warning
    * banner. A vintage instrument-panel tell, not a CTA fill. */
   --color-amber: #f5b200;
@@ -1310,7 +1310,7 @@
     flex-shrink: 0;
   }
   /* Inline spinner — sized for use inside a button, next to a label.
-   * Inherits border colour from the button text colour so it reads
+   * Inherits border color from the button text color so it reads
    * correctly on both primary (paper-on-ink) and quiet (muted) buttons.
    * Border-top stays amber to match the section-level spinner. */
   .lj-spinner--sm {

@@ -6,7 +6,7 @@
 //
 // This is the same form the M6 Layout used to mount unconditionally; it
 // now lives behind the gate so end users never see it. The panel writes
-// to localStorage via `saveConfig`; the storage entry is only honoured by
+// to localStorage via `saveConfig`; the storage entry is only honored by
 // `loadConfig` when the advanced flag is present, so a user who navigated
 // here once and back doesn't permanently mutate their UI.
 
