@@ -10,7 +10,7 @@
 // and the panel itself tree-shakes out of the production bundle because
 // the mount is gated behind `import.meta.env.DEV`.
 
-import { Outlet, useLocation } from "react-router-dom";
+import { Link, Outlet, useLocation } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 
 import { Header } from "../components/Header.js";
@@ -63,6 +63,10 @@ export function Layout() {
         <span className="lj-footer__warn">{t("app.preprod_banner")}</span>
         <span className="lj-footer__sep">·</span>
         <ProviderBadge />
+        <span className="lj-footer__sep">·</span>
+        <Link to="/help" className="lj-footer__link">
+          {t("nav.help")}
+        </Link>
       </footer>
     </div>
   );
@@ -84,6 +88,7 @@ function routeTitleKey(pathname: string): string {
   if (pathname.startsWith("/donate")) return "page_title.donate";
   if (pathname.startsWith("/pool")) return "page_title.pool";
   if (pathname.startsWith("/protocol")) return "page_title.protocol";
+  if (pathname.startsWith("/help")) return "page_title.help";
   if (pathname.startsWith("/vault/")) return "page_title.box";
   if (pathname.startsWith("/vault")) return "page_title.vault";
   // /withdraw redirects to /vault but is briefly hit during the redirect.
