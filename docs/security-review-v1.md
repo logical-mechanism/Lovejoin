@@ -10,12 +10,12 @@ This is _not_ an independent audit. Independent crypto and contract reviewers ar
 
 ## Summary
 
-| Severity            | Count | Disposition                                                                       |
-| ------------------- | ----- | --------------------------------------------------------------------------------- |
-| Critical            | 0     | —                                                                                 |
-| High                | 3     | Fixed in this PR                                                                  |
-| Medium              | 9     | 2 fixed in this PR; 7 deferred (non-exploitable; see "Deferred follow-ups" below) |
-| Low / informational | many  | Deferred or noted; nothing exploitable                                            |
+| Severity            | Count | Disposition                                                                                       |
+| ------------------- | ----- | ------------------------------------------------------------------------------------------------- |
+| Critical            | 0     | —                                                                                                 |
+| High                | 3     | Fixed in this PR (H1 / H2 / H3)                                                                   |
+| Medium              | 9     | 6 fixed in this PR (M1–M5 + spec drift on Owner branch); 3 tracked as follow-up issues for v1.0.0 |
+| Low / informational | many  | Noted in "Verifications passed" / "Low / informational" below; nothing exploitable                |
 
 The protocol-critical layers (Aiken validators, off-chain crypto, wallet seed derivation) came out clean — zero findings above informational. All actionable findings sit in the Fastify backend and the GitHub Actions / repo-settings perimeter. That mirrors where mature web stacks tend to surface issues during security review.
 
@@ -94,32 +94,37 @@ Fastify shipped no `X-Content-Type-Options`, `X-Frame-Options`, `Referrer-Policy
 
 **Fix:** closed default. Empty / unset → empty allow-list (same-origin only, matching the README). Operators must set `CORS_ORIGINS=https://lovejo.in,https://preprod.lovejo.in` in prod, or pass `*` explicitly for local dev.
 
-### Medium (P2) — deferred to follow-up issues
+#### M3 — Blockfrost upstream body fragment in thrown error
 
-These are non-exploitable (no proven attack path) but are worth fixing before public launch where time allows. Recommended issue bodies:
+[backend/src/db/blockfrost-history.ts](../backend/src/db/blockfrost-history.ts) included `body.slice(0, 200)` in the `Error` it threw. The H3 redactor catches most patterns at the API surface, but the Blockfrost client itself shouldn't be the one carrying that data forward — upstream bodies have been observed echoing the project id in 4xx responses.
 
-#### Backend connection-pool + reconnect hardening (M5, M7)
+**Fix:** drain + log full body server-side via `console.error`; the thrown error only carries the status code + path. Closes the leak at the source.
 
-- `pg` Pool in [backend/src/db/dbsync.ts:99-101](../backend/src/db/dbsync.ts) has `max: 5` only. No `idleTimeoutMillis`, `connectionTimeoutMillis`, `query_timeout`, or `statement_timeout`. A slow query pins a connection forever; five slow callers stall the rest. Add the timeouts.
-- `OgmiosTxClient` reconnect at [backend/src/indexer/ogmios-tx.ts:206-211](../backend/src/indexer/ogmios-tx.ts) clears `fatalError` on every request and reconnects immediately. No backoff, no circuit breaker. Mirror the bounded reconnect in [backend/src/indexer/runtime.ts:223-302](../backend/src/indexer/runtime.ts).
+#### M4 — `/history` and `/utxos` accept arbitrary 4..200-char strings
 
-#### Backend input validation tightening (M3, M4)
+The pg queries are parameterised so the strings are not an SQLi vector, but a caller could issue heavy `tx_out.address = '<arbitrary>'` index lookups returning zero rows.
 
-- [backend/src/db/blockfrost-history.ts:131-134](../backend/src/db/blockfrost-history.ts) includes `body.slice(0, 200)` in thrown errors. The H3 redactor catches most leak patterns at the API surface but the Blockfrost client could be tightened to never include upstream body fragments in error messages.
-- `/history` and `/utxos` accept any string up to 200 chars. The pg query is parameterised so this isn't SQLi, but a caller can issue heavy `tx_out.address = '<arbitrary>'` lookups returning zero rows. Add bech32 prefix validation (`addr` / `addr_test`) using [backend/src/address.ts](../backend/src/address.ts)'s helpers.
+**Fix:** new `validateBech32AddressForNetwork` in [backend/src/address.ts](../backend/src/address.ts) checks length (10..200) and HRP (`addr` for mainnet, `addr_test` for preprod/preview) before issuing the lookup. Wired into both routes. The check is intentionally weaker than full bech32 charset/checksum validation — those would slow the hot path and be marginal value over the parameterised SQL guarantee. The HRP+length check is enough to reject the obvious junk and wrong-network calls.
 
-#### UI — CSP tightening + dependency bumps
+#### M5 — `pg` pool unbounded on time
 
-- [ui/nginx.conf:99](../ui/nginx.conf) currently sets only `Content-Security-Policy: frame-ancestors 'none'`. Tighten to a real allow-list: `default-src 'self'; connect-src 'self' https://cardano-{preprod,mainnet,preview}.blockfrost.io https://www.giveme.my <backend-url>; script-src 'self' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'none';`. The inline `<style>` block in [ui/index.html](../ui/index.html) requires keeping `'unsafe-inline'` on `style-src` (or moving it to an external sheet); mesh's WASM bundle requires `'wasm-unsafe-eval'` on `script-src`.
-- 18 `pnpm audit` advisories (1 low / 8 moderate / 9 high). **None reachable from the production browser bundle** — they all live in dev-only deps (vitest/vite/esbuild) or in `@meshsdk/provider`'s Node-only transitive graph (`@utxorpc/sdk → @connectrpc/connect-node → undici`). Bump dev tooling now; wait on upstream `@meshsdk/core` for `undici`/`axios`, or use `pnpm.overrides` if the security review window doesn't allow waiting.
+[backend/src/db/dbsync.ts](../backend/src/db/dbsync.ts) constructed the Pool with `max: 5` only — no `idleTimeoutMillis`, `connectionTimeoutMillis`, `query_timeout`, or `statement_timeout`. Five slow callers could stall every other history/utxo request.
 
-#### Spec drift — Owner branch supports N≥1 (bulk withdraw)
+**Fix:** `idleTimeoutMillis: 30_000`, `connectionTimeoutMillis: 5_000`, `query_timeout: 10_000`, `statement_timeout: 10_000`.
 
-`docs/spec/03-contracts.md` §2 says the Owner branch requires "Exactly one well-formed mix input" (rule 1). [contracts/validators/mix_logic.ak:101-103](../contracts/validators/mix_logic.ak) actually enforces `n >= 1`, allowing bulk withdraw of multiple owner-controlled boxes in one tx. Each Schnorr proof is independently bound to its own `(a_i, b_i)` and shares the same `ctx = blake2b_256(serialize(self.outputs) || mix_script_hash)` — math is sound; threat-model A2 ("Drain via paired Owner withdraws") already classifies it as acceptable residual. Spec text needs to catch up. Doc-only change; no validator code change.
+#### Spec drift — Owner branch supports N ≥ 1 (bulk withdraw)
 
-#### Repo settings — branch protection on `main`
+[docs/spec/03-contracts.md](spec/03-contracts.md) §2 said the Owner branch requires "Exactly one well-formed mix input." [contracts/validators/mix_logic.ak:101-103](../contracts/validators/mix_logic.ak) actually enforces `n >= 1`, allowing bulk withdraw of multiple owner-controlled boxes in one tx. Math is sound (each Schnorr proof is independently bound to its own `(a_i, b_i)` and shares the same `ctx` over all outputs); threat-model A2 already classifies it as acceptable residual.
 
-`gh api repos/.../branches/main/protection` returns 404. Branch protection on `main` (require PR, require CI green, restrict force-push) is part of the v1 plan's "Step 14 — Release automation + Dependabot" / [issue #57](https://github.com/logical-mechanism/Lovejoin/issues/57) scope, not this issue. Surfaced here for completeness; landing in the release-engineering pass.
+**Fix:** updated §2 Owner-branch text to match the implementation, with a cross-reference to the F-1 protection (`fee_contract` requires a `Mix` redeemer, not `Owner`, so the "drain via paired Owner withdraws against the fee shard" concern is structurally blocked).
+
+### Medium (P2) — tracked as follow-up issues for v1.0.0
+
+These are non-exploitable (no proven attack path) but require deploy-side verification (CSP) or larger code surface (reconnect logic) than belongs in this hardening PR. Tracked separately under the v1.0.0 milestone:
+
+- **UI CSP tightening + dependency bumps** — [issue #76](https://github.com/logical-mechanism/Lovejoin/issues/76). [ui/nginx.conf](../ui/nginx.conf) currently sets only `Content-Security-Policy: frame-ancestors 'none'`; needs a real allow-list and a staging smoke test against mesh's WASM bundle and the inline LCP `<style>` block. `pnpm audit` reports 18 advisories, none reachable from the production browser bundle, but worth bumping dev tooling and tracking the upstream mesh deps.
+- **`OgmiosTxClient` bounded reconnect** — [issue #77](https://github.com/logical-mechanism/Lovejoin/issues/77). [backend/src/indexer/ogmios-tx.ts:206-211](../backend/src/indexer/ogmios-tx.ts) clears `fatalError` on every request and reconnects immediately. No backoff, no circuit breaker. Mirror the bounded reconnect in [backend/src/indexer/runtime.ts:223-302](../backend/src/indexer/runtime.ts).
+- **Repo settings — branch protection on `main`** — covered by the v1 release-automation issue ([#48](https://github.com/logical-mechanism/Lovejoin/issues/48)). `gh api repos/.../branches/main/protection` returns 404 today; branch protection lands as part of the release-automation pass.
 
 ### Low / informational
 
