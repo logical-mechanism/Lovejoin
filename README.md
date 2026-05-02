@@ -1,79 +1,73 @@
 # lovejoin
 
-A Cardano implementation of the **Sigmajoin** privacy mixer ([papers/sigmajoin.pdf](papers/sigmajoin.pdf)), an outsourceable variant of **Zerojoin** ([papers/zerojoin.pdf](papers/zerojoin.pdf)).
+A Cardano-native, non-custodial **privacy mixer**. Deposit a fixed amount of ADA into a shared pool, wait while the pool reshuffles, then withdraw to a fresh address. The link between your deposit and your withdrawal becomes statistically vanishing.
 
-A hyperstructure: the on-chain protocol is permissionless and immutable. Anyone can run a UI or backend.
+Lovejoin implements **Sigmajoin** ([papers/sigmajoin.pdf](papers/sigmajoin.pdf)), an outsourceable variant of **Zerojoin**, as a **hyperstructure**: the on-chain protocol is permissionless, immutable, and has no operator. Anyone can run a website. Anyone can run an indexer. Anyone can press the "mix" button.
 
-Three things the protocol does:
+## Who it's for
 
-1. **Deposit** — send a fixed-denomination ADA UTxO into the pool, replenishing one of ~10 fee-contract shards with `N_rounds · MAX_FEE_PER_MIX` lovelace to fund future mix rounds.
-2. **Mix** — any user re-randomizes **N pooled UTxOs** at once (`2 ≤ N ≤ max_n`) into N new indistinguishable ones. The tx fee is paid out of a fee-contract shard; collateral comes from a collateral provider service. **No submitter wallet input or signature required** — the Mix tx is fully wallet-anonymous.
-3. **Withdraw** — the original depositor pulls funds out of the pool by Schnorr proof (no signer key required for the box; Seedelf-style). Pair with [Seedelf](https://github.com/logical-mechanism/Seedelf-Wallet) for full wallet-layer destination anonymity.
+- You hold ADA on Cardano and want **on-chain financial privacy** without trusting a custodian.
+- You're a developer interested in **outsourceable sigma-protocol mixing** on a UTxO chain, or in building privacy infrastructure as a hyperstructure.
+- You're a researcher reviewing real-world deployments of **N-way sigma-OR proofs** on BLS12-381.
 
-Privacy comes from chaining many mixes: an outsider's chance of mapping deposit to withdrawal is `(1/N)^k` after k rounds at width N. Higher N reaches the same anonymity in fewer txs.
+If you want destination anonymity (the address you withdraw to should also be unlinkable), pair Lovejoin with [Seedelf](https://github.com/logical-mechanism/Seedelf-Wallet). Lovejoin handles the pool side; Seedelf handles the wallet side.
 
-## Stack
+## Try it
 
-- Contracts: **Aiken 1.1.21** (Plutus V3, BLS12-381 G1 builtins). Three validators + one minting policy:
-  - `reference_holder` — always-False, locks the protocol NFT and `ProtocolParams` datum (the hyperstructure anchor).
-  - `one_shot_mint` — minting policy parameterized by a seed UTxO; mints exactly one NFT exactly once.
-  - `mix_box` — pool box validator. Owner via Schnorr proof; mix via **N-way sigma-OR proof** for variable N.
-  - `fee_contract` — shared fee pool sharded across ~10 UTxOs. Two redeemer paths: `PayMixFee`, `Replenish`.
-- Off-chain: **TypeScript** + **mesh** + **@noble/curves** (with RFC 6979 deterministic nonces) + collateral-provider client (default: [giveme.my](https://giveme.my/)).
-- Backend: **ogmios** chainsync + **db-sync** queries (assumed always-on).
-- UI: **React** + **Tailwind**, CIP-30 wallets, **react-i18next** from day one. N-width slider on the Pool screen.
-- Network: **Preprod** for v1; bootstrap via **cardano-cli** + **cardano-node**.
+Lovejoin is in **alpha on the Cardano Preprod testnet**. No real funds are at risk. The hosted UI ships at **lovejo.in** with **preprod.lovejo.in** for staging once domain setup completes; until then, see the **Develop** section below to run the UI locally against the live Preprod deployment.
 
-Denomination, max fee per mix, `max_n`, and other parameters are read from `config/network.json` and locked into the on-chain reference UTxO at bootstrap.
+<!-- Screenshot placeholder: add docs/images/lovejoin-pool.png once captured. -->
 
-## Spec
+The protocol is live, the validators are deployed, and the contracts cannot be changed. Three operations:
 
-The full design lives in [docs/spec/](docs/spec/):
+1. **Deposit.** Lock a fixed-denomination ADA UTxO into the pool. Each deposit also tops up a shared on-chain fee shard so future mix rounds pay for themselves.
+2. **Mix.** Re-randomise N pool boxes at once into N new indistinguishable ones (`2 ≤ N`, with the practical cap calibrated empirically). Anyone can run a mix; no submitter wallet input or signature is required.
+3. **Withdraw.** The original depositor pulls funds out of the pool with a Schnorr proof. No long-lived signing key for the box; the proof is the spend authorisation.
 
-- [00-overview.md](docs/spec/00-overview.md) — system overview, goals, architecture
-- [01-protocol.md](docs/spec/01-protocol.md) — Sigmajoin on Cardano (variable N, collateral provider)
-- [02-cryptography.md](docs/spec/02-cryptography.md) — BLS12-381, Schnorr, DH-tuple, N-way Sigma-OR, RFC 6979
-- [03-contracts.md](docs/spec/03-contracts.md) — Aiken validators (reference + mix-box + fee contract)
-- [04-offchain.md](docs/spec/04-offchain.md) — TS library, prover, tx builder, collateral provider client
-- [05-backend.md](docs/spec/05-backend.md) — indexer, API
-- [06-ui.md](docs/spec/06-ui.md) — React frontend (user-as-mixer + N-slider + i18n)
-- [07-testing.md](docs/spec/07-testing.md) — Preprod, integration, fuzz, max_n calibration
-- [08-threat-model.md](docs/spec/08-threat-model.md) — adversaries, attacks, mitigations
-- [09-milestones.md](docs/spec/09-milestones.md) — realistic build plan, M0–M7
-- [10-glossary.md](docs/spec/10-glossary.md) — terms
-- [11-open-questions.md](docs/spec/11-open-questions.md) — most resolved; deferred items
-- [12-build-guide.md](docs/spec/12-build-guide.md) — practical execution plan: order of attack, risk management, common pitfalls
+After `k` mixes at width `N`, an outsider's chance of correctly mapping your deposit to your withdrawal is `(1/N)^k`.
 
-## Status
+## What this is not
 
-Pre-alpha. Foundations and tooling (M0) landed; cryptography (M1) is next. See [milestones.json](milestones.json).
+- **Not a custodian.** Your funds are protected by your wallet's signature and a proof you generate locally. We never touch your keys.
+- **Not audited.** No third-party audit has been completed. The code is open; the math is in the paper. Treat the alpha as experimental.
+- **Not on mainnet.** Preprod only until threat model and an external audit are signed off.
+- **Not a magic wand.** Mixers raise the cost of deanonymisation; they do not make it impossible. Wallet hygiene, traffic patterns, and timing still leak signal. Treat it as one tool, not a complete privacy strategy.
+- **No analytics, no telemetry, no cookies.** The backend logs IPs only for rate limiting, with sub-24-hour retention.
 
-## Develop
+## Developer quickstart
 
-Requirements:
+The full architectural overview is in [ARCHITECTURE.md](ARCHITECTURE.md). The contributor guide is in [CONTRIBUTING.md](CONTRIBUTING.md). The conventions baked into the codebase are in [CLAUDE.md](CLAUDE.md).
 
-- **node ≥ 20** (nvm recommended — see node-binary note below)
-- **pnpm 10**
-- **aiken 1.1.21** (pinned in [contracts/aiken.toml](contracts/aiken.toml))
+Stack:
 
-One-time install of workspace deps:
+- **Contracts:** Aiken 1.1.21, Plutus V3, BLS12-381 G1.
+- **Off-chain SDK:** TypeScript + mesh + `@noble/curves` (with RFC 6979 deterministic nonces).
+- **Backend indexer:** Node + Fastify + ogmios chainsync (+ optional db-sync for history).
+- **UI:** React 19 + Vite + Tailwind v4 + react-i18next (20 locales).
+- **Reference impl:** Rust + `blst`, used to generate cross-language KAT vectors.
+
+Requirements: **node ≥ 20** (nvm recommended; see node-binary note below), **pnpm 10**, **aiken 1.1.21**.
 
 ```sh
 make install        # pnpm install across offchain/, backend/, ui/
-```
-
-Day-to-day:
-
-```sh
 make build          # aiken check + tsc + vite build
 make test           # aiken check + vitest in offchain, backend, ui
-make contracts      # just `aiken check`
+make lint           # tsc --noEmit + eslint + prettier --check + aiken fmt --check
 make ui-dev         # vite dev server on http://localhost:5173
 make backend-dev    # fastify backend in watch mode
-make clean          # remove dist/, build/, target/
 ```
 
-`make help` lists everything.
+`make help` lists every target.
+
+A husky `pre-commit` hook runs `lint-staged` (prettier + eslint --fix on staged files). Fix locally rather than reaching for `--no-verify`.
+
+**Node-binary note (Linux + VSCode).** pnpm 10 errors out with `ERR_PNPM_INVALID_NODE_VERSION` when `node` resolves to the snap shim. VSCode sets `ELECTRON_RUN_AS_NODE=1`, which silently swallows `node --version`. Fix: put a real node binary first on PATH, e.g. via nvm:
+
+```sh
+export PATH="$HOME/.nvm/versions/node/v22.12.0/bin:$PATH"
+```
+
+CI uses `actions/setup-node`, so this is only a local-shell concern.
 
 ### Backend env vars
 
@@ -83,36 +77,19 @@ The backend (`backend/`) is the second [`ChainProvider`](offchain/src/chain/prov
 NETWORK=preprod                              # preprod | mainnet | preview
 PORT=3001
 HOST=0.0.0.0
-OGMIOS_URL=ws://localhost:1337               # WebSocket — ogmios v6
+OGMIOS_URL=ws://localhost:1337               # WebSocket, ogmios v6
 DBSYNC_URL=postgres://USER:PASS@HOST/dbname  # optional; required for /history
 ADDRESSES_PATH=./artifacts/preprod/addresses.json
 CORS_ORIGINS=*                               # comma-separated origins, or *
 RATE_LIMIT_PER_MIN=600
 ```
 
-`ADDRESSES_PATH` points at the bootstrap-produced `artifacts/<network>/addresses.json`. Without it the indexer won't know which on-chain script addresses to filter to. ogmios + db-sync run outside this repo (see [docs/spec/05-backend.md](docs/spec/05-backend.md) §"Operations notes"). For Docker:
+`ADDRESSES_PATH` points at the bootstrap-produced `artifacts/<network>/addresses.json`. Without it the indexer won't know which on-chain script addresses to filter to. ogmios + db-sync run outside this repo. For Docker:
 
 ```sh
 docker build -f backend/Dockerfile -t lovejoin-backend .
 docker run --env-file backend/.env -p 3001:3001 -v $(pwd)/artifacts:/app/artifacts lovejoin-backend
 ```
-
-**Node-binary note (Linux + VSCode).** pnpm 10 errors out with `ERR_PNPM_INVALID_NODE_VERSION` when `node` resolves to the snap shim — VSCode sets `ELECTRON_RUN_AS_NODE=1`, which silently swallows `node --version`. Fix: put a real node binary first on PATH, e.g. via nvm:
-
-```sh
-export PATH="$HOME/.nvm/versions/node/v22.12.0/bin:$PATH"
-```
-
-CI uses `actions/setup-node`, so this is only a local-shell concern.
-
-## Building it
-
-Milestones live in [milestones.json](milestones.json). Inside Claude Code:
-
-- `/milestones` — list remaining milestones and pick one
-- `/work <id>` — work on a milestone end-to-end (reads spec, implements, writes tests, verifies exit criteria, marks done)
-
-Both commands read/update milestones.json directly. No external CLI. State transitions: `pending` → `in-progress` → `done`. The slash commands enforce that exit criteria pass before a milestone can be marked done.
 
 ## Bootstrap (one-shot, per network)
 
@@ -120,11 +97,11 @@ The protocol is a hyperstructure: parameters are minted into an inline datum on 
 
 Five stages under [`infra/bootstrap/`](infra/bootstrap/), one operator command each (1a + 1b are split so each half can be inspected on-chain before the next runs):
 
-1. **`00-build-reference.sh`** — offline. Parameterizes the validators in dependency order (`one_shot_mint(seed) → mix_logic(NFT) → mix_box(mix_logic) → fee_contract(NFT)`) and writes resolved hashes into `artifacts/<network>/addresses.json`.
-2. **`01a-publish.sh`** — builds + signs three publish txs offline (`mix_box`, `mix_logic`, `fee_contract`) using `build-raw`, chained via change outputs, and submits them in order. Writes `referenceScriptUtxos` and `stage1ChangeUtxo` to `addresses.json`.
-3. **`01b-register.sh`** — registers the `mix_logic` stake credential. Run after `01a` confirms; uses `transaction build` (auto fee + change) and references `mix_logic`'s publish output via `--certificate-tx-in-reference`.
-4. **`02-mint-and-lock.sh`** — **irreversible.** Spends `SEED`, mints the one-of-one NFT, locks at `reference_holder` with the inline `ProtocolParams` datum.
-5. **`03-fund-fee-contract.sh`** — seeds 10 shards at `fee_contract`.
+1. **`00-build-reference.sh`**: offline. Parameterises the validators in dependency order (`one_shot_mint(seed) → mix_logic(NFT) → mix_box(mix_logic) → fee_contract(NFT)`) and writes resolved hashes into `artifacts/<network>/addresses.json`.
+2. **`01a-publish.sh`**: builds and signs three publish txs offline (`mix_box`, `mix_logic`, `fee_contract`) using `build-raw`, chained via change outputs, and submits them in order. Writes `referenceScriptUtxos` and `stage1ChangeUtxo` to `addresses.json`.
+3. **`01b-register.sh`**: registers the `mix_logic` stake credential. Run after `01a` confirms; uses `transaction build` (auto fee + change) and references `mix_logic`'s publish output via `--certificate-tx-in-reference`.
+4. **`02-mint-and-lock.sh`**: **irreversible.** Spends `SEED`, mints the one-of-one NFT, locks at `reference_holder` with the inline `ProtocolParams` datum.
+5. **`03-fund-fee-contract.sh`**: seeds 10 shards at `fee_contract`.
 
 Configure once, then run the stages:
 
@@ -133,30 +110,31 @@ cp infra/bootstrap/.env.example infra/bootstrap/.env     # set NETWORK + node so
 ./infra/bootstrap/init-wallet.sh                         # one-time keypair + per-network addrs
 # fund infra/bootstrap/wallets/payment.preprod.addr from the Preprod faucet
 ./infra/bootstrap/balance.sh                             # confirm the drop arrived
-./infra/bootstrap/prep-utxos.sh                          # split into A/B/C/D — copy the `export` lines it prints
+./infra/bootstrap/prep-utxos.sh                          # split into A/B/C/D, copy the `export` lines it prints
 
 # After exporting FUNDING_STAGE1 / COLLATERAL / SEED / FUNDING_STAGE3, the
-# stages read those env vars directly — no renaming at the call site:
+# stages read those env vars directly, no renaming at the call site:
 ./infra/bootstrap/00-build-reference.sh
 ./infra/bootstrap/01a-publish.sh                # 3 chained publish txs (build-raw)
 # wait for confirmation
 ./infra/bootstrap/01b-register.sh               # register mix_logic stake cred (transaction build)
-./infra/bootstrap/02-mint-and-lock.sh           # wait — IRREVERSIBLE
+./infra/bootstrap/02-mint-and-lock.sh           # wait. IRREVERSIBLE
 ./infra/bootstrap/03-fund-fee-contract.sh
 ```
 
 `.env` is gitignored. Every bootstrap script auto-sources it, so no `export` per shell beyond the per-stage UTxO refs.
 
-`balance.sh` labels each UTxO with its bootstrap-stage role (FUNDING_STAGE1, COLLATERAL, SEED, FUNDING_STAGE3) once `prep-utxos.sh` has run, so you can re-derive the env vars anytime by re-running `balance.sh`.
-
-`run.sh` orchestrates the whole bootstrap with confirmation polling between stages, so you can walk away while it runs. It calls these helpers, all of which work standalone for debugging or recovery:
-
-- **`init-wallet.sh`** — generates one payment keypair under `infra/bootstrap/wallets/` (gitignored) and derives a per-network address file (preprod + preview by default; mainnet via `--include-mainnet`). Idempotent.
-- **`balance.sh`** — pretty-prints the wallet's UTxOs and total ADA.
-- **`prep-utxos.sh`** — splits the faucet drop into the four UTxO shapes the stages need (FUNDING_STAGE1, COLLATERAL, SEED, FUNDING_STAGE3) and prints copy-pasteable `export` lines + per-stage commands. Idempotent.
-
 You'll need ~150 ADA on the [Preprod faucet](https://docs.cardano.org/cardano-testnets/tools/faucet/) and a synced cardano-node socket.
 
 Full operator playbook (env-var setup, UTxO-layout table, chained-submit details, recovery from common failures): [`infra/bootstrap/README.md`](infra/bootstrap/README.md).
 
-After a clean run, commit `artifacts/preprod/addresses.json` — that's the canonical address book for the network.
+After a clean run, commit `artifacts/preprod/addresses.json`. That's the canonical address book for the network.
+
+## Reporting issues
+
+- **Bugs and feature requests:** [github.com/logical-mechanism/Lovejoin/issues](https://github.com/logical-mechanism/Lovejoin/issues).
+- **Security disclosures:** see [SECURITY.md](SECURITY.md). Do **not** open a public issue.
+
+## License
+
+[MIT](LICENSE).
