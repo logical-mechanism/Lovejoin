@@ -15,7 +15,8 @@
     "lint:eslint": "eslint .",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "dev": "node --env-file-if-exists=../.env --import tsx --watch src/index.ts"
+    "dev": "node --env-file-if-exists=../.env --import tsx --watch src/index.ts",
+    "docs:openapi": "tsx scripts/export-openapi.ts openapi.json"
   },
   "dependencies": {
     "@fastify/cors": "^11.2.0",

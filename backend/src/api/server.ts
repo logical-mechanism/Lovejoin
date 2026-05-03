@@ -173,6 +173,16 @@ export async function buildServer(deps: ApiServerDeps): Promise<FastifyInstance>
       info: OPENAPI_INFO,
       tags: [...OPENAPI_TAGS],
     },
+    // Preserve `$id` as the OpenAPI component-schema key. Without this
+    // hook @fastify/swagger emits `def-0`, `def-1`, ... and shoves the
+    // `$id` into a `title` field, which makes the spec hard to read
+    // and unusable for codegen tools that key off component names.
+    refResolver: {
+      buildLocalReference: (json) => {
+        const id = (json as { $id?: string }).$id;
+        return typeof id === "string" && id.length > 0 ? id : "Unknown";
+      },
+    },
   });
   await fastify.register(swaggerUi, {
     routePrefix: "/docs",
