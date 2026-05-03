@@ -11,6 +11,11 @@ export type {
   UtxoRef,
 } from "./provider.js";
 export { BlockfrostProvider } from "./blockfrost.js";
-export type { BlockfrostConfig, FetchFn } from "./blockfrost.js";
+export type {
+  BlockfrostConfig,
+  FetchFn,
+  MeshFetcherSubmitter,
+  MeshProtocolParameters,
+} from "./blockfrost.js";
 export { BackendChainProvider } from "./backend.js";
 export type { BackendChainProviderConfig } from "./backend.js";

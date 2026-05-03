@@ -286,6 +286,28 @@ export interface PlanDepositArgs {
   minRounds?: number;
 }
 
+/**
+ * Compute the pure {@link DepositPlan} for a Deposit transaction.
+ *
+ * Deterministic given `ownerSecret` + `rerandomization`. Does no chain I/O
+ * and constructs no transaction; the result is the canonical description
+ * of every value the on-chain validators will check, suitable for unit
+ * tests, KAT generation, and downstream `buildDepositTx` consumption.
+ *
+ * Throws on invalid `rounds` (`< minRounds` or below the protocol min) and
+ * on out-of-range `ownerSecret` / `rerandomization` scalars.
+ *
+ * @example
+ * ```ts
+ * const plan = planDepositTx({
+ *   rounds: 30,
+ *   params,           // from fetchProtocolParams(provider, addresses)
+ *   addresses,        // bootstrap addresses.json for the network
+ *   feeShard: shard,  // pickFeeShard(provider, addresses, ...) or null
+ *   networkId: networkIdFor("preprod"),
+ * });
+ * ```
+ */
 export function planDepositTx(args: PlanDepositArgs): DepositPlan {
   const ownerSecret = args.ownerSecret ?? generateOwnerSecret();
   assertOwnerSecret(ownerSecret);
@@ -431,6 +453,21 @@ export interface BuildDepositArgs {
  * any) is the replenished fee shard. mesh handles fee + change. When the
  * caller passes `feeShard: null` or no fee shards exist on chain, the tx
  * is mix-box-only — the fee_contract is not invoked.
+ *
+ * @example
+ * ```ts
+ * const provider = new BlockfrostProvider({ projectId: env.BLOCKFROST_KEY });
+ * const params = await fetchProtocolParams(provider, addresses);
+ * const result = await buildDepositTx({
+ *   provider,
+ *   wallet,        // CIP-30 wallet handle
+ *   addresses,
+ *   params,
+ *   rounds: 30,
+ *   networkId: networkIdFor(addresses.network),
+ * });
+ * console.log("deposited", result.txId, "owner secret hex", result.owner.secretHex);
+ * ```
  */
 export async function buildDepositTx(args: BuildDepositArgs): Promise<DepositResult> {
   const networkId = networkIdFor(args.network);
