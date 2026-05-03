@@ -59,6 +59,14 @@ coverage/
 playwright-report/
 test-results/
 
+# Generated documentation (issue #41).
+# typedoc HTML for the SDK; CI / local devs regenerate via
+# `pnpm --filter @lovejoin/sdk run docs:sdk`. OpenAPI 3 snapshot for
+# the backend; regenerated via `pnpm --filter @lovejoin/backend run
+# docs:openapi` and served live at /docs by the running server.
+offchain/docs/
+backend/openapi.json
+
 # Generated artifacts kept out of source control until bootstrap commits them deliberately.
 # addresses.json IS tracked once a network has been bootstrapped — the canonical
 # protocol identifiers (NFT policy id, reference UTxO ref, script hashes) live there.
