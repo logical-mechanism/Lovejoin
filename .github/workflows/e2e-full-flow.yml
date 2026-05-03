@@ -1,0 +1,194 @@
+name: E2E (full-flow against staging)
+
+# Maintainer-triggered Playwright run that drives a CIP-30 wallet
+# extension through deposit -> mix x3 -> withdraw on Preprod, hitting
+# the deployed staging site (preprod.lovejo.in by default — see #46).
+# Wired as workflow_dispatch only: every run consumes Preprod tADA, and
+# we don't want PR cycles to burn the funded wallet.
+#
+# Spec: docs/spec/09-milestones.md M6 + ui/e2e/full-flow.spec.ts.
+#
+# Required repo secrets (all four must be present — the job exits early
+# if any is missing):
+#
+#   E2E_BLOCKFROST_PROJECT_ID  Preprod Blockfrost project_id used for
+#                              the on-chain confirmation poll.
+#   E2E_WALLET_EXTENSION_B64   Base64-encoded ZIP of the unpacked CIP-30
+#                              wallet extension (Lace / Eternl / Nami).
+#                              The job decodes + unpacks into a tmp dir
+#                              and points the test at that path. Lifting
+#                              the .crx through a secret keeps the
+#                              wallet binary out of the repo.
+#   E2E_WALLET_PASSPHRASE      Wallet password, used by the popup driver
+#                              to confirm signData / signTx prompts.
+#                              Never logged.
+#   E2E_DESTINATION_BECH32     Fresh withdraw destination — must be on
+#                              Preprod (addr_test1...).
+#
+# Optional inputs (workflow_dispatch form):
+#
+#   base_url    Override the default staging origin. Defaults to
+#               https://preprod.lovejo.in.
+#   wallet_kind "lace" | "eternl" | "nami" | "auto" — nudges the
+#               popup-driver password-field selector when the generic
+#               match is ambiguous. Defaults to "auto".
+#
+# Artefacts: playwright-report (HTML) + test-results (videos / traces).
+# Both are kept for 30 days so a maintainer can replay the flow.
+
+on:
+  workflow_dispatch:
+    inputs:
+      base_url:
+        description: "Staging origin to drive (default: https://preprod.lovejo.in)"
+        required: false
+        default: "https://preprod.lovejo.in"
+      wallet_kind:
+        description: 'Wallet kind: "lace" | "eternl" | "nami" | "auto"'
+        required: false
+        default: "auto"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: e2e-full-flow
+  cancel-in-progress: false
+
+jobs:
+  preflight:
+    name: Preflight (secret presence)
+    runs-on: ubuntu-latest
+    timeout-minutes: 1
+    outputs:
+      ready: ${{ steps.check.outputs.ready }}
+    steps:
+      - id: check
+        env:
+          BFID: ${{ secrets.E2E_BLOCKFROST_PROJECT_ID }}
+          EXT_B64: ${{ secrets.E2E_WALLET_EXTENSION_B64 }}
+          PASS: ${{ secrets.E2E_WALLET_PASSPHRASE }}
+          DEST: ${{ secrets.E2E_DESTINATION_BECH32 }}
+        run: |
+          missing=()
+          [[ -z "$BFID" ]] && missing+=("E2E_BLOCKFROST_PROJECT_ID")
+          [[ -z "$EXT_B64" ]] && missing+=("E2E_WALLET_EXTENSION_B64")
+          [[ -z "$PASS" ]] && missing+=("E2E_WALLET_PASSPHRASE")
+          [[ -z "$DEST" ]] && missing+=("E2E_DESTINATION_BECH32")
+          if (( ${#missing[@]} > 0 )); then
+            echo "::error::Missing required repo secrets: ${missing[*]}"
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+            exit 1
+          fi
+          echo "ready=true" >> "$GITHUB_OUTPUT"
+
+  run:
+    name: Run full-flow against staging
+    needs: preflight
+    if: needs.preflight.outputs.ready == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install
+        run: pnpm install --frozen-lockfile
+
+      # The UI imports @lovejoin/sdk which resolves to offchain/dist/.
+      - name: Build SDK
+        run: pnpm --filter @lovejoin/sdk run build
+
+      # Cache Playwright browser binaries on the version string.
+      - name: Resolve Playwright version
+        id: pw
+        run: |
+          v=$(node -p "require('./ui/node_modules/@playwright/test/package.json').version")
+          echo "version=$v" >> "$GITHUB_OUTPUT"
+
+      - name: Cache Playwright browsers
+        id: pw-cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ steps.pw.outputs.version }}
+
+      - name: Install Chromium (with deps)
+        if: steps.pw-cache.outputs.cache-hit != 'true'
+        working-directory: ui
+        run: pnpm exec playwright install --with-deps chromium
+
+      - name: Install Chromium system deps
+        if: steps.pw-cache.outputs.cache-hit == 'true'
+        working-directory: ui
+        run: pnpm exec playwright install-deps chromium
+
+      # `chromium.launchPersistentContext` with --load-extension cannot
+      # run headless. xvfb-run gives the headed browser a virtual display
+      # on the GitHub-hosted ubuntu runner.
+      - name: Install Xvfb
+        run: sudo apt-get update && sudo apt-get install -y xvfb
+
+      # Decode the base64-encoded wallet ZIP into a tmp dir and emit the
+      # extracted path so the test can load it via --load-extension.
+      # Keeping the .crx out of the repo + out of the action logs (no
+      # echo of the path's contents).
+      - name: Materialise wallet extension
+        id: ext
+        env:
+          E2E_WALLET_EXTENSION_B64: ${{ secrets.E2E_WALLET_EXTENSION_B64 }}
+        run: |
+          set -euo pipefail
+          dest="$RUNNER_TEMP/wallet-extension"
+          mkdir -p "$dest"
+          # Pipe through base64 then unzip. `unzip -q` to suppress noisy
+          # file listing that could include path hints we don't want in
+          # logs.
+          printf %s "$E2E_WALLET_EXTENSION_B64" | base64 -d > "$RUNNER_TEMP/ext.zip"
+          unzip -q "$RUNNER_TEMP/ext.zip" -d "$dest"
+          rm -f "$RUNNER_TEMP/ext.zip"
+          # If the zip wrapped its contents in a single dir, descend
+          # into it so --load-extension points at the manifest.
+          if [[ -f "$dest/manifest.json" ]]; then
+            path="$dest"
+          else
+            path=$(find "$dest" -maxdepth 2 -name manifest.json -print -quit | xargs -r dirname)
+          fi
+          if [[ -z "$path" ]]; then
+            echo "::error::No manifest.json found in extracted extension"
+            exit 1
+          fi
+          echo "path=$path" >> "$GITHUB_OUTPUT"
+
+      - name: Run full-flow
+        working-directory: ui
+        env:
+          # The spec self-skips unless this is "1".
+          E2E_PREPROD_WALLET: "1"
+          E2E_BASE_URL: ${{ github.event.inputs.base_url }}
+          E2E_WALLET_KIND: ${{ github.event.inputs.wallet_kind }}
+          E2E_BLOCKFROST_PROJECT_ID: ${{ secrets.E2E_BLOCKFROST_PROJECT_ID }}
+          E2E_WALLET_EXTENSION_PATH: ${{ steps.ext.outputs.path }}
+          E2E_WALLET_PASSPHRASE: ${{ secrets.E2E_WALLET_PASSPHRASE }}
+          E2E_DESTINATION_BECH32: ${{ secrets.E2E_DESTINATION_BECH32 }}
+        # Headed Chromium under Xvfb. Filtering to the full-flow spec
+        # so the smoke specs don't double-run (they already fired in
+        # ci.yml on the parent commit).
+        run: xvfb-run -a pnpm test:e2e -- full-flow.spec.ts
+
+      - name: Upload Playwright report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-full-flow-${{ github.run_id }}
+          path: |
+            ui/playwright-report
+            ui/test-results
+          if-no-files-found: ignore
+          retention-days: 30
