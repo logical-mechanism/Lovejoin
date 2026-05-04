@@ -38,7 +38,15 @@ export interface PrimeContext {
  * the retry policy at its scope.
  */
 export async function primeFromDbSync(ctx: PrimeContext): Promise<ChainTip> {
+  // Wall-clock timing on the db-sync round-trip is the operator's
+  // signal that the prime is starting to creep toward the danger
+  // zone. On Preprod with a small live pool it should be well under
+  // a second; on a busy mainnet pool with the legacy NOT EXISTS
+  // path it can scale to many seconds. Log every prime so the trend
+  // is visible across deploys.
+  const startedAt = Date.now();
   const snapshot = await ctx.dbsync.primeProtocolState(ctx.params);
+  const elapsedMs = Date.now() - startedAt;
 
   const mixBoxUtxos = snapshot.mixBoxUtxos.map((u) =>
     dbsyncToProduced(u, ctx.params.mixBoxAddress),
@@ -59,7 +67,7 @@ export async function primeFromDbSync(ctx: PrimeContext): Promise<ChainTip> {
   ctx.state.primeFrom(primeSnapshot);
 
   ctx.logger?.info(
-    `prime: applied snapshot at slot ${snapshot.tip.slot} (height ${snapshot.tip.height}): ` +
+    `prime: applied snapshot at slot ${snapshot.tip.slot} (height ${snapshot.tip.height}) in ${elapsedMs}ms: ` +
       `${mixBoxUtxos.length} mix-box, ${feeShardUtxos.length} fee shard, reference=${
         referenceUtxo ? "ok" : "missing"
       }`,

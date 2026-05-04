@@ -40,7 +40,20 @@ export async function main(): Promise<void> {
     filter,
     BigInt(config.addresses.protocol.max_fee_per_mix_lovelace),
   );
-  const dbsync = config.dbsyncUrl ? new PostgresDbSyncClient(config.dbsyncUrl) : null;
+  // INDEXER_PRIME_TIMEOUT_MS overrides the prime-only statement
+  // timeout. Defaults to 60 s in PostgresDbSyncClient; set higher
+  // (or to 0 = disabled) for very busy mainnet pools running on the
+  // legacy NOT EXISTS path. The public-API queries keep the pool's
+  // 10 s cap regardless.
+  const primeTimeoutRaw = process.env.INDEXER_PRIME_TIMEOUT_MS?.trim();
+  const primeStatementTimeoutMs =
+    primeTimeoutRaw && /^\d+$/.test(primeTimeoutRaw) ? Number(primeTimeoutRaw) : undefined;
+  const dbsync = config.dbsyncUrl
+    ? new PostgresDbSyncClient(
+        config.dbsyncUrl,
+        primeStatementTimeoutMs !== undefined ? { primeStatementTimeoutMs } : {},
+      )
+    : null;
 
   const indexerLogger = simpleLogger();
   const primeParams = {

@@ -115,9 +115,53 @@ export interface DbSyncClient {
   close(): Promise<void>;
 }
 
+/**
+ * Options that tune the long-running prime path. Overridable from
+ * `INDEXER_PRIME_TIMEOUT_MS` at the entrypoint level. The default
+ * (60 s) is well above the public-API per-query cap (10 s) because
+ * the prime can legitimately scan a busy address's full tx_out
+ * history when the operator hasn't enabled the
+ * `consumed_by_tx_id` fast path.
+ */
+export interface PostgresDbSyncOptions {
+  /**
+   * Per-query timeout for prime statements only, in milliseconds.
+   * Applied via `SET LOCAL statement_timeout` inside the prime
+   * transaction so it doesn't bleed into other pool clients. The
+   * pool's `query_timeout` still caps the legacy public-API queries
+   * at 10 s (security review v1, finding M5).
+   */
+  primeStatementTimeoutMs?: number;
+  /**
+   * Pre-built pg pool. Production passes nothing and the constructor
+   * builds its own bounded pool from `connectionString`. Tests pass
+   * a fake pool that records `connect()` calls and returns scripted
+   * `query` results so the prime path can be exercised without a
+   * live postgres.
+   */
+  pool?: pg.Pool;
+}
+
+const DEFAULT_PRIME_STATEMENT_TIMEOUT_MS = 60_000;
+
 export class PostgresDbSyncClient implements DbSyncClient {
   private pool: pg.Pool;
-  constructor(connectionString: string) {
+  private readonly primeStatementTimeoutMs: number;
+  /**
+   * Cached result of probing whether db-sync's `tx_out` carries a
+   * `consumed_by_tx_id` column. `null` until the first prime call
+   * runs the probe; thereafter `true` (use the fast `IS NULL` path)
+   * or `false` (fall back to the legacy `NOT EXISTS` subquery).
+   *
+   * Cached for the lifetime of the client because the column's
+   * presence is a deploy-time choice on the operator's side; it
+   * doesn't flip while the backend is running.
+   */
+  private consumedByColumnPresent: boolean | null = null;
+  /** Process-wide log gate so the path message prints once per backend lifetime. */
+  private primePathLogged = false;
+
+  constructor(connectionString: string, options: PostgresDbSyncOptions = {}) {
     // Bounded pool with explicit timeouts. Without these, a slow query
     // can pin a connection forever; five slow callers stall every other
     // history/utxo request behind the pool's `max: 5` cap (security
@@ -125,14 +169,18 @@ export class PostgresDbSyncClient implements DbSyncClient {
     // a stuck query gets cancelled even if the server doesn't honour
     // `statement_timeout`; `connectionTimeoutMillis` makes a dead db
     // surface as an error fast instead of hanging the request.
-    this.pool = new Pool({
-      connectionString,
-      max: 5,
-      idleTimeoutMillis: 30_000,
-      connectionTimeoutMillis: 5_000,
-      query_timeout: 10_000,
-      statement_timeout: 10_000,
-    });
+    this.pool =
+      options.pool ??
+      new Pool({
+        connectionString,
+        max: 5,
+        idleTimeoutMillis: 30_000,
+        connectionTimeoutMillis: 5_000,
+        query_timeout: 10_000,
+        statement_timeout: 10_000,
+      });
+    this.primeStatementTimeoutMs =
+      options.primeStatementTimeoutMs ?? DEFAULT_PRIME_STATEMENT_TIMEOUT_MS;
   }
 
   async txUtxos(txHash: string): Promise<DbSyncUtxo[]> {
@@ -245,7 +293,7 @@ export class PostgresDbSyncClient implements DbSyncClient {
         `primeProtocolState: referenceNftAssetNameHex must be lowercase hex (got ${JSON.stringify(params.referenceNftAssetNameHex)})`,
       );
     }
-    // We pull all four queries on the same client so they observe the
+    // We pull all queries on the same client so they observe the
     // same transactional snapshot. db-sync writes blocks atomically, so
     // wrapping in REPEATABLE READ guarantees the live UTxO sets and the
     // tip query don't straddle a chain extension. Without this a block
@@ -255,13 +303,45 @@ export class PostgresDbSyncClient implements DbSyncClient {
     const client = await this.pool.connect();
     try {
       await client.query("BEGIN ISOLATION LEVEL REPEATABLE READ READ ONLY");
+      // Lift statement_timeout for the prime transaction only. The
+      // pool's default 10 s cap protects public-API requests from a
+      // pathological postgres call; it is too aggressive for the
+      // prime, which can legitimately scan a busy mix-box address's
+      // full tx_out history when the operator hasn't enabled the
+      // consumed_by_tx_id fast path. SET LOCAL is per-transaction
+      // and reverts on COMMIT/ROLLBACK, so the bump never bleeds
+      // into other pool clients.
+      await client.query(`SET LOCAL statement_timeout = ${this.primeStatementTimeoutMs}`);
+
+      // Probe the schema once per process. The result is cached on
+      // the client so subsequent reprime calls (deep-rollback recovery)
+      // don't re-query information_schema.
+      if (this.consumedByColumnPresent === null) {
+        this.consumedByColumnPresent = await this.probeConsumedByColumn(client);
+      }
+      const useFastPath = this.consumedByColumnPresent;
+      if (!this.primePathLogged) {
+        // One-shot startup log so operators can confirm which path
+        // engaged. Subsequent reprimes are silent.
+         
+        console.log(
+          `[dbsync] prime: query path = ${useFastPath ? "consumed_by_tx_id" : "NOT EXISTS (legacy)"}`,
+        );
+        this.primePathLogged = true;
+      }
+
       const tip = await this.queryLatestBlock(client);
-      const mixBoxUtxos = await this.queryAddressUtxos(client, params.mixBoxAddress);
-      const feeShardUtxos = await this.queryAddressUtxos(client, params.feeContractAddress);
+      const mixBoxUtxos = await this.queryAddressUtxos(client, params.mixBoxAddress, useFastPath);
+      const feeShardUtxos = await this.queryAddressUtxos(
+        client,
+        params.feeContractAddress,
+        useFastPath,
+      );
       const referenceUtxo = await this.queryReferenceNftUtxo(
         client,
         params.referenceNftPolicyHex,
         params.referenceNftAssetNameHex,
+        useFastPath,
       );
       await client.query("COMMIT");
       return { tip, mixBoxUtxos, feeShardUtxos, referenceUtxo };
@@ -275,6 +355,30 @@ export class PostgresDbSyncClient implements DbSyncClient {
     } finally {
       client.release();
     }
+  }
+
+  /**
+   * Detect whether db-sync's `tx_out` table carries a
+   * `consumed_by_tx_id` column. The column is populated by db-sync
+   * 13.1+ when `consumed_tx_out` is enabled in `config.json`. When
+   * present, the prime queries can use a single column compare
+   * instead of a per-row `NOT EXISTS` subquery against `tx_in`,
+   * collapsing O(historical tx_outs) to O(live UTxOs).
+   *
+   * **Operator note:** enabling `consumed_tx_out` mid-stream leaves
+   * pre-existing spent outputs with NULL in this column (looking
+   * live). db-sync ships a backfill migration for this case; the
+   * documentation in docs/deploy.md §"db-sync configuration" calls
+   * it out as mandatory.
+   */
+  private async probeConsumedByColumn(client: pg.PoolClient): Promise<boolean> {
+    const result = await client.query<{ exists: boolean }>(
+      `SELECT EXISTS (
+         SELECT 1 FROM information_schema.columns
+         WHERE table_name = 'tx_out' AND column_name = 'consumed_by_tx_id'
+       ) AS exists`,
+    );
+    return result.rows[0]?.exists === true;
   }
 
   /**
@@ -306,14 +410,33 @@ export class PostgresDbSyncClient implements DbSyncClient {
   }
 
   /**
-   * Live UTxOs at `address` — same `NOT EXISTS (consumed)` shape as the
-   * removed public addressUtxos query (commit 88b5f3a kept the SQL in
-   * git history; primeProtocolState reuses it for the protocol's two
-   * managed addresses only). Inline datums are returned verbatim so the
-   * indexer can store them without re-encoding (preserves TS↔Aiken
-   * parity for any path that hashes the datum bytes).
+   * Live UTxOs at `address`. Two query shapes:
+   *
+   *   - **Fast path** (`useFastPath = true`): when db-sync has the
+   *     `consumed_by_tx_id` column populated, "live" is a single
+   *     column compare. O(live UTxO count) regardless of how many
+   *     historical tx_outs the address has accumulated.
+   *   - **Legacy path** (`useFastPath = false`): per-row NOT EXISTS
+   *     against `tx_in`. Works on any db-sync schema version but
+   *     scales with historical tx_out count at the address — the
+   *     concern flagged in issue #87 follow-up discussion.
+   *
+   * Inline datums are returned verbatim so the indexer can store
+   * them without re-encoding (preserves TS↔Aiken parity for any
+   * path that hashes the datum bytes).
    */
-  private async queryAddressUtxos(client: pg.PoolClient, address: string): Promise<DbSyncUtxo[]> {
+  private async queryAddressUtxos(
+    client: pg.PoolClient,
+    address: string,
+    useFastPath: boolean,
+  ): Promise<DbSyncUtxo[]> {
+    const liveFilter = useFastPath
+      ? "tx_out.consumed_by_tx_id IS NULL"
+      : `NOT EXISTS (
+          SELECT 1 FROM tx_in
+          WHERE tx_in.tx_out_id    = tx_out.tx_id
+            AND tx_in.tx_out_index = tx_out.index
+        )`;
     const sql = `
       SELECT
         ENCODE(tx.hash, 'hex')                AS tx_hash,
@@ -329,11 +452,7 @@ export class PostgresDbSyncClient implements DbSyncClient {
       LEFT JOIN datum  d ON tx_out.inline_datum_id   = d.id
       LEFT JOIN script s ON tx_out.reference_script_id = s.id
       WHERE tx_out.address = $1
-        AND NOT EXISTS (
-          SELECT 1 FROM tx_in
-          WHERE tx_in.tx_out_id    = tx_out.tx_id
-            AND tx_in.tx_out_index = tx_out.index
-        )
+        AND ${liveFilter}
       ORDER BY tx_out.tx_id, tx_out.index
     `;
     const result = await client.query<{
@@ -368,12 +487,25 @@ export class PostgresDbSyncClient implements DbSyncClient {
    * one such UTxO once bootstrap has run; we return the most recent
    * if (somehow) more than one exists and let the caller's reference
    * UTxO sanity check decide what to do.
+   *
+   * Same dual-path live-filter as `queryAddressUtxos`. The selectivity
+   * here is high either way (filter by exact `(policy, name)` first),
+   * but using the column-compare path keeps a single SQL idiom across
+   * the prime queries and avoids a redundant `tx_in` index probe.
    */
   private async queryReferenceNftUtxo(
     client: pg.PoolClient,
     policyHex: string,
     assetNameHex: string,
+    useFastPath: boolean,
   ): Promise<DbSyncUtxo | null> {
+    const liveFilter = useFastPath
+      ? "tx_out.consumed_by_tx_id IS NULL"
+      : `NOT EXISTS (
+          SELECT 1 FROM tx_in
+          WHERE tx_in.tx_out_id    = tx_out.tx_id
+            AND tx_in.tx_out_index = tx_out.index
+        )`;
     const sql = `
       SELECT
         ENCODE(tx.hash, 'hex')                AS tx_hash,
@@ -393,11 +525,7 @@ export class PostgresDbSyncClient implements DbSyncClient {
       WHERE ma.policy = DECODE($1, 'hex')
         AND ma.name   = DECODE($2, 'hex')
         AND mto.quantity = 1
-        AND NOT EXISTS (
-          SELECT 1 FROM tx_in
-          WHERE tx_in.tx_out_id    = tx_out.tx_id
-            AND tx_in.tx_out_index = tx_out.index
-        )
+        AND ${liveFilter}
       ORDER BY tx_out.tx_id DESC
       LIMIT 1
     `;
