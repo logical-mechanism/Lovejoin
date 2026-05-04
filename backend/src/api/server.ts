@@ -14,13 +14,13 @@ import Fastify, {
   type FastifyRequest,
 } from "fastify";
 
-import { validateBech32AddressForNetwork } from "../address.js";
 import type { BackendConfig } from "../config.js";
-import type { DbSyncClient, HistoryClient } from "../db/dbsync.js";
+import type { DbSyncClient, DbSyncUtxo } from "../db/dbsync.js";
 import type { IndexerState } from "../indexer/state.js";
 import type { IndexerRuntime } from "../indexer/runtime.js";
 import type { OgmiosTxClient } from "../indexer/ogmios-tx.js";
 import type { MempoolPoller } from "../indexer/mempool.js";
+import type { FeeShard, PoolEntry } from "../indexer/types.js";
 import {
   OPENAPI_INFO,
   OPENAPI_TAGS,
@@ -48,20 +48,11 @@ export interface ApiServerDeps {
   runtime: IndexerRuntime | null;
   config: BackendConfig;
   /**
-   * Primary db-sync client. Drives `/history/:address`,
-   * `/utxos/:address`, `/tx/:hash`, `/tx/:hash/utxos`. When null those
-   * routes return 503 (or, for /history specifically, fall through to
-   * `historyFallback`).
+   * Primary db-sync client. Drives `/tx/:hash`, `/tx/:hash/utxos`. When
+   * null those routes return 503. `/utxos/:address` is served from
+   * indexer state and does not require db-sync.
    */
   dbsync: DbSyncClient | null;
-  /**
-   * Optional Blockfrost-backed fallback for `/history/:address` — used
-   * when db-sync is unavailable (initial sync, brief outage). Only
-   * implements the history surface (HistoryClient), not the wider
-   * UTxO surface, because the rest of the routes have no graceful
-   * fallback from chain-state queries.
-   */
-  historyFallback?: HistoryClient | null;
   /**
    * Mempool-side ogmios client used by `/submit` and `/evaluate`.
    * Optional — tests omit it; the routes 503 when absent so the wire
@@ -197,7 +188,6 @@ export async function buildServer(deps: ApiServerDeps): Promise<FastifyInstance>
   registerBox(fastify, deps);
   registerFee(fastify, deps);
   registerMempool(fastify, deps);
-  registerHistory(fastify, deps);
   registerSubmit(fastify, deps);
   registerEvaluate(fastify, deps);
   registerAddressUtxos(fastify, deps);
@@ -480,84 +470,6 @@ function registerMempool(fastify: FastifyInstance, deps: ApiServerDeps): void {
   });
 }
 
-interface HistoryParams {
-  address: string;
-}
-interface HistoryQuery {
-  limit?: string;
-}
-
-function registerHistory(fastify: FastifyInstance, deps: ApiServerDeps): void {
-  fastify.get(
-    "/history/:address",
-    { schema: ROUTE_SCHEMAS.history },
-    async (
-      req: FastifyRequest<{ Params: HistoryParams; Querystring: HistoryQuery }>,
-      reply: FastifyReply,
-    ) => {
-      const fallback = deps.historyFallback ?? null;
-      if (!deps.dbsync && !fallback) {
-        reply.code(503);
-        return {
-          error: "history_unavailable",
-          message: "Neither DBSYNC_URL nor BLOCKFROST_PROJECT_ID is configured",
-        };
-      }
-      const address = req.params.address;
-      const addrErr = validateBech32AddressForNetwork(address, deps.config.network);
-      if (addrErr !== null) {
-        reply.code(400);
-        return { error: "bad_request", message: `address malformed: ${addrErr}` };
-      }
-      const limit = clamp(Number(req.query.limit ?? "50"), 1, 500, 50);
-
-      // Prefer db-sync (1 SQL query). On error or absence, fall through to
-      // the Blockfrost fallback (N+1 HTTP calls). Both clients implement
-      // the same `DbSyncClient` shape so the response stays identical.
-      let rows;
-      let source: "dbsync" | "blockfrost" | null = null;
-      let dbsyncError: Error | null = null;
-      if (deps.dbsync) {
-        try {
-          rows = await deps.dbsync.addressHistory(address, limit);
-          source = "dbsync";
-        } catch (err) {
-          dbsyncError = err as Error;
-          // Log full error server-side (operator visibility); never
-          // forward it to the client (it carries pg connection
-          // strings and host metadata) — security review v1, H3.
-          console.error(
-            `[/history] dbsync failed: ${dbsyncError.message}` +
-              (fallback ? "; falling back to Blockfrost" : "; no fallback configured"),
-          );
-        }
-      }
-      if (rows === undefined && fallback) {
-        rows = await fallback.addressHistory(address, limit);
-        source = "blockfrost";
-      }
-      if (rows === undefined) {
-        reply.code(503);
-        return {
-          error: "history_unavailable",
-          message: "history backend unreachable",
-        };
-      }
-
-      return {
-        address,
-        source,
-        history: rows.map((h) => ({
-          txHash: h.txHash,
-          blockHeight: h.blockHeight,
-          blockTime: h.blockTime,
-          lovelaceReceived: h.lovelaceReceived,
-        })),
-      };
-    },
-  );
-}
-
 interface SubmitBody {
   cbor?: string;
 }
@@ -671,39 +583,77 @@ interface AddressParams {
   address: string;
 }
 
+/**
+ * `/utxos/:address` is allowlisted to the two protocol-managed
+ * addresses (mix-box + fee-contract) and served from indexer state.
+ *
+ * Why allowlist: the only SDK callers (`fetchPool` and the fee-shard
+ * fetch) ever ask for these two addresses. Forwarding arbitrary
+ * addresses to db-sync turned into a DoS surface — every random
+ * `/utxos/<busy-address>` triggered a full `WHERE address = $1 AND
+ * NOT EXISTS (...)` scan on home-side postgres, with the route
+ * timing out at ~12s and the cloudflared tunnel returning 502.
+ *
+ * Why state: the indexer already tracks live pool entries + fee
+ * shards in memory; serving them from `state.pool_()` /
+ * `state.feeSnapshot()` is sub-millisecond and removes db-sync from
+ * the critical path entirely. `inlineDatumHex` is captured verbatim
+ * during `applyForward` so we don't re-encode `Constr 0 [bytes(48),
+ * bytes(48)]` here — that would invite TS↔Aiken parity drift.
+ */
 function registerAddressUtxos(fastify: FastifyInstance, deps: ApiServerDeps): void {
   fastify.get(
     "/utxos/:address",
     { schema: ROUTE_SCHEMAS.addressUtxos },
     async (req: FastifyRequest<{ Params: AddressParams }>, reply: FastifyReply) => {
-      if (!deps.dbsync) {
-        reply.code(503);
-        return {
-          error: "dbsync_unavailable",
-          message: "DBSYNC_URL not configured",
-        };
-      }
       const address = req.params.address;
-      const addrErr = validateBech32AddressForNetwork(address, deps.config.network);
-      if (addrErr !== null) {
-        reply.code(400);
-        return { error: "bad_request", message: `address malformed: ${addrErr}` };
+      const mixAddr = deps.config.derived.mixBoxAddress;
+      const feeAddr = deps.config.derived.feeContractAddress;
+
+      if (address === mixAddr) {
+        const utxos = deps.state.pool_().map((entry) => poolEntryToUtxo(entry, mixAddr));
+        return { address, tip: deps.state.tip, utxos: utxos.map(serializeUtxo) };
       }
-      try {
-        const utxos = await deps.dbsync.addressUtxos(address);
-        return {
-          address,
-          tip: deps.state.tip,
-          utxos: utxos.map(serializeUtxo),
-        };
-      } catch (err) {
-        const raw = (err as Error).message ?? "dbsync error";
-        console.error(`[dbsync] ${req.url}: ${raw}`);
-        reply.code(502);
-        return { error: "dbsync_error", message: "internal database error" };
+      if (address === feeAddr) {
+        const utxos = deps.state.feeSnapshot().shards.map((s) => feeShardToUtxo(s, feeAddr));
+        return { address, tip: deps.state.tip, utxos: utxos.map(serializeUtxo) };
       }
+      reply.code(400);
+      return {
+        error: "address_not_protocol_managed",
+        message:
+          "/utxos/:address only serves the two protocol-managed addresses (mix-box, fee-contract)",
+      };
     },
   );
+}
+
+function poolEntryToUtxo(entry: PoolEntry, address: string): DbSyncUtxo {
+  return {
+    txHash: entry.txHash,
+    outputIndex: entry.outputIndex,
+    address,
+    lovelace: entry.lovelace,
+    assets: {},
+    inlineDatum: entry.inlineDatumHex,
+    datumHash: null,
+    referenceScriptCbor: null,
+    referenceScriptHash: null,
+  };
+}
+
+function feeShardToUtxo(shard: FeeShard, address: string): DbSyncUtxo {
+  return {
+    txHash: shard.txHash,
+    outputIndex: shard.outputIndex,
+    address,
+    lovelace: shard.lovelace,
+    assets: {},
+    inlineDatum: shard.inlineDatumHex,
+    datumHash: null,
+    referenceScriptCbor: null,
+    referenceScriptHash: null,
+  };
 }
 
 interface TxHashParams {
