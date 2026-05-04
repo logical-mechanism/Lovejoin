@@ -98,7 +98,6 @@
     "title": "Lovejoin",
     "tagline": "Cardano-নেটিভ প্রাইভেসি মিক্সার।",
     "status": "প্রি-আলফা। ডিজাইনের জন্য docs/spec দেখুন।",
-    "preprod_banner": "Preprod",
     "connect_wallet": "ওয়ালেট কানেক্ট",
     "disconnect_wallet": "ডিসকানেক্ট"
   },
