@@ -15,10 +15,12 @@
 // onto MeshTxBuilder and is exercised by the Preprod integration test.
 
 import {
+  type G1Point,
   G1_COMPRESSED_BYTES,
   SCALAR_ORDER,
   type Scalar,
   generator,
+  isIdentity,
   pointFromBytes,
   pointToBytes,
   publicPointG,
@@ -173,6 +175,24 @@ export function assertOwnerSecret(secret: Scalar): void {
   }
 }
 
+/**
+ * Assert that a computed mix-box point is not the identity (point at
+ * infinity). Reachable only via `[0]·anything`, which the upstream
+ * scalar guards (`assertOwnerSecret`, the `[1, r)` check on `d`) already
+ * reject. This is defense-in-depth at the deposit boundary so that a
+ * future code path bypassing those guards cannot publish an
+ * Owner-forgeable mix-box (audit F-3 — when `b == identity`, the
+ * Schnorr equation `[z]·a == t + [c]·b` collapses to `[z]·a == t`,
+ * letting any observer construct a valid proof).
+ */
+function assertNonIdentityMixPoint(p: G1Point, label: "a" | "b"): void {
+  if (isIdentity(p)) {
+    throw new Error(
+      `mix-box ${label} would be the identity point — refusing to publish a forgeable box`,
+    );
+  }
+}
+
 /** Generate a fresh owner secret using the provided RNG (default: WebCrypto). */
 export function generateOwnerSecret(rng?: () => Uint8Array): Scalar {
   return drawScalar(rng);
@@ -228,7 +248,10 @@ export function deriveOwner(secret: Scalar, aBytes?: Uint8Array): OwnerSecretMat
     }
     // b = [x]·a (whatever a is). Re-randomized deposits set a = [d]·g.
     const aPoint = pointFromBytes(aBytes);
-    const b = pointToBytes(scalarMul(secret, aPoint));
+    assertNonIdentityMixPoint(aPoint, "a");
+    const bPoint = scalarMul(secret, aPoint);
+    assertNonIdentityMixPoint(bPoint, "b");
+    const b = pointToBytes(bPoint);
     const aHex = bytesToHex(aBytes);
     const publicPointHex = bytesToHex(b);
     return {
@@ -240,9 +263,16 @@ export function deriveOwner(secret: Scalar, aBytes?: Uint8Array): OwnerSecretMat
     };
   }
   // Legacy path: a = g, b = [x]·g. Used by tests / call sites that
-  // pre-date re-randomization.
-  const a = pointToBytes(generator());
-  const b = pointToBytes(publicPointG(secret));
+  // pre-date re-randomization. `a = g` is a generator (non-identity by
+  // construction) and `b = [x]·g` is non-identity for any x in [1, r),
+  // which `assertOwnerSecret` already enforced; the explicit checks
+  // mirror the re-randomized branch for symmetry.
+  const aPoint = generator();
+  const bPoint = publicPointG(secret);
+  assertNonIdentityMixPoint(aPoint, "a");
+  assertNonIdentityMixPoint(bPoint, "b");
+  const a = pointToBytes(aPoint);
+  const b = pointToBytes(bPoint);
   const publicPointHex = bytesToHex(b);
   return {
     secret,
@@ -335,6 +365,8 @@ export function planDepositTx(args: PlanDepositArgs): DepositPlan {
     aPoint = scalarMul(d, generator());
     bPoint = scalarMul(ownerSecret, aPoint);
   }
+  assertNonIdentityMixPoint(aPoint, "a");
+  assertNonIdentityMixPoint(bPoint, "b");
   const a = pointToBytes(aPoint);
   const b = pointToBytes(bPoint);
 
@@ -772,6 +804,8 @@ export function planBulkDepositTx(args: PlanBulkDepositArgs): BulkDepositPlan {
       aPoint = scalarMul(d, generator());
       bPoint = scalarMul(x, aPoint);
     }
+    assertNonIdentityMixPoint(aPoint, "a");
+    assertNonIdentityMixPoint(bPoint, "b");
     const a = pointToBytes(aPoint);
     const b = pointToBytes(bPoint);
     const inlineDatumHex = encodeMixDatum({ a, b });

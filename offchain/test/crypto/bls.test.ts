@@ -7,6 +7,7 @@ import {
   SCALAR_ORDER,
   bytesToBigIntBE,
   generator,
+  isIdentity,
   pointAdd,
   pointEqual,
   pointFromBytes,
@@ -103,5 +104,19 @@ describe("crypto/bls", () => {
     const inf = G1Point.ZERO.toBytes();
     expect(inf[0]).toBe(0xc0);
     for (let i = 1; i < 48; i++) expect(inf[i]).toBe(0);
+  });
+
+  it("isIdentity is true for the zero point and the canonical infinity bytes", () => {
+    expect(isIdentity(G1Point.ZERO)).toBe(true);
+    expect(isIdentity(scalarMul(0n, generator()))).toBe(true);
+    const infBytes = new Uint8Array(48);
+    infBytes[0] = 0xc0;
+    expect(isIdentity(pointFromBytes(infBytes))).toBe(true);
+  });
+
+  it("isIdentity is false for the generator and non-zero scalar multiples", () => {
+    expect(isIdentity(generator())).toBe(false);
+    expect(isIdentity(scalarMul(7n, generator()))).toBe(false);
+    expect(isIdentity(scalarMul(SCALAR_ORDER - 1n, generator()))).toBe(false);
   });
 });
