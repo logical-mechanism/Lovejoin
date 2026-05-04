@@ -4,6 +4,8 @@ A Cardano-native, non-custodial **privacy mixer**. Deposit a fixed amount of ADA
 
 Lovejoin implements **Sigmajoin** ([papers/sigmajoin.pdf](papers/sigmajoin.pdf)), an outsourceable variant of **Zerojoin**, as a **hyperstructure**: the on-chain protocol is permissionless, immutable, and has no operator. Anyone can run a website. Anyone can run an indexer. Anyone can press the "mix" button.
 
+> **Unaudited alpha · Cardano Preprod testnet only · do not use real funds.** Lovejoin has not been independently audited. Mainnet is not on the v1 release path; it is gated on a third-party audit and a bug-bounty window. Disclosure terms: [SECURITY.md](SECURITY.md).
+
 ## Who it's for
 
 - You hold ADA on Cardano and want **on-chain financial privacy** without trusting a custodian.
