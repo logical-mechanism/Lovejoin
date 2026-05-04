@@ -98,7 +98,7 @@
     "title": "Lovejoin",
     "tagline": "Pencampur privasi asli Cardano.",
     "status": "Pra-alpha. Lihat docs/spec untuk desain.",
-    "preprod_banner": "Hanya Preprod · jangan gunakan dana sungguhan",
+    "preprod_banner": "Alpha belum diaudit · hanya testnet Cardano Preprod · jangan gunakan dana sungguhan",
     "connect_wallet": "Hubungkan dompet",
     "disconnect_wallet": "Putuskan"
   },
@@ -110,7 +110,8 @@
     "vault": "Brankas",
     "donate": "Donasi",
     "protocol": "Protokol",
-    "help": "Bantuan"
+    "help": "Bantuan",
+    "security": "Keamanan"
   },
   "language": {
     "label": "Bahasa",
@@ -464,6 +465,7 @@
     "tab_guide": "Panduan pengguna",
     "tab_faq": "FAQ",
     "tab_glossary": "Glosarium",
+    "tab_security": "Keamanan",
     "back_to_top": "Kembali ke atas",
     "guide": {
       "intro_p1": "Ini versi dengan bahasa sederhana. Untuk matematika dan detail implementasi, kunjungi <a1>halaman protokol</a1>.",
@@ -576,6 +578,31 @@
       "wallet_anonymous_p1": "Sebuah properti dari transaksi mix. Sebuah mix bersifat dompet-anonim jika tidak ada dompet yang muncul sebagai input atau penanda tangan transaksi. Lovejoin mencapai ini dengan membayar biaya dari fee shard dan membiarkan penyedia collateral eksternal menyuplai input collateral yang diperlukan.",
       "withdraw_h": "Tarik",
       "withdraw_p1": "Langkah terakhir. Kamu membelanjakan salah satu box-mu ke alamat tujuan dengan bukti Schnorr atas pengetahuan rahasia pemilik. Tidak perlu tanda tangan dompet pada box itu sendiri, jadi tujuan tidak punya ikatan on-chain dengan dompet yang awalnya menyetor."
+    },
+    "security": {
+      "intro_p1": "Lovejoin adalah perangkat lunak alpha yang belum diaudit yang berjalan di testnet Preprod Cardano. Halaman ini merangkum apa artinya itu, apa yang dianggap sebagai masalah keamanan, dan bagaimana cara mengungkapkannya. Ketentuan resmi ada di <a1>SECURITY.md</a1>.",
+      "unaudited_h": "Apa arti \"belum diaudit\"",
+      "unaudited_p1": "Tidak ada pihak ketiga yang meninjau validator, SDK, backend, atau UI Lovejoin. Protokol ini open source dan tidak dapat diubah setelah deploy, tetapi tak satu pun menggantikan audit eksternal.",
+      "unaudited_p2": "Anggap deployment sebagai eksperimental. <b>Mainnet tidak ada di jalur rilis v1; ia bergantung pada audit eksternal dan jendela bug-bounty.</b> Sampai saat itu, tidak ada dana sungguhan yang berisiko karena tidak ada dana sungguhan yang diterima.",
+      "scope_h": "Apa yang termasuk dalam cakupan",
+      "scope_p1": "Laporan yang ingin kami dengar:",
+      "scope_li1": "<b>Validator.</b> Kontrak Aiken di <c>contracts/</c> dan upacara bootstrap di <c>infra/bootstrap/</c>.",
+      "scope_li2": "<b>SDK.</b> Stack off-chain TypeScript: primitif kripto, pembangun transaksi, implementasi ChainProvider.",
+      "scope_li3": "<b>Backend.</b> Indexer dan API yang di-host sendiri.",
+      "scope_li4": "<b>UI.</b> Penanganan dompet, vault, derivasi rahasia pemilik, dan cadangan terenkripsi IndexedDB.",
+      "scope_li5": "<b>Referensi kripto.</b> Implementasi referensi Rust, ketika perbedaan dengan TS atau Aiken merusak invarian yang relevan dengan keamanan.",
+      "scope_p2": "Khususnya menarik: deanonimisasi melampaui batas tautan <c>(1/N)^k</c>, membelanjakan mix-box tanpa bukti Schnorr atau sigma-OR yang valid, menguras atau menggandakan pengeluaran fee shard, memalsukan atau memutar ulang tanda tangan dompet CIP-8, dan perbedaan paritas pengkodean TS↔Aiken.",
+      "out_h": "Apa yang tidak termasuk dalam cakupan",
+      "out_li1": "<b>Mainnet.</b> Lovejoin hanya di Preprod. Tidak ada deployment mainnet; protokol tidak dapat mencapai mainnet tanpa gerbang audit eksternal.",
+      "out_li2": "<b>Masalah dependensi pihak ketiga</b> yang sudah diungkap di hulu. Laporkan ke proyek hulu dan tautkan di sini.",
+      "out_li3": "<b>Masalah protokol Cardano</b> (Ouroboros, Plutus VM, ledger). Laporkan ke IOG.",
+      "out_li4": "<b>Layanan eksternal yang tidak kami operasikan.</b> Penyedia collateral (<a1>giveme.my</a1> secara default) dapat ditukar; perilaku UI dan SDK ketika penyedia berperilaku buruk masuk cakupan, tetapi penyedia itu sendiri tidak.",
+      "disclose_h": "Cara mengungkapkan",
+      "disclose_p1": "<b>Mohon jangan membuka issue GitHub publik untuk pengungkapan keamanan.</b> Kirim email ke <a1>security@lovejo.in</a1> (atau <a2>support@logicalmechanism.io</a2> hingga alias keamanan aktif) dengan deskripsi jelas, reproduksi minimal, dan SHA commit yang Anda uji.",
+      "disclose_p2": "Kami berusaha mengonfirmasi penerimaan dalam beberapa hari, bekerja sama untuk perbaikan, dan mengoordinasikan pengungkapan publik dalam 90 hari sejak laporan awal. Ketentuan lengkap ada di <a1>SECURITY.md</a1>.",
+      "bounty_h": "Program bug bounty",
+      "bounty_p1": "Lovejoin saat ini tidak menjalankan program bug bounty berbayar. Karena deployment adalah alpha di Preprod tanpa dana sungguhan yang dipertaruhkan, laporan adalah kontribusi terhadap keamanan proyek, bukan transaksi.",
+      "bounty_p2": "Kami menawarkan kredit publik (atau anonimitas, terserah Anda), kontak langsung dengan maintainer, dan pembayaran terima kasih sederhana atas kebijaksanaan maintainer untuk laporan berkualitas tinggi. Program bounty formal akan dipertimbangkan bersama dengan audit pra-mainnet."
     }
   }
 }

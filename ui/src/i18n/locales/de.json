@@ -98,7 +98,7 @@
     "title": "Lovejoin",
     "tagline": "Ein Cardano-nativer Privacy-Mixer.",
     "status": "Pre-Alpha. Designdetails siehe docs/spec.",
-    "preprod_banner": "Nur Preprod · keine echten Mittel verwenden",
+    "preprod_banner": "Ungeprüftes Alpha · nur Cardano Preprod Testnet · keine echten Mittel verwenden",
     "connect_wallet": "Wallet verbinden",
     "disconnect_wallet": "Trennen"
   },
@@ -110,7 +110,8 @@
     "vault": "Vault",
     "donate": "Spenden",
     "protocol": "Protokoll",
-    "help": "Hilfe"
+    "help": "Hilfe",
+    "security": "Sicherheit"
   },
   "language": {
     "label": "Sprache",
@@ -464,6 +465,7 @@
     "tab_guide": "Benutzerhandbuch",
     "tab_faq": "FAQ",
     "tab_glossary": "Glossar",
+    "tab_security": "Sicherheit",
     "back_to_top": "Nach oben",
     "guide": {
       "intro_p1": "Das ist die Version in einfacher Sprache. Wenn du die Mathematik und die Implementierungsdetails sehen willst, geh auf die <a1>Protokoll-Seite</a1>.",
@@ -576,6 +578,31 @@
       "wallet_anonymous_p1": "Eine Eigenschaft von Mix-Transaktionen. Ein Mix ist wallet-anonym, wenn keine Wallet als Eingabe oder Unterzeichner der Transaktion auftaucht. Lovejoin erreicht das, indem die Gebühr aus einem Fee-Shard bezahlt wird und ein externer Collateral-Anbieter die nötige Collateral-Eingabe liefert.",
       "withdraw_h": "Auszahlen",
       "withdraw_p1": "Der letzte Schritt. Du gibst eine deiner Boxen an eine Zieladresse aus, mit einem Schnorr-Beweis der Kenntnis des Eigentümer-Geheimnisses. Auf der Box selbst wird keine Wallet-Signatur gebraucht, also hat das Ziel keinen On-Chain-Bezug zur Wallet, die ursprünglich eingezahlt hat."
+    },
+    "security": {
+      "intro_p1": "Lovejoin ist ungeprüfte Alpha-Software, die auf Cardanos Preprod-Testnetz läuft. Diese Seite fasst zusammen, was das bedeutet, was als Sicherheitsproblem zählt und wie man eines meldet. Die maßgeblichen Bedingungen stehen in <a1>SECURITY.md</a1>.",
+      "unaudited_h": "Was \"ungeprüft\" bedeutet",
+      "unaudited_p1": "Kein Dritter hat Lovejoins Validatoren, SDK, Backend oder UI geprüft. Das Protokoll ist Open-Source und nach dem Deployment unveränderlich; weder das eine noch das andere ersetzt eine externe Prüfung.",
+      "unaudited_p2": "Behandle das Deployment als experimentell. <b>Mainnet ist nicht im v1-Releasepfad; es hängt von einer externen Prüfung und einem Bug-Bounty-Fenster ab.</b> Bis dahin sind keine echten Mittel gefährdet, weil keine echten Mittel akzeptiert werden.",
+      "scope_h": "Was im Geltungsbereich liegt",
+      "scope_p1": "Berichte, die wir hören möchten:",
+      "scope_li1": "<b>Validatoren.</b> Die Aiken-Verträge in <c>contracts/</c> und die Bootstrap-Zeremonie in <c>infra/bootstrap/</c>.",
+      "scope_li2": "<b>SDK.</b> Der TypeScript-Off-Chain-Stack: Krypto-Primitiven, Transaktionsbauer, ChainProvider-Implementierungen.",
+      "scope_li3": "<b>Backend.</b> Der selbst gehostete Indexer und die API.",
+      "scope_li4": "<b>UI.</b> Wallet-Handling, Vault, Owner-Secret-Ableitung und das verschlüsselte IndexedDB-Backup.",
+      "scope_li5": "<b>Krypto-Referenz.</b> Die Rust-Referenzimplementierung, wenn Abweichungen zu TS oder Aiken eine sicherheitsrelevante Invariante brechen.",
+      "scope_p2": "Besonders interessant: Deanonymisierung jenseits der Linkage-Schranke <c>(1/N)^k</c>, das Ausgeben einer mix-box ohne gültigen Schnorr- oder Sigma-OR-Beweis, das Leeren oder doppelte Ausgeben von Fee-Shards, das Fälschen oder Wiederholen von CIP-8-Wallet-Signaturen sowie Abweichungen in der TS↔Aiken-Encoding-Parität.",
+      "out_h": "Was nicht im Geltungsbereich liegt",
+      "out_li1": "<b>Mainnet.</b> Lovejoin ist nur auf Preprod. Es gibt kein Mainnet-Deployment; das Protokoll kann Mainnet nur nach der externen Prüfung erreichen.",
+      "out_li2": "<b>Probleme in Drittanbieter-Abhängigkeiten</b>, die bereits upstream offengelegt wurden. Reiche sie beim Upstream-Projekt ein und verlinke sie hier.",
+      "out_li3": "<b>Cardano-Protokoll-Probleme</b> (Ouroboros, Plutus VM, Ledger). Melde sie an IOG.",
+      "out_li4": "<b>Externe Dienste, die wir nicht betreiben.</b> Der Collateral-Provider (standardmäßig <a1>giveme.my</a1>) ist austauschbar; Verhalten von UI und SDK bei einem fehlerhaften Provider ist im Geltungsbereich, der Provider selbst nicht.",
+      "disclose_h": "Wie man offenlegt",
+      "disclose_p1": "<b>Bitte öffne kein öffentliches GitHub-Issue für Sicherheitsoffenlegungen.</b> Schreibe an <a1>security@lovejo.in</a1> (oder <a2>support@logicalmechanism.io</a2>, bis das Sicherheits-Alias aktiv ist) mit klarer Beschreibung, minimaler Reproduktion und der Commit-SHA, gegen die du getestet hast.",
+      "disclose_p2": "Wir bemühen uns, den Eingang innerhalb weniger Tage zu bestätigen, gemeinsam an einem Fix zu arbeiten und eine öffentliche Offenlegung innerhalb von 90 Tagen nach dem ursprünglichen Bericht zu koordinieren. Die vollständigen Bedingungen stehen in <a1>SECURITY.md</a1>.",
+      "bounty_h": "Bug Bounty",
+      "bounty_p1": "Lovejoin betreibt derzeit kein bezahltes Bug-Bounty-Programm. Da das Deployment Alpha auf Preprod ohne reale Mittel ist, sind Berichte ein Beitrag zur Sicherheit des Projekts, keine Transaktion.",
+      "bounty_p2": "Wir bieten öffentliche Anerkennung (oder Anonymität, deine Wahl), direkten Kontakt zum Maintainer und nach Ermessen des Maintainers bescheidene Dankeszahlungen für hochwertige Berichte. Ein formelles Bounty-Programm wird im Rahmen der Pre-Mainnet-Prüfung erwogen."
     }
   }
 }

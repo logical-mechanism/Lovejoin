@@ -98,7 +98,7 @@
     "title": "Lovejoin",
     "tagline": "Cardano 原生的隐私混币器。",
     "status": "预 alpha 版本。设计请见 docs/spec。",
-    "preprod_banner": "仅 Preprod · 请勿使用真实资金",
+    "preprod_banner": "未经审计的 alpha · 仅 Cardano Preprod 测试网 · 请勿使用真实资金",
     "connect_wallet": "连接钱包",
     "disconnect_wallet": "断开连接"
   },
@@ -110,7 +110,8 @@
     "vault": "保险库",
     "donate": "捐赠",
     "protocol": "协议",
-    "help": "帮助"
+    "help": "帮助",
+    "security": "安全"
   },
   "language": {
     "label": "语言",
@@ -464,6 +465,7 @@
     "tab_guide": "用户指南",
     "tab_faq": "常见问题",
     "tab_glossary": "术语表",
+    "tab_security": "安全",
     "back_to_top": "返回顶部",
     "guide": {
       "intro_p1": "这是通俗语言版本。如果你想要数学和实现细节,请前往 <a1>协议页面</a1>。",
@@ -576,6 +578,31 @@
       "wallet_anonymous_p1": "混合交易的属性。如果交易的输入或签名者中没有钱包出现, 那么该混合就是钱包匿名的。Lovejoin 通过从 fee shard 支 付费用,并让外部抵押品提供方提供所需的抵押品输入,来实 现这一点。",
       "withdraw_h": "提取(withdraw)",
       "withdraw_p1": "最后一步。你使用所有者秘密知识的 Schnorr 证明,将其中一 个 box 花到目标地址。无需对 box 本身进行钱包签名,因此 目标与最初存款的钱包之间没有链上联系。"
+    },
+    "security": {
+      "intro_p1": "Lovejoin 是运行于 Cardano Preprod 测试网的未审计 alpha 软件。本页总结其含义、何为安全问题以及如何披露。正式条款见 <a1>SECURITY.md</a1>。",
+      "unaudited_h": "\"未审计\" 是什么意思",
+      "unaudited_p1": "没有第三方审阅过 Lovejoin 的验证器、SDK、后端或 UI。协议开源，部署后不可变，但两者都不能替代外部审计。",
+      "unaudited_p2": "请将部署视为实验性。<b>主网不在 v1 发布路径上；它取决于外部审计与 bug-bounty 期。</b>在此之前，没有真实资金面临风险，因为不接受真实资金。",
+      "scope_h": "范围内的内容",
+      "scope_p1": "我们希望收到的报告:",
+      "scope_li1": "<b>验证器。</b><c>contracts/</c> 中的 Aiken 合约以及 <c>infra/bootstrap/</c> 中的 bootstrap 流程。",
+      "scope_li2": "<b>SDK。</b>TypeScript 链下栈: 加密原语、交易构建器、ChainProvider 实现。",
+      "scope_li3": "<b>后端。</b>自托管索引器和 API。",
+      "scope_li4": "<b>UI。</b>钱包处理、vault、所有者密钥派生以及加密的 IndexedDB 备份。",
+      "scope_li5": "<b>加密参考实现。</b>Rust 参考实现，当与 TS 或 Aiken 的偏差打破某个安全相关不变量时。",
+      "scope_p2": "尤其感兴趣的: 超越 <c>(1/N)^k</c> 链接概率界限的去匿名化、在没有有效 Schnorr 或 sigma-OR 证明的情况下花费 mix-box、清空或双重花费 fee shard、伪造或重放 CIP-8 钱包签名以及 TS↔Aiken 编码一致性差异。",
+      "out_h": "范围外的内容",
+      "out_li1": "<b>主网。</b>Lovejoin 仅在 Preprod 上。不存在主网部署；协议在通过外部审计闸门之前无法进入主网。",
+      "out_li2": "<b>已在上游披露的第三方依赖问题。</b>请向上游项目报告并在此处链接。",
+      "out_li3": "<b>Cardano 协议级问题</b>（Ouroboros、Plutus VM、账本）。请向 IOG 报告。",
+      "out_li4": "<b>我们不运营的外部服务。</b>抵押品提供方（默认 <a1>giveme.my</a1>）可替换；提供方行为异常时 UI 和 SDK 的行为在范围内，但提供方本身不在。",
+      "disclose_h": "如何披露",
+      "disclose_p1": "<b>请勿为安全披露开启公开 GitHub issue。</b>请发送邮件至 <a1>security@lovejo.in</a1>（在安全别名启用之前发送至 <a2>support@logicalmechanism.io</a2>），附上清晰描述、最小复现和您所测试的 commit SHA。",
+      "disclose_p2": "我们力求在数天内确认收到、合作完成修复，并在初次报告 90 天内协调公开披露。完整条款见 <a1>SECURITY.md</a1>。",
+      "bounty_h": "Bug bounty",
+      "bounty_p1": "Lovejoin 当前未运行有偿 bug bounty 项目。由于部署是 Preprod 上的 alpha，且无真实资金在线，报告是对项目安全的贡献，而非交易。",
+      "bounty_p2": "我们为高质量报告提供公开致谢（或匿名，由您选择）、与维护者的直接联系，以及由维护者酌情提供的小额感谢付款。正式 bounty 项目将在主网前审计时一并考虑。"
     }
   }
 }

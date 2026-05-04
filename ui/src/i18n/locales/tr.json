@@ -98,7 +98,7 @@
     "title": "Lovejoin",
     "tagline": "Cardano yerlisi gizlilik karıştırıcısı.",
     "status": "Pre-alfa. Tasarım için docs/spec'e bakın.",
-    "preprod_banner": "Yalnızca Preprod · gerçek fon kullanmayın",
+    "preprod_banner": "Denetlenmemiş alfa · yalnızca Cardano Preprod test ağı · gerçek fon kullanmayın",
     "connect_wallet": "Cüzdan bağla",
     "disconnect_wallet": "Bağlantıyı kes"
   },
@@ -110,7 +110,8 @@
     "vault": "Kasa",
     "donate": "Bağış",
     "protocol": "Protokol",
-    "help": "Yardım"
+    "help": "Yardım",
+    "security": "Güvenlik"
   },
   "language": {
     "label": "Dil",
@@ -464,6 +465,7 @@
     "tab_guide": "Kullanıcı kılavuzu",
     "tab_faq": "SSS",
     "tab_glossary": "Sözlük",
+    "tab_security": "Güvenlik",
     "back_to_top": "Başa dön",
     "guide": {
       "intro_p1": "Bu, sade dilde sürüm. Matematik ve uygulama ayrıntıları için <a1>protokol sayfasına</a1> git.",
@@ -576,6 +578,31 @@
       "wallet_anonymous_p1": "Karıştırma işlemlerinin bir özelliği. Bir karıştırma, hiçbir cüzdan işlemin girişi veya imzalayanı olarak görünmüyorsa cüzdan-anonimdir. Lovejoin bunu ücreti bir fee shard'dan ödeyerek ve gerekli collateral girdisini harici bir collateral sağlayıcısının sağlamasına izin vererek başarır.",
       "withdraw_h": "Çekim",
       "withdraw_p1": "Son adım. Box'larından birini sahip sırrını bilme Schnorr kanıtıyla bir hedef adrese harcarsın. Box'ın kendisinde cüzdan imzasına gerek yok, dolayısıyla hedefin başlangıçta yatırım yapan cüzdanla zincir üstü bağlantısı yok."
+    },
+    "security": {
+      "intro_p1": "Lovejoin, Cardano Preprod test ağında çalışan denetlenmemiş alfa yazılımdır. Bu sayfa bunun ne anlama geldiğini, neyin güvenlik sorunu sayıldığını ve nasıl bildirileceğini özetler. Geçerli koşullar <a1>SECURITY.md</a1> içinde.",
+      "unaudited_h": "\"Denetlenmemiş\" ne demek",
+      "unaudited_p1": "Lovejoin'in doğrulayıcılarını, SDK'sını, arka ucunu veya arayüzünü hiçbir üçüncü taraf incelemedi. Protokol açık kaynaklı ve dağıtımdan sonra değişmezdir, ancak hiçbiri dış denetimin yerini tutmaz.",
+      "unaudited_p2": "Dağıtımı deneysel olarak ele alın. <b>Mainnet, v1 sürüm yolunda değildir; dış denetim ve bir bug-bounty penceresine bağlıdır.</b> O zamana kadar gerçek fonlar kabul edilmediği için gerçek fon riski yoktur.",
+      "scope_h": "Kapsamda olanlar",
+      "scope_p1": "Almak istediğimiz raporlar:",
+      "scope_li1": "<b>Doğrulayıcılar.</b> <c>contracts/</c> içindeki Aiken kontratları ve <c>infra/bootstrap/</c> içindeki bootstrap töreni.",
+      "scope_li2": "<b>SDK.</b> TypeScript zincir-dışı yığını: kripto ilkel öğeleri, işlem oluşturucular, ChainProvider uygulamaları.",
+      "scope_li3": "<b>Arka uç.</b> Kendi barındırdığımız indeksleyici ve API.",
+      "scope_li4": "<b>UI.</b> Cüzdan yönetimi, vault, sahip sırrı türetimi ve şifrelenmiş IndexedDB yedeği.",
+      "scope_li5": "<b>Kripto referansı.</b> Rust referans uygulaması, TS veya Aiken'dan ayrılma güvenlikle ilgili bir değişmezi bozduğunda.",
+      "scope_p2": "Özellikle ilginç: <c>(1/N)^k</c> bağlantı sınırının ötesinde anonimlik kaldırma, geçerli Schnorr veya sigma-OR kanıtı olmadan bir mix-box harcama, fee shard'ları boşaltma veya çift harcama, CIP-8 cüzdan imzalarını sahteleme veya tekrar oynatma ve TS↔Aiken kodlama eşliği farklılıkları.",
+      "out_h": "Kapsam dışında olanlar",
+      "out_li1": "<b>Mainnet.</b> Lovejoin yalnızca Preprod'da. Mainnet dağıtımı yok; protokol dış denetim kapısı olmadan mainnet'e ulaşamaz.",
+      "out_li2": "<b>Üst kaynakta zaten açıklanmış üçüncü taraf bağımlılık sorunları</b>. Üst kaynak projeye bildirip buradan bağlantı verin.",
+      "out_li3": "<b>Cardano protokol düzeyi sorunlar</b> (Ouroboros, Plutus VM, ledger). Bunları IOG'ye bildirin.",
+      "out_li4": "<b>Çalıştırmadığımız harici hizmetler.</b> Teminat sağlayıcı (varsayılan <a1>giveme.my</a1>) takılabilir; sağlayıcı kötü davrandığında UI ve SDK davranışı kapsam içindedir, ancak sağlayıcının kendisi değildir.",
+      "disclose_h": "Nasıl bildirilir",
+      "disclose_p1": "<b>Lütfen güvenlik açıklamaları için herkese açık GitHub issue açmayın.</b> Net açıklama, asgari yeniden üretme ve test ettiğiniz commit SHA'sıyla <a1>security@lovejo.in</a1> (güvenlik takma adı aktif olana kadar <a2>support@logicalmechanism.io</a2>) adresine e-posta gönderin.",
+      "disclose_p2": "Birkaç gün içinde alındı onayı vermeyi, düzeltme üzerinde işbirliği yapmayı ve ilk rapordan itibaren 90 gün içinde kamuya açıklamayı koordine etmeyi hedefliyoruz. Tam koşullar <a1>SECURITY.md</a1> içinde.",
+      "bounty_h": "Bug bounty",
+      "bounty_p1": "Lovejoin şu anda ücretli bir bug bounty programı yürütmüyor. Dağıtım Preprod üzerinde alfa olduğu ve gerçek fon söz konusu olmadığı için raporlar bir işlem değil, projenin güvenliğine katkıdır.",
+      "bounty_p2": "Yüksek kaliteli raporlar için kamuya açık övgü (veya tercihe bağlı anonimlik), bakımcıyla doğrudan iletişim ve bakımcının takdiriyle ölçülü teşekkür ödemeleri sunuyoruz. Resmi bir bounty programı, mainnet öncesi denetimle birlikte değerlendirilecektir."
     }
   }
 }

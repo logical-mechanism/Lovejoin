@@ -98,7 +98,7 @@
     "title": "Lovejoin",
     "tagline": "Máy trộn riêng tư bản địa của Cardano.",
     "status": "Pre-alpha. Xem docs/spec để biết thiết kế.",
-    "preprod_banner": "Chỉ Preprod · không dùng tiền thật",
+    "preprod_banner": "Alpha chưa được kiểm toán · chỉ testnet Cardano Preprod · không dùng tiền thật",
     "connect_wallet": "Kết nối ví",
     "disconnect_wallet": "Ngắt kết nối"
   },
@@ -110,7 +110,8 @@
     "vault": "Két",
     "donate": "Quyên góp",
     "protocol": "Giao thức",
-    "help": "Trợ giúp"
+    "help": "Trợ giúp",
+    "security": "Bảo mật"
   },
   "language": {
     "label": "Ngôn ngữ",
@@ -464,6 +465,7 @@
     "tab_guide": "Hướng dẫn người dùng",
     "tab_faq": "Câu hỏi thường gặp",
     "tab_glossary": "Bảng thuật ngữ",
+    "tab_security": "Bảo mật",
     "back_to_top": "Lên đầu trang",
     "guide": {
       "intro_p1": "Đây là phiên bản ngôn ngữ đơn giản. Nếu bạn muốn toán học và chi tiết triển khai, hãy đến <a1>trang giao thức</a1>.",
@@ -576,6 +578,31 @@
       "wallet_anonymous_p1": "Một thuộc tính của giao dịch trộn. Một lần trộn là ví-ẩn danh nếu không có ví nào xuất hiện như đầu vào hoặc người ký của giao dịch. Lovejoin đạt được điều này bằng cách trả phí từ một fee shard và để một nhà cung cấp collateral bên ngoài cung cấp đầu vào collateral cần thiết.",
       "withdraw_h": "Rút",
       "withdraw_p1": "Bước cuối cùng. Bạn chi một trong các box của mình tới một địa chỉ đích bằng bằng chứng Schnorr về kiến thức của bí mật chủ sở hữu. Không cần chữ ký ví trên chính box, vì vậy đích không có liên kết on-chain với ví đã gửi ban đầu."
+    },
+    "security": {
+      "intro_p1": "Lovejoin là phần mềm alpha chưa được kiểm toán chạy trên mạng thử nghiệm Preprod của Cardano. Trang này tóm tắt điều đó nghĩa là gì, điều gì được tính là vấn đề bảo mật và cách công bố. Các điều khoản chính thức ở <a1>SECURITY.md</a1>.",
+      "unaudited_h": "\"Chưa được kiểm toán\" có nghĩa là gì",
+      "unaudited_p1": "Không có bên thứ ba nào đã rà soát các validator, SDK, backend hoặc UI của Lovejoin. Giao thức là mã nguồn mở và bất biến sau khi triển khai, nhưng không cái nào thay thế được kiểm toán bên ngoài.",
+      "unaudited_p2": "Hãy coi việc triển khai là thử nghiệm. <b>Mainnet không nằm trên đường phát hành v1; nó phụ thuộc vào kiểm toán bên ngoài và một cửa sổ bug-bounty.</b> Cho đến lúc đó, không có tiền thật nào gặp rủi ro vì không tiền thật nào được chấp nhận.",
+      "scope_h": "Phạm vi áp dụng",
+      "scope_p1": "Các báo cáo chúng tôi muốn nhận:",
+      "scope_li1": "<b>Validator.</b> Các hợp đồng Aiken trong <c>contracts/</c> và lễ bootstrap trong <c>infra/bootstrap/</c>.",
+      "scope_li2": "<b>SDK.</b> Stack TypeScript off-chain: nguyên thủy mật mã, trình dựng giao dịch, các triển khai ChainProvider.",
+      "scope_li3": "<b>Backend.</b> Indexer và API tự lưu trữ.",
+      "scope_li4": "<b>UI.</b> Xử lý ví, vault, dẫn xuất bí mật chủ và bản sao lưu IndexedDB được mã hóa.",
+      "scope_li5": "<b>Tham chiếu mật mã.</b> Triển khai tham chiếu Rust, khi sai khác với TS hoặc Aiken phá vỡ một bất biến liên quan đến bảo mật.",
+      "scope_p2": "Đặc biệt quan tâm: deanonymization vượt qua giới hạn liên kết <c>(1/N)^k</c>, tiêu một mix-box mà không có bằng chứng Schnorr hoặc sigma-OR hợp lệ, làm cạn hoặc tiêu kép fee shard, làm giả hoặc phát lại chữ ký ví CIP-8, và các sai khác về parity mã hóa TS↔Aiken.",
+      "out_h": "Ngoài phạm vi",
+      "out_li1": "<b>Mainnet.</b> Lovejoin chỉ trên Preprod. Không có triển khai mainnet; giao thức không thể đến mainnet nếu không qua cổng kiểm toán bên ngoài.",
+      "out_li2": "<b>Vấn đề phụ thuộc bên thứ ba</b> đã được công bố thượng nguồn. Báo cáo chúng cho dự án thượng nguồn và liên kết tới đây.",
+      "out_li3": "<b>Vấn đề cấp giao thức Cardano</b> (Ouroboros, Plutus VM, ledger). Báo cáo cho IOG.",
+      "out_li4": "<b>Dịch vụ bên ngoài chúng tôi không vận hành.</b> Nhà cung cấp tài sản thế chấp (mặc định <a1>giveme.my</a1>) có thể thay thế; hành vi của UI và SDK khi nhà cung cấp xử sự sai nằm trong phạm vi, nhưng bản thân nhà cung cấp thì không.",
+      "disclose_h": "Cách công bố",
+      "disclose_p1": "<b>Vui lòng không mở issue GitHub công khai cho công bố bảo mật.</b> Gửi email tới <a1>security@lovejo.in</a1> (hoặc <a2>support@logicalmechanism.io</a2> cho đến khi bí danh bảo mật hoạt động) với mô tả rõ ràng, tái tạo tối thiểu và SHA commit bạn đã kiểm thử.",
+      "disclose_p2": "Chúng tôi cố gắng xác nhận tiếp nhận trong vài ngày, hợp tác làm việc trên bản sửa và phối hợp công bố công khai trong vòng 90 ngày kể từ báo cáo ban đầu. Toàn bộ điều khoản trong <a1>SECURITY.md</a1>.",
+      "bounty_h": "Chương trình bug bounty",
+      "bounty_p1": "Hiện tại Lovejoin không vận hành chương trình bug bounty trả tiền. Vì việc triển khai là alpha trên Preprod không có tiền thật trên thớt, các báo cáo là đóng góp cho an toàn của dự án, không phải giao dịch.",
+      "bounty_p2": "Chúng tôi cung cấp ghi nhận công khai (hoặc ẩn danh, tùy bạn), liên hệ trực tiếp với người bảo trì và các khoản tri ân khiêm tốn theo quyết định của người bảo trì cho các báo cáo chất lượng cao. Chương trình bounty chính thức sẽ được xem xét cùng với kiểm toán trước mainnet."
     }
   }
 }

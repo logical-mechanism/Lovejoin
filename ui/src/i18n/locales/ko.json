@@ -98,7 +98,7 @@
     "title": "Lovejoin",
     "tagline": "Cardano 네이티브 프라이버시 믹서.",
     "status": "프리알파. 설계는 docs/spec 참고.",
-    "preprod_banner": "Preprod 전용 · 실제 자금을 사용하지 마세요",
+    "preprod_banner": "감사 미실시 알파 · Cardano Preprod 테스트넷 전용 · 실제 자금을 사용하지 마세요",
     "connect_wallet": "지갑 연결",
     "disconnect_wallet": "연결 해제"
   },
@@ -110,7 +110,8 @@
     "vault": "볼트",
     "donate": "기부",
     "protocol": "프로토콜",
-    "help": "도움말"
+    "help": "도움말",
+    "security": "보안"
   },
   "language": {
     "label": "언어",
@@ -464,6 +465,7 @@
     "tab_guide": "사용자 가이드",
     "tab_faq": "FAQ",
     "tab_glossary": "용어집",
+    "tab_security": "보안",
     "back_to_top": "위로",
     "guide": {
       "intro_p1": "쉬운 언어 버전입니다. 수식과 구현 세부 사항은 <a1>프로토콜 페이지</a1>를 참조하세요.",
@@ -576,6 +578,31 @@
       "wallet_anonymous_p1": "믹스 트랜잭션의 속성. 어떤 지갑도 트랜잭션의 입력이나 서 명자로 등장하지 않으면 그 믹스는 지갑 익명입니다. Lovejoin 은 fee shard에서 수수료를 지불하고, 외부 콜래터럴 제공자 가 필요한 콜래터럴 입력을 공급하도록 함으로써 이를 달성 합니다.",
       "withdraw_h": "출금",
       "withdraw_p1": "마지막 단계. 소유자 비밀에 대한 지식의 Schnorr 증명을 사 용해 박스 중 하나를 목적지 주소로 사용합니다. 박스 자체 에 대한 지갑 서명이 필요 없으므로, 목적지는 원래 예치한 지갑과 온체인 연결이 없습니다."
+    },
+    "security": {
+      "intro_p1": "Lovejoin은 Cardano Preprod 테스트넷에서 실행되는 감사 미실시 알파 소프트웨어입니다. 이 페이지는 그 의미, 무엇이 보안 문제로 간주되는지, 어떻게 공개해야 하는지를 요약합니다. 정식 조건은 <a1>SECURITY.md</a1>에 있습니다.",
+      "unaudited_h": "\"감사 미실시\"의 의미",
+      "unaudited_p1": "Lovejoin의 검증자, SDK, 백엔드, UI를 제3자가 검토한 적이 없습니다. 프로토콜은 오픈 소스이며 배포 후 변경 불가능하지만, 어느 것도 외부 감사의 대체물은 아닙니다.",
+      "unaudited_p2": "배포는 실험적으로 취급하세요. <b>메인넷은 v1 릴리스 경로에 없으며, 외부 감사와 버그 바운티 기간에 의해 게이트되어 있습니다.</b> 그때까지는 실제 자금이 받지 않기 때문에 실제 자금이 위험하지 않습니다.",
+      "scope_h": "범위 내 항목",
+      "scope_p1": "받고 싶은 보고서:",
+      "scope_li1": "<b>검증자.</b> <c>contracts/</c>의 Aiken 계약과 <c>infra/bootstrap/</c>의 부트스트랩 의식.",
+      "scope_li2": "<b>SDK.</b> TypeScript 오프체인 스택: 암호 프리미티브, 트랜잭션 빌더, ChainProvider 구현.",
+      "scope_li3": "<b>백엔드.</b> 자체 호스팅 인덱서와 API.",
+      "scope_li4": "<b>UI.</b> 지갑 처리, 볼트, 소유자 비밀 도출, 암호화된 IndexedDB 백업.",
+      "scope_li5": "<b>암호 참조 구현.</b> Rust 참조 구현, TS나 Aiken과의 차이가 보안 관련 불변 조건을 깨뜨릴 때.",
+      "scope_p2": "특히 관심: <c>(1/N)^k</c> 연결 한계를 넘는 익명성 해제, 유효한 Schnorr 또는 sigma-OR 증명 없이 mix-box를 소비하는 방법, fee shard 고갈 또는 이중 소비, CIP-8 지갑 서명 위조 또는 재생, TS↔Aiken 인코딩 패리티 차이.",
+      "out_h": "범위 외 항목",
+      "out_li1": "<b>메인넷.</b> Lovejoin은 Preprod 전용입니다. 메인넷 배포는 존재하지 않으며, 외부 감사 게이트 없이는 프로토콜이 메인넷에 도달할 수 없습니다.",
+      "out_li2": "<b>이미 상류에서 공개된 제3자 종속성 문제.</b> 상류 프로젝트에 보고하고 여기에 링크하세요.",
+      "out_li3": "<b>Cardano 프로토콜 수준 문제</b>(Ouroboros, Plutus VM, 원장). IOG에 보고하세요.",
+      "out_li4": "<b>우리가 운영하지 않는 외부 서비스.</b> 담보 공급자(기본 <a1>giveme.my</a1>)는 교체 가능합니다. 공급자가 잘못 동작할 때 UI와 SDK의 동작은 범위 내이지만, 공급자 자체는 그렇지 않습니다.",
+      "disclose_h": "공개 방법",
+      "disclose_p1": "<b>보안 공개를 위해 공개 GitHub 이슈를 열지 마세요.</b> 명확한 설명, 최소 재현, 테스트한 커밋 SHA를 포함하여 <a1>security@lovejo.in</a1>(보안 별칭이 활성화될 때까지 <a2>support@logicalmechanism.io</a2>)으로 이메일을 보내주세요.",
+      "disclose_p2": "며칠 내 수신을 확인하고, 협력하여 수정을 진행하고, 최초 보고 후 90일 이내에 공개 공개를 조정하는 것을 목표로 합니다. 전체 조건은 <a1>SECURITY.md</a1>에 있습니다.",
+      "bounty_h": "버그 바운티",
+      "bounty_p1": "Lovejoin은 현재 유급 버그 바운티 프로그램을 운영하지 않습니다. 배포가 Preprod의 알파이며 실제 자금이 걸려 있지 않기 때문에, 보고서는 거래가 아니라 프로젝트의 안전에 대한 기여입니다.",
+      "bounty_p2": "공개 크레딧(또는 원하시면 익명), 유지보수자와의 직접 연락, 고품질 보고서에 대한 유지보수자의 재량에 따른 소소한 감사 지급을 제공합니다. 공식 바운티 프로그램은 메인넷 전 감사와 함께 검토됩니다."
     }
   }
 }

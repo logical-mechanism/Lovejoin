@@ -98,7 +98,7 @@
     "title": "Lovejoin",
     "tagline": "Um misturador de privacidade nativo da Cardano.",
     "status": "Pré-alfa. Veja docs/spec para o design.",
-    "preprod_banner": "Apenas Preprod · não use fundos reais",
+    "preprod_banner": "Alpha não auditada · apenas testnet Cardano Preprod · não use fundos reais",
     "connect_wallet": "Conectar carteira",
     "disconnect_wallet": "Desconectar"
   },
@@ -110,7 +110,8 @@
     "vault": "Cofre",
     "donate": "Doar",
     "protocol": "Protocolo",
-    "help": "Ajuda"
+    "help": "Ajuda",
+    "security": "Segurança"
   },
   "language": {
     "label": "Idioma",
@@ -464,6 +465,7 @@
     "tab_guide": "Guia do usuário",
     "tab_faq": "Perguntas frequentes",
     "tab_glossary": "Glossário",
+    "tab_security": "Segurança",
     "back_to_top": "Voltar ao topo",
     "guide": {
       "intro_p1": "Esta é a versão em linguagem simples. Para a matemática e os detalhes de implementação, veja a <a1>página do protocolo</a1>.",
@@ -576,6 +578,31 @@
       "wallet_anonymous_p1": "Uma propriedade das transações de mistura. Uma mistura é wallet-anônima se nenhuma carteira aparece como entrada ou assinante da transação. O Lovejoin consegue isso pagando a taxa a partir de um fee shard e deixando um provedor externo de colateral fornecer a entrada de colateral exigida.",
       "withdraw_h": "Saque",
       "withdraw_p1": "O último passo. Você gasta uma das suas boxes para um endereço de destino usando uma prova Schnorr de conhecimento do segredo de dono. Não é necessária assinatura de carteira na box em si, então o destino não tem vínculo on-chain com a carteira que depositou originalmente."
+    },
+    "security": {
+      "intro_p1": "Lovejoin é software alpha não auditado que roda na testnet Preprod da Cardano. Esta página resume o que isso significa, o que conta como problema de segurança e como divulgar um. Os termos canônicos estão em <a1>SECURITY.md</a1>.",
+      "unaudited_h": "O que \"não auditado\" significa",
+      "unaudited_p1": "Nenhum terceiro revisou os validadores, SDK, backend ou UI do Lovejoin. O protocolo é open source e imutável uma vez implantado, mas nenhuma das duas coisas substitui uma auditoria externa.",
+      "unaudited_p2": "Trate o deployment como experimental. <b>Mainnet não está no caminho de release v1; depende de uma auditoria externa e de uma janela de bug-bounty.</b> Até lá, nenhum fundo real está em risco porque nenhum fundo real é aceito.",
+      "scope_h": "O que está no escopo",
+      "scope_p1": "Relatórios que queremos receber:",
+      "scope_li1": "<b>Validadores.</b> Os contratos Aiken em <c>contracts/</c> e a cerimônia de bootstrap em <c>infra/bootstrap/</c>.",
+      "scope_li2": "<b>SDK.</b> A stack TypeScript off-chain: primitivas criptográficas, builders de transação, implementações de ChainProvider.",
+      "scope_li3": "<b>Backend.</b> O indexador e API auto-hospedados.",
+      "scope_li4": "<b>UI.</b> Gestão de carteira, vault, derivação do segredo de proprietário e backup criptografado IndexedDB.",
+      "scope_li5": "<b>Referência criptográfica.</b> A implementação de referência em Rust, quando a divergência com TS ou Aiken quebra um invariante relevante para segurança.",
+      "scope_p2": "De interesse particular: desanonimização além do limite de ligação <c>(1/N)^k</c>, gastar uma mix-box sem prova Schnorr ou sigma-OR válida, drenar ou gastar duplamente fee shards, falsificar ou reproduzir assinaturas de carteira CIP-8 e divergências de paridade de codificação TS↔Aiken.",
+      "out_h": "O que não está no escopo",
+      "out_li1": "<b>Mainnet.</b> Lovejoin só está em Preprod. Não existe deployment em mainnet; o protocolo não pode chegar à mainnet sem o portão de auditoria externa.",
+      "out_li2": "<b>Problemas de dependências de terceiros</b> já divulgados upstream. Reporte-os ao projeto upstream e linke aqui.",
+      "out_li3": "<b>Problemas de protocolo Cardano</b> (Ouroboros, Plutus VM, ledger). Reporte-os à IOG.",
+      "out_li4": "<b>Serviços externos que não operamos.</b> O provedor de garantia (<a1>giveme.my</a1> por padrão) é intercambiável; comportamento de UI e SDK quando um provedor se comporta mal está no escopo, mas o provedor em si não.",
+      "disclose_h": "Como divulgar",
+      "disclose_p1": "<b>Por favor, não abra um issue público no GitHub para divulgações de segurança.</b> Envie e-mail para <a1>security@lovejo.in</a1> (ou <a2>support@logicalmechanism.io</a2> até o alias de segurança estar ativo) com descrição clara, reprodução mínima e o SHA do commit testado.",
+      "disclose_p2": "Buscamos confirmar o recebimento em poucos dias, trabalhar colaborativamente em uma correção e coordenar divulgação pública em até 90 dias do relatório inicial. Os termos completos estão em <a1>SECURITY.md</a1>.",
+      "bounty_h": "Bug bounty",
+      "bounty_p1": "O Lovejoin atualmente não opera um programa pago de bug bounty. Como o deployment é alpha em Preprod sem fundos reais em jogo, relatórios são uma contribuição para a segurança do projeto, não uma transação.",
+      "bounty_p2": "Oferecemos crédito público (ou anonimato, sua escolha), contato direto com o mantenedor e pagamentos modestos de gratidão a critério do mantenedor para relatórios de alta qualidade. Um programa formal de bounty será considerado junto com a auditoria pré-mainnet."
     }
   }
 }
