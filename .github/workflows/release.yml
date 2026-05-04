@@ -22,6 +22,15 @@ on:
     branches: [main]
   workflow_dispatch:
 
+# Default least-privilege scope for the workflow. Jobs that need to
+# publish (`npm-sdk`, `docker-backend`) opt up explicitly via their own
+# `permissions:` blocks. Without this top-level default the repo-level
+# `default_workflow_permissions: write` gives every job a write-scoped
+# GITHUB_TOKEN — overkill for `preflight` and `ui-bundle`, which only
+# need to clone the repo (security review v1, CI finding).
+permissions:
+  contents: read
+
 concurrency:
   group: release-${{ github.ref }}
   cancel-in-progress: false

@@ -232,11 +232,11 @@ validator mix_logic(ref: ReferenceParams) {
 
 Rules:
 
-1. Exactly **one** well-formed mix input.
-2. Schnorr verify against `(a, b)` of that input with
+1. **N ≥ 1** well-formed mix inputs and **N matching Schnorr proofs** (one proof per input, in input-sort order). N = 1 is the canonical single-box withdraw; N > 1 is a bulk-withdraw extension where the user reclaims several of their own boxes in one tx.
+2. Schnorr verify each proof `i ∈ {0..N-1}` against `(a_i, b_i)` of the i-th well-formed mix input, all sharing
    `ctx = blake2b_256(serialize(self.outputs) || mix_script_hash)`.
 
-No signer requirement (Schnorr proof binds to outputs; output substitution invalidates).
+No signer requirement (each Schnorr proof binds to outputs; output substitution invalidates every proof at once). Bulk Owner withdraws are mathematically sound because each proof is independently bound to its own `(a_i, b_i)` and to the shared `ctx` over all outputs — an attacker can't cross-apply a proof from one box to another. They are also outside the threat model's "drain via paired Owner withdraws against the fee shard" concern (A2 — see [08-threat-model.md](08-threat-model.md)) because the `fee_contract` validator's PayMixFee path requires a `Mix` redeemer on `mix_logic`, not `Owner`; an Owner-redeemer tx cannot consume a fee shard regardless of how many mix inputs it carries.
 
 ### Mix branch — variable N
 

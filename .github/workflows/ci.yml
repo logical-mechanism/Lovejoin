@@ -17,6 +17,15 @@ on:
     branches: [main]
   pull_request:
 
+# Least-privilege default. Repo-level Settings → Actions defaults to
+# `permissions: write-all`, which gives every CI job a GITHUB_TOKEN
+# scoped to write contents/issues/packages/etc. CI here only needs to
+# clone the repo; `release.yml` requests broader scopes per-job. Lock
+# the token down explicitly so a compromised dependency can't escalate
+# (security review v1, CI finding).
+permissions:
+  contents: read
+
 concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
@@ -136,6 +145,75 @@ jobs:
 
       - name: scripts/check-reproducibility.sh
         run: ./scripts/check-reproducibility.sh
+
+  e2e-smoke:
+    # Playwright route-shell smoke (ui/e2e/smoke.spec.ts) — exercises the
+    # router + i18n + the no-wallet preconditions copy on every PR. The
+    # funded-wallet Preprod flow (ui/e2e/full-flow.spec.ts) skips itself
+    # unless E2E_PREPROD_WALLET=1, so the default `playwright test` run is
+    # safe to put in CI without secrets. See ui/e2e/README.md.
+    name: E2E (Playwright smoke)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install
+        run: pnpm install --frozen-lockfile
+
+      # The UI imports @lovejoin/sdk which resolves to offchain/dist/. On a
+      # clean checkout that doesn't exist yet, so build the SDK first.
+      - name: Build SDK
+        run: pnpm --filter @lovejoin/sdk run build
+
+      # Cache the Playwright browser binaries on the version string so we
+      # only re-download Chromium when @playwright/test itself bumps.
+      - name: Resolve Playwright version
+        id: pw
+        run: |
+          v=$(node -p "require('./ui/node_modules/@playwright/test/package.json').version")
+          echo "version=$v" >> "$GITHUB_OUTPUT"
+
+      - name: Cache Playwright browsers
+        id: pw-cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ steps.pw.outputs.version }}
+
+      - name: Install Chromium (with deps)
+        if: steps.pw-cache.outputs.cache-hit != 'true'
+        working-directory: ui
+        run: pnpm exec playwright install --with-deps chromium
+
+      # If the cache restored the browsers we still need the OS-level
+      # libraries (libnss, libgbm, etc.) — cheap to re-run install-deps.
+      - name: Install Chromium system deps
+        if: steps.pw-cache.outputs.cache-hit == 'true'
+        working-directory: ui
+        run: pnpm exec playwright install-deps chromium
+
+      - name: Run smoke suite
+        working-directory: ui
+        run: pnpm test:e2e
+
+      - name: Upload Playwright report on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report-smoke
+          path: |
+            ui/playwright-report
+            ui/test-results
+          if-no-files-found: ignore
+          retention-days: 14
 
   coverage:
     name: TS coverage (v8 lcov artifact)

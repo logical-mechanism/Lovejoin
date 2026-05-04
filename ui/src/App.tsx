@@ -111,6 +111,12 @@ export function App() {
                         </Suspense>
                       }
                     />
+                    {/* Catch-all: unknown URLs (typos, stale external
+                     * links, anyone hitting the backend's /docs on the
+                     * UI origin by mistake) redirect to Home rather than
+                     * rendering a blank screen + a React Router warning.
+                     * `replace` keeps the bad URL out of history. */}
+                    <Route path="*" element={<Navigate to="/" replace />} />
                   </Route>
                 </Routes>
               </BrowserRouter>

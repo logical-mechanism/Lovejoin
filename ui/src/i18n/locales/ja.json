@@ -98,7 +98,7 @@
     "title": "Lovejoin",
     "tagline": "Cardano ネイティブのプライバシーミキサー。",
     "status": "プレアルファ。設計は docs/spec を参照。",
-    "preprod_banner": "Preprod 専用 · 本物の資金は使用しないでください",
+    "preprod_banner": "Preprod",
     "connect_wallet": "ウォレットを接続",
     "disconnect_wallet": "切断"
   },

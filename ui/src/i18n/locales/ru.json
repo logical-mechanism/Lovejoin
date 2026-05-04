@@ -98,7 +98,7 @@
     "title": "Lovejoin",
     "tagline": "Нативный для Cardano приватный миксер.",
     "status": "Пре-альфа. См. docs/spec для дизайна.",
-    "preprod_banner": "Только Preprod · не используйте реальные средства",
+    "preprod_banner": "Preprod",
     "connect_wallet": "Подключить кошелёк",
     "disconnect_wallet": "Отключить"
   },

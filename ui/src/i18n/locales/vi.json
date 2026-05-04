@@ -98,7 +98,7 @@
     "title": "Lovejoin",
     "tagline": "Máy trộn riêng tư bản địa của Cardano.",
     "status": "Pre-alpha. Xem docs/spec để biết thiết kế.",
-    "preprod_banner": "Chỉ Preprod · không dùng tiền thật",
+    "preprod_banner": "Preprod",
     "connect_wallet": "Kết nối ví",
     "disconnect_wallet": "Ngắt kết nối"
   },

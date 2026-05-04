@@ -98,7 +98,7 @@
     "title": "Lovejoin",
     "tagline": "خلاط خصوصية أصيل لـCardano.",
     "status": "ما قبل ألفا. راجع docs/spec للتصميم.",
-    "preprod_banner": "Preprod فقط · لا تستخدم أموالاً حقيقية",
+    "preprod_banner": "Preprod",
     "connect_wallet": "ربط المحفظة",
     "disconnect_wallet": "قطع الاتصال"
   },

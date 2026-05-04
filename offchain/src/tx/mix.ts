@@ -795,6 +795,21 @@ export interface MixResult {
  * Wallet-less submission is supported on the canonical shard + external-
  * collateral path. Wallet-mode and wallet-collateral fallbacks throw with
  * an explicit message if a wallet wasn't supplied.
+ *
+ * @example
+ * ```ts
+ * const collateral = new GivemeMyProvider({ endpoint: env.COLLATERAL_ENDPOINT });
+ * const result = await buildMixTx({
+ *   provider,
+ *   addresses,
+ *   params,
+ *   inputs,           // N MixInput records — see selectMixNTuple
+ *   feeShard,         // chosen fee shard UTxO
+ *   collateralProvider: collateral,
+ *   network: addresses.network,
+ * });
+ * console.log("mixed N=" + result.plan.outputs.length, "tx", result.txId);
+ * ```
  */
 export async function buildMixTx(args: BuildMixArgs): Promise<MixResult> {
   const networkId = networkIdFor(args.network);

@@ -29,6 +29,10 @@ export default tseslint.config(
       "crypto/ref/target/**",
       "artifacts/**",
       "papers/**",
+      // Generated typedoc HTML + assets (issue #41). Linting third-party
+      // navigation.js / search.js shipped by typedoc would only ever
+      // produce false positives.
+      "offchain/docs/**",
       "**/*.d.ts",
     ],
   },
@@ -155,6 +159,27 @@ export default tseslint.config(
     rules: {
       "@typescript-eslint/no-non-null-assertion": "off",
       "@typescript-eslint/no-unused-expressions": "off",
+    },
+  },
+
+  // Playwright e2e specs: same relaxations as vitest tests, plus rules
+  // that fight Playwright's fixture pattern. `test.extend({ ctx: async
+  // ({}, use) => ... })` is canonical Playwright — the empty destructure
+  // means "no upstream fixtures consumed", and `use` is the fixture
+  // injector callback (not React's `use` hook).
+  {
+    files: ["ui/e2e/**/*.{ts,tsx}"],
+    languageOptions: {
+      globals: {
+        ...globals.node,
+        ...globals.browser,
+      },
+    },
+    rules: {
+      "@typescript-eslint/no-non-null-assertion": "off",
+      "@typescript-eslint/no-unused-expressions": "off",
+      "no-empty-pattern": "off",
+      "react-hooks/rules-of-hooks": "off",
     },
   },
 

@@ -98,7 +98,7 @@
     "title": "Lovejoin",
     "tagline": "Cardano 네이티브 프라이버시 믹서.",
     "status": "프리알파. 설계는 docs/spec 참고.",
-    "preprod_banner": "Preprod 전용 · 실제 자금을 사용하지 마세요",
+    "preprod_banner": "Preprod",
     "connect_wallet": "지갑 연결",
     "disconnect_wallet": "연결 해제"
   },

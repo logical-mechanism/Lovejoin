@@ -98,7 +98,7 @@
     "title": "Lovejoin",
     "tagline": "Cardano yerlisi gizlilik karıştırıcısı.",
     "status": "Pre-alfa. Tasarım için docs/spec'e bakın.",
-    "preprod_banner": "Yalnızca Preprod · gerçek fon kullanmayın",
+    "preprod_banner": "Preprod",
     "connect_wallet": "Cüzdan bağla",
     "disconnect_wallet": "Bağlantıyı kes"
   },

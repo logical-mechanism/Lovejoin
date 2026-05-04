@@ -330,6 +330,20 @@ export interface WithdrawResult {
  * Two-pass: first build with a placeholder Schnorr proof so mesh can size
  * the redeemer and compute the fee, then re-build with the real proof
  * derived from the resulting outputs.
+ *
+ * @example
+ * ```ts
+ * const result = await buildWithdrawTx({
+ *   provider,
+ *   wallet,
+ *   addresses,
+ *   ownerSecret,                     // Scalar — depositor's x
+ *   mixBox: { ref, a, b },           // identifyMyBoxes(...) finds these
+ *   destinationAddressBech32,        // where to send the unmixed ADA
+ *   network: addresses.network,
+ * });
+ * console.log("withdrew", result.txId);
+ * ```
  */
 export async function buildWithdrawTx(args: BuildWithdrawArgs): Promise<WithdrawResult> {
   const networkId = networkIdFor(args.network);

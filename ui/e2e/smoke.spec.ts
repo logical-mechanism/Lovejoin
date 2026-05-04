@@ -4,8 +4,8 @@
 // Spec coverage:
 //   * docs/spec/06-ui.md §"Layout" — brand mark + nav + footer.
 //   * docs/spec/06-ui.md §"Home" — splash hero + the three I/II/III pillars.
-//   * docs/spec/06-ui.md §"Pool" — mix-width slider, fee-payer toggle,
-//     collateral banner when the probe fails.
+//   * docs/spec/06-ui.md §"Pool" — Pool section title, fee-payer toggle,
+//     review block.
 //   * docs/spec/06-ui.md §"Vault" — locked-state copy + the
 //     wallet-derived unlock CTA.
 //   * docs/spec/06-ui.md §"Withdraw" — preconditions copy when no wallet
@@ -20,29 +20,36 @@ test.describe("M6.5 router smoke", () => {
   test("Home route renders hero + three pillars", async ({ page }) => {
     await page.goto("/");
     await expect(page.getByRole("link", { name: /Lovejoin/i }).first()).toBeVisible();
-    await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
-    // Three I/II/III pillar headings.
-    await expect(page.getByRole("heading", { name: "Deposit" })).toBeVisible();
-    await expect(page.getByRole("heading", { name: "Mix" })).toBeVisible();
-    await expect(page.getByRole("heading", { name: "Withdraw" })).toBeVisible();
+    // Layout owns the route-derived <h1> (sr-only); the visible hero line
+    // is an h2. Pillars are h3 — match those specifically so the hero's
+    // "Deposit in public…" h2 doesn't collide with the pillar h3 "Deposit".
+    await expect(page.getByRole("heading", { level: 2 })).toBeVisible();
+    await expect(page.getByRole("heading", { level: 3, name: "Deposit" })).toBeVisible();
+    await expect(page.getByRole("heading", { level: 3, name: "Mix" })).toBeVisible();
+    await expect(page.getByRole("heading", { level: 3, name: "Withdraw" })).toBeVisible();
     await expect(page.getByRole("navigation", { name: /main/i })).toBeVisible();
   });
 
-  test("Pool route shows the mix-width slider + fee-payer toggle", async ({ page }) => {
+  test("Pool route shows the fee-payer toggle + review block", async ({ page }) => {
     await page.goto("/pool");
-    await expect(page.getByRole("slider")).toBeVisible();
-    await expect(page.getByText(/Mix width/i).first()).toBeVisible();
-    await expect(page.getByText(/Fee payer/i).first()).toBeVisible();
+    // Section heading (en.json pool.section_title = "Mix").
+    await expect(page.getByRole("heading", { level: 2, name: "Mix" })).toBeVisible();
+    // Fee-payer toggle. Both buttons are always present; the active one
+    // flips via aria-pressed.
     await expect(page.getByRole("button", { name: /Fee shard/i })).toBeVisible();
     await expect(page.getByRole("button", { name: /^Wallet$/i })).toBeVisible();
+    // Review block — surfaces the chosen Mix width even before any
+    // pool / addresses load (defaults to 2).
+    await expect(page.getByText(/Mix width/i).first()).toBeVisible();
   });
 
   test("Vault route shows the wallet-derived unlock CTA when locked", async ({ page }) => {
     await page.goto("/vault");
     await expect(page.getByRole("heading", { name: /Vault locked/i })).toBeVisible();
     await expect(page.getByRole("button", { name: /Unlock with wallet/i })).toBeVisible();
-    // The tier-2 fallback link is present but de-emphasised.
-    await expect(page.getByRole("button", { name: /recovery phrase/i })).toBeVisible();
+    // Tier-2 fallback link is present but de-emphasised. en.json
+    // vault.recover_link = "Use a recovery password instead".
+    await expect(page.getByRole("button", { name: /recovery password/i })).toBeVisible();
   });
 
   test("Deposit route shows preconditions copy when no wallet is connected", async ({ page }) => {
@@ -50,8 +57,12 @@ test.describe("M6.5 router smoke", () => {
     await expect(page.getByText(/Connect a wallet/i).first()).toBeVisible();
   });
 
-  test("Withdraw route shows preconditions copy when no wallet is connected", async ({ page }) => {
+  test("/withdraw redirects to /vault (the merged owned-boxes view)", async ({ page }) => {
+    // The standalone /withdraw route was folded into Vault during M6.5+;
+    // the redirect is wired in App.tsx so old bookmarks still land. Land
+    // on /withdraw and assert we end up on the Vault locked-state.
     await page.goto("/withdraw");
-    await expect(page.getByText(/Connect a wallet/i).first()).toBeVisible();
+    await expect(page).toHaveURL(/\/vault$/);
+    await expect(page.getByRole("heading", { name: /Vault locked/i })).toBeVisible();
   });
 });

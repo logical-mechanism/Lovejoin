@@ -98,7 +98,7 @@
     "title": "Lovejoin",
     "tagline": "Cardano 原生的隐私混币器。",
     "status": "预 alpha 版本。设计请见 docs/spec。",
-    "preprod_banner": "仅 Preprod · 请勿使用真实资金",
+    "preprod_banner": "Preprod",
     "connect_wallet": "连接钱包",
     "disconnect_wallet": "断开连接"
   },
