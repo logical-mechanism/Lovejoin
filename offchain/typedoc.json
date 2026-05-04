@@ -1,0 +1,21 @@
+{
+  "$schema": "https://typedoc.org/schema.json",
+  "entryPoints": ["src/index.ts"],
+  "entryPointStrategy": "expand",
+  "out": "docs",
+  "tsconfig": "tsconfig.json",
+  "name": "@lovejoin/sdk",
+  "includeVersion": true,
+  "readme": "none",
+  "skipErrorChecking": true,
+  "excludePrivate": true,
+  "excludeInternal": true,
+  "excludeNotDocumented": false,
+  "navigationLinks": {
+    "Spec": "https://github.com/logical-mechanism/Lovejoin/tree/dev/docs/spec",
+    "Repo": "https://github.com/logical-mechanism/Lovejoin"
+  },
+  "categorizeByGroup": true,
+  "sort": ["source-order"],
+  "githubPages": false
+}

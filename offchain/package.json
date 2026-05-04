@@ -29,6 +29,7 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "cli": "tsx src/cli/index.ts",
+    "docs:sdk": "typedoc",
     "gen:parity": "tsx scripts/gen-encoding-parity.ts",
     "gen:schnorr-kat": "tsx scripts/gen-schnorr-kat.ts",
     "gen:dhtuple-kat": "tsx scripts/gen-dhtuple-kat.ts",
@@ -48,6 +49,7 @@
     "@types/node": "^22.10.0",
     "@vitest/coverage-v8": "^2.1.9",
     "tsx": "^4.19.2",
+    "typedoc": "^0.28.19",
     "typescript": "^5.7.2",
     "vitest": "^2.1.8"
   }

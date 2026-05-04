@@ -5,7 +5,14 @@
 
 import cors from "@fastify/cors";
 import rateLimit from "@fastify/rate-limit";
-import Fastify, { type FastifyInstance, type FastifyReply, type FastifyRequest } from "fastify";
+import swagger from "@fastify/swagger";
+import swaggerUi from "@fastify/swagger-ui";
+import Fastify, {
+  type FastifyError,
+  type FastifyInstance,
+  type FastifyReply,
+  type FastifyRequest,
+} from "fastify";
 
 import { validateBech32AddressForNetwork } from "../address.js";
 import type { BackendConfig } from "../config.js";
@@ -14,6 +21,12 @@ import type { IndexerState } from "../indexer/state.js";
 import type { IndexerRuntime } from "../indexer/runtime.js";
 import type { OgmiosTxClient } from "../indexer/ogmios-tx.js";
 import type { MempoolPoller } from "../indexer/mempool.js";
+import {
+  OPENAPI_INFO,
+  OPENAPI_TAGS,
+  ROUTE_SCHEMAS,
+  SHARED_OPENAPI_SCHEMAS,
+} from "./openapi-schemas.js";
 
 // Per-route override for /submit and /evaluate: tighter than the global
 // limit, since they touch the node mempool and are the most expensive
@@ -96,6 +109,22 @@ export async function buildServer(deps: ApiServerDeps): Promise<FastifyInstance>
     trustProxy: true,
   });
   fastify.setReplySerializer((payload) => JSON.stringify(payload, PRESERVE_BIGINT_REPLACER));
+  // Map Fastify schema validation errors (introduced when route schemas
+  // gained body / params / querystring shapes for OpenAPI docs) onto the
+  // existing `{ error, message }` envelope every other 400 in this API
+  // already uses. Without this Fastify returns
+  // `{ statusCode: 400, error: "Bad Request", message: ... }` which
+  // would silently break clients that key off `error === "bad_request"`.
+  fastify.setErrorHandler((err: FastifyError, _req, reply) => {
+    if (err.validation) {
+      reply.code(400);
+      return {
+        error: "bad_request",
+        message: err.message,
+      };
+    }
+    throw err;
+  });
   // Add baseline security headers on every JSON response. Helmet would
   // do the same with more knobs; we keep the dependency footprint flat
   // and apply only the headers that matter for a JSON API behind a
@@ -124,6 +153,43 @@ export async function buildServer(deps: ApiServerDeps): Promise<FastifyInstance>
     keyGenerator: (req) => req.ip,
   });
 
+  // OpenAPI 3 docs (issue #41). The schema is generated from the
+  // per-route fastify schemas attached below; `/docs` serves the
+  // Swagger UI in dev/preprod, `/docs/json` returns the raw OpenAPI
+  // 3 document used by the `docs:openapi` export script for client
+  // codegen.
+  //
+  // Shared schemas land in Fastify's Ajv instance via addSchema() so
+  // both response validation and the @fastify/swagger output resolve
+  // them. The plugin lifts every registered schema into
+  // `components.schemas` and rewrites Fastify-style `<id>#` refs to
+  // canonical OpenAPI `#/components/schemas/<id>` form.
+  for (const schema of SHARED_OPENAPI_SCHEMAS) {
+    fastify.addSchema(schema);
+  }
+  await fastify.register(swagger, {
+    openapi: {
+      openapi: "3.0.3",
+      info: OPENAPI_INFO,
+      tags: [...OPENAPI_TAGS],
+    },
+    // Preserve `$id` as the OpenAPI component-schema key. Without this
+    // hook @fastify/swagger emits `def-0`, `def-1`, ... and shoves the
+    // `$id` into a `title` field, which makes the spec hard to read
+    // and unusable for codegen tools that key off component names.
+    refResolver: {
+      buildLocalReference: (json) => {
+        const id = (json as { $id?: string }).$id;
+        return typeof id === "string" && id.length > 0 ? id : "Unknown";
+      },
+    },
+  });
+  await fastify.register(swaggerUi, {
+    routePrefix: "/docs",
+    uiConfig: { docExpansion: "list", deepLinking: true },
+    staticCSP: true,
+  });
+
   registerHealth(fastify, deps);
   registerParams(fastify, deps);
   registerProtocolParams(fastify, deps);
@@ -145,7 +211,7 @@ export async function buildServer(deps: ApiServerDeps): Promise<FastifyInstance>
 // ------------------------------------------------------------------
 
 function registerHealth(fastify: FastifyInstance, deps: ApiServerDeps): void {
-  fastify.get("/health", async (_req, reply: FastifyReply) => {
+  fastify.get("/health", { schema: ROUTE_SCHEMAS.health }, async (_req, reply: FastifyReply) => {
     const tip = deps.state.tip;
     const chainTip = deps.runtime?.chainTip() ?? null;
     // Lag is measured in *slots*, not seconds — slots on Cardano are
@@ -195,7 +261,7 @@ function registerHealth(fastify: FastifyInstance, deps: ApiServerDeps): void {
 }
 
 function registerParams(fastify: FastifyInstance, deps: ApiServerDeps): void {
-  fastify.get("/params", async (_req, reply) => {
+  fastify.get("/params", { schema: ROUTE_SCHEMAS.params }, async (_req, reply) => {
     const ref = deps.state.referenceUtxoRef();
     if (deps.state.alarm()) {
       reply.code(503);
@@ -234,27 +300,31 @@ function registerProtocolParams(fastify: FastifyInstance, deps: ApiServerDeps): 
   //
   // Body is an ogmios v6 object — same shape the SDK already knows how
   // to translate via its mesh-bridge.
-  fastify.get("/protocol-params", async (_req, reply: FastifyReply) => {
-    if (!deps.ogmiosTx) {
-      reply.code(503);
-      return {
-        error: "protocol_params_unavailable",
-        message: "ogmios tx client not configured",
-      };
-    }
-    try {
-      const params = await deps.ogmiosTx.protocolParameters();
-      return params;
-    } catch (err) {
-      const raw = (err as Error).message ?? "ogmios error";
-      console.error(`[/protocol-params] ogmios error: ${raw}`);
-      reply.code(502);
-      return {
-        error: "ogmios_error",
-        message: redactUpstreamMessage(raw),
-      };
-    }
-  });
+  fastify.get(
+    "/protocol-params",
+    { schema: ROUTE_SCHEMAS.protocolParams },
+    async (_req, reply: FastifyReply) => {
+      if (!deps.ogmiosTx) {
+        reply.code(503);
+        return {
+          error: "protocol_params_unavailable",
+          message: "ogmios tx client not configured",
+        };
+      }
+      try {
+        const params = await deps.ogmiosTx.protocolParameters();
+        return params;
+      } catch (err) {
+        const raw = (err as Error).message ?? "ogmios error";
+        console.error(`[/protocol-params] ogmios error: ${raw}`);
+        reply.code(502);
+        return {
+          error: "ogmios_error",
+          message: redactUpstreamMessage(raw),
+        };
+      }
+    },
+  );
 }
 
 interface PoolQuery {
@@ -264,40 +334,48 @@ interface PoolQuery {
 }
 
 function registerPool(fastify: FastifyInstance, deps: ApiServerDeps): void {
-  fastify.get("/pool", async (req: FastifyRequest<{ Querystring: PoolQuery }>) => {
-    const { cursor, limit } = parsePagination(req.query);
-    const { rows, nextCursor } = deps.state.poolPage(cursor, limit);
-    return {
-      tip: deps.state.tip,
-      size: deps.state.poolSize(),
-      cursor,
-      nextCursor,
-      boxes: rows.map((b) => ({
-        txHash: b.txHash,
-        outputIndex: b.outputIndex,
-        a: b.a,
-        b: b.b,
-        generation: b.generation,
-        createdSlot: b.slot,
-      })),
-    };
-  });
+  fastify.get(
+    "/pool",
+    { schema: ROUTE_SCHEMAS.pool },
+    async (req: FastifyRequest<{ Querystring: PoolQuery }>) => {
+      const { cursor, limit } = parsePagination(req.query);
+      const { rows, nextCursor } = deps.state.poolPage(cursor, limit);
+      return {
+        tip: deps.state.tip,
+        size: deps.state.poolSize(),
+        cursor,
+        nextCursor,
+        boxes: rows.map((b) => ({
+          txHash: b.txHash,
+          outputIndex: b.outputIndex,
+          a: b.a,
+          b: b.b,
+          generation: b.generation,
+          createdSlot: b.slot,
+        })),
+      };
+    },
+  );
 
   // /pool/light — minimal payload for browser ownership-scan.
-  fastify.get("/pool/light", async (req: FastifyRequest<{ Querystring: PoolQuery }>) => {
-    const { cursor, limit } = parsePagination(req.query);
-    const { rows, nextCursor } = deps.state.poolPage(cursor, limit);
-    return {
-      size: deps.state.poolSize(),
-      nextCursor,
-      boxes: rows.map((b) => ({
-        txHash: b.txHash,
-        outputIndex: b.outputIndex,
-        a: b.a,
-        b: b.b,
-      })),
-    };
-  });
+  fastify.get(
+    "/pool/light",
+    { schema: ROUTE_SCHEMAS.poolLight },
+    async (req: FastifyRequest<{ Querystring: PoolQuery }>) => {
+      const { cursor, limit } = parsePagination(req.query);
+      const { rows, nextCursor } = deps.state.poolPage(cursor, limit);
+      return {
+        size: deps.state.poolSize(),
+        nextCursor,
+        boxes: rows.map((b) => ({
+          txHash: b.txHash,
+          outputIndex: b.outputIndex,
+          a: b.a,
+          b: b.b,
+        })),
+      };
+    },
+  );
 }
 
 interface BoxParams {
@@ -308,6 +386,7 @@ interface BoxParams {
 function registerBox(fastify: FastifyInstance, deps: ApiServerDeps): void {
   fastify.get(
     "/box/:txhash/:idx",
+    { schema: ROUTE_SCHEMAS.box },
     async (req: FastifyRequest<{ Params: BoxParams }>, reply: FastifyReply) => {
       const txId = req.params.txhash.toLowerCase();
       const outputIndex = Number(req.params.idx);
@@ -336,7 +415,7 @@ function registerBox(fastify: FastifyInstance, deps: ApiServerDeps): void {
 }
 
 function registerFee(fastify: FastifyInstance, deps: ApiServerDeps): void {
-  fastify.get("/fee", async () => {
+  fastify.get("/fee", { schema: ROUTE_SCHEMAS.fee }, async () => {
     const snap = deps.state.feeSnapshot();
     return {
       totalLovelace: snap.totalLovelace,
@@ -363,7 +442,7 @@ function registerFee(fastify: FastifyInstance, deps: ApiServerDeps): void {
  * to the retry path."
  */
 function registerMempool(fastify: FastifyInstance, deps: ApiServerDeps): void {
-  fastify.get("/mempool/inputs", async () => {
+  fastify.get("/mempool/inputs", { schema: ROUTE_SCHEMAS.mempool }, async () => {
     const snap = deps.mempoolPoller?.snapshot() ?? null;
     if (!snap) {
       return {
@@ -403,6 +482,7 @@ interface HistoryQuery {
 function registerHistory(fastify: FastifyInstance, deps: ApiServerDeps): void {
   fastify.get(
     "/history/:address",
+    { schema: ROUTE_SCHEMAS.history },
     async (
       req: FastifyRequest<{ Params: HistoryParams; Querystring: HistoryQuery }>,
       reply: FastifyReply,
@@ -480,6 +560,7 @@ function registerSubmit(fastify: FastifyInstance, deps: ApiServerDeps): void {
     {
       bodyLimit: TX_ROUTE_BODY_LIMIT,
       config: { rateLimit: TX_ROUTE_RATE_LIMIT },
+      schema: ROUTE_SCHEMAS.submit,
     },
     async (req: FastifyRequest<{ Body: SubmitBody }>, reply: FastifyReply) => {
       if (!deps.ogmiosTx) {
@@ -522,6 +603,7 @@ function registerEvaluate(fastify: FastifyInstance, deps: ApiServerDeps): void {
     {
       bodyLimit: TX_ROUTE_BODY_LIMIT,
       config: { rateLimit: TX_ROUTE_RATE_LIMIT },
+      schema: ROUTE_SCHEMAS.evaluate,
     },
     async (req: FastifyRequest<{ Body: SubmitBody }>, reply: FastifyReply) => {
       if (!deps.ogmiosTx) {
@@ -568,6 +650,7 @@ interface AddressParams {
 function registerAddressUtxos(fastify: FastifyInstance, deps: ApiServerDeps): void {
   fastify.get(
     "/utxos/:address",
+    { schema: ROUTE_SCHEMAS.addressUtxos },
     async (req: FastifyRequest<{ Params: AddressParams }>, reply: FastifyReply) => {
       if (!deps.dbsync) {
         reply.code(503);
@@ -609,6 +692,7 @@ function registerTxQueries(fastify: FastifyInstance, deps: ApiServerDeps): void 
   // "still pending" code path.
   fastify.get(
     "/tx/:txhash",
+    { schema: ROUTE_SCHEMAS.txSummary },
     async (req: FastifyRequest<{ Params: TxHashParams }>, reply: FastifyReply) => {
       if (!deps.dbsync) {
         reply.code(503);
@@ -638,6 +722,7 @@ function registerTxQueries(fastify: FastifyInstance, deps: ApiServerDeps): void 
   // UTxOs produced by a specific tx. Resolves SDK getUtxoByRef.
   fastify.get(
     "/tx/:txhash/utxos",
+    { schema: ROUTE_SCHEMAS.txUtxos },
     async (req: FastifyRequest<{ Params: TxHashParams }>, reply: FastifyReply) => {
       if (!deps.dbsync) {
         reply.code(503);

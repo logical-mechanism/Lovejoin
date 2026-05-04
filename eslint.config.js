@@ -29,6 +29,10 @@ export default tseslint.config(
       "crypto/ref/target/**",
       "artifacts/**",
       "papers/**",
+      // Generated typedoc HTML + assets (issue #41). Linting third-party
+      // navigation.js / search.js shipped by typedoc would only ever
+      // produce false positives.
+      "offchain/docs/**",
       "**/*.d.ts",
     ],
   },
