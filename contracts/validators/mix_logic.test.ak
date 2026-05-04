@@ -20,7 +20,14 @@
 use aiken/collection/list
 use cardano/address.{Script}
 use cardano/assets
-use cardano/certificate.{RegisterCredential, UnregisterCredential}
+use cardano/certificate.{
+  AlwaysAbstain, AuthorizeConstitutionalCommitteeProxy, DelegateBlockProduction,
+  DelegateBoth, DelegateCredential, DelegateVote, RegisterAndDelegateCredential,
+  RegisterCredential, RegisterDelegateRepresentative, RegisterStakePool,
+  Registered, RetireFromConstitutionalCommittee, RetireStakePool,
+  UnregisterCredential, UnregisterDelegateRepresentative,
+  UpdateDelegateRepresentative,
+}
 use cardano/transaction.{Input, Output, Transaction}
 use lovejoin/schnorr.{SchnorrProof}
 use lovejoin/sigma_or.{SigmaOrBranch, SigmaOrProof}
@@ -519,6 +526,158 @@ test publish_rejects_unregister_credential() {
   // Hyperstructure: unregistering would brick the protocol. Must reject.
   let cert =
     UnregisterCredential { credential: Script(mix_logic_hash), refund: Never }
+  !mix_logic.mix_logic.publish(
+    ref_nft_policy,
+    ref_nft_name,
+    Void,
+    cert,
+    transaction.placeholder,
+  )
+}
+
+// Conway Certificate matrix (audit F-5). The mix_logic credential is for
+// withdraw-zero only; we never want it delegating, voting, registering as a
+// DRep, holding a stake pool, or sitting on the constitutional committee.
+// The handler's `_ -> False` arm should reject every non-Register variant.
+// One test per Aiken stdlib `Certificate` variant other than
+// RegisterCredential / UnregisterCredential (already covered above).
+
+test publish_rejects_delegate_credential() {
+  let delegate = DelegateBlockProduction { stake_pool: random_user_vk }
+  let cert = DelegateCredential { credential: Script(mix_logic_hash), delegate }
+  !mix_logic.mix_logic.publish(
+    ref_nft_policy,
+    ref_nft_name,
+    Void,
+    cert,
+    transaction.placeholder,
+  )
+}
+
+test publish_rejects_register_and_delegate_credential() {
+  let delegate =
+    DelegateBoth {
+      stake_pool: random_user_vk,
+      delegate_representative: Registered(Script(mix_logic_hash)),
+    }
+  let cert =
+    RegisterAndDelegateCredential {
+      credential: Script(mix_logic_hash),
+      delegate,
+      deposit: 2_000_000,
+    }
+  !mix_logic.mix_logic.publish(
+    ref_nft_policy,
+    ref_nft_name,
+    Void,
+    cert,
+    transaction.placeholder,
+  )
+}
+
+test publish_rejects_vote_delegation() {
+  // DelegateCredential + DelegateVote variant — the "delegate the credential's
+  // governance voice without delegating block production" path.
+  let delegate = DelegateVote { delegate_representative: AlwaysAbstain }
+  let cert = DelegateCredential { credential: Script(mix_logic_hash), delegate }
+  !mix_logic.mix_logic.publish(
+    ref_nft_policy,
+    ref_nft_name,
+    Void,
+    cert,
+    transaction.placeholder,
+  )
+}
+
+test publish_rejects_register_delegate_representative() {
+  let cert =
+    RegisterDelegateRepresentative {
+      delegate_representative: Script(mix_logic_hash),
+      deposit: 500_000_000,
+    }
+  !mix_logic.mix_logic.publish(
+    ref_nft_policy,
+    ref_nft_name,
+    Void,
+    cert,
+    transaction.placeholder,
+  )
+}
+
+test publish_rejects_update_delegate_representative() {
+  let cert =
+    UpdateDelegateRepresentative {
+      delegate_representative: Script(mix_logic_hash),
+    }
+  !mix_logic.mix_logic.publish(
+    ref_nft_policy,
+    ref_nft_name,
+    Void,
+    cert,
+    transaction.placeholder,
+  )
+}
+
+test publish_rejects_unregister_delegate_representative() {
+  let cert =
+    UnregisterDelegateRepresentative {
+      delegate_representative: Script(mix_logic_hash),
+      refund: 500_000_000,
+    }
+  !mix_logic.mix_logic.publish(
+    ref_nft_policy,
+    ref_nft_name,
+    Void,
+    cert,
+    transaction.placeholder,
+  )
+}
+
+test publish_rejects_register_stake_pool() {
+  // Defensive: a script credential isn't a valid stake-pool id, so the
+  // ledger would reject this anyway. Validator should still fail closed.
+  let cert =
+    RegisterStakePool { stake_pool: random_user_vk, vrf: random_user_vk }
+  !mix_logic.mix_logic.publish(
+    ref_nft_policy,
+    ref_nft_name,
+    Void,
+    cert,
+    transaction.placeholder,
+  )
+}
+
+test publish_rejects_retire_stake_pool() {
+  let cert = RetireStakePool { stake_pool: random_user_vk, at_epoch: 9999 }
+  !mix_logic.mix_logic.publish(
+    ref_nft_policy,
+    ref_nft_name,
+    Void,
+    cert,
+    transaction.placeholder,
+  )
+}
+
+test publish_rejects_authorize_constitutional_committee_proxy() {
+  let cert =
+    AuthorizeConstitutionalCommitteeProxy {
+      constitutional_committee_member: Script(mix_logic_hash),
+      proxy: Script(mix_logic_hash),
+    }
+  !mix_logic.mix_logic.publish(
+    ref_nft_policy,
+    ref_nft_name,
+    Void,
+    cert,
+    transaction.placeholder,
+  )
+}
+
+test publish_rejects_retire_from_constitutional_committee() {
+  let cert =
+    RetireFromConstitutionalCommittee {
+      constitutional_committee_member: Script(mix_logic_hash),
+    }
   !mix_logic.mix_logic.publish(
     ref_nft_policy,
     ref_nft_name,

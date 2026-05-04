@@ -98,7 +98,6 @@
     "title": "Lovejoin",
     "tagline": "Un mezclador privado nativo de Cardano.",
     "status": "Pre-alfa. Consulta docs/spec para el diseño.",
-    "preprod_banner": "Preprod",
     "connect_wallet": "Conectar cartera",
     "disconnect_wallet": "Desconectar"
   },

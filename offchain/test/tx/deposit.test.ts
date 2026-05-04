@@ -148,6 +148,17 @@ describe("tx/deposit — owner secret material", () => {
     const s = generateOwnerSecret(stub);
     expect(s).toBe(0x42n);
   });
+
+  it("rejects a deposit's a == identity (audit F-3 SDK guard)", () => {
+    // If `a == identity` ever made it into a mix-box datum, the Schnorr
+    // equation `[z]·a == t + [c]·b` would degenerate to `t == [c]·b`,
+    // which (combined with `b == identity` next door) gives the box
+    // away to anyone. The on-chain validator can't catch this because
+    // there's no entry-time logic; the SDK is the only line of defense.
+    const infBytes = new Uint8Array(48);
+    infBytes[0] = 0xc0;
+    expect(() => deriveOwner(0x1337n, infBytes)).toThrow(/identity/);
+  });
 });
 
 describe("tx/deposit — planDepositTx", () => {

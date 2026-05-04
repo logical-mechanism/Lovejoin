@@ -60,8 +60,6 @@ export function Layout() {
         <span className="lj-footer__sep">·</span>
         <span className="lj-footer__net">{config.network}</span>
         <span className="lj-footer__sep">·</span>
-        <span className="lj-footer__warn">{t("app.preprod_banner")}</span>
-        <span className="lj-footer__sep">·</span>
         <ProviderBadge />
         <span className="lj-footer__sep">·</span>
         <Link to="/help" className="lj-footer__link">
