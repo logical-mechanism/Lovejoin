@@ -458,7 +458,7 @@ test pay_mix_fee_rejects_native_asset_in_input() fail {
 // structural input-count gate is satisfied. Without this, an attacker who
 // already owns ≥ 2 mix-boxes can rotate them via Owner withdraw + PayMixFee
 // and drain `max_fee_per_mix_lovelace` per tx from the shard indefinitely.
-// See docs/audit-2026-04-28.md F-1.
+// See docs/audit-2026-05-03.md F-1.
 // ---------------------------------------------------------------------------
 
 test pay_mix_fee_rejects_owner_redeemer_n2() fail {

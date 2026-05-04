@@ -199,6 +199,7 @@ export class IndexerState {
           outputIndex: produced.ref.outputIndex,
           lovelace: produced.lovelace,
           slot: diff.slot,
+          inlineDatumHex: produced.inlineDatumHex,
         });
         reverse.addedFee.push(k);
       } else if (produced.assets[this.filter.referenceNftUnit] === 1n) {
@@ -390,5 +391,7 @@ function parsePoolEntry(
     b: bytesToHex(decoded.b),
     slot,
     generation,
+    inlineDatumHex: produced.inlineDatumHex,
+    lovelace: produced.lovelace,
   };
 }

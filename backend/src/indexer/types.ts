@@ -41,6 +41,15 @@ export interface PoolEntry {
    * metric only — not enforced on chain.
    */
   generation: number;
+  /**
+   * Raw inline-datum CBOR (lowercase hex) captured during indexer apply.
+   * Mirrors the chain's bytes verbatim so /utxos serves the same shape
+   * the SDK would have read from db-sync, without round-tripping
+   * `Constr 0 [bytes(48), bytes(48)]` through cbor-x.
+   */
+  inlineDatumHex: string;
+  /** Lovelace value of the produced UTxO (always equals denomLovelace, but tracked for fidelity). */
+  lovelace: bigint;
 }
 
 /** One fee shard. */
@@ -49,6 +58,11 @@ export interface FeeShard {
   outputIndex: number;
   lovelace: bigint;
   slot: number;
+  /**
+   * Raw inline-datum CBOR (lowercase hex) if the shard carries one;
+   * otherwise null. Same fidelity rationale as `PoolEntry.inlineDatumHex`.
+   */
+  inlineDatumHex: string | null;
 }
 
 /** Aggregate fee state (derived from `shards`). */

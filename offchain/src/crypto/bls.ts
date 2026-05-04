@@ -109,6 +109,21 @@ export function pointEqual(p: G1Point, q: G1Point): boolean {
   return p.equals(q);
 }
 
+/**
+ * True iff `p` is the group identity (point at infinity).
+ *
+ * The identity point is reachable only via `[0]·anything`. Lovejoin's
+ * deposit path forbids `x = 0` and `d = 0` upstream, so neither `a =
+ * [d]·g` nor `b = [x]·a` should ever be the identity. We still expose
+ * this so the deposit planner can assert defense-in-depth before the
+ * datum hits the chain: if `b == identity` ever slipped through, the
+ * Schnorr equation `[z]·a == t + [c]·b` would degenerate to `[z]·a ==
+ * t`, letting anyone forge an Owner proof for the box (audit F-3).
+ */
+export function isIdentity(p: G1Point): boolean {
+  return p.equals(Point.ZERO);
+}
+
 /** Returns the canonical generator g. */
 export function generator(): G1Point {
   return Point.BASE;

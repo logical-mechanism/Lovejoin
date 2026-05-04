@@ -1,7 +1,7 @@
 //// `mix_box` (spend; withdraw-zero pass-through) tests.
 ////
 //// Spec: docs/spec/03-contracts.md §0 (rules), §2 (mix_box validator).
-//// Audit: docs/audit-2026-04-28.md F-2 (inline-only well-formedness gate).
+//// Audit: docs/audit-2026-05-03.md F-2 (inline-only well-formedness gate).
 ////
 //// Three paths to verify:
 ////   1. InlineDatum + well-formed `MixDatum` → require `tx.withdrawals` to

@@ -206,9 +206,6 @@
   .lj-footer__sep {
     opacity: 0.5;
   }
-  .lj-footer__warn {
-    color: var(--color-amber);
-  }
   .lj-footer__link {
     color: var(--color-muted);
     text-decoration: none;

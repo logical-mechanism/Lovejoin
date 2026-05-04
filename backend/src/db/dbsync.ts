@@ -1,16 +1,14 @@
 // db-sync queries.
 //
 // db-sync is a Cardano indexer that mirrors the chain into Postgres.
-// We use it for two narrow purposes:
+// We use it as the backing store for tx-hash exact-match lookups
+// (`/tx/:hash`, `/tx/:hash/utxos`) — the SDK's `awaitConfirmation`
+// and `getUtxoByRef` paths.
 //
-//   1. /history/:address — recent withdrawal txs at a destination.
-//      ogmios chainsync is forward-only (and we don't index history
-//      ourselves to keep the indexer lean), so we delegate to
-//      db-sync's existing tx_out / tx tables.
-//
-//   2. Initial sync (future) — bulk-load the current pool snapshot in
-//      one SQL query instead of replaying chainsync from genesis. Not
-//      wired up yet; the M5 spec calls it out as an optional speedup.
+// Address-scoped queries (`/utxos/:address`) used to live here too,
+// but were moved to in-memory indexer state (issue #89): the only
+// callers are protocol-managed addresses already tracked live, and
+// forwarding arbitrary addresses to db-sync was a DoS surface.
 //
 // We keep the surface small + parameterised — no string concatenation
 // of user input into SQL. db-sync's schema is documented at
@@ -19,18 +17,6 @@
 import pg from "pg";
 
 const { Pool } = pg;
-
-/** A withdrawal-side tx for an address. */
-export interface AddressTxHistoryEntry {
-  txHash: string;
-  blockHeight: number;
-  blockTime: string; // ISO 8601
-  /**
-   * Lovelace received at the address in this tx. Doesn't account for
-   * native asset arrivals — withdrawals are ADA-only by Lovejoin's spec.
-   */
-  lovelaceReceived: bigint;
-}
 
 /**
  * A live UTxO. Mirrors Blockfrost's `/addresses/{addr}/utxos` shape so
@@ -67,31 +53,16 @@ export interface DbSyncTxSummary {
   blockTime: string;
 }
 
-/**
- * History-only client surface — the cheap subset that the Blockfrost
- * fallback can satisfy without N+1 calls per query category. Used by
- * `/history/:address` which is the only route that needs a fallback at
- * all. UTxO + tx-summary queries below stay on the wider DbSyncClient
- * because Blockfrost's address-utxo / tx endpoints have a different
- * shape and we don't want to translate them at this layer.
- */
-export interface HistoryClient {
-  /** Recent txs that paid `address`. Newest first. */
-  addressHistory(address: string, limit: number): Promise<AddressTxHistoryEntry[]>;
-  /** Smoke check. */
-  ping(): Promise<void>;
-  /** Disconnect. */
-  close(): Promise<void>;
-}
-
-/** The full db-sync surface — history plus UTxOs plus tx summaries. */
-export interface DbSyncClient extends HistoryClient {
-  /** Live UTxOs at `address`. Includes assets + inline datums + ref scripts. */
-  addressUtxos(address: string): Promise<DbSyncUtxo[]>;
+/** The db-sync surface — tx-hash exact-match lookups for the SDK. */
+export interface DbSyncClient {
   /** UTxOs produced by a specific tx (any address). For getUtxoByRef. */
   txUtxos(txHash: string): Promise<DbSyncUtxo[]>;
   /** Confirmation summary for a tx, or null if not on chain yet. */
   txSummary(txHash: string): Promise<DbSyncTxSummary | null>;
+  /** Smoke check. */
+  ping(): Promise<void>;
+  /** Disconnect. */
+  close(): Promise<void>;
 }
 
 export class PostgresDbSyncClient implements DbSyncClient {
@@ -112,115 +83,6 @@ export class PostgresDbSyncClient implements DbSyncClient {
       query_timeout: 10_000,
       statement_timeout: 10_000,
     });
-  }
-
-  async addressHistory(address: string, limit: number): Promise<AddressTxHistoryEntry[]> {
-    if (!Number.isFinite(limit) || limit <= 0 || limit > 500) {
-      throw new Error(`addressHistory: limit must be 1..500, got ${limit}`);
-    }
-    // Query: txs paying ADA to `address`, newest first. We use the
-    // canonical db-sync schema:
-    //   tx_out.address (text)
-    //   tx_out.value (lovelace, NUMERIC)
-    //   tx_out.tx_id (FK → tx.id)
-    //   tx.hash (bytea), tx.block_id (FK → block.id)
-    //   block.block_no (integer), block.time (timestamp)
-    //
-    // We sum tx_out.value per (tx, address) so a tx paying multiple
-    // outputs to the same destination shows once with the total
-    // received.
-    const sql = `
-      SELECT
-        ENCODE(tx.hash, 'hex')        AS tx_hash,
-        block.block_no                 AS block_no,
-        block.time                     AS block_time,
-        SUM(tx_out.value)::NUMERIC     AS lovelace_received
-      FROM tx_out
-      JOIN tx     ON tx_out.tx_id = tx.id
-      JOIN block  ON tx.block_id = block.id
-      WHERE tx_out.address = $1
-      GROUP BY tx.id, block.block_no, block.time
-      ORDER BY block.block_no DESC, tx.id DESC
-      LIMIT $2
-    `;
-    const result = await this.pool.query<{
-      tx_hash: string;
-      block_no: number;
-      block_time: Date;
-      lovelace_received: string;
-    }>(sql, [address, limit]);
-    return result.rows.map((r) => ({
-      txHash: r.tx_hash,
-      blockHeight: r.block_no,
-      blockTime: r.block_time.toISOString(),
-      lovelaceReceived: BigInt(r.lovelace_received),
-    }));
-  }
-
-  async addressUtxos(address: string): Promise<DbSyncUtxo[]> {
-    if (typeof address !== "string" || address.length < 4 || address.length > 200) {
-      throw new Error(`addressUtxos: address malformed (got ${JSON.stringify(address)})`);
-    }
-    // Live UTxOs = tx_out rows with no matching tx_in consuming them.
-    // Schema notes (db-sync 13.x):
-    //   tx_out.{tx_id, index, address, value, data_hash, inline_datum_id, reference_script_id}
-    //   tx_in.{tx_in_id, tx_out_id, tx_out_index}  — the consumer side
-    //   datum.bytes (bytea, raw CBOR)              — for inline datums
-    //   script.{hash, bytes, type}                 — for reference scripts
-    //   ma_tx_out.{ident, quantity}                — multi-asset side
-    //   multi_asset.{policy, name}                 — joined via ma_tx_out.ident
-    // The `NOT EXISTS` consumed-input clause is the canonical
-    // "give me UTxOs at this address" pattern; index assumes the
-    // tx_in (tx_out_id, tx_out_index) composite index exists, which
-    // is the default in db-sync.
-    const sql = `
-      SELECT
-        ENCODE(tx.hash, 'hex')                AS tx_hash,
-        tx_out.index                          AS output_index,
-        tx_out.address                        AS address,
-        tx_out.value::TEXT                    AS lovelace,
-        ENCODE(tx_out.data_hash, 'hex')       AS datum_hash,
-        ENCODE(d.bytes, 'hex')                AS inline_datum,
-        ENCODE(s.hash, 'hex')                 AS ref_script_hash,
-        ENCODE(s.bytes, 'hex')                AS ref_script_cbor
-      FROM tx_out
-      JOIN tx ON tx_out.tx_id = tx.id
-      LEFT JOIN datum  d ON tx_out.inline_datum_id   = d.id
-      LEFT JOIN script s ON tx_out.reference_script_id = s.id
-      WHERE tx_out.address = $1
-        AND NOT EXISTS (
-          SELECT 1 FROM tx_in
-          WHERE tx_in.tx_out_id    = tx_out.tx_id
-            AND tx_in.tx_out_index = tx_out.index
-        )
-      ORDER BY tx_out.tx_id, tx_out.index
-    `;
-    const result = await this.pool.query<{
-      tx_hash: string;
-      output_index: number;
-      address: string;
-      lovelace: string;
-      datum_hash: string | null;
-      inline_datum: string | null;
-      ref_script_hash: string | null;
-      ref_script_cbor: string | null;
-    }>(sql, [address]);
-    if (result.rows.length === 0) return [];
-    // Pull the multi-asset side in one round-trip per page rather than
-    // per-row. We key by (tx_hash, output_index).
-    const refs = result.rows.map((r) => `${r.tx_hash}:${r.output_index}`);
-    const assets = await this.assetsForUtxos(refs);
-    return result.rows.map((r) => ({
-      txHash: r.tx_hash,
-      outputIndex: r.output_index,
-      address: r.address,
-      lovelace: BigInt(r.lovelace),
-      assets: assets.get(`${r.tx_hash}:${r.output_index}`) ?? {},
-      inlineDatum: r.inline_datum,
-      datumHash: r.datum_hash,
-      referenceScriptCbor: r.ref_script_cbor,
-      referenceScriptHash: r.ref_script_hash,
-    }));
   }
 
   async txUtxos(txHash: string): Promise<DbSyncUtxo[]> {
@@ -371,16 +233,9 @@ export class PostgresDbSyncClient implements DbSyncClient {
 /** Test-friendly stub. */
 export class StubDbSyncClient implements DbSyncClient {
   constructor(
-    private readonly history: Record<string, AddressTxHistoryEntry[]> = {},
     private readonly utxos: Record<string, DbSyncUtxo[]> = {},
     private readonly txMap: Record<string, DbSyncTxSummary> = {},
   ) {}
-  async addressHistory(address: string, limit: number): Promise<AddressTxHistoryEntry[]> {
-    return (this.history[address] ?? []).slice(0, limit);
-  }
-  async addressUtxos(address: string): Promise<DbSyncUtxo[]> {
-    return this.utxos[address] ?? [];
-  }
   async txUtxos(txHash: string): Promise<DbSyncUtxo[]> {
     const norm = txHash.toLowerCase();
     return Object.values(this.utxos)

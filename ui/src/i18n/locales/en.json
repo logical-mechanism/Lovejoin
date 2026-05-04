@@ -101,7 +101,6 @@
     "title": "Lovejoin",
     "tagline": "A Cardano-native privacy mixer.",
     "status": "Pre-alpha. See docs/spec for design.",
-    "preprod_banner": "Preprod",
     "connect_wallet": "Connect wallet",
     "disconnect_wallet": "Disconnect"
   },

@@ -37,8 +37,6 @@ const CONFIG: BackendConfig = {
   host: "127.0.0.1",
   ogmiosUrl: "ws://localhost:0",
   dbsyncUrl: null,
-  blockfrostProjectId: null,
-  blockfrostBaseUrl: null,
   corsOrigins: "*",
   rateLimitPerMin: 6000, // generous so test calls don't trip rate limit
   addresses: ADDRESSES,
@@ -47,6 +45,7 @@ const CONFIG: BackendConfig = {
     feeContractAddress: FEE_ADDR,
     referenceHolderAddress: "addr_test1ref",
   },
+  bootstrapStartPoint: null,
 };
 
 function bytes48(seed: number): Uint8Array {
@@ -105,16 +104,7 @@ beforeAll(async () => {
     },
     BigInt(ADDRESSES.protocol.max_fee_per_mix_lovelace),
   );
-  const dbsync = new StubDbSyncClient({
-    addr_test1bob: [
-      {
-        txHash: txHash("hist1"),
-        blockHeight: 100,
-        blockTime: "2026-04-25T12:00:00.000Z",
-        lovelaceReceived: 10_000_000n,
-      },
-    ],
-  });
+  const dbsync = new StubDbSyncClient();
   // Seed: 5 deposits, 2 fee shards, 1 reference UTxO.
   state.applyForward({
     slot: 100,
@@ -395,101 +385,87 @@ describe("API: /mempool/inputs", () => {
   });
 });
 
-describe("API: /history/:address", () => {
-  it("returns the stub history with source=dbsync", async () => {
+describe("API: /utxos/:address (allowlisted, served from indexer state)", () => {
+  it("returns mix-box pool entries from in-memory state — no dbsync call", async () => {
+    const res = await server.inject({ method: "GET", url: `/utxos/${MIX_ADDR}` });
+    expect(res.statusCode).toBe(200);
+    const body = res.json();
+    expect(body.address).toBe(MIX_ADDR);
+    // Five live mix-boxes were seeded in beforeAll (3 in blk-100 + 2 in
+    // blk-110); state.pool_() must surface all of them.
+    expect(body.utxos).toHaveLength(5);
+    for (const u of body.utxos) {
+      expect(u.address).toBe(MIX_ADDR);
+      expect(u.lovelace).toBe("10000000");
+      expect(u.assets).toEqual({});
+      // Inline datum is captured verbatim from ProducedUtxo — it must
+      // round-trip the bytes that came off the chain (no re-encoding).
+      expect(u.inlineDatum).toMatch(/^[0-9a-f]+$/);
+      expect(u.datumHash).toBeNull();
+      expect(u.referenceScriptCbor).toBeNull();
+      expect(u.referenceScriptHash).toBeNull();
+    }
+  });
+
+  it("returns fee shards from in-memory state with their inline datums", async () => {
+    const res = await server.inject({ method: "GET", url: `/utxos/${FEE_ADDR}` });
+    expect(res.statusCode).toBe(200);
+    const body = res.json();
+    expect(body.address).toBe(FEE_ADDR);
+    expect(body.utxos).toHaveLength(2);
+    const lovelaces = body.utxos
+      .map((u: { lovelace: string }) => u.lovelace)
+      .sort((a: string, b: string) => Number(a) - Number(b));
+    expect(lovelaces).toEqual(["3000000", "5000000"]);
+    for (const u of body.utxos) {
+      expect(u.address).toBe(FEE_ADDR);
+      expect(u.inlineDatum).toBe("d87980");
+    }
+  });
+
+  it("rejects arbitrary addresses with 400 address_not_protocol_managed", async () => {
     const res = await server.inject({
       method: "GET",
-      url: "/history/addr_test1bob?limit=10",
+      url: "/utxos/addr_test1zzw9pn52k2qkee0z6eufu2gce4dy40strzm0m2te5nhmn3vxca55rx42vu7fv0dqfe94htjy34ysut82eypvhqhymfmqtjsrgn",
     });
-    expect(res.statusCode).toBe(200);
-    const body = res.json();
-    expect(body.address).toBe("addr_test1bob");
-    expect(body.source).toBe("dbsync");
-    expect(body.history).toHaveLength(1);
-    expect(body.history[0].lovelaceReceived).toBe("10000000");
-  });
-});
-
-describe("API: /history fallback to Blockfrost", () => {
-  it("uses the fallback when db-sync is null", async () => {
-    const fallback = new StubDbSyncClient({
-      addr_test1bob: [
-        {
-          txHash: txHash("bf1"),
-          blockHeight: 200,
-          blockTime: "2026-04-26T08:00:00.000Z",
-          lovelaceReceived: 4_500_000n,
-        },
-      ],
-    });
-    const fallbackOnlyServer = await buildServer({
-      state,
-      runtime: null,
-      config: CONFIG,
-      dbsync: null,
-      historyFallback: fallback,
-    });
-    const res = await fallbackOnlyServer.inject({
-      method: "GET",
-      url: "/history/addr_test1bob?limit=5",
-    });
-    expect(res.statusCode).toBe(200);
-    const body = res.json();
-    expect(body.source).toBe("blockfrost");
-    expect(body.history[0].lovelaceReceived).toBe("4500000");
-    await fallbackOnlyServer.close();
+    expect(res.statusCode).toBe(400);
+    expect(res.json().error).toBe("address_not_protocol_managed");
   });
 
-  it("falls back to Blockfrost when db-sync throws", async () => {
-    const throwingDbsync = {
-      async addressHistory() {
-        throw new Error("connect ECONNREFUSED 127.0.0.1:5432");
+  it("does not call dbsync for a protocol-managed address (allowlist short-circuits)", async () => {
+    let dbsyncCalls = 0;
+    const trackingDbsync = {
+      async txUtxos() {
+        dbsyncCalls += 1;
+        return [];
+      },
+      async txSummary() {
+        dbsyncCalls += 1;
+        return null;
       },
       async ping() {},
       async close() {},
     };
-    const fallback = new StubDbSyncClient({
-      addr_test1bob: [
-        {
-          txHash: txHash("bf2"),
-          blockHeight: 201,
-          blockTime: "2026-04-26T09:00:00.000Z",
-          lovelaceReceived: 1_000_000n,
-        },
-      ],
-    });
-    const failoverServer = await buildServer({
+    const s = await buildServer({
       state,
       runtime: null,
       config: CONFIG,
-      dbsync: throwingDbsync,
-      historyFallback: fallback,
+      dbsync: trackingDbsync,
     });
-    const res = await failoverServer.inject({
-      method: "GET",
-      url: "/history/addr_test1bob?limit=5",
-    });
-    expect(res.statusCode).toBe(200);
-    const body = res.json();
-    expect(body.source).toBe("blockfrost");
-    expect(body.history[0].lovelaceReceived).toBe("1000000");
-    await failoverServer.close();
+    try {
+      const res = await s.inject({ method: "GET", url: `/utxos/${MIX_ADDR}` });
+      expect(res.statusCode).toBe(200);
+      expect(dbsyncCalls).toBe(0);
+    } finally {
+      await s.close();
+    }
   });
+});
 
-  it("returns 503 when neither source is configured", async () => {
-    const noBackendsServer = await buildServer({
-      state,
-      runtime: null,
-      config: CONFIG,
-      dbsync: null,
-    });
-    const res = await noBackendsServer.inject({
-      method: "GET",
-      url: "/history/addr_test1bob?limit=5",
-    });
-    expect(res.statusCode).toBe(503);
-    expect(res.json().error).toBe("history_unavailable");
-    await noBackendsServer.close();
+describe("API: /history/:address is gone", () => {
+  it("returns 404 — the route was removed when /utxos moved to indexer state", async () => {
+    const res = await server.inject({ method: "GET", url: "/history/addr_test1bob?limit=10" });
+    expect(res.statusCode).toBe(404);
   });
 });
 
@@ -501,6 +477,13 @@ describe("API: /submit + /evaluate", () => {
         return "ab".repeat(32);
       },
       evaluateTransaction: async () => [],
+      reconnecting: () => ({
+        inProgress: false,
+        attempts: 0,
+        lastErrorAt: 0,
+        lastErrorMessage: "",
+        exhausted: false,
+      }),
       close: () => {},
     };
     const s = await buildServer({
@@ -526,6 +509,13 @@ describe("API: /submit + /evaluate", () => {
         throw new Error("ogmios JSON-RPC error 3122: ScriptExecutionFailure");
       },
       evaluateTransaction: async () => [],
+      reconnecting: () => ({
+        inProgress: false,
+        attempts: 0,
+        lastErrorAt: 0,
+        lastErrorMessage: "",
+        exhausted: false,
+      }),
       close: () => {},
     };
     const s = await buildServer({
@@ -550,6 +540,13 @@ describe("API: /submit + /evaluate", () => {
     const stub = {
       submitTransaction: async () => "00".repeat(32),
       evaluateTransaction: async () => [],
+      reconnecting: () => ({
+        inProgress: false,
+        attempts: 0,
+        lastErrorAt: 0,
+        lastErrorMessage: "",
+        exhausted: false,
+      }),
       close: () => {},
     };
     const s = await buildServer({
@@ -579,6 +576,13 @@ describe("API: /submit + /evaluate", () => {
         expect(cbor).toBe("84a4");
         return budgets;
       },
+      reconnecting: () => ({
+        inProgress: false,
+        attempts: 0,
+        lastErrorAt: 0,
+        lastErrorMessage: "",
+        exhausted: false,
+      }),
       close: () => {},
     };
     const s = await buildServer({
@@ -606,5 +610,131 @@ describe("API: /submit + /evaluate", () => {
     });
     expect(res.statusCode).toBe(503);
     expect(res.json().error).toBe("submit_unavailable");
+  });
+
+  it("/submit returns 503 / submit_unavailable when the ogmios reconnect circuit is exhausted", async () => {
+    // No reconnect attempts are driven from the route — the circuit
+    // open flag short-circuits before submitTransaction is ever called.
+    let submitCalls = 0;
+    const stub = {
+      submitTransaction: async () => {
+        submitCalls += 1;
+        return "00".repeat(32);
+      },
+      evaluateTransaction: async () => [],
+      reconnecting: () => ({
+        inProgress: false,
+        attempts: 30,
+        lastErrorAt: 1_700_000_000_000,
+        lastErrorMessage: "ECONNREFUSED 127.0.0.1:1337",
+        exhausted: true,
+      }),
+      close: () => {},
+    };
+    const s = await buildServer({
+      state,
+      runtime: null,
+      config: CONFIG,
+      dbsync: null,
+      ogmiosTx: stub as never,
+    });
+    try {
+      const res = await s.inject({
+        method: "POST",
+        url: "/submit",
+        payload: { cbor: "84a4" },
+      });
+      expect(res.statusCode).toBe(503);
+      expect(res.json().error).toBe("submit_unavailable");
+      expect(submitCalls).toBe(0);
+    } finally {
+      await s.close();
+    }
+  });
+
+  it("/evaluate returns 503 / evaluate_unavailable when the circuit is exhausted", async () => {
+    let evalCalls = 0;
+    const stub = {
+      submitTransaction: async () => "00".repeat(32),
+      evaluateTransaction: async () => {
+        evalCalls += 1;
+        return [];
+      },
+      reconnecting: () => ({
+        inProgress: false,
+        attempts: 30,
+        lastErrorAt: 1_700_000_000_000,
+        lastErrorMessage: "ECONNREFUSED 127.0.0.1:1337",
+        exhausted: true,
+      }),
+      close: () => {},
+    };
+    const s = await buildServer({
+      state,
+      runtime: null,
+      config: CONFIG,
+      dbsync: null,
+      ogmiosTx: stub as never,
+    });
+    try {
+      const res = await s.inject({
+        method: "POST",
+        url: "/evaluate",
+        payload: { cbor: "84a4" },
+      });
+      expect(res.statusCode).toBe(503);
+      expect(res.json().error).toBe("evaluate_unavailable");
+      expect(evalCalls).toBe(0);
+    } finally {
+      await s.close();
+    }
+  });
+});
+
+describe("API: /health mempoolReconnect", () => {
+  it("surfaces the OgmiosTxClient reconnect state in mempoolReconnect with redacted message", async () => {
+    const stub = {
+      submitTransaction: async () => "00".repeat(32),
+      evaluateTransaction: async () => [],
+      reconnecting: () => ({
+        inProgress: true,
+        attempts: 5,
+        lastErrorAt: 1_700_000_000_000,
+        // Intentionally carries an upstream URL so we can assert the
+        // redactor strips it before it lands on the wire.
+        lastErrorMessage: "ECONNREFUSED 10.0.0.5:1337 ws://ogmios.internal:1337",
+        exhausted: false,
+      }),
+      close: () => {},
+    };
+    const s = await buildServer({
+      state,
+      runtime: null,
+      config: CONFIG,
+      dbsync: null,
+      ogmiosTx: stub as never,
+    });
+    try {
+      const res = await s.inject({ method: "GET", url: "/health" });
+      expect(res.statusCode).toBe(200);
+      const body = res.json();
+      expect(body.mempoolReconnect).toBeDefined();
+      expect(body.mempoolReconnect.inProgress).toBe(true);
+      expect(body.mempoolReconnect.attempts).toBe(5);
+      expect(body.mempoolReconnect.exhausted).toBe(false);
+      expect(body.mempoolReconnect.lastErrorAt).toBe(1_700_000_000_000);
+      // IP + port pattern stripped, ws:// URL stripped.
+      expect(body.mempoolReconnect.lastErrorMessage).not.toMatch(/10\.0\.0\.5/);
+      expect(body.mempoolReconnect.lastErrorMessage).not.toMatch(/ogmios\.internal/);
+    } finally {
+      await s.close();
+    }
+  });
+
+  it("mempoolReconnect is null when no ogmiosTx is configured", async () => {
+    const res = await server.inject({ method: "GET", url: "/health" });
+    expect(res.statusCode).toBe(200);
+    const body = res.json();
+    expect(body.mempoolReconnect).toBeNull();
   });
 });

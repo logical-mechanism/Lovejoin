@@ -58,9 +58,12 @@ export const OPENAPI_TAGS = [
   { name: "pool", description: "On-chain mix-box pool snapshot." },
   { name: "fee", description: "Sharded fee contract snapshot." },
   { name: "mempool", description: "Cardano-node mempool inputs (collision avoidance)." },
-  { name: "history", description: "Per-address history (db-sync, Blockfrost fallback)." },
   { name: "tx", description: "Tx submission, evaluation, and resolution." },
-  { name: "address", description: "Per-address UTxOs (db-sync)." },
+  {
+    name: "address",
+    description:
+      "Per-address UTxOs for the two protocol-managed addresses (mix-box, fee-contract), served from indexer state.",
+  },
 ] as const;
 
 // ------------------------------------------------------------------
@@ -171,20 +174,6 @@ const SHARED_SCHEMAS = [
       txHash: { $ref: "Hex32#" },
       outputIndex: { type: "integer", minimum: 0 },
       lovelace: { $ref: "Lovelace#" },
-    },
-  },
-  {
-    $id: "HistoryEntry",
-    type: "object",
-    required: ["txHash", "blockHeight", "blockTime", "lovelaceReceived"],
-    properties: {
-      txHash: { $ref: "Hex32#" },
-      blockHeight: { type: "integer" },
-      blockTime: {
-        type: "integer",
-        description: "POSIX epoch seconds.",
-      },
-      lovelaceReceived: { $ref: "Lovelace#" },
     },
   },
   {
@@ -323,26 +312,6 @@ export const ROUTE_SCHEMAS = {
     tags: ["mempool"],
   },
 
-  history: {
-    summary: "Per-address tx history",
-    description:
-      "Recent inbound history for a bech32 Cardano address. Primary path is db-sync (1 SQL query); falls through to Blockfrost when db-sync is unavailable. `source` indicates which backend served the response.",
-    tags: ["history"],
-    params: {
-      type: "object",
-      required: ["address"],
-      properties: { address: { type: "string", description: "Bech32 Cardano address." } },
-    },
-    querystring: {
-      type: "object",
-      properties: { limit: { type: "string", description: "1..500; default 50." } },
-    },
-    response: {
-      400: ERROR_REF,
-      503: ERROR_REF,
-    },
-  },
-
   submit: {
     summary: "Submit a signed tx",
     description:
@@ -385,9 +354,9 @@ export const ROUTE_SCHEMAS = {
   },
 
   addressUtxos: {
-    summary: "Per-address UTxOs",
+    summary: "UTxOs at a protocol-managed address",
     description:
-      "All UTxOs at a bech32 Cardano address (db-sync). 503 when db-sync is not configured.",
+      "Live UTxOs at the mix-box or fee-contract address, served from in-memory indexer state. Any other address returns 400 `address_not_protocol_managed` — the route is allowlisted to the two SDK call sites (`fetchPool` and the fee-shard fetch).",
     tags: ["address"],
     params: {
       type: "object",
@@ -396,8 +365,6 @@ export const ROUTE_SCHEMAS = {
     },
     response: {
       400: ERROR_REF,
-      502: ERROR_REF,
-      503: ERROR_REF,
     },
   },
 
