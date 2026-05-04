@@ -98,7 +98,7 @@
     "title": "Lovejoin",
     "tagline": "Mikser prywatności natywny dla Cardano.",
     "status": "Pre-alpha. Projekt: zob. docs/spec.",
-    "preprod_banner": "Tylko Preprod · nie używaj prawdziwych środków",
+    "preprod_banner": "Preprod",
     "connect_wallet": "Połącz portfel",
     "disconnect_wallet": "Rozłącz"
   },

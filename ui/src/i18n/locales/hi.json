@@ -98,7 +98,7 @@
     "title": "Lovejoin",
     "tagline": "Cardano-नेटिव निजता मिक्सर।",
     "status": "प्री-अल्फा। डिज़ाइन के लिए docs/spec देखें।",
-    "preprod_banner": "केवल Preprod · असली फंड का उपयोग न करें",
+    "preprod_banner": "Preprod",
     "connect_wallet": "वॉलेट कनेक्ट करें",
     "disconnect_wallet": "डिस्कनेक्ट करें"
   },

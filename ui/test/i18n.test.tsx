@@ -36,9 +36,11 @@ describe("UI i18n harness", () => {
     expect(screen.getAllByText("Lovejoin").length).toBeGreaterThanOrEqual(1);
   });
 
-  it("renders the Preprod warning banner", () => {
+  it("renders the Preprod network label in the footer", () => {
     renderShell();
-    expect(screen.getByText(/Preprod only/i)).toBeInTheDocument();
+    // Footer carries the network label (`app.preprod_banner` = "Preprod").
+    // Multiple footer chips share the literal — at least one must be present.
+    expect(screen.getAllByText("Preprod").length).toBeGreaterThanOrEqual(1);
   });
 
   it("renders the navigation links", () => {

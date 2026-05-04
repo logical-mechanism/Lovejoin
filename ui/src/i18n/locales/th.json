@@ -98,7 +98,7 @@
     "title": "Lovejoin",
     "tagline": "ตัวผสมเพื่อความเป็นส่วนตัวแบบเนทีฟของ Cardano",
     "status": "Pre-alpha ดูดีไซน์ที่ docs/spec",
-    "preprod_banner": "Preprod เท่านั้น · อย่าใช้เงินจริง",
+    "preprod_banner": "Preprod",
     "connect_wallet": "เชื่อมต่อกระเป๋า",
     "disconnect_wallet": "ตัดการเชื่อมต่อ"
   },
