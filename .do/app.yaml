@@ -124,9 +124,11 @@ services:
         value: ws://127.0.0.1:1337
 
       # When CF_TUNNEL_DBSYNC_HOSTNAME is unset and DBSYNC_URL is
-      # blank, the address-keyed routes 503 and the SDK + UI fall
-      # back to BlockfrostProvider for /utxos + /tx. With the tunnel
-      # in place set this to postgres://USER:PASS@127.0.0.1:5432/DBNAME.
+      # blank, /tx/:hash + /tx/:hash/utxos return 503 and the SDK
+      # falls back to BlockfrostProvider for those paths. /utxos is
+      # served from indexer state and never needs db-sync. With the
+      # tunnel in place set this to
+      # postgres://USER:PASS@127.0.0.1:5432/DBNAME.
       - key: DBSYNC_URL
         scope: RUN_TIME
         type: SECRET
@@ -147,14 +149,6 @@ services:
         type: SECRET
         value: ""
       - key: CF_TUNNEL_SERVICE_TOKEN_SECRET
-        scope: RUN_TIME
-        type: SECRET
-        value: ""
-
-      # Optional Blockfrost fallback for /history when db-sync is
-      # absent or briefly down. Suffix-match keeps a single .env in
-      # sync with the SDK's BLOCKFROST_PROJECT_ID_<NETWORK> convention.
-      - key: BLOCKFROST_PROJECT_ID_PREPROD
         scope: RUN_TIME
         type: SECRET
         value: ""

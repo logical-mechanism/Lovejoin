@@ -58,23 +58,12 @@ export interface BackendConfig {
   host: string;
   ogmiosUrl: string;
   /**
-   * Optional — db-sync is the primary `/history/:address` source. If both
-   * `dbsyncUrl` and `blockfrostProjectId` are set, db-sync is preferred and
-   * Blockfrost is the fallback when db-sync errors. If only one is set
-   * the route uses it directly; if neither, `/history` returns 503.
+   * Optional — db-sync backs `/tx/:hash` + `/tx/:hash/utxos` (the SDK's
+   * `awaitConfirmation` and `getUtxoByRef` paths). When unset those
+   * routes return 503; chain-state routes (`/utxos`, `/pool`, `/fee`)
+   * are served from indexer state and don't need db-sync.
    */
   dbsyncUrl: string | null;
-  /**
-   * Optional Blockfrost project id. When set, `/history/:address` falls
-   * back to Blockfrost while db-sync is unavailable (initial sync, brief
-   * outage). Same env var convention as the SDK.
-   */
-  blockfrostProjectId: string | null;
-  /**
-   * Optional Blockfrost base URL override. Defaults to the public
-   * Blockfrost endpoint for `network` when `blockfrostProjectId` is set.
-   */
-  blockfrostBaseUrl: string | null;
   /** Origin allowlist for CORS, or `*` to allow all. */
   corsOrigins: string[] | "*";
   /** Per-IP rate limit, requests per minute. */
@@ -115,16 +104,6 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): BackendConfig 
   const host = env.HOST?.trim() || DEFAULTS.host;
   const ogmiosUrl = (env.OGMIOS_URL ?? "ws://localhost:1337").trim();
   const dbsyncUrl = env.DBSYNC_URL?.trim() || null;
-  // Accept either the unsuffixed BLOCKFROST_PROJECT_ID or the
-  // network-suffixed form the SDK CLI already uses
-  // (BLOCKFROST_PROJECT_ID_PREPROD / _PREVIEW / _MAINNET). Backend reads
-  // the unsuffixed first so an explicit override wins; falls back to the
-  // SDK convention so a single .env doesn't need to duplicate the key.
-  const blockfrostProjectId =
-    env.BLOCKFROST_PROJECT_ID?.trim() ||
-    env[`BLOCKFROST_PROJECT_ID_${network.toUpperCase()}`]?.trim() ||
-    null;
-  const blockfrostBaseUrl = env.BLOCKFROST_BASE_URL?.trim() || null;
   const corsOrigins = parseCorsOrigins(env.CORS_ORIGINS);
   const rateLimitPerMin = parseIntegerEnv(
     env.RATE_LIMIT_PER_MIN,
@@ -157,8 +136,6 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): BackendConfig 
     host,
     ogmiosUrl,
     dbsyncUrl,
-    blockfrostProjectId,
-    blockfrostBaseUrl,
     corsOrigins,
     rateLimitPerMin,
     addresses,
