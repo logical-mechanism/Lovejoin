@@ -62,6 +62,28 @@ export interface AddressFilter {
 }
 
 /**
+ * Bulk snapshot used to prime the indexer at cold start (or to recover
+ * from a deep rollback past the reverse buffer). All UTxOs are live as
+ * of `tip`; the rollback buffer is empty after a prime, so any
+ * subsequent rollback to a point before `tip` re-triggers the prime
+ * path via `DeepRollbackError`.
+ */
+export interface PrimeSnapshot {
+  tip: ChainTip;
+  /**
+   * Live mix-box UTxOs at `tip`. Each entry's `inlineDatumHex` is the
+   * raw chain CBOR (the prime code does not re-encode); entries with
+   * unparseable / missing datums are silently skipped to mirror the
+   * forward-apply path's tolerance for malformed boxes.
+   */
+  mixBoxUtxos: ProducedUtxo[];
+  /** Live fee-contract UTxOs at `tip`. */
+  feeShardUtxos: ProducedUtxo[];
+  /** Reference NFT carrier, if observable; null surfaces as alarm. */
+  referenceUtxo: ProducedUtxo | null;
+}
+
+/**
  * The unrecoverable rollback signal — thrown by `applyRollback` when the
  * target is older than the buffer can reach. The runtime should respond
  * by restarting chainsync from a fresh starting point.
@@ -225,6 +247,54 @@ export class IndexerState {
       this.reverse.shift();
     }
     this.tip_ = { slot: diff.slot, blockHash: diff.blockHash, height: diff.height };
+  }
+
+  /**
+   * Replace the entire state with a bulk snapshot at `snapshot.tip` —
+   * the cold-start prime path (issue #87) and the deep-rollback
+   * recovery path. After a prime:
+   *
+   *   - The rollback buffer is empty. Forward applies after this point
+   *     repopulate it; rollbacks to a point before `snapshot.tip` will
+   *     surface as `DeepRollbackError` and the runtime is expected to
+   *     reprime in-process.
+   *   - Each pool entry's `generation` is reset to 0. Generation is a
+   *     UI-only metric derived from forward replay (max parent + 1);
+   *     the prime drops history because db-sync doesn't persist it.
+   *     Operators see the privacy-budget counter restart on a primed
+   *     deploy, which is acceptable per the spec's "metric only" framing.
+   *   - A null `referenceUtxo` raises the alarm (mirroring the spec's
+   *     "reference UTxO disappeared" handling). A primed entry clears
+   *     any pre-existing alarm.
+   */
+  primeFrom(snapshot: PrimeSnapshot): void {
+    this.pool.clear();
+    this.feeShards.clear();
+    this.buffer.length = 0;
+    this.reverse.length = 0;
+    this.referenceRef = null;
+    this.referenceAlarm = null;
+    this.tip_ = snapshot.tip;
+    for (const produced of snapshot.mixBoxUtxos) {
+      const k = utxoKey(produced.ref);
+      const entry = parsePoolEntry(produced, snapshot.tip.slot, 0);
+      if (entry) this.pool.set(k, entry);
+    }
+    for (const produced of snapshot.feeShardUtxos) {
+      const k = utxoKey(produced.ref);
+      this.feeShards.set(k, {
+        txHash: produced.ref.txId,
+        outputIndex: produced.ref.outputIndex,
+        lovelace: produced.lovelace,
+        slot: snapshot.tip.slot,
+        inlineDatumHex: produced.inlineDatumHex,
+      });
+    }
+    if (snapshot.referenceUtxo) {
+      this.referenceRef = snapshot.referenceUtxo.ref;
+    } else {
+      this.referenceAlarm = `prime: reference NFT not observable at slot ${snapshot.tip.slot}`;
+    }
   }
 
   /**

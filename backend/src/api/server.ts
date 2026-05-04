@@ -244,6 +244,21 @@ function registerHealth(fastify: FastifyInstance, deps: ApiServerDeps): void {
           lastErrorMessage: redactUpstreamMessage(mempoolReconnect.lastErrorMessage),
         }
       : null;
+    // Origin tells operators whether the cold-start prime took
+    // (`source: "primed"`) or the legacy walk-forward path was used
+    // (`source: "replayed"`). On deploy the value is the proxy for
+    // "did the fast path engage". `reprimeCount > 0` after a
+    // `primed` deploy means an in-process deep-rollback recovery
+    // fired since process start.
+    const origin = deps.runtime?.origin() ?? null;
+    const redactedOrigin = origin
+      ? {
+          ...origin,
+          lastErrorMessage: origin.lastErrorMessage
+            ? redactUpstreamMessage(origin.lastErrorMessage)
+            : "",
+        }
+      : null;
     return {
       ok: deps.state.alarm() === null && fatalError === null,
       tip,
@@ -254,6 +269,7 @@ function registerHealth(fastify: FastifyInstance, deps: ApiServerDeps): void {
       runtimeError: fatalError ? redactUpstreamMessage(fatalError.message) : null,
       chainsyncReconnect: redactedReconnect,
       mempoolReconnect: redactedMempoolReconnect,
+      indexerOrigin: redactedOrigin,
     };
   });
 }
