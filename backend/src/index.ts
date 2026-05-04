@@ -10,11 +10,13 @@
 // Spec: docs/spec/05-backend.md.
 
 import { loadConfig } from "./config.js";
-import { PostgresDbSyncClient } from "./db/dbsync.js";
+import { PostgresDbSyncClient, type DbSyncClient } from "./db/dbsync.js";
 import { IndexerRuntime } from "./indexer/runtime.js";
 import { IndexerState } from "./indexer/state.js";
 import { MempoolPoller } from "./indexer/mempool.js";
 import { OgmiosTxClient } from "./indexer/ogmios-tx.js";
+import { primeFromDbSync } from "./indexer/prime.js";
+import type { ChainTip } from "./indexer/types.js";
 import { buildServer } from "./api/server.js";
 
 export const BACKEND_VERSION = "0.2.0";
@@ -40,26 +42,82 @@ export async function main(): Promise<void> {
   );
   const dbsync = config.dbsyncUrl ? new PostgresDbSyncClient(config.dbsyncUrl) : null;
 
-  // Skip-ahead intersection: a fresh backend starts walking from the
-  // bootstrap tx's slot rather than chain origin. Without this, every
-  // restart replays the full chain from genesis (≈3 years on preprod)
-  // before any protocol-relevant block exists. See config.ts
-  // resolveBootstrapStartPoint() for precedence.
-  const startPoints = config.bootstrapStartPoint
-    ? [
-        {
-          slot: config.bootstrapStartPoint.slot,
-          id: config.bootstrapStartPoint.blockHash,
-        } as const,
-      ]
-    : ["origin" as const];
+  const indexerLogger = simpleLogger();
+  const primeParams = {
+    mixBoxAddress: config.derived.mixBoxAddress,
+    feeContractAddress: config.derived.feeContractAddress,
+    referenceNftPolicyHex: config.addresses.referenceNftPolicy,
+    referenceNftAssetNameHex: config.addresses.referenceNftAssetName,
+  };
+  // Cold-start prime path (issue #87): when db-sync is configured
+  // and INDEXER_COLD_START allows it, bulk-load live state from
+  // db-sync at its latest stable block, then resume chainsync from
+  // that point. This collapses cold-start latency from O(chain
+  // length) to O(pool size). The legacy `bootstrapStartPoint`
+  // replay remains as the fallback when db-sync isn't available
+  // (or when an operator pins INDEXER_COLD_START=replay for
+  // debugging).
+  const coldStartMode = (process.env.INDEXER_COLD_START ?? "prime").toLowerCase();
+  let primedTip: ChainTip | null = null;
+  if (coldStartMode === "prime" && dbsync) {
+    try {
+      primedTip = await primeFromDbSync({
+        state,
+        dbsync,
+        params: primeParams,
+        logger: indexerLogger,
+      });
+    } catch (err) {
+      indexerLogger.warn(
+        `prime: db-sync prime failed (${(err as Error).message}); falling back to chainsync replay`,
+      );
+    }
+  } else if (coldStartMode === "prime" && !dbsync) {
+    indexerLogger.warn(
+      "prime: INDEXER_COLD_START=prime but DBSYNC_URL not configured; falling back to chainsync replay",
+    );
+  }
+
+  // Resume points: primed tip first, then the bootstrap intersection,
+  // then origin as the legacy walk-from-genesis path. Most production
+  // deploys take the primed branch; the bootstrap branch is the
+  // legacy fallback for environments without db-sync.
+  const startPoints = primedTip
+    ? [{ slot: primedTip.slot, id: primedTip.blockHash } as const]
+    : config.bootstrapStartPoint
+      ? [
+          {
+            slot: config.bootstrapStartPoint.slot,
+            id: config.bootstrapStartPoint.blockHash,
+          } as const,
+        ]
+      : ["origin" as const];
+
+  // Reprime callback for in-process recovery from `DeepRollbackError`
+  // and from `intersection: "origin"` reconnects past our applied
+  // tip. Identical to the cold-start prime; supplied only when
+  // db-sync is configured because the runtime must have somewhere to
+  // pull the snapshot from.
+  const reprime: (() => Promise<ChainTip>) | undefined = dbsync
+    ? () =>
+        primeFromDbSync({
+          state,
+          dbsync: dbsync satisfies DbSyncClient,
+          params: primeParams,
+          logger: indexerLogger,
+        })
+    : undefined;
 
   const runtime = new IndexerRuntime(state, {
     ogmiosUrl: config.ogmiosUrl,
     filter,
     startPoints,
-    logger: simpleLogger(),
+    logger: indexerLogger,
+    ...(reprime ? { reprime } : {}),
   });
+  if (primedTip) {
+    runtime.notePrimed();
+  }
 
   // Tx-submission ogmios client lives on its own WebSocket so chainsync
   // (which is parked on `nextBlock` waiting for the next block) doesn't

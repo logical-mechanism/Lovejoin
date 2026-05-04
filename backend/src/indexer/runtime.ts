@@ -31,6 +31,7 @@ import {
   type OgmiosPoint,
   type OgmiosSocket,
 } from "./ogmios.js";
+import type { ChainTip } from "./types.js";
 
 /** A logging surface — Fastify's logger fits the shape. */
 export interface RuntimeLogger {
@@ -69,6 +70,25 @@ export interface RuntimeConfig {
   sleepMs?: (ms: number) => Promise<void>;
   /** Random source for jitter; tests pin it to keep delays deterministic. */
   random?: () => number;
+  /**
+   * Recovery callback invoked when a `DeepRollbackError` (or an
+   * upstream `intersection: "origin"` past our state) makes the
+   * in-process buffer unable to replay forward. The callback is
+   * expected to refresh `state` to a fresh chain snapshot and return
+   * the tip the runtime should use as the new chainsync intersection.
+   *
+   * When omitted, the runtime preserves the legacy behaviour: set
+   * `fatal`, exit the loop, and let the supervisor restart the
+   * container. With it, recovery happens in-process (issue #87).
+   */
+  reprime?: () => Promise<ChainTip>;
+  /**
+   * Cap on how many times the loop will reprime before going fatal.
+   * Defaults to 3 — the reprime path is bounded by db-sync round-trip,
+   * so a handful of failures means db-sync is itself unreachable and
+   * the supervisor restart is the only remaining recovery.
+   */
+  maxReprimeAttempts?: number;
 }
 
 /** Snapshot of the runtime's in-flight reconnect state, exposed to /health. */
@@ -83,7 +103,26 @@ export interface ReconnectStatus {
   lastErrorMessage: string;
 }
 
+/** Snapshot of how the runtime sourced its current state, exposed to /health. */
+export interface OriginStatus {
+  /**
+   * `primed` — last sourced via the `reprime` callback (cold start
+   * from db-sync, or in-process deep-rollback recovery).
+   * `replayed` — last sourced via chainsync replay from the configured
+   * start points (legacy fallback when no `reprime` is wired up).
+   * `unknown` — runtime hasn't started yet.
+   */
+  source: "primed" | "replayed" | "unknown";
+  /** Total reprime invocations since process start (0 on a pure-replay deploy). */
+  reprimeCount: number;
+  /** Epoch ms of the most recent prime/replay-origin event; 0 when never. */
+  lastAt: number;
+  /** Empty when the last origin event was clean; populated when reprime gave up. */
+  lastErrorMessage: string;
+}
+
 const DEFAULT_MAX_RECONNECT_ATTEMPTS = 30;
+const DEFAULT_MAX_REPRIME_ATTEMPTS = 3;
 
 const defaultSleep = (ms: number): Promise<void> =>
   new Promise((resolve) => setTimeout(resolve, ms));
@@ -108,6 +147,18 @@ export class IndexerRuntime {
   private reconnectAttempts = 0;
   private lastReconnectErrorAt = 0;
   private lastReconnectErrorMessage = "";
+
+  // Origin bookkeeping. `originSource` records how `state` was last
+  // sourced — either bulk-primed via the `reprime` callback or
+  // replayed forward via chainsync. `reprimeCount` tallies prime
+  // invocations across the process lifetime so operators can see
+  // how often deep-rollback recovery has fired. `originLastErrorMessage`
+  // is set when reprime exhausts its attempts and the runtime falls
+  // back to the legacy fatal path.
+  private originSource: OriginStatus["source"] = "unknown";
+  private reprimeCount = 0;
+  private originLastAt = 0;
+  private originLastErrorMessage = "";
 
   constructor(
     private readonly state: IndexerState,
@@ -135,6 +186,29 @@ export class IndexerRuntime {
     };
   }
 
+  origin(): OriginStatus {
+    return {
+      source: this.originSource,
+      reprimeCount: this.reprimeCount,
+      lastAt: this.originLastAt,
+      lastErrorMessage: this.originLastErrorMessage,
+    };
+  }
+
+  /**
+   * Mark the runtime's state-origin as `primed` and bump the counter.
+   * Called by `start()` after a cold-start prime, and by the in-loop
+   * recovery handler after a deep-rollback reprime. Exposed so the
+   * bootstrap entrypoint can record the cold-start prime without
+   * threading the prime call through the runtime itself.
+   */
+  notePrimed(): void {
+    this.originSource = "primed";
+    this.originLastAt = Date.now();
+    this.originLastErrorMessage = "";
+    this.reprimeCount += 1;
+  }
+
   async start(): Promise<void> {
     if (this.running) return;
     this.running = true;
@@ -147,6 +221,14 @@ export class IndexerRuntime {
         inter.intersection === "origin" ? "origin" : `slot ${inter.intersection.slot}`
       }; tip slot ${inter.tip.slot}`,
     );
+    // Initial origin is `replayed` unless the bootstrap entrypoint
+    // primed before calling start(). The entrypoint signals a prime
+    // by calling notePrimed() before start(), so we only set
+    // `replayed` here when origin is still `unknown`.
+    if (this.originSource === "unknown") {
+      this.originSource = "replayed";
+      this.originLastAt = Date.now();
+    }
     this.loopPromise = this.loop();
   }
 
@@ -189,6 +271,11 @@ export class IndexerRuntime {
         this.applyEvent(event);
       } catch (err) {
         if (err instanceof DeepRollbackError) {
+          if (this.config.reprime) {
+            const recovered = await this.tryReprime(err);
+            if (!recovered) return;
+            continue;
+          }
           this.fatal = err;
           this.config.logger.error(
             `deep rollback past buffer: ${err.message} — runtime halting for resync`,
@@ -205,6 +292,84 @@ export class IndexerRuntime {
         // events that throw (apply is all-or-nothing per block).
       }
     }
+  }
+
+  /**
+   * Recover from a deep rollback (or an upstream "intersection: origin"
+   * past our state) by calling the configured `reprime` callback to
+   * refresh state from db-sync, then reconnecting chainsync at the
+   * primed tip. Returns `true` if the runtime is ready to resume the
+   * loop, `false` if reprime exhausted its attempts (in which case
+   * `fatal` and `running` are set so the loop exits).
+   */
+  private async tryReprime(initialErr: unknown): Promise<boolean> {
+    const reprime = this.config.reprime;
+    if (!reprime) {
+      // Should be unreachable — callers gate on this — but defensive.
+      this.fatal = initialErr instanceof Error ? initialErr : new Error(String(initialErr));
+      this.running = false;
+      return false;
+    }
+    const max = this.config.maxReprimeAttempts ?? DEFAULT_MAX_REPRIME_ATTEMPTS;
+    const sleep = this.config.sleepMs ?? defaultSleep;
+    let attempt = 0;
+    let lastErr: Error = initialErr instanceof Error ? initialErr : new Error(String(initialErr));
+    this.config.logger.warn(
+      `deep rollback past buffer: ${lastErr.message} — repriming from db-sync`,
+    );
+    while (this.running && attempt < max) {
+      attempt += 1;
+      try {
+        const tip = await reprime();
+        this.notePrimed();
+        // Tear down the existing chainsync client and resume from the
+        // newly-primed tip. We share the reconnect machinery's
+        // tryReconnect path to keep one resume code path; passing a
+        // synthetic error message preserves the reconnect-status
+        // surfacing for /health.
+        try {
+          this.client?.close();
+        } catch {
+          /* best effort */
+        }
+        this.client = null;
+        const fresh = this.buildClient();
+        await fresh.connect();
+        const inter = await fresh.findIntersection([{ slot: tip.slot, id: tip.blockHash }]);
+        if (inter.intersection === "origin") {
+          // db-sync's tip wasn't found by ogmios. Either ogmios is
+          // running on a different network, or db-sync is dramatically
+          // ahead of ogmios. Either way, the next reprime attempt
+          // won't help — bail to the supervisor.
+          try {
+            fresh.close();
+          } catch {
+            /* ignore */
+          }
+          throw new Error(
+            `chainsync findIntersection returned origin for primed tip slot ${tip.slot}; ogmios disagrees with db-sync`,
+          );
+        }
+        this.client = fresh;
+        this.config.logger.info(
+          `reprime: state restored at slot ${tip.slot}; chainsync resumed at slot ${inter.intersection.slot} (after ${attempt} attempt${attempt === 1 ? "" : "s"})`,
+        );
+        return true;
+      } catch (err) {
+        lastErr = err instanceof Error ? err : new Error(String(err));
+        this.config.logger.warn(`reprime attempt ${attempt} failed: ${lastErr.message}`);
+        this.originLastErrorMessage = lastErr.message;
+        if (attempt >= max) break;
+        await sleep(this.backoffMs(attempt));
+      }
+    }
+    if (!this.running) return false;
+    this.fatal = new Error(
+      `reprime failed after ${attempt} attempt${attempt === 1 ? "" : "s"}: ${lastErr.message}`,
+    );
+    this.config.logger.error(this.fatal.message);
+    this.running = false;
+    return false;
   }
 
   /**
@@ -248,13 +413,23 @@ export class IndexerRuntime {
 
         if (inter.intersection === "origin" && this.state.tip !== null) {
           // Asked for our applied tip; ogmios doesn't know it. The
-          // upstream node has rolled past our state — a fresh
-          // container is the only safe recovery (it walks from the
-          // bootstrap start point and rebuilds state).
+          // upstream node has rolled past our state. With reprime
+          // wired up, recover in-process by repriming from db-sync
+          // and restarting the resume loop with the fresh tip. Without
+          // it, fall back to the legacy supervisor-restart path.
           try {
             fresh.close();
           } catch {
             // ignore
+          }
+          if (this.config.reprime) {
+            this.reconnectInProgress = false;
+            const reprimed = await this.tryReprime(
+              new Error(
+                `chainsync reconnect: ogmios rolled past indexer tip slot ${this.state.tip.slot}`,
+              ),
+            );
+            return reprimed;
           }
           this.fatal = new Error(
             "chainsync reconnect: ogmios rolled past indexer tip — restart required",
@@ -343,12 +518,15 @@ export class IndexerRuntime {
       // the protocol's way of saying "your starting point is genesis,
       // begin from here." If our state is already at origin (no
       // buffered blocks), treat it as a no-op handshake. Otherwise
-      // it's a deep rollback past the buffer's reach and we can't
-      // recover — surface as fatal so the supervisor restarts us.
+      // it's a deep rollback past the buffer's reach: surface as
+      // `DeepRollbackError` so the loop's reprime branch picks it up
+      // (or, with no reprime configured, falls through to the legacy
+      // supervisor-restart path).
       if (this.state.bufferDepth() === 0 && this.state.tip === null) {
         return;
       }
-      throw new Error("rollback to origin past indexer state — restart required");
+      const targetSlot = 0;
+      throw new DeepRollbackError(targetSlot, this.state.tip ? this.state.tip.slot : null);
     }
     this.state.applyRollback({
       slot: event.point.slot,
