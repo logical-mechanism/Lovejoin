@@ -323,7 +323,7 @@ export class PostgresDbSyncClient implements DbSyncClient {
       if (!this.primePathLogged) {
         // One-shot startup log so operators can confirm which path
         // engaged. Subsequent reprimes are silent.
-         
+
         console.log(
           `[dbsync] prime: query path = ${useFastPath ? "consumed_by_tx_id" : "NOT EXISTS (legacy)"}`,
         );
