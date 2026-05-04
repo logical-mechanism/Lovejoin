@@ -112,7 +112,22 @@ When a Mix tx is observed (2 inputs at mix → 2 outputs at mix), set both outpu
 
 ### Rollback handling
 
-ogmios `RollBackward` events; we keep last 2k blocks of pool + fee diffs. Deeper rollbacks restart from the last safe checkpoint.
+ogmios `RollBackward` events; we keep last 2k blocks of pool + fee diffs. Deeper rollbacks (or an `intersection: "origin"` past the indexer's tip) trigger an in-process reprime from db-sync (issue #87) when `DBSYNC_URL` is set; otherwise the runtime goes fatal and the supervisor restarts the container.
+
+### Cold-start prime
+
+A fresh backend prime-loads the live pool, fee shards, and reference-NFT location from db-sync at db-sync's latest stable block, then resumes chainsync from that point. Cold-start latency is bounded by pool size (tens of MB), independent of chain length. The same prime path runs on `DeepRollbackError` recovery, so deep reorgs no longer escalate to a supervisor restart.
+
+Configured via `INDEXER_COLD_START`:
+
+- `prime` (default): bulk-load from db-sync, fall back to the legacy `bootstrapStartPoint` replay if `DBSYNC_URL` is unset or the prime query fails.
+- `replay`: skip the prime entirely and walk forward from `bootstrapStartPoint` (legacy path; useful for debugging the chainsync loop in isolation).
+
+Trade-offs:
+
+- Per-box `generation` resets to 0 on prime — generation is a UI privacy-budget metric only and isn't persisted by db-sync; the indexer recomputes it on subsequent forward Mix txs.
+- A primed entry's rollback buffer is empty until forward chainsync repopulates it, so any rollback to a slot before the prime tip surfaces as `DeepRollbackError` and triggers a fresh reprime.
+- `bootstrapStartPoint` remains as a fallback so deploys without `DBSYNC_URL` (or with a degraded db-sync) still come up.
 
 ### Reference-UTxO sanity
 
@@ -170,10 +185,21 @@ For a destination address, recent withdrawal txs.
 ### `GET /health`
 
 ```json
-{ "ok": true, "tip": {...}, "lagSeconds": 3, "referenceUtxoOk": true }
+{
+  "ok": true,
+  "tip": { "slot": 12345, "blockHash": "..." },
+  "chainTip": { "slot": 12350, "blockHash": "...", "height": 100 },
+  "lagSeconds": 5,
+  "referenceUtxoOk": true,
+  "runtimeRunning": true,
+  "runtimeError": null,
+  "chainsyncReconnect": { "inProgress": false, "attempts": 0, "lastErrorAt": 0, "lastErrorMessage": "" },
+  "mempoolReconnect": { ... },
+  "indexerOrigin": { "source": "primed", "reprimeCount": 1, "lastAt": 1700000000000, "lastErrorMessage": "" }
+}
 ```
 
-UI banners on `lagSeconds > 60` or `referenceUtxoOk == false`.
+UI banners on `lagSeconds > 60` or `referenceUtxoOk == false`. Operators read `indexerOrigin.source` to confirm cold-start prime engaged on deploy (`primed` for the fast path, `replayed` for the legacy chainsync walk).
 
 ### `GET /params`
 
@@ -198,11 +224,10 @@ Pulled from the cached reference UTxO datum + addresses.json. UI consumes on loa
 
 ogmios is primary for live state. db-sync supplements:
 
-- Initial sync: bulk SQL load instead of replaying chainsync from genesis.
-- Address history queries (`GET /history/:address`).
-- Box detail by ID.
+- **Cold-start prime + deep-rollback reprime** (issue #87): one bulk query at startup loads live mix-box UTxOs, fee shards, and the reference-NFT location at db-sync's latest stable block; chainsync resumes from that point. Same query is reused as the runtime's `reprime` callback so `DeepRollbackError` recovers in-process.
+- Tx-hash exact-match lookups: `GET /tx/:hash` (confirmation summary) and `GET /tx/:hash/utxos` (resolves SDK `getUtxoByRef`).
 
-Sample queries: `backend/src/db/queries.sql`.
+Address-scoped queries (`/utxos/:address`) used to forward to db-sync; they're now allowlisted to the two protocol-managed addresses and served from in-memory state (issue #89). Address history (`/history/:address`) was removed alongside it (issue #88).
 
 ## Operations notes
 

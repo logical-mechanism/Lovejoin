@@ -352,6 +352,166 @@ describe("IndexerRuntime: chainsync reconnect", () => {
     await runtime.stop();
   });
 
+  it("reprimes in-process on DeepRollbackError when a reprime callback is configured", async () => {
+    // Session 1: deliver a forward block at slot 50, then a rollback
+    // to origin. With state.tip non-null, that path throws
+    // DeepRollbackError. With `reprime` wired up, the runtime calls
+    // it (refreshes state) and rebuilds the chainsync client at the
+    // primed tip instead of going fatal (issue #87).
+    const session1: ScriptedSession = {
+      handlers: {
+        findIntersection: (id) => ({
+          jsonrpc: "2.0",
+          id,
+          result: {
+            intersection: "origin",
+            tip: { slot: 10, id: "00".repeat(32), height: 10 },
+          },
+        }),
+        nextBlock: (() => {
+          let n = 0;
+          return (id: number) => {
+            n += 1;
+            if (n === 1) {
+              return { jsonrpc: "2.0", id, result: forwardBlock(50, "44") };
+            }
+            // Rollback to origin while state.tip is at slot 50 →
+            // applyEvent throws DeepRollbackError.
+            return {
+              jsonrpc: "2.0",
+              id,
+              result: {
+                direction: "backward",
+                point: "origin",
+                tip: { slot: 60, id: "ff".repeat(32), height: 60 },
+              },
+            };
+          };
+        })(),
+      },
+    };
+    // Session 2: chainsync resumes from the primed tip (slot 800),
+    // delivers one more forward block at slot 900, then parks.
+    let session2NextServed = 0;
+    const session2: ScriptedSession = {
+      handlers: {
+        findIntersection: (id) => ({
+          jsonrpc: "2.0",
+          id,
+          result: {
+            intersection: { slot: 800, id: "55".repeat(32) },
+            tip: { slot: 900, id: "ff".repeat(32), height: 900 },
+          },
+        }),
+        nextBlock: (id) => {
+          session2NextServed += 1;
+          if (session2NextServed > 1) return undefined;
+          return { jsonrpc: "2.0", id, result: forwardBlock(900, "66") };
+        },
+      },
+    };
+
+    const { factory } = scriptedFactory([session1, session2]);
+    const state = new IndexerState(ADDRESSES, FILTER, 800_000n);
+    let reprimeCalls = 0;
+    const reprimedTip = { slot: 800, blockHash: "55".repeat(32), height: 400 };
+    const runtime = new IndexerRuntime(state, {
+      ogmiosUrl: "ws://test",
+      filter: FILTER,
+      logger: SILENT_LOGGER,
+      socketFactory: factory,
+      sleepMs: () => Promise.resolve(),
+      random: () => 0.5,
+      reprime: async () => {
+        reprimeCalls += 1;
+        // A reprime resets state to the snapshot the prime path
+        // produced; here we mimic that with primeFrom directly so
+        // the runtime resumes from the primed tip.
+        state.primeFrom({
+          tip: reprimedTip,
+          mixBoxUtxos: [],
+          feeShardUtxos: [],
+          referenceUtxo: {
+            ref: { txId: "00".repeat(32), outputIndex: 0 },
+            address: "addr_test1ref",
+            lovelace: 5_000_000n,
+            inlineDatumHex: null,
+            assets: { [REF_POLICY + REF_ASSET]: 1n },
+          },
+        });
+        return reprimedTip;
+      },
+    });
+
+    await runtime.start();
+    // Wait until session 2's forward at slot 900 lands.
+    await waitFor(() => state.tip?.slot === 900);
+    expect(reprimeCalls).toBe(1);
+    expect(runtime.fatalError()).toBeNull();
+    const origin = runtime.origin();
+    expect(origin.source).toBe("primed");
+    // 1 reprime invocation = reprimeCount of 1 (start() didn't prime).
+    expect(origin.reprimeCount).toBe(1);
+    expect(origin.lastErrorMessage).toBe("");
+    await runtime.stop();
+  });
+
+  it("falls back to fatal when reprime keeps failing past maxReprimeAttempts", async () => {
+    const session1: ScriptedSession = {
+      handlers: {
+        findIntersection: (id) => ({
+          jsonrpc: "2.0",
+          id,
+          result: {
+            intersection: "origin",
+            tip: { slot: 10, id: "00".repeat(32), height: 10 },
+          },
+        }),
+        nextBlock: (() => {
+          let n = 0;
+          return (id: number) => {
+            n += 1;
+            if (n === 1) {
+              return { jsonrpc: "2.0", id, result: forwardBlock(50, "77") };
+            }
+            return {
+              jsonrpc: "2.0",
+              id,
+              result: {
+                direction: "backward",
+                point: "origin",
+                tip: { slot: 60, id: "ff".repeat(32), height: 60 },
+              },
+            };
+          };
+        })(),
+      },
+    };
+    const { factory } = scriptedFactory([session1]);
+    const state = new IndexerState(ADDRESSES, FILTER, 800_000n);
+    let attempts = 0;
+    const runtime = new IndexerRuntime(state, {
+      ogmiosUrl: "ws://test",
+      filter: FILTER,
+      logger: SILENT_LOGGER,
+      socketFactory: factory,
+      sleepMs: () => Promise.resolve(),
+      random: () => 0.5,
+      maxReprimeAttempts: 2,
+      reprime: async () => {
+        attempts += 1;
+        throw new Error("dbsync unreachable");
+      },
+    });
+
+    await runtime.start();
+    await waitFor(() => runtime.fatalError() !== null);
+    expect(attempts).toBe(2);
+    expect(runtime.fatalError()?.message).toMatch(/reprime failed after 2 attempts/);
+    expect(runtime.origin().lastErrorMessage).toMatch(/dbsync unreachable/);
+    await runtime.stop();
+  });
+
   it("treats intersection: 'origin' on resume as a deep-rollback fatal (no further retries)", async () => {
     // Session 1: deliver a block at slot 50, then drop.
     // Session 2: findIntersection returns intersection: "origin" even

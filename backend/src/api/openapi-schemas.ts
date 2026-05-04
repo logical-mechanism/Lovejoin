@@ -233,7 +233,7 @@ export const ROUTE_SCHEMAS = {
   health: {
     summary: "Indexer + chainsync health",
     description:
-      "Returns indexer tip vs chain tip, runtime status, reference-UTxO health, and chainsync reconnect state.\n\n" +
+      "Returns indexer tip vs chain tip, runtime status, reference-UTxO health, chainsync reconnect state, and indexer origin (whether state was bulk-primed from db-sync at cold start or replayed forward from chainsync).\n\n" +
       "HTTP 503 only when the runtime has hit a *fatal* error (chainsync gone after exhausting reconnects). Transient reconnect attempts keep returning 200 so the cached `/params`, `/pool`, `/box/*`, `/fee` surfaces stay live.",
     tags: ["health"],
   },

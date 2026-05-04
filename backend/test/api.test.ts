@@ -172,6 +172,12 @@ describe("API: /health", () => {
           lastErrorAt: 0,
           lastErrorMessage: "",
         }),
+        origin: () => ({
+          source: "replayed" as const,
+          reprimeCount: 0,
+          lastAt: 0,
+          lastErrorMessage: "",
+        }),
         // Untyped extras: the route doesn't read them but the type
         // wants the full shape. Cast through any to keep the test
         // narrow.
@@ -206,6 +212,12 @@ describe("API: /health", () => {
           lastErrorAt: 1_700_000_000_000,
           lastErrorMessage: "ogmios websocket closed",
         }),
+        origin: () => ({
+          source: "primed" as const,
+          reprimeCount: 1,
+          lastAt: 1_700_000_000_000,
+          lastErrorMessage: "",
+        }),
       } as unknown as Parameters<typeof buildServer>[0]["runtime"],
       config: CONFIG,
       dbsync: null,
@@ -221,6 +233,12 @@ describe("API: /health", () => {
         attempts: 3,
         lastErrorAt: 1_700_000_000_000,
         lastErrorMessage: "ogmios websocket closed",
+      });
+      expect(body.indexerOrigin).toEqual({
+        source: "primed",
+        reprimeCount: 1,
+        lastAt: 1_700_000_000_000,
+        lastErrorMessage: "",
       });
     } finally {
       await reconnecting.close();

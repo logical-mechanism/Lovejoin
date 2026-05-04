@@ -47,18 +47,112 @@ top-level paths (`/health`, `/pool`, `/params`, etc. — see
 DO App Platform can't run a Cardano node, so the backend points at
 external infrastructure for chain access:
 
-| Service            | Required? | Used for                                               | Suggested provider                                                                         |
-| ------------------ | --------- | ------------------------------------------------------ | ------------------------------------------------------------------------------------------ |
-| Ogmios (WebSocket) | **yes**   | Chainsync (indexer), tx submission, tx evaluation      | [Demeter](https://demeter.run/), [DRI](https://dri.io/), self-hosted via Cloudflare Tunnel |
-| db-sync (Postgres) | optional  | `/history/:address`, `/utxos/:address`, `/tx/:hash`    | [Demeter](https://demeter.run/) postgres extension, or your own                            |
-| Blockfrost (HTTPS) | optional  | Fallback for `/history` when db-sync is down or absent | [blockfrost.io](https://blockfrost.io/) (free tier covers Preprod)                         |
+| Service            | Required? | Used for                                                   | Suggested provider                                                                         |
+| ------------------ | --------- | ---------------------------------------------------------- | ------------------------------------------------------------------------------------------ |
+| Ogmios (WebSocket) | **yes**   | Chainsync (indexer), tx submission, tx evaluation          | [Demeter](https://demeter.run/), [DRI](https://dri.io/), self-hosted via Cloudflare Tunnel |
+| db-sync (Postgres) | optional  | Cold-start prime + reprime, `/tx/:hash`, `/tx/:hash/utxos` | [Demeter](https://demeter.run/) postgres extension, or your own                            |
 
 Without Ogmios the backend won't start (the indexer needs chainsync).
-Without db-sync the address-keyed routes 503 — set
-`BLOCKFROST_PROJECT_ID_<NETWORK>` to keep `/history` working; the SDK
+Without db-sync the backend still comes up but the cold-start prime
+falls back to a chainsync replay from `bootstrapStartPoint`; tx-hash
+lookup routes (`/tx/:hash`, `/tx/:hash/utxos`) return 503.
 
-- UI fall back to `BlockfrostProvider` for `/utxos` + `/tx`-style
-  queries.
+### db-sync configuration for the cold-start prime
+
+The indexer's cold-start prime (issue #87) bulk-loads live mix-box
+UTxOs and fee shards from db-sync at its latest stable block, then
+resumes chainsync from there. The default query shape uses a
+`NOT EXISTS` subquery against `tx_in` to filter live outputs; that
+walks O(historical tx_outs at the address). For a low-traffic
+deployment (Preprod alpha) it runs in well under a second. For a
+heavily-used pool with millions of cumulative deposits + mixes it can
+exceed the backend's per-query timeout.
+
+**Recommended db-sync flags** (db-sync 13.1+) — set these in the
+db-sync config (typically `config/<network>-config.yaml`, e.g.
+`preprod-config.yaml` or `mainnet-config.yaml` in the cardano-db-sync
+checkout) so the prime can use a single column compare instead of a
+subquery. The minimal additions to a typical `insert_options` block:
+
+```yaml
+insert_options:
+  tx_cbor: enable # whatever you already have
+  tx_out:
+    value: enable # required for prime: lovelace amount
+    use_address: true # ADD: indexes tx_out.address for fast lookup
+  consumed_tx_out: enable # ADD: populates tx_out.consumed_by_tx_id
+  multi_asset:
+    enable: true # required for prime: reference NFT lookup
+  # ... rest of your insert_options unchanged
+```
+
+What each flag does:
+
+- `tx_out.value: enable` — populates the lovelace value column. The
+  prime queries select it. Almost certainly already on.
+- `tx_out.use_address: true` — adds an index on `tx_out.address` so
+  address-scoped lookups don't have to join through `tx`.
+- `consumed_tx_out: enable` — populates `tx_out.consumed_by_tx_id`
+  inline whenever an output is spent. The backend probes for this
+  column at startup; if present, the prime query becomes
+  `WHERE tx_out.address = $1 AND tx_out.consumed_by_tx_id IS NULL`,
+  which is O(live UTxO count) regardless of historical depth.
+- `multi_asset.enable: true` — populates `ma_tx_out` + `multi_asset`.
+  Required for the reference-NFT lookup. Almost certainly already on.
+
+**Backfill (one-time, mandatory if you enable `consumed_tx_out` on an
+existing db-sync database)** — the column is populated only for
+outputs created after the flag is enabled; pre-existing spent outputs
+read as `NULL` (looking live) until you backfill. Skipping it is
+silent corruption: the backend will return historically-spent outputs
+as live and the indexer's pool view will disagree with the chain.
+
+The migration ships with db-sync as a numbered SQL file. Recent
+versions auto-run it on startup once the flag is flipped — check
+db-sync's startup logs for a `migration-4-NNNN-consumed-by-tx-id*`
+line. If your version doesn't auto-run it, find the script and run
+it manually:
+
+```bash
+# Source build: schema/ directory in the cardano-db-sync checkout
+ls schema/migration-4-*consumed*
+
+# Docker / package install: typically under
+ls /usr/local/share/cardano-db-sync/schema/migration-4-*consumed*
+
+# Then apply against the running db-sync database
+psql "$DBSYNC_URL" -f /path/to/migration-4-NNNN-consumed-by-tx-id.sql
+```
+
+On Preprod the backfill is fast (small chain). On mainnet it walks
+every spent `tx_out` and is significantly heavier — plan a maintenance
+window, or build a fresh db-sync from scratch with the flag already
+on instead of migrating in place.
+
+**Verify the column is populated** — directly against postgres:
+
+```sql
+SELECT COUNT(*) FROM tx_out WHERE consumed_by_tx_id IS NULL;
+```
+
+After the backfill that count should match the network's live UTxO
+count, not the cumulative tx_out total. If it's the cumulative total,
+the backfill didn't run and the backend will misreport state.
+
+**Verifying the fast path is engaged** — after redeploying the backend
+against a flagged db-sync, hit `/health` and check
+`indexerOrigin.source === "primed"` (vs `"replayed"`, which means the
+prime fell back to legacy chainsync replay). The backend logs
+`prime: query path = consumed_by_tx_id` (fast) or
+`prime: query path = NOT EXISTS (legacy)` at startup, so you can
+confirm the column probe picked the right shape.
+
+**If you can't enable the flag** (managed db-sync without config
+access), the legacy `NOT EXISTS` path keeps working. Watch the prime
+timing log; if it approaches the per-query cap, switch to a provider
+that exposes the column or pin `INDEXER_COLD_START=replay` to skip
+the prime entirely (the runtime walks forward from
+`bootstrapStartPoint` instead).
 
 ## Connecting App Platform to home-hosted infrastructure
 
@@ -359,6 +453,8 @@ of cloud sync, shared dotfiles, etc.
 | `RATE_LIMIT_PER_MIN`             | no                              | plaintext  | `600`                                     | Per-IP rate limit on every Fastify route.                                               |
 | `BOOTSTRAP_START_SLOT`           | no                              | plaintext  | `addresses.bootstrapStartPoint.slot`      | Override the chainsync intersection.                                                    |
 | `BOOTSTRAP_START_BLOCKHASH`      | no                              | plaintext  | `addresses.bootstrapStartPoint.blockHash` | Required iff `BOOTSTRAP_START_SLOT` is set.                                             |
+| `INDEXER_COLD_START`             | no                              | plaintext  | `prime`                                   | `prime` = bulk-load from db-sync at startup; `replay` = legacy walk from bootstrap pt.  |
+| `INDEXER_PRIME_TIMEOUT_MS`       | no                              | plaintext  | `60000`                                   | Per-query cap for the cold-start prime. Higher than the public-API 10s cap by design.   |
 | `CF_TUNNEL_OGMIOS_HOSTNAME`      | no                              | plaintext  | –                                         | If set, entrypoint runs `cloudflared access tcp` for it on 127.0.0.1:1337.              |
 | `CF_TUNNEL_DBSYNC_HOSTNAME`      | no                              | plaintext  | –                                         | Same, on 127.0.0.1:5432.                                                                |
 | `CF_TUNNEL_SERVICE_TOKEN_ID`     | iff a CF tunnel hostname is set | **secret** | –                                         | CF Access service-token Client ID.                                                      |

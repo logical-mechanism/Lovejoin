@@ -288,3 +288,100 @@ describe("IndexerState rollback", () => {
     expect(s.bufferDepth()).toBe(ROLLBACK_BUFFER_BLOCKS);
   });
 });
+
+describe("IndexerState.primeFrom (cold-start prime path, issue #87)", () => {
+  it("seeds pool / fee shards / reference UTxO from a snapshot", () => {
+    const s = makeState();
+    const tip = { slot: 1234, blockHash: txHash("primed-block"), height: 56 };
+    s.primeFrom({
+      tip,
+      mixBoxUtxos: [mixBoxOutput(txHash("p1"), 0, 11, 22), mixBoxOutput(txHash("p2"), 0, 33, 44)],
+      feeShardUtxos: [feeOutput(txHash("ps1"), 0, 7_000_000n)],
+      referenceUtxo: referenceOutput(txHash("pref"), 0),
+    });
+    expect(s.tip).toEqual(tip);
+    expect(s.poolSize()).toBe(2);
+    expect(s.feeSnapshot().shards).toHaveLength(1);
+    expect(s.feeSnapshot().totalLovelace).toBe(7_000_000n);
+    expect(s.referenceUtxoRef()).toEqual({ txId: txHash("pref"), outputIndex: 0 });
+    expect(s.alarm()).toBeNull();
+    // Generation is dropped by prime — privacy budget restarts from 0.
+    const got = s.poolGet({ txId: txHash("p1"), outputIndex: 0 });
+    expect(got?.generation).toBe(0);
+  });
+
+  it("clears prior state and rollback buffer on prime", () => {
+    const s = makeState();
+    // Build up some history.
+    s.applyForward(block(1, [], [mixBoxOutput(txHash("d1"), 0, 1, 2)]));
+    s.applyForward(block(2, [], [feeOutput(txHash("f1"), 0, 3_000_000n)]));
+    expect(s.poolSize()).toBe(1);
+    expect(s.bufferDepth()).toBe(2);
+    // Prime to a totally different snapshot.
+    const tip = { slot: 5000, blockHash: txHash("primed-replace"), height: 250 };
+    s.primeFrom({
+      tip,
+      mixBoxUtxos: [mixBoxOutput(txHash("new"), 0, 99, 88)],
+      feeShardUtxos: [],
+      referenceUtxo: referenceOutput(txHash("newref"), 0),
+    });
+    expect(s.tip).toEqual(tip);
+    expect(s.poolSize()).toBe(1);
+    expect(s.poolGet({ txId: txHash("d1"), outputIndex: 0 })).toBeNull();
+    expect(s.poolGet({ txId: txHash("new"), outputIndex: 0 })).not.toBeNull();
+    expect(s.feeSnapshot().shards).toHaveLength(0);
+    // Buffer is empty after prime — any rollback to a pre-prime point
+    // must surface DeepRollbackError so the runtime triggers a fresh
+    // reprime instead of trying to unwind diffs that don't exist.
+    expect(s.bufferDepth()).toBe(0);
+  });
+
+  it("raises alarm when the reference NFT is missing from the snapshot", () => {
+    const s = makeState();
+    s.primeFrom({
+      tip: { slot: 100, blockHash: txHash("nrf"), height: 5 },
+      mixBoxUtxos: [],
+      feeShardUtxos: [],
+      referenceUtxo: null,
+    });
+    expect(s.alarm()).toMatch(/reference NFT not observable/);
+    expect(s.snapshot().referenceUtxoOk).toBe(false);
+  });
+
+  it("clears a prior alarm when a fresh prime supplies the reference UTxO", () => {
+    const s = makeState();
+    // First prime with no reference: alarm raised.
+    s.primeFrom({
+      tip: { slot: 100, blockHash: txHash("nrf2"), height: 5 },
+      mixBoxUtxos: [],
+      feeShardUtxos: [],
+      referenceUtxo: null,
+    });
+    expect(s.alarm()).not.toBeNull();
+    // Second prime brings the reference back: alarm clears.
+    s.primeFrom({
+      tip: { slot: 200, blockHash: txHash("nrf3"), height: 10 },
+      mixBoxUtxos: [],
+      feeShardUtxos: [],
+      referenceUtxo: referenceOutput(txHash("backref"), 0),
+    });
+    expect(s.alarm()).toBeNull();
+    expect(s.referenceUtxoRef()).toEqual({ txId: txHash("backref"), outputIndex: 0 });
+  });
+
+  it("any rollback to a pre-prime tip throws DeepRollbackError", () => {
+    const s = makeState();
+    s.primeFrom({
+      tip: { slot: 1000, blockHash: txHash("primed-rb"), height: 50 },
+      mixBoxUtxos: [],
+      feeShardUtxos: [],
+      referenceUtxo: referenceOutput(txHash("rbref"), 0),
+    });
+    // Add some forward blocks so the buffer has something to unwind.
+    for (let h = 51; h < 55; h++) s.applyForward(block(h, [], []));
+    // Rollback to before the prime tip cannot be served from the buffer.
+    expect(() => s.applyRollback({ slot: 500, blockHash: txHash("ancient"), height: 25 })).toThrow(
+      DeepRollbackError,
+    );
+  });
+});
