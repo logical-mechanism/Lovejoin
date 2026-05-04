@@ -67,6 +67,10 @@ export function Layout() {
         <Link to="/help" className="lj-footer__link">
           {t("nav.help")}
         </Link>
+        <span className="lj-footer__sep">·</span>
+        <Link to="/help?doc=security" className="lj-footer__link">
+          {t("nav.security")}
+        </Link>
       </footer>
     </div>
   );

@@ -18,12 +18,12 @@ import { useEffect, useState } from "react";
 
 import { Eyebrow } from "../components/ui/Eyebrow.js";
 
-type DocId = "guide" | "faq" | "glossary";
+type DocId = "guide" | "faq" | "glossary" | "security";
 
-const DOC_IDS: ReadonlyArray<DocId> = ["guide", "faq", "glossary"];
+const DOC_IDS: ReadonlyArray<DocId> = ["guide", "faq", "glossary", "security"];
 
 function isDocId(s: string | null): s is DocId {
-  return s === "guide" || s === "faq" || s === "glossary";
+  return s === "guide" || s === "faq" || s === "glossary" || s === "security";
 }
 
 /**
@@ -127,6 +127,7 @@ export function Help() {
         {active === "guide" && <Guide />}
         {active === "faq" && <Faq />}
         {active === "glossary" && <Glossary />}
+        {active === "security" && <Security />}
       </section>
 
       <BackToTopButton />
@@ -436,6 +437,100 @@ function Glossary() {
           </p>
         </section>
       ))}
+    </>
+  );
+}
+
+// ---------------------------------------------------------------------
+// Security
+// ---------------------------------------------------------------------
+//
+// Plain-language summary of the disclosure terms; SECURITY.md stays the
+// canonical source. Links out to it on GitHub plus the security mailbox.
+function Security() {
+  const { t } = useTranslation();
+  const securityMd = "https://github.com/logical-mechanism/Lovejoin/blob/main/SECURITY.md";
+  return (
+    <>
+      <p>
+        <Trans
+          i18nKey="help.security.intro_p1"
+          components={{ ...inlineTags, a1: ext(securityMd) }}
+        />
+      </p>
+
+      <h2>{t("help.security.unaudited_h")}</h2>
+      <p>{t("help.security.unaudited_p1")}</p>
+      <p>
+        <Trans i18nKey="help.security.unaudited_p2" components={inlineTags} />
+      </p>
+
+      <h2>{t("help.security.scope_h")}</h2>
+      <p>{t("help.security.scope_p1")}</p>
+      <ul>
+        <li>
+          <Trans i18nKey="help.security.scope_li1" components={inlineTags} />
+        </li>
+        <li>
+          <Trans i18nKey="help.security.scope_li2" components={inlineTags} />
+        </li>
+        <li>
+          <Trans i18nKey="help.security.scope_li3" components={inlineTags} />
+        </li>
+        <li>
+          <Trans i18nKey="help.security.scope_li4" components={inlineTags} />
+        </li>
+        <li>
+          <Trans i18nKey="help.security.scope_li5" components={inlineTags} />
+        </li>
+      </ul>
+      <p>
+        <Trans i18nKey="help.security.scope_p2" components={inlineTags} />
+      </p>
+
+      <h2>{t("help.security.out_h")}</h2>
+      <ul>
+        <li>
+          <Trans i18nKey="help.security.out_li1" components={inlineTags} />
+        </li>
+        <li>
+          <Trans i18nKey="help.security.out_li2" components={inlineTags} />
+        </li>
+        <li>
+          <Trans i18nKey="help.security.out_li3" components={inlineTags} />
+        </li>
+        <li>
+          <Trans
+            i18nKey="help.security.out_li4"
+            components={{
+              ...inlineTags,
+              a1: ext("https://giveme.my/"),
+            }}
+          />
+        </li>
+      </ul>
+
+      <h2>{t("help.security.disclose_h")}</h2>
+      <p>
+        <Trans
+          i18nKey="help.security.disclose_p1"
+          components={{
+            ...inlineTags,
+            a1: ext("mailto:security@lovejo.in"),
+            a2: ext("mailto:support@logicalmechanism.io"),
+          }}
+        />
+      </p>
+      <p>
+        <Trans
+          i18nKey="help.security.disclose_p2"
+          components={{ ...inlineTags, a1: ext(securityMd) }}
+        />
+      </p>
+
+      <h2>{t("help.security.bounty_h")}</h2>
+      <p>{t("help.security.bounty_p1")}</p>
+      <p>{t("help.security.bounty_p2")}</p>
     </>
   );
 }
