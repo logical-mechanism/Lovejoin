@@ -1,5 +1,7 @@
 # Next-redeploy bundle, queued validator changes
 
+**Tracking issue:** [#90](https://github.com/logical-mechanism/Lovejoin/issues/90). Implementation lands on its own branch off `main` when the trigger conditions at the bottom of this file fire.
+
 Touching any of `reference_holder`, `one_shot_mint`, `mix_box`, `mix_logic`, or `fee_contract` rotates that validator's script hash, which lives in either the validator's params or the on-chain `ReferenceDatum`. Because `reference_holder` is always-False and the protocol NFT is one-shot, that means **a fresh bootstrap per network**: new reference UTxO, new fee shards, old mix-boxes orphaned. Same irreversibility constraint that gated M4.5.
 
 So we batch validator changes here and only redeploy when the bundle is worth it. Each entry is a queued change with the audit / spec finding it closes, the on-chain shape, the off-chain mirror, and the exit criteria.
