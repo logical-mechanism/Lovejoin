@@ -110,6 +110,6 @@ When triggered, the redeploy follows [infra/bootstrap/](../infra/bootstrap/) on 
 ## Out of scope for this bundle
 
 - F-3 (`b == identity` not rejected): on-chain fix would only relabel the failure mode (forgery sweep → Rule-2 sweep). SDK guard already covers it. See audit F-3 disposition.
-- F-5 (Conway cert matrix tests): no validator change, just additional tests.
+- F-5 (Conway cert matrix tests): no validator change. Landed on the `issue/85` branch as 10 negative tests in [contracts/validators/mix_logic.test.ak](../contracts/validators/mix_logic.test.ak).
 - F-19 (property-based tests): no validator change.
 - Spec drift §5.1 / §5.2 (`max_n` / `fee_shard_target` removed from `ReferenceDatum`): docs-only reconciliation; the implementation is already consistent.
