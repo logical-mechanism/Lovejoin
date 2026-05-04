@@ -128,8 +128,8 @@ export interface PostgresDbSyncOptions {
    * Per-query timeout for prime statements only, in milliseconds.
    * Applied via `SET LOCAL statement_timeout` inside the prime
    * transaction so it doesn't bleed into other pool clients. The
-   * pool's `query_timeout` still caps the legacy public-API queries
-   * at 10 s (security review v1, finding M5).
+   * pool's session-level `statement_timeout` still caps the legacy
+   * public-API queries at 10 s (security review v1, finding M5).
    */
   primeStatementTimeoutMs?: number;
   /**
@@ -165,10 +165,21 @@ export class PostgresDbSyncClient implements DbSyncClient {
     // Bounded pool with explicit timeouts. Without these, a slow query
     // can pin a connection forever; five slow callers stall every other
     // history/utxo request behind the pool's `max: 5` cap (security
-    // review v1, finding M5). `query_timeout` is a client-side cap so
-    // a stuck query gets cancelled even if the server doesn't honour
-    // `statement_timeout`; `connectionTimeoutMillis` makes a dead db
+    // review v1, finding M5). `statement_timeout` is a SERVER-side cap
+    // (postgres enforces it; SET LOCAL inside the prime txn lifts it
+    // to `primeStatementTimeoutMs` for that txn only and reverts on
+    // COMMIT/ROLLBACK). `connectionTimeoutMillis` makes a dead db
     // surface as an error fast instead of hanging the request.
+    //
+    // We deliberately do NOT set `query_timeout` (node-postgres's
+    // client-side timer). It can't be lifted per-transaction by
+    // SET LOCAL, so it silently kills prime queries even after the
+    // server-side cap is bumped to `primeStatementTimeoutMs` —
+    // observed in production as `prime: db-sync prime failed (Query
+    // read timeout)` 10 s into the prime txn. The server-side
+    // `statement_timeout` is sufficient on its own; postgres will
+    // cancel a stuck query just as effectively as a client-side
+    // timer would, and it respects SET LOCAL.
     this.pool =
       options.pool ??
       new Pool({
@@ -176,7 +187,6 @@ export class PostgresDbSyncClient implements DbSyncClient {
         max: 5,
         idleTimeoutMillis: 30_000,
         connectionTimeoutMillis: 5_000,
-        query_timeout: 10_000,
         statement_timeout: 10_000,
       });
     this.primeStatementTimeoutMs =
