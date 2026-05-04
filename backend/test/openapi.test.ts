@@ -45,8 +45,6 @@ const CONFIG: BackendConfig = {
   host: "127.0.0.1",
   ogmiosUrl: "ws://localhost:0",
   dbsyncUrl: null,
-  blockfrostProjectId: null,
-  blockfrostBaseUrl: null,
   corsOrigins: "*",
   rateLimitPerMin: 6000,
   addresses: ADDRESSES,
@@ -55,6 +53,7 @@ const CONFIG: BackendConfig = {
     feeContractAddress: "addr_test1fee",
     referenceHolderAddress: "addr_test1ref",
   },
+  bootstrapStartPoint: null,
 };
 
 let server: Awaited<ReturnType<typeof buildServer>>;
@@ -99,7 +98,6 @@ describe("OpenAPI generation", () => {
       "/box/{txhash}/{idx}",
       "/fee",
       "/mempool/inputs",
-      "/history/{address}",
       "/submit",
       "/evaluate",
       "/utxos/{address}",
@@ -108,6 +106,10 @@ describe("OpenAPI generation", () => {
     ]) {
       expect(paths[expected]).toBeDefined();
     }
+    // /history/:address was dropped along with the dbsync addressHistory
+    // path (issue #89). Keep an explicit assertion so a future re-add
+    // shows up in test diff rather than silently regressing the surface.
+    expect(paths["/history/{address}"]).toBeUndefined();
   });
 
   it("lifts shared `$id` schemas into components.schemas under their $id", () => {
@@ -123,7 +125,6 @@ describe("OpenAPI generation", () => {
       "PoolBox",
       "PoolBoxLight",
       "FeeShard",
-      "HistoryEntry",
       "Utxo",
     ]) {
       expect(schemas[expectedId]).toBeDefined();

@@ -43,8 +43,6 @@ const CONFIG: BackendConfig = {
   host: "127.0.0.1",
   ogmiosUrl: "ws://localhost:0",
   dbsyncUrl: null,
-  blockfrostProjectId: null,
-  blockfrostBaseUrl: null,
   corsOrigins: "*",
   rateLimitPerMin: 60,
   addresses: PLACEHOLDER,
@@ -53,6 +51,7 @@ const CONFIG: BackendConfig = {
     feeContractAddress: "addr_test1placeholder",
     referenceHolderAddress: "addr_test1placeholder",
   },
+  bootstrapStartPoint: null,
 };
 
 async function main(): Promise<void> {
