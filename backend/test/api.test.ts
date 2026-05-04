@@ -501,6 +501,13 @@ describe("API: /submit + /evaluate", () => {
         return "ab".repeat(32);
       },
       evaluateTransaction: async () => [],
+      reconnecting: () => ({
+        inProgress: false,
+        attempts: 0,
+        lastErrorAt: 0,
+        lastErrorMessage: "",
+        exhausted: false,
+      }),
       close: () => {},
     };
     const s = await buildServer({
@@ -526,6 +533,13 @@ describe("API: /submit + /evaluate", () => {
         throw new Error("ogmios JSON-RPC error 3122: ScriptExecutionFailure");
       },
       evaluateTransaction: async () => [],
+      reconnecting: () => ({
+        inProgress: false,
+        attempts: 0,
+        lastErrorAt: 0,
+        lastErrorMessage: "",
+        exhausted: false,
+      }),
       close: () => {},
     };
     const s = await buildServer({
@@ -550,6 +564,13 @@ describe("API: /submit + /evaluate", () => {
     const stub = {
       submitTransaction: async () => "00".repeat(32),
       evaluateTransaction: async () => [],
+      reconnecting: () => ({
+        inProgress: false,
+        attempts: 0,
+        lastErrorAt: 0,
+        lastErrorMessage: "",
+        exhausted: false,
+      }),
       close: () => {},
     };
     const s = await buildServer({
@@ -579,6 +600,13 @@ describe("API: /submit + /evaluate", () => {
         expect(cbor).toBe("84a4");
         return budgets;
       },
+      reconnecting: () => ({
+        inProgress: false,
+        attempts: 0,
+        lastErrorAt: 0,
+        lastErrorMessage: "",
+        exhausted: false,
+      }),
       close: () => {},
     };
     const s = await buildServer({
@@ -606,5 +634,131 @@ describe("API: /submit + /evaluate", () => {
     });
     expect(res.statusCode).toBe(503);
     expect(res.json().error).toBe("submit_unavailable");
+  });
+
+  it("/submit returns 503 / submit_unavailable when the ogmios reconnect circuit is exhausted", async () => {
+    // No reconnect attempts are driven from the route — the circuit
+    // open flag short-circuits before submitTransaction is ever called.
+    let submitCalls = 0;
+    const stub = {
+      submitTransaction: async () => {
+        submitCalls += 1;
+        return "00".repeat(32);
+      },
+      evaluateTransaction: async () => [],
+      reconnecting: () => ({
+        inProgress: false,
+        attempts: 30,
+        lastErrorAt: 1_700_000_000_000,
+        lastErrorMessage: "ECONNREFUSED 127.0.0.1:1337",
+        exhausted: true,
+      }),
+      close: () => {},
+    };
+    const s = await buildServer({
+      state,
+      runtime: null,
+      config: CONFIG,
+      dbsync: null,
+      ogmiosTx: stub as never,
+    });
+    try {
+      const res = await s.inject({
+        method: "POST",
+        url: "/submit",
+        payload: { cbor: "84a4" },
+      });
+      expect(res.statusCode).toBe(503);
+      expect(res.json().error).toBe("submit_unavailable");
+      expect(submitCalls).toBe(0);
+    } finally {
+      await s.close();
+    }
+  });
+
+  it("/evaluate returns 503 / evaluate_unavailable when the circuit is exhausted", async () => {
+    let evalCalls = 0;
+    const stub = {
+      submitTransaction: async () => "00".repeat(32),
+      evaluateTransaction: async () => {
+        evalCalls += 1;
+        return [];
+      },
+      reconnecting: () => ({
+        inProgress: false,
+        attempts: 30,
+        lastErrorAt: 1_700_000_000_000,
+        lastErrorMessage: "ECONNREFUSED 127.0.0.1:1337",
+        exhausted: true,
+      }),
+      close: () => {},
+    };
+    const s = await buildServer({
+      state,
+      runtime: null,
+      config: CONFIG,
+      dbsync: null,
+      ogmiosTx: stub as never,
+    });
+    try {
+      const res = await s.inject({
+        method: "POST",
+        url: "/evaluate",
+        payload: { cbor: "84a4" },
+      });
+      expect(res.statusCode).toBe(503);
+      expect(res.json().error).toBe("evaluate_unavailable");
+      expect(evalCalls).toBe(0);
+    } finally {
+      await s.close();
+    }
+  });
+});
+
+describe("API: /health mempoolReconnect", () => {
+  it("surfaces the OgmiosTxClient reconnect state in mempoolReconnect with redacted message", async () => {
+    const stub = {
+      submitTransaction: async () => "00".repeat(32),
+      evaluateTransaction: async () => [],
+      reconnecting: () => ({
+        inProgress: true,
+        attempts: 5,
+        lastErrorAt: 1_700_000_000_000,
+        // Intentionally carries an upstream URL so we can assert the
+        // redactor strips it before it lands on the wire.
+        lastErrorMessage: "ECONNREFUSED 10.0.0.5:1337 ws://ogmios.internal:1337",
+        exhausted: false,
+      }),
+      close: () => {},
+    };
+    const s = await buildServer({
+      state,
+      runtime: null,
+      config: CONFIG,
+      dbsync: null,
+      ogmiosTx: stub as never,
+    });
+    try {
+      const res = await s.inject({ method: "GET", url: "/health" });
+      expect(res.statusCode).toBe(200);
+      const body = res.json();
+      expect(body.mempoolReconnect).toBeDefined();
+      expect(body.mempoolReconnect.inProgress).toBe(true);
+      expect(body.mempoolReconnect.attempts).toBe(5);
+      expect(body.mempoolReconnect.exhausted).toBe(false);
+      expect(body.mempoolReconnect.lastErrorAt).toBe(1_700_000_000_000);
+      // IP + port pattern stripped, ws:// URL stripped.
+      expect(body.mempoolReconnect.lastErrorMessage).not.toMatch(/10\.0\.0\.5/);
+      expect(body.mempoolReconnect.lastErrorMessage).not.toMatch(/ogmios\.internal/);
+    } finally {
+      await s.close();
+    }
+  });
+
+  it("mempoolReconnect is null when no ogmiosTx is configured", async () => {
+    const res = await server.inject({ method: "GET", url: "/health" });
+    expect(res.statusCode).toBe(200);
+    const body = res.json();
+    expect(body.mempoolReconnect).toBeNull();
   });
 });

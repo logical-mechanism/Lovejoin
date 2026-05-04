@@ -29,7 +29,43 @@ export interface OgmiosTxClientConfig {
   url: string;
   socketFactory?: (url: string) => OgmiosTxSocket;
   onOpen?: (url: string) => void;
+  /**
+   * Max consecutive reconnect attempts before tripping the circuit and
+   * fail-fasting subsequent requests with a 503-shaped error. Default
+   * matches `IndexerRuntime`'s 30 — with the 10 s backoff cap that's
+   * ~5 min of wall clock, enough to ride out cloudflared / network blips
+   * without papering over a real upstream outage and amplifying it
+   * across every `/submit` or `/evaluate` call (security review v1, M7).
+   */
+  maxReconnectAttempts?: number;
+  /** Sleep override for tests so they don't actually wait the backoff. */
+  sleepMs?: (ms: number) => Promise<void>;
+  /** Random source for jitter; tests pin it to keep delays deterministic. */
+  random?: () => number;
 }
+
+/** Snapshot of the client's in-flight reconnect state, exposed to /health. */
+export interface OgmiosTxReconnectStatus {
+  /** True while a reconnect cycle is currently retrying. */
+  inProgress: boolean;
+  /** Number of attempts in the current cycle (0 when idle or after success). */
+  attempts: number;
+  /** Epoch ms of the most recent reconnect-relevant error; 0 when never. */
+  lastErrorAt: number;
+  /** Message from the most recent reconnect-relevant error; empty when none. */
+  lastErrorMessage: string;
+  /**
+   * True once `attempts` hit `maxReconnectAttempts` without a successful
+   * reconnect in between. The circuit stays open until the process is
+   * restarted (mirrors the runtime's fatal-after-exhaustion model).
+   */
+  exhausted: boolean;
+}
+
+const DEFAULT_MAX_RECONNECT_ATTEMPTS = 30;
+
+const defaultSleep = (ms: number): Promise<void> =>
+  new Promise((resolve) => setTimeout(resolve, ms));
 
 export interface OgmiosTxSocket {
   send(data: string): void;
@@ -69,15 +105,51 @@ export class OgmiosTxClient {
   private fatalError: Error | null = null;
   private closedFlag = false;
 
+  // Reconnect bookkeeping. `attempts` counts the *current* cycle and
+  // resets to 0 after a successful connect. `lastError*` persist across
+  // cycles so /health can surface the most recent upstream trouble.
+  // `exhausted` latches once the cycle blew through `maxReconnectAttempts`
+  // — subsequent requests fail-fast until the process restarts, mirroring
+  // the runtime's fatal-after-exhaustion model.
+  private reconnectInProgress = false;
+  private reconnectAttempts = 0;
+  private lastReconnectErrorAt = 0;
+  private lastReconnectErrorMessage = "";
+  private exhausted = false;
+  private reconnectCycle: Promise<void> | null = null;
+
   constructor(private readonly config: OgmiosTxClientConfig) {}
+
+  /** Snapshot of the reconnect state — surfaced via `/health`. */
+  reconnecting(): OgmiosTxReconnectStatus {
+    return {
+      inProgress: this.reconnectInProgress,
+      attempts: this.reconnectAttempts,
+      lastErrorAt: this.lastReconnectErrorAt,
+      lastErrorMessage: this.lastReconnectErrorMessage,
+      exhausted: this.exhausted,
+    };
+  }
 
   /**
    * Lazily open the socket. Safe to call repeatedly; subsequent calls
    * return the same in-flight (or resolved) connect promise.
+   *
+   * On a transient connect failure the client retries up to
+   * `maxReconnectAttempts` times with exponential backoff + jitter. Once
+   * exhausted, the circuit latches open and every subsequent call
+   * rejects immediately with the cached upstream error rather than
+   * piling on more reconnect traffic.
    */
   async connect(): Promise<void> {
     if (this.closedFlag) throw new Error("ogmios-tx: client closed");
+    if (this.exhausted) throw this.unavailableError();
     if (this.connected) return this.connected;
+    if (this.reconnectCycle) return this.reconnectCycle;
+    return this.openSocketOnce();
+  }
+
+  private openSocketOnce(): Promise<void> {
     this.connected = new Promise<void>((resolve, reject) => {
       try {
         const factory =
@@ -88,11 +160,19 @@ export class OgmiosTxClient {
         sock.on("message", (data) => this.onMessage(data));
         sock.on("open", () => {
           this.config.onOpen?.(this.config.url);
+          // Successful connect resets the reconnect cycle bookkeeping.
+          this.reconnectAttempts = 0;
+          this.reconnectInProgress = false;
           resolve();
         });
         sock.on("error", (err) => {
           this.fatalError = err;
           this.failAll(err);
+          // Clear the cached promises so the next attempt opens a
+          // fresh socket. `ws` follows error with close in production
+          // (which also clears these), but tests may fire only one.
+          this.socket = null;
+          this.connected = null;
           reject(err);
         });
         sock.on("close", () => {
@@ -204,12 +284,18 @@ export class OgmiosTxClient {
   // ---------------------------------------------------------------
 
   private async request(method: string, params: unknown): Promise<unknown> {
-    if (this.fatalError && !this.closedFlag) {
-      // Drop the cached error and try a reconnect on the next call.
-      this.fatalError = null;
-    }
     if (this.closedFlag) throw new Error("ogmios-tx: client closed");
-    await this.connect();
+    if (this.exhausted) throw this.unavailableError();
+    if (this.fatalError) {
+      // The previous socket died; clear the cached error and drive a
+      // bounded reconnect cycle on this request. Subsequent requests
+      // arriving during the cycle await the same in-flight promise.
+      this.fatalError = null;
+      await this.runReconnectCycle();
+    } else {
+      await this.connect();
+    }
+    if (this.exhausted) throw this.unavailableError();
     if (!this.socket) throw new Error("ogmios-tx: not connected");
     const id = this.nextRequestId++;
     const payload = JSON.stringify({
@@ -227,6 +313,72 @@ export class OgmiosTxClient {
         reject(e instanceof Error ? e : new Error(String(e)));
       }
     });
+  }
+
+  /**
+   * Drive a bounded reconnect cycle: try `connect()` up to
+   * `maxReconnectAttempts` times, sleeping with exponential backoff +
+   * jitter between attempts. On success, the attempt counter resets and
+   * the next request's `await this.connect()` returns the live socket.
+   * On exhaustion, sets `exhausted = true` so future requests fail-fast
+   * with the cached upstream error rather than driving more attempts.
+   *
+   * Concurrent requests during a cycle share the same promise — see
+   * `connect()` returning `reconnectCycle` — so a flood of /submit
+   * traffic doesn't multiply reconnect attempts.
+   */
+  private runReconnectCycle(): Promise<void> {
+    if (this.reconnectCycle) return this.reconnectCycle;
+    const maxAttempts = this.config.maxReconnectAttempts ?? DEFAULT_MAX_RECONNECT_ATTEMPTS;
+    const sleep = this.config.sleepMs ?? defaultSleep;
+    this.reconnectInProgress = true;
+    this.reconnectAttempts = 0;
+    this.reconnectCycle = (async () => {
+      try {
+        while (!this.closedFlag) {
+          this.reconnectAttempts += 1;
+          try {
+            await this.openSocketOnce();
+            this.reconnectInProgress = false;
+            this.reconnectAttempts = 0;
+            return;
+          } catch (err) {
+            this.recordReconnectError(err);
+            if (this.reconnectAttempts >= maxAttempts) {
+              this.exhausted = true;
+              this.reconnectInProgress = false;
+              return;
+            }
+            await sleep(this.backoffMs(this.reconnectAttempts));
+          }
+        }
+        this.reconnectInProgress = false;
+      } finally {
+        this.reconnectCycle = null;
+      }
+    })();
+    return this.reconnectCycle;
+  }
+
+  private recordReconnectError(err: unknown): void {
+    this.lastReconnectErrorMessage = err instanceof Error ? err.message : String(err);
+    this.lastReconnectErrorAt = Date.now();
+  }
+
+  private backoffMs(attempt: number): number {
+    // 1s, 2s, 4s, 8s, then capped at 10s; ±20% jitter so a herd of
+    // reconnecting instances doesn't synchronise.
+    const base = Math.min(10_000, 1000 * Math.pow(2, attempt - 1));
+    const random = (this.config.random ?? Math.random)();
+    const jitter = 0.8 + 0.4 * random;
+    return Math.floor(base * jitter);
+  }
+
+  private unavailableError(): Error {
+    const reason = this.lastReconnectErrorMessage || "ogmios upstream unavailable";
+    return new Error(
+      `ogmios-tx: upstream unavailable after ${this.reconnectAttempts} attempts: ${reason}`,
+    );
   }
 
   private onMessage(data: string | Buffer): void {

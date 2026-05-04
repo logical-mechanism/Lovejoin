@@ -247,6 +247,13 @@ function registerHealth(fastify: FastifyInstance, deps: ApiServerDeps): void {
     const redactedReconnect = reconnect
       ? { ...reconnect, lastErrorMessage: redactUpstreamMessage(reconnect.lastErrorMessage) }
       : null;
+    const mempoolReconnect = deps.ogmiosTx?.reconnecting() ?? null;
+    const redactedMempoolReconnect = mempoolReconnect
+      ? {
+          ...mempoolReconnect,
+          lastErrorMessage: redactUpstreamMessage(mempoolReconnect.lastErrorMessage),
+        }
+      : null;
     return {
       ok: deps.state.alarm() === null && fatalError === null,
       tip,
@@ -256,6 +263,7 @@ function registerHealth(fastify: FastifyInstance, deps: ApiServerDeps): void {
       runtimeRunning: deps.runtime?.isRunning() ?? null,
       runtimeError: fatalError ? redactUpstreamMessage(fatalError.message) : null,
       chainsyncReconnect: redactedReconnect,
+      mempoolReconnect: redactedMempoolReconnect,
     };
   });
 }
@@ -567,6 +575,15 @@ function registerSubmit(fastify: FastifyInstance, deps: ApiServerDeps): void {
         reply.code(503);
         return { error: "submit_unavailable", message: "ogmios tx client not configured" };
       }
+      if (deps.ogmiosTx.reconnecting().exhausted) {
+        // Reconnect circuit is open after `maxReconnectAttempts` failures.
+        // Fail-fast rather than driving more reconnect traffic per request.
+        reply.code(503);
+        return {
+          error: "submit_unavailable",
+          message: "ogmios upstream unavailable; reconnect attempts exhausted",
+        };
+      }
       const cbor = (req.body?.cbor ?? "").trim();
       if (!isValidTxHex(cbor)) {
         reply.code(400);
@@ -609,6 +626,13 @@ function registerEvaluate(fastify: FastifyInstance, deps: ApiServerDeps): void {
       if (!deps.ogmiosTx) {
         reply.code(503);
         return { error: "evaluate_unavailable", message: "ogmios tx client not configured" };
+      }
+      if (deps.ogmiosTx.reconnecting().exhausted) {
+        reply.code(503);
+        return {
+          error: "evaluate_unavailable",
+          message: "ogmios upstream unavailable; reconnect attempts exhausted",
+        };
       }
       const cbor = (req.body?.cbor ?? "").trim();
       if (!isValidTxHex(cbor)) {
