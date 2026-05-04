@@ -36,11 +36,11 @@ describe("UI i18n harness", () => {
     expect(screen.getAllByText("Lovejoin").length).toBeGreaterThanOrEqual(1);
   });
 
-  it("renders the Preprod network label in the footer", () => {
+  it("renders the network label in the footer", () => {
     renderShell();
-    // Footer carries the network label (`app.preprod_banner` = "Preprod").
-    // Multiple footer chips share the literal — at least one must be present.
-    expect(screen.getAllByText("Preprod").length).toBeGreaterThanOrEqual(1);
+    // Footer renders `config.network` (lowercase, e.g. "preprod"). The
+    // test AppStateProvider defaults to "preprod" via skipAddressLoad.
+    expect(screen.getAllByText("preprod").length).toBeGreaterThanOrEqual(1);
   });
 
   it("renders the navigation links", () => {
