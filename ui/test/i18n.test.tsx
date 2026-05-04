@@ -38,7 +38,11 @@ describe("UI i18n harness", () => {
 
   it("renders the Preprod warning banner", () => {
     renderShell();
-    expect(screen.getByText(/Preprod only/i)).toBeInTheDocument();
+    const banner = screen.getByText(/Cardano Preprod testnet only/i);
+    expect(banner).toBeInTheDocument();
+    expect(banner.textContent).toMatch(/unaudited/i);
+    expect(banner.textContent).toMatch(/alpha/i);
+    expect(banner.textContent).toMatch(/do not use real funds/i);
   });
 
   it("renders the navigation links", () => {
