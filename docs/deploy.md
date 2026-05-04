@@ -69,49 +69,75 @@ heavily-used pool with millions of cumulative deposits + mixes it can
 exceed the backend's per-query timeout.
 
 **Recommended db-sync flags** (db-sync 13.1+) — set these in the
-db-sync `config.json` so the prime can use a single column compare
-instead of a subquery:
+db-sync config (typically `config/<network>-config.yaml`, e.g.
+`preprod-config.yaml` or `mainnet-config.yaml` in the cardano-db-sync
+checkout) so the prime can use a single column compare instead of a
+subquery. The minimal additions to a typical `insert_options` block:
 
-```json
-{
-  "insert_options": {
-    "tx_out": {
-      "value": "enable",
-      "use_address": true
-    },
-    "consumed_tx_out": "enable"
-  }
-}
+```yaml
+insert_options:
+  tx_cbor: enable # whatever you already have
+  tx_out:
+    value: enable # required for prime: lovelace amount
+    use_address: true # ADD: indexes tx_out.address for fast lookup
+  consumed_tx_out: enable # ADD: populates tx_out.consumed_by_tx_id
+  multi_asset:
+    enable: true # required for prime: reference NFT lookup
+  # ... rest of your insert_options unchanged
 ```
 
 What each flag does:
 
+- `tx_out.value: enable` — populates the lovelace value column. The
+  prime queries select it. Almost certainly already on.
 - `tx_out.use_address: true` — adds an index on `tx_out.address` so
   address-scoped lookups don't have to join through `tx`.
-- `consumed_tx_out: "enable"` — populates `tx_out.consumed_by_tx_id`
+- `consumed_tx_out: enable` — populates `tx_out.consumed_by_tx_id`
   inline whenever an output is spent. The backend probes for this
   column at startup; if present, the prime query becomes
   `WHERE tx_out.address = $1 AND tx_out.consumed_by_tx_id IS NULL`,
   which is O(live UTxO count) regardless of historical depth.
+- `multi_asset.enable: true` — populates `ma_tx_out` + `multi_asset`.
+  Required for the reference-NFT lookup. Almost certainly already on.
 
 **Backfill (one-time, mandatory if you enable `consumed_tx_out` on an
 existing db-sync database)** — the column is populated only for
 outputs created after the flag is enabled; pre-existing spent outputs
-read as `NULL` (looking live) until you backfill. Run the migration
-db-sync ships for this (the script name and path varies by version,
-check the
-[db-sync release notes](https://github.com/IntersectMBO/cardano-db-sync/releases)
-for your version):
+read as `NULL` (looking live) until you backfill. Skipping it is
+silent corruption: the backend will return historically-spent outputs
+as live and the indexer's pool view will disagree with the chain.
+
+The migration ships with db-sync as a numbered SQL file. Recent
+versions auto-run it on startup once the flag is flipped — check
+db-sync's startup logs for a `migration-4-NNNN-consumed-by-tx-id*`
+line. If your version doesn't auto-run it, find the script and run
+it manually:
 
 ```bash
-# Inside the db-sync postgres container (or any psql against the same DB):
-psql -U <user> -d cexplorer -f /usr/local/share/cardano-db-sync/migrations/migration-4-*.sql
+# Source build: schema/ directory in the cardano-db-sync checkout
+ls schema/migration-4-*consumed*
+
+# Docker / package install: typically under
+ls /usr/local/share/cardano-db-sync/schema/migration-4-*consumed*
+
+# Then apply against the running db-sync database
+psql "$DBSYNC_URL" -f /path/to/migration-4-NNNN-consumed-by-tx-id.sql
 ```
 
-Skipping the backfill is silent corruption — the backend will return
-historically-spent outputs as live and the indexer's pool view will
-disagree with the chain. Always run the backfill before pointing a
-backend at a freshly-flagged db-sync.
+On Preprod the backfill is fast (small chain). On mainnet it walks
+every spent `tx_out` and is significantly heavier — plan a maintenance
+window, or build a fresh db-sync from scratch with the flag already
+on instead of migrating in place.
+
+**Verify the column is populated** — directly against postgres:
+
+```sql
+SELECT COUNT(*) FROM tx_out WHERE consumed_by_tx_id IS NULL;
+```
+
+After the backfill that count should match the network's live UTxO
+count, not the cumulative tx_out total. If it's the cumulative total,
+the backfill didn't run and the backend will misreport state.
 
 **Verifying the fast path is engaged** — after redeploying the backend
 against a flagged db-sync, hit `/health` and check
