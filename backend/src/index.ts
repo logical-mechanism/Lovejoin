@@ -18,6 +18,7 @@ import { OgmiosTxClient } from "./indexer/ogmios-tx.js";
 import { primeFromDbSync } from "./indexer/prime.js";
 import type { ChainTip } from "./indexer/types.js";
 import { buildServer } from "./api/server.js";
+import { buildLogger } from "./logger.js";
 
 export const BACKEND_VERSION = "0.2.0";
 
@@ -30,6 +31,11 @@ export type LovejoinBackendConfig = {
 
 export async function main(): Promise<void> {
   const config = loadConfig();
+  // Root pino logger for the whole process. Threaded into Fastify and
+  // every long-running subsystem (indexer runtime, mempool poller,
+  // ogmios-tx clients, db-sync client) so logs share a single shape
+  // and `module:` field; no more `[prefix]` strings or bare console.*.
+  const rootLogger = buildLogger({ name: `lovejoin-backend@${BACKEND_VERSION}` });
   const filter = {
     mixBoxAddress: config.derived.mixBoxAddress,
     feeContractAddress: config.derived.feeContractAddress,
@@ -49,13 +55,13 @@ export async function main(): Promise<void> {
   const primeStatementTimeoutMs =
     primeTimeoutRaw && /^\d+$/.test(primeTimeoutRaw) ? Number(primeTimeoutRaw) : undefined;
   const dbsync = config.dbsyncUrl
-    ? new PostgresDbSyncClient(
-        config.dbsyncUrl,
-        primeStatementTimeoutMs !== undefined ? { primeStatementTimeoutMs } : {},
-      )
+    ? new PostgresDbSyncClient(config.dbsyncUrl, {
+        ...(primeStatementTimeoutMs !== undefined ? { primeStatementTimeoutMs } : {}),
+        logger: rootLogger.child({ module: "dbsync" }),
+      })
     : null;
 
-  const indexerLogger = simpleLogger();
+  const indexerLogger = rootLogger.child({ module: "indexer" });
   const primeParams = {
     mixBoxAddress: config.derived.mixBoxAddress,
     feeContractAddress: config.derived.feeContractAddress,
@@ -81,13 +87,12 @@ export async function main(): Promise<void> {
         logger: indexerLogger,
       });
     } catch (err) {
-      indexerLogger.warn(
-        `prime: db-sync prime failed (${(err as Error).message}); falling back to chainsync replay`,
-      );
+      indexerLogger.warn({ err }, "prime: db-sync prime failed; falling back to chainsync replay");
     }
   } else if (coldStartMode === "prime" && !dbsync) {
     indexerLogger.warn(
-      "prime: INDEXER_COLD_START=prime but DBSYNC_URL not configured; falling back to chainsync replay",
+      { reason: "DBSYNC_URL not configured" },
+      "prime: INDEXER_COLD_START=prime requested but disabled; falling back to chainsync replay",
     );
   }
 
@@ -135,18 +140,20 @@ export async function main(): Promise<void> {
   // Tx-submission ogmios client lives on its own WebSocket so chainsync
   // (which is parked on `nextBlock` waiting for the next block) doesn't
   // block tx submit/eval and vice versa. Lazily connects on first use.
+  const ogmiosTxLogger = rootLogger.child({ module: "ogmios-tx" });
   const ogmiosTx = new OgmiosTxClient({
     url: config.ogmiosUrl,
-    onOpen: (url) => console.log(`[ogmios-tx] connected at ${url}`),
+    onOpen: (url) => ogmiosTxLogger.info({ url }, "connected"),
   });
 
   // Dedicated socket for the mempool poller. Separate from `ogmiosTx`
   // because acquireMempool pins state on the connection and we don't
   // want it interleaving with submit/eval calls. Same physical ogmios
   // server; two cheap WebSockets is the standard pattern.
+  const ogmiosMempoolLogger = rootLogger.child({ module: "ogmios-mempool" });
   const ogmiosMempool = new OgmiosTxClient({
     url: config.ogmiosUrl,
-    onOpen: (url) => console.log(`[ogmios-mempool] connected at ${url}`),
+    onOpen: (url) => ogmiosMempoolLogger.info({ url }, "connected"),
   });
   const mempoolPoller = new MempoolPoller({
     client: ogmiosMempool,
@@ -154,10 +161,7 @@ export async function main(): Promise<void> {
     // + live fee shards). On a busy chain this drops ~99% of mempool
     // traffic and keeps `/mempool/inputs` payloads tiny.
     relevantRefs: () => state.protocolRelevantUtxoKeys(),
-    logger: {
-      info: (msg) => console.log(`[mempool] ${msg}`),
-      warn: (msg) => console.warn(`[mempool] ${msg}`),
-    },
+    logger: rootLogger.child({ module: "mempool" }),
   });
 
   const server = await buildServer({
@@ -167,6 +171,7 @@ export async function main(): Promise<void> {
     dbsync,
     ogmiosTx,
     mempoolPoller,
+    logger: rootLogger,
   });
 
   // Start chainsync first so requests at /health can already see "tip not yet"
@@ -174,7 +179,7 @@ export async function main(): Promise<void> {
   try {
     await runtime.start();
   } catch (err) {
-    server.log?.error?.(`ogmios start failed: ${(err as Error).message}`);
+    server.log.error({ err }, "ogmios start failed");
   }
 
   // Mempool poller starts independently. If ogmios is unreachable the
@@ -185,8 +190,14 @@ export async function main(): Promise<void> {
 
   await server.listen({ port: config.port, host: config.host });
 
-  console.log(
-    `lovejoin backend ${BACKEND_VERSION} listening on http://${config.host}:${config.port} (network=${config.network})`,
+  rootLogger.info(
+    {
+      version: BACKEND_VERSION,
+      host: config.host,
+      port: config.port,
+      network: config.network,
+    },
+    "lovejoin backend listening",
   );
 
   for (const sig of ["SIGINT", "SIGTERM"] as const) {
@@ -239,22 +250,17 @@ async function shutdown(
   process.exit(0);
 }
 
-function simpleLogger() {
-  return {
-    info: (msg: string) => console.log(`[indexer] ${msg}`),
-    warn: (msg: string) => console.warn(`[indexer] ${msg}`),
-    error: (msg: string) => console.error(`[indexer] ${msg}`),
-  };
-}
-
 // Run only when invoked as the entrypoint (not when imported by tests).
 const isEntrypoint =
   typeof process !== "undefined" &&
   typeof import.meta.url === "string" &&
   import.meta.url === `file://${process.argv[1]}`;
 if (isEntrypoint) {
+  // No `rootLogger` is reachable here — main() builds its own. Log the
+  // bootstrap failure with a fresh pino instance so the structured
+  // shape is preserved even on cold-fail.
   main().catch((err) => {
-    console.error(err);
+    buildLogger({ name: "lovejoin-backend@bootstrap" }).fatal({ err }, "backend failed to start");
     process.exit(1);
   });
 }
