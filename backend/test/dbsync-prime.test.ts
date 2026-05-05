@@ -108,8 +108,10 @@ function dbsyncRow(
   address: string,
   lovelace: bigint,
   inlineDatum: string | null,
+  txOutId: string = "1",
 ): Record<string, unknown> {
   return {
+    tx_out_id: txOutId,
     tx_hash: txHashHex,
     output_index: outputIndex,
     address,
@@ -206,6 +208,91 @@ describe("PostgresDbSyncClient.primeProtocolState — schema probe + dual path",
 
     const probeCalls = recorded.filter((r) => r.sql.includes("information_schema.columns"));
     expect(probeCalls).toHaveLength(1);
+  });
+
+  it("calls assetsForUtxos via the tx_out.id index path with a bigint[] of tx_out_ids", async () => {
+    // Issue #107: prime timed out twice because assetsForUtxos wrapped
+    // tx.hash in ENCODE(...) and joined tx_out × tx, defeating the
+    // tx_unique index. The fix passes tx_out.id straight through and
+    // hits ma_tx_out_tx_out_id_idx. Pin the new shape so a future
+    // refactor can't silently regress to the (txHash, outputIndex)
+    // round-trip.
+    const { pool, recorded } = fakePool({
+      consumedByPresent: true,
+      latestBlock: { slot: "1", hash: "00".repeat(32), block_no: 1 },
+      addressRows: {
+        [MIX_ADDR]: [
+          dbsyncRow(
+            "aa".repeat(32),
+            0,
+            MIX_ADDR,
+            10_000_000n,
+            encodeMixDatumDef(bytes48(1), bytes48(2)),
+            "4242",
+          ),
+          dbsyncRow(
+            "bb".repeat(32),
+            1,
+            MIX_ADDR,
+            10_000_000n,
+            encodeMixDatumDef(bytes48(3), bytes48(4)),
+            "4243",
+          ),
+        ],
+        [FEE_ADDR]: [dbsyncRow("cc".repeat(32), 0, FEE_ADDR, 5_000_000n, "d87980", "9999")],
+      },
+      referenceNftRows: [dbsyncRow("dd".repeat(32), 0, "addr_test1ref", 5_000_000n, null, "1234")],
+    });
+
+    const client = new PostgresDbSyncClient("postgres://unused", { pool });
+    await client.primeProtocolState(PARAMS);
+
+    // Address scans select tx_out.id (the bigint PK) so the asset
+    // batch query can look it up directly.
+    const addressScans = recorded.filter(
+      (r) => r.sql.includes("FROM tx_out") && !r.sql.includes("ma_tx_out"),
+    );
+    expect(addressScans.length).toBeGreaterThanOrEqual(2);
+    for (const q of addressScans) {
+      expect(q.sql).toContain("tx_out.id::TEXT");
+      expect(q.sql).toContain("AS tx_out_id");
+    }
+
+    // The asset batch SQL must use mto.tx_out_id = ANY($1::bigint[])
+    // and must not re-join tx_out + tx with ENCODE(tx.hash, ...).
+    const assetCalls = recorded.filter(
+      (r) =>
+        r.sql.includes("FROM ma_tx_out mto") &&
+        !r.sql.includes("FROM tx_out") &&
+        !r.sql.includes("JOIN tx_out"),
+    );
+    expect(assetCalls.length).toBeGreaterThanOrEqual(2);
+    for (const q of assetCalls) {
+      expect(q.sql).toContain("mto.tx_out_id = ANY($1::bigint[])");
+      expect(q.sql).not.toContain("ENCODE(tx.hash");
+      expect(q.sql).not.toContain("UNNEST");
+      expect(q.sql).not.toContain("JOIN tx ");
+    }
+
+    // Each asset call's first parameter is an array of bigint-shaped
+    // strings (db-sync's tx_out.id is bigint; we serialise as TEXT to
+    // dodge JS Number precision and let postgres parse via ::bigint[]).
+    for (const q of assetCalls) {
+      const arg = q.values?.[0];
+      expect(Array.isArray(arg)).toBe(true);
+      const arr = arg as unknown[];
+      expect(arr.length).toBeGreaterThan(0);
+      for (const v of arr) {
+        expect(typeof v).toBe("string");
+        expect(v as string).toMatch(/^[0-9]+$/);
+      }
+    }
+
+    // Both prime address scans should have produced an asset call —
+    // confirms the fast path is wired into both queries (mix-box +
+    // fee-shard), not just one. The reference-NFT query also calls it,
+    // so we expect at least 3 total.
+    expect(assetCalls.length).toBeGreaterThanOrEqual(3);
   });
 
   it("applies the configured prime statement_timeout via SET LOCAL", async () => {
