@@ -33,10 +33,17 @@ import {
 } from "./ogmios.js";
 import type { ChainTip } from "./types.js";
 
-/** A logging surface — Fastify's logger fits the shape. */
+/**
+ * Logging surface. Pino instances (`info(obj, msg)`) and console-style
+ * loggers (`info(msg, ctx)`) both satisfy this; the runtime itself
+ * only ever calls the string-only form.
+ */
 export interface RuntimeLogger {
+  info(obj: object, msg?: string): void;
   info(msg: string, ctx?: unknown): void;
+  warn(obj: object, msg?: string): void;
   warn(msg: string, ctx?: unknown): void;
+  error(obj: object, msg?: string): void;
   error(msg: string, ctx?: unknown): void;
 }
 

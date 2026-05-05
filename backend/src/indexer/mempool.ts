@@ -12,9 +12,15 @@
 
 import type { OgmiosTxClient } from "./ogmios-tx.js";
 
-/** Logging surface; matches Fastify's logger shape. */
+/**
+ * Logging surface. Two overloads so a pino instance (`info(obj, msg)`)
+ * and a plain console-style logger (`info(msg)`) both satisfy the
+ * interface; the poller itself only ever calls the string-only form.
+ */
 export interface MempoolLogger {
+  info(obj: object, msg?: string): void;
   info(msg: string): void;
+  warn(obj: object, msg?: string): void;
   warn(msg: string): void;
 }
 

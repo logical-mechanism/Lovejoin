@@ -69,8 +69,9 @@ export interface OgmiosClientConfig {
   /** Custom socket factory — defaults to `ws` against `url`. */
   socketFactory?: (url: string) => OgmiosSocket;
   /**
-   * Called when the connection opens. Most callers just `console.log`
-   * the URL — the test harness uses it to confirm connection.
+   * Called when the connection opens. Production wires this to the
+   * shared pino logger (see `backend/src/index.ts`); the test harness
+   * uses it to confirm connection.
    */
   onOpen?: (url: string) => void;
 }

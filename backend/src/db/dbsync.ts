@@ -140,6 +140,20 @@ export interface PostgresDbSyncOptions {
    * live postgres.
    */
   pool?: pg.Pool;
+  /**
+   * Optional pino-shaped logger. The prime path emits a one-shot
+   * `info` event recording which db-sync schema variant engaged
+   * (`consumed_by_tx_id` fast path vs. legacy `NOT EXISTS`); other
+   * messages bubble through the throwing API. When omitted the log
+   * is dropped — fine for tests, which don't need to assert on it.
+   */
+  logger?: PostgresDbSyncLogger;
+}
+
+/** Subset of pino we use; declaring it keeps tests free of a pino dep. */
+export interface PostgresDbSyncLogger {
+  info(obj: object, msg?: string): void;
+  info(msg: string): void;
 }
 
 const DEFAULT_PRIME_STATEMENT_TIMEOUT_MS = 60_000;
@@ -147,6 +161,7 @@ const DEFAULT_PRIME_STATEMENT_TIMEOUT_MS = 60_000;
 export class PostgresDbSyncClient implements DbSyncClient {
   private pool: pg.Pool;
   private readonly primeStatementTimeoutMs: number;
+  private readonly logger: PostgresDbSyncLogger | null;
   /**
    * Cached result of probing whether db-sync's `tx_out` carries a
    * `consumed_by_tx_id` column. `null` until the first prime call
@@ -191,6 +206,7 @@ export class PostgresDbSyncClient implements DbSyncClient {
       });
     this.primeStatementTimeoutMs =
       options.primeStatementTimeoutMs ?? DEFAULT_PRIME_STATEMENT_TIMEOUT_MS;
+    this.logger = options.logger ?? null;
   }
 
   async txUtxos(txHash: string): Promise<DbSyncUtxo[]> {
@@ -333,9 +349,9 @@ export class PostgresDbSyncClient implements DbSyncClient {
       if (!this.primePathLogged) {
         // One-shot startup log so operators can confirm which path
         // engaged. Subsequent reprimes are silent.
-
-        console.log(
-          `[dbsync] prime: query path = ${useFastPath ? "consumed_by_tx_id" : "NOT EXISTS (legacy)"}`,
+        this.logger?.info(
+          { queryPath: useFastPath ? "consumed_by_tx_id" : "NOT EXISTS (legacy)" },
+          "prime: query path selected",
         );
         this.primePathLogged = true;
       }
