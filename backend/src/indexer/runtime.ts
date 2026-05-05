@@ -224,9 +224,12 @@ export class IndexerRuntime {
     const points = this.config.startPoints ?? ["origin"];
     const inter = await this.client.findIntersection(points);
     this.config.logger.info(
-      `chainsync intersection found at ${
-        inter.intersection === "origin" ? "origin" : `slot ${inter.intersection.slot}`
-      }; tip slot ${inter.tip.slot}`,
+      {
+        intersection:
+          inter.intersection === "origin" ? "origin" : { slot: inter.intersection.slot },
+        tipSlot: inter.tip.slot,
+      },
+      "chainsync intersection found",
     );
     // Initial origin is `replayed` unless the bootstrap entrypoint
     // primed before calling start(). The entrypoint signals a prime
@@ -258,7 +261,7 @@ export class IndexerRuntime {
     return new OgmiosClient({
       url: this.config.ogmiosUrl,
       filter: this.config.filter,
-      onOpen: (url) => this.config.logger.info(`ogmios connected at ${url}`),
+      onOpen: (url) => this.config.logger.info({ url }, "ogmios chainsync connected"),
       ...(this.config.socketFactory ? { socketFactory: this.config.socketFactory } : {}),
     });
   }
@@ -285,15 +288,19 @@ export class IndexerRuntime {
           }
           this.fatal = err;
           this.config.logger.error(
-            `deep rollback past buffer: ${err.message} — runtime halting for resync`,
+            { err },
+            "deep rollback past buffer; runtime halting for resync",
           );
           this.running = false;
           return;
         }
         this.config.logger.error(
-          `chainsync apply failed at slot ${
-            event.kind === "forward" ? event.block.slot : "rollback"
-          }: ${err instanceof Error ? err.message : String(err)}`,
+          {
+            err,
+            eventKind: event.kind,
+            ...(event.kind === "forward" ? { slot: event.block.slot } : {}),
+          },
+          "chainsync apply failed",
         );
         // Non-fatal: keep going. The buffer is unchanged for forward
         // events that throw (apply is all-or-nothing per block).
@@ -322,7 +329,8 @@ export class IndexerRuntime {
     let attempt = 0;
     let lastErr: Error = initialErr instanceof Error ? initialErr : new Error(String(initialErr));
     this.config.logger.warn(
-      `deep rollback past buffer: ${lastErr.message} — repriming from db-sync`,
+      { err: lastErr, maxAttempts: max },
+      "deep rollback past buffer; repriming from db-sync",
     );
     while (this.running && attempt < max) {
       attempt += 1;
@@ -359,12 +367,20 @@ export class IndexerRuntime {
         }
         this.client = fresh;
         this.config.logger.info(
-          `reprime: state restored at slot ${tip.slot}; chainsync resumed at slot ${inter.intersection.slot} (after ${attempt} attempt${attempt === 1 ? "" : "s"})`,
+          {
+            primedSlot: tip.slot,
+            resumedSlot: inter.intersection.slot,
+            attempt,
+          },
+          "reprime: state restored; chainsync resumed",
         );
         return true;
       } catch (err) {
         lastErr = err instanceof Error ? err : new Error(String(err));
-        this.config.logger.warn(`reprime attempt ${attempt} failed: ${lastErr.message}`);
+        this.config.logger.warn(
+          { err: lastErr, attempt, maxAttempts: max },
+          "reprime attempt failed",
+        );
         this.originLastErrorMessage = lastErr.message;
         if (attempt >= max) break;
         await sleep(this.backoffMs(attempt));
@@ -374,7 +390,7 @@ export class IndexerRuntime {
     this.fatal = new Error(
       `reprime failed after ${attempt} attempt${attempt === 1 ? "" : "s"}: ${lastErr.message}`,
     );
-    this.config.logger.error(this.fatal.message);
+    this.config.logger.error({ err: this.fatal, attempts: attempt }, "reprime exhausted");
     this.running = false;
     return false;
   }
@@ -397,7 +413,10 @@ export class IndexerRuntime {
     this.reconnectAttempts = 0;
     this.recordReconnectError(initialErr);
     this.config.logger.warn(
-      `chainsync read failed: ${this.lastReconnectErrorMessage}; reconnecting`,
+      {
+        err: initialErr instanceof Error ? initialErr : new Error(String(initialErr)),
+      },
+      "chainsync read failed; reconnecting",
     );
 
     const maxAttempts = this.config.maxReconnectAttempts ?? DEFAULT_MAX_RECONNECT_ATTEMPTS;
@@ -441,7 +460,10 @@ export class IndexerRuntime {
           this.fatal = new Error(
             "chainsync reconnect: ogmios rolled past indexer tip — restart required",
           );
-          this.config.logger.error(this.fatal.message);
+          this.config.logger.error(
+            { err: this.fatal },
+            "chainsync reconnect: ogmios rolled past indexer tip; restart required",
+          );
           this.running = false;
           this.reconnectInProgress = false;
           return false;
@@ -449,11 +471,13 @@ export class IndexerRuntime {
 
         this.client = fresh;
         this.config.logger.info(
-          `chainsync resumed at ${
-            inter.intersection === "origin" ? "origin" : `slot ${inter.intersection.slot}`
-          }; tip slot ${inter.tip.slot} (after ${this.reconnectAttempts} attempt${
-            this.reconnectAttempts === 1 ? "" : "s"
-          })`,
+          {
+            intersection:
+              inter.intersection === "origin" ? "origin" : { slot: inter.intersection.slot },
+            tipSlot: inter.tip.slot,
+            attempt: this.reconnectAttempts,
+          },
+          "chainsync resumed",
         );
         this.reconnectInProgress = false;
         this.reconnectAttempts = 0;
@@ -461,7 +485,12 @@ export class IndexerRuntime {
       } catch (err) {
         this.recordReconnectError(err);
         this.config.logger.warn(
-          `chainsync reconnect attempt ${this.reconnectAttempts} failed: ${this.lastReconnectErrorMessage}`,
+          {
+            err,
+            attempt: this.reconnectAttempts,
+            maxAttempts,
+          },
+          "chainsync reconnect attempt failed",
         );
         if (this.reconnectAttempts >= maxAttempts) break;
         await sleep(this.backoffMs(this.reconnectAttempts));
@@ -477,7 +506,10 @@ export class IndexerRuntime {
     this.fatal = new Error(
       `chainsync reconnect failed after ${this.reconnectAttempts} attempts: ${this.lastReconnectErrorMessage}`,
     );
-    this.config.logger.error(this.fatal.message);
+    this.config.logger.error(
+      { err: this.fatal, attempts: this.reconnectAttempts },
+      "chainsync reconnect exhausted",
+    );
     this.running = false;
     this.reconnectInProgress = false;
     return false;

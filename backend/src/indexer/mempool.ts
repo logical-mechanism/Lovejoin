@@ -85,10 +85,9 @@ export class MempoolPoller {
   start(): void {
     if (this.running) return;
     this.running = true;
+    const intervalMs = this.config.intervalMs ?? 2000;
     this.scheduleNext(0);
-    this.config.logger.info(
-      `mempool poller started (interval ${this.config.intervalMs ?? 2000}ms)`,
-    );
+    this.config.logger.info({ intervalMs }, "mempool poller started");
   }
 
   async stop(): Promise<void> {
@@ -117,7 +116,8 @@ export class MempoolPoller {
       this.timer = null;
       this.inFlight = this.poll().catch((err) => {
         this.config.logger.warn(
-          `mempool poll failed: ${err instanceof Error ? err.message : String(err)}`,
+          { err: err instanceof Error ? err : new Error(String(err)) },
+          "mempool poll failed",
         );
       });
       void this.inFlight.finally(() => {

@@ -87,13 +87,12 @@ export async function main(): Promise<void> {
         logger: indexerLogger,
       });
     } catch (err) {
-      indexerLogger.warn(
-        `prime: db-sync prime failed (${(err as Error).message}); falling back to chainsync replay`,
-      );
+      indexerLogger.warn({ err }, "prime: db-sync prime failed; falling back to chainsync replay");
     }
   } else if (coldStartMode === "prime" && !dbsync) {
     indexerLogger.warn(
-      "prime: INDEXER_COLD_START=prime but DBSYNC_URL not configured; falling back to chainsync replay",
+      { reason: "DBSYNC_URL not configured" },
+      "prime: INDEXER_COLD_START=prime requested but disabled; falling back to chainsync replay",
     );
   }
 
