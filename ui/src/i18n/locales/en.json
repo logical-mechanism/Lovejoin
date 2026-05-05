@@ -381,7 +381,8 @@
     "withdraw_p1": "To leave the pool you spend the mix-box at its <c>mix_box</c> script's owner branch with a <e>Schnorr proof</e> that you know the <c>x</c> behind <c>b = [x] · a</c>. Schnorr is the simplest sigma protocol: the prover commits to a random point, the verifier challenges, the prover responds. Fiat–Shamir replaces the verifier's challenge with a hash, making the whole exchange a single piece of data:",
     "withdraw_p2": "The hash that produces <c>c</c> covers <c>tx.outputs</c>, which means the proof is bound to the exact destination addresses you signed for. Substituting outputs invalidates <c>c</c>, so a malicious submitter can't redirect your withdrawal anywhere you didn't ask. There is no wallet signature on the box itself; only the destination outputs are tx-authorized by the submitter's wallet (which pays the fee).",
     "further_h": "Further reading",
-    "further_p": "Full construction + security proofs are in the <paper>Sigmajoin paper</paper>. The on-chain verifier is in <c>contracts/validators/mix_logic.ak</c>; the off-chain builder is <c>offchain/src/tx/mix.ts</c>; cross-language test vectors are in <c>crypto/test-vectors/</c>."
+    "further_p": "Full construction + security proofs are in the <paper>Sigmajoin paper</paper>. The on-chain verifier is in <c>contracts/validators/mix_logic.ak</c>; the off-chain builder is <c>offchain/src/tx/mix.ts</c>; cross-language test vectors are in <c>crypto/test-vectors/</c>.",
+    "back_to_top": "Back to top"
   },
   "vault": {
     "title": "Vault",

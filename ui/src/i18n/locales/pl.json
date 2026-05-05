@@ -378,7 +378,8 @@
     "privacy_p2": "Aktualna kalibracja Lovejoin na Preprod: <b>N = 3</b> przez współdzielony fee shard (ścieżka anonimowa dla portfela) lub <b>N = 4</b>, gdy submitter płaci opłatę z własnego portfela. Pułap to kwestia budżetu CPU walidatora, nie bezpieczeństwa. Przy N = 3 dziesięć rund spycha powiązanie do mniej więcej jeden na 60 000, a dwadzieścia rund — do około jeden na 3,5 miliarda. Przy N = 4 dziesięć rund prowadzi cię do około jeden na milion, a dwadzieścia rund — do około jeden na bilion.",
     "withdraw_p1": "Aby opuścić pulę, wydajesz mix-box na gałęzi właściciela skryptu <c>mix_box</c> z <e>dowodem Schnorra</e>, że znasz <c>x</c> stojące za <c>b = [x] · a</c>. Schnorr to najprostszy protokół sigma: prover commituje losowy punkt, verifier rzuca wyzwanie, prover odpowiada. Fiat–Shamir zastępuje wyzwanie verifiera hashem, czyniąc całą wymianę jednym kawałkiem danych:",
     "withdraw_p2": "Hash dający <c>c</c> obejmuje <c>tx.outputs</c>, co oznacza, że dowód jest związany z dokładnymi adresami docelowymi, na które się podpisałeś. Podmiana wyjść unieważnia <c>c</c>, więc złośliwy submitter nie może przekierować twojej wypłaty gdzie indziej. Na samym boksie nie ma podpisu portfela; jedynie wyjścia docelowe są autoryzowane w tx przez portfel submittera (który płaci opłatę).",
-    "further_p": "Pełna konstrukcja + dowody bezpieczeństwa w <paper>pracy Sigmajoin</paper>. Walidator on-chain znajduje się w <c>contracts/validators/mix_logic.ak</c>; builder off-chain to <c>offchain/src/tx/mix.ts</c>; międzyjęzykowe wektory testowe są w <c>crypto/test-vectors/</c>."
+    "further_p": "Pełna konstrukcja + dowody bezpieczeństwa w <paper>pracy Sigmajoin</paper>. Walidator on-chain znajduje się w <c>contracts/validators/mix_logic.ak</c>; builder off-chain to <c>offchain/src/tx/mix.ts</c>; międzyjęzykowe wektory testowe są w <c>crypto/test-vectors/</c>.",
+    "back_to_top": "Do góry"
   },
   "vault": {
     "title": "Sejf",

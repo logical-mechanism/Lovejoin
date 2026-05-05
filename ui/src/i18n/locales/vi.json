@@ -378,7 +378,8 @@
     "privacy_p2": "Hiệu chỉnh Preprod hiện tại của Lovejoin: <b>N = 3</b> qua fee shard chung (đường ẩn danh phía ví), hoặc <b>N = 4</b> khi người gửi trả phí từ chính ví của họ. Trần này là chuyện ngân sách CPU của validator, không phải an toàn. Với N = 3, mười vòng kéo liên kết xuống còn khoảng một trên 60.000, và hai mươi vòng còn khoảng một trên 3,5 tỷ. Với N = 4, mười vòng đưa bạn tới khoảng một trên một triệu, và hai mươi vòng tới khoảng một trên một nghìn tỷ.",
     "withdraw_p1": "Để rời pool, bạn tiêu mix-box ở nhánh chủ sở hữu của script <c>mix_box</c> kèm <e>chứng minh Schnorr</e> rằng bạn biết <c>x</c> đứng sau <c>b = [x] · a</c>. Schnorr là giao thức sigma đơn giản nhất: prover cam kết một điểm ngẫu nhiên, verifier ra thử thách, prover trả lời. Fiat–Shamir thay thử thách của verifier bằng một hash, biến cả vòng trao đổi thành một mẩu dữ liệu duy nhất:",
     "withdraw_p2": "Hash sinh ra <c>c</c> bao trùm <c>tx.outputs</c>, nghĩa là chứng minh bị buộc vào đúng những địa chỉ đích bạn đã ký. Đổi đầu ra làm <c>c</c> mất hiệu lực, nên người gửi gian không thể chuyển hướng việc rút của bạn tới nơi bạn không yêu cầu. Trên chính box thì không có chữ ký ví; chỉ các đầu ra đích là được tx của ví người gửi (bên trả phí) ủy quyền.",
-    "further_p": "Cấu trúc đầy đủ + chứng minh an toàn nằm trong <paper>bài Sigmajoin</paper>. Trình xác minh on-chain ở <c>contracts/validators/mix_logic.ak</c>; trình dựng off-chain là <c>offchain/src/tx/mix.ts</c>; các vector kiểm thử đa ngôn ngữ ở <c>crypto/test-vectors/</c>."
+    "further_p": "Cấu trúc đầy đủ + chứng minh an toàn nằm trong <paper>bài Sigmajoin</paper>. Trình xác minh on-chain ở <c>contracts/validators/mix_logic.ak</c>; trình dựng off-chain là <c>offchain/src/tx/mix.ts</c>; các vector kiểm thử đa ngôn ngữ ở <c>crypto/test-vectors/</c>.",
+    "back_to_top": "Lên đầu trang"
   },
   "vault": {
     "title": "Két",
