@@ -10,16 +10,14 @@
 
 import cors from "@fastify/cors";
 import rateLimit from "@fastify/rate-limit";
-import swagger from "@fastify/swagger";
-import swaggerUi from "@fastify/swagger-ui";
 import Fastify, { type FastifyBaseLogger, type FastifyError, type FastifyInstance } from "fastify";
 
 import { buildLogger } from "../logger.js";
-import { OPENAPI_INFO, OPENAPI_TAGS, SHARED_OPENAPI_SCHEMAS } from "./openapi-schemas.js";
 import boxRoutes from "./routes/box.js";
 import feeRoutes from "./routes/fee.js";
 import healthRoutes from "./routes/health.js";
 import mempoolRoutes from "./routes/mempool.js";
+import openapiPlugin from "./routes/openapi.js";
 import paramsRoutes from "./routes/params.js";
 import poolRoutes from "./routes/pool.js";
 import txMutationRoutes, { txQueryRoutes } from "./routes/txs.js";
@@ -109,38 +107,11 @@ export async function buildServer(deps: ApiServerDeps): Promise<FastifyInstance>
     keyGenerator: (req) => req.ip,
   });
 
-  // OpenAPI 3 docs (issue #41). Schemas + swagger registration live at
-  // the root scope rather than inside a sub-plugin: `addSchema` is
-  // encapsulated to the calling plugin's scope, and `app.register()`
-  // creates a fresh child scope, so a sibling route plugin would
-  // otherwise fail to resolve `Error#`. Registering here makes shared
-  // schemas + the swagger transformer visible to every later
-  // `register(routesPlugin, { deps })` below.
-  for (const schema of SHARED_OPENAPI_SCHEMAS) {
-    fastify.addSchema(schema);
-  }
-  await fastify.register(swagger, {
-    openapi: {
-      openapi: "3.0.3",
-      info: OPENAPI_INFO,
-      tags: [...OPENAPI_TAGS],
-    },
-    // Preserve `$id` as the OpenAPI component-schema key. Without this
-    // hook @fastify/swagger emits `def-0`, `def-1`, ... and shoves the
-    // `$id` into a `title` field, which makes the spec hard to read
-    // and unusable for codegen tools that key off component names.
-    refResolver: {
-      buildLocalReference: (json) => {
-        const id = (json as { $id?: string }).$id;
-        return typeof id === "string" && id.length > 0 ? id : "Unknown";
-      },
-    },
-  });
-  await fastify.register(swaggerUi, {
-    routePrefix: "/docs",
-    uiConfig: { docExpansion: "list", deepLinking: true },
-    staticCSP: true,
-  });
+  // OpenAPI 3 docs (issue #41). The plugin is `fastify-plugin`-wrapped
+  // so its `addSchema` calls + the swagger / swaggerUi registrations
+  // propagate up to this root scope and stay visible to every route
+  // plugin registered below.
+  await fastify.register(openapiPlugin);
 
   // Registration order matches the original `server.ts` so the
   // committed OpenAPI document (keyed off path-registration order)
