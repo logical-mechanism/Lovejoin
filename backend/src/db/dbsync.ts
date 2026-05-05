@@ -397,7 +397,11 @@ export class PostgresDbSyncClient implements DbSyncClient {
    * pre-existing spent outputs with NULL in this column (looking
    * live). db-sync ships a backfill migration for this case; the
    * documentation in docs/deploy.md §"db-sync configuration" calls
-   * it out as mandatory.
+   * it out as mandatory operator hygiene. The fast-path SQL also
+   * `AND`s a `NOT EXISTS` against `tx_in` so correctness no longer
+   * depends on the operator running that backfill (issue #111) —
+   * the column compare is still used as a planner-level prefilter
+   * to keep the perf properties from #87.
    */
   private async probeConsumedByColumn(client: pg.PoolClient): Promise<boolean> {
     const result = await client.query<{ exists: boolean }>(
@@ -441,13 +445,19 @@ export class PostgresDbSyncClient implements DbSyncClient {
    * Live UTxOs at `address`. Two query shapes:
    *
    *   - **Fast path** (`useFastPath = true`): when db-sync has the
-   *     `consumed_by_tx_id` column populated, "live" is a single
-   *     column compare. O(live UTxO count) regardless of how many
-   *     historical tx_outs the address has accumulated.
-   *   - **Legacy path** (`useFastPath = false`): per-row NOT EXISTS
-   *     against `tx_in`. Works on any db-sync schema version but
-   *     scales with historical tx_out count at the address — the
-   *     concern flagged in issue #87 follow-up discussion.
+   *     `consumed_by_tx_id` column populated, the column compare
+   *     gates the row set down to ~live count. We then `AND` a
+   *     `NOT EXISTS` against `tx_in` as a defense-in-depth filter:
+   *     enabling `consumed_tx_out` mid-stream without running the
+   *     backfill leaves pre-existing spent outputs with `NULL` in
+   *     the column (they look live to the column probe alone), so
+   *     the second clause filters those ghost UTxOs out. On a
+   *     properly backfilled DB the inner subquery only runs for
+   *     rows already shortlisted by the column, so the perf win
+   *     from #87 is preserved.
+   *   - **Legacy path** (`useFastPath = false`): per-row `NOT EXISTS`
+   *     only. Works on any db-sync schema version but scales with
+   *     historical tx_out count at the address.
    *
    * Inline datums are returned verbatim so the indexer can store
    * them without re-encoding (preserves TS↔Aiken parity for any
@@ -458,13 +468,15 @@ export class PostgresDbSyncClient implements DbSyncClient {
     address: string,
     useFastPath: boolean,
   ): Promise<DbSyncUtxo[]> {
-    const liveFilter = useFastPath
-      ? "tx_out.consumed_by_tx_id IS NULL"
-      : `NOT EXISTS (
+    const notExistsClause = `NOT EXISTS (
           SELECT 1 FROM tx_in
           WHERE tx_in.tx_out_id    = tx_out.tx_id
             AND tx_in.tx_out_index = tx_out.index
         )`;
+    const liveFilter = useFastPath
+      ? `tx_out.consumed_by_tx_id IS NULL
+        AND ${notExistsClause}`
+      : notExistsClause;
     const sql = `
       SELECT
         tx_out.id::TEXT                       AS tx_out_id,
@@ -518,10 +530,10 @@ export class PostgresDbSyncClient implements DbSyncClient {
    * if (somehow) more than one exists and let the caller's reference
    * UTxO sanity check decide what to do.
    *
-   * Same dual-path live-filter as `queryAddressUtxos`. The selectivity
-   * here is high either way (filter by exact `(policy, name)` first),
-   * but using the column-compare path keeps a single SQL idiom across
-   * the prime queries and avoids a redundant `tx_in` index probe.
+   * Same dual-path live-filter as `queryAddressUtxos`, including the
+   * defense-in-depth `NOT EXISTS` clause on the fast path so a
+   * non-backfilled `consumed_by_tx_id` column can't surface a stale
+   * NFT location.
    */
   private async queryReferenceNftUtxo(
     client: pg.PoolClient,
@@ -529,13 +541,15 @@ export class PostgresDbSyncClient implements DbSyncClient {
     assetNameHex: string,
     useFastPath: boolean,
   ): Promise<DbSyncUtxo | null> {
-    const liveFilter = useFastPath
-      ? "tx_out.consumed_by_tx_id IS NULL"
-      : `NOT EXISTS (
+    const notExistsClause = `NOT EXISTS (
           SELECT 1 FROM tx_in
           WHERE tx_in.tx_out_id    = tx_out.tx_id
             AND tx_in.tx_out_index = tx_out.index
         )`;
+    const liveFilter = useFastPath
+      ? `tx_out.consumed_by_tx_id IS NULL
+        AND ${notExistsClause}`
+      : notExistsClause;
     const sql = `
       SELECT
         tx_out.id::TEXT                       AS tx_out_id,
