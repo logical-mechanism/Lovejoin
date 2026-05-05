@@ -250,7 +250,7 @@ function UnlockedVault() {
           <p>{t("vault.empty_hint")}</p>
         </div>
       ) : (
-        <div className="mt-6 space-y-6">
+        <div className="mt-6">
           <VaultTable
             boxes={ownedBoxes}
             pendingTxRefs={pendingTxRefs}
