@@ -36,8 +36,24 @@ interface FakeQueryConfig {
   latestBlock?: { slot: string; hash: string; block_no: number };
   /** Rows to return for each address scan, keyed by `address` value. */
   addressRows?: Record<string, Array<Record<string, unknown>>>;
+  /**
+   * Ghost rows per address — outputs whose `consumed_by_tx_id` is
+   * still NULL (looking live to the column) but whose
+   * `(tx_id, output_index)` is already present in `tx_in`. They
+   * should be returned by a column-only filter and filtered out by
+   * any filter that adds the `NOT EXISTS` subquery against `tx_in`.
+   * Models the issue #111 regression: a deploy that enabled
+   * `consumed_tx_out` mid-stream without running the backfill.
+   */
+  ghostRowsByAddress?: Record<string, Array<Record<string, unknown>>>;
+  /** Same idea for the reference-NFT query. */
+  ghostReferenceNftRows?: Array<Record<string, unknown>>;
   /** Rows to return for the reference NFT lookup. */
   referenceNftRows?: Array<Record<string, unknown>>;
+}
+
+function sqlIncludesNotExistsTxIn(sql: string): boolean {
+  return /NOT EXISTS\s*\([^)]*FROM tx_in/i.test(sql);
 }
 
 function fakePool(config: FakeQueryConfig): {
@@ -75,13 +91,22 @@ function fakePool(config: FakeQueryConfig): {
     if (sql.includes("ma_tx_out") && sql.includes("multi_asset")) {
       // Reference-NFT lookup (joins tx_out / ma_tx_out / multi_asset
       // and selects tx_out columns).
-      const rows = config.referenceNftRows ?? [];
+      const base = config.referenceNftRows ?? [];
+      const ghosts = config.ghostReferenceNftRows ?? [];
+      // Ghosts only leak through a column-only filter; the NOT EXISTS
+      // clause filters them out (issue #111). When a ghost is
+      // configured AND the SQL omits the NOT EXISTS, we surface it
+      // as the LIMIT-1 winner so the test sees the regression.
+      const useGhost = ghosts.length > 0 && !sqlIncludesNotExistsTxIn(sql);
+      const rows = useGhost ? ghosts.slice(0, 1) : base;
       return { rows, rowCount: rows.length };
     }
     if (sql.includes("FROM tx_out")) {
       // Address scan.
       const address = values?.[0] as string;
-      const rows = config.addressRows?.[address] ?? [];
+      const base = config.addressRows?.[address] ?? [];
+      const ghosts = config.ghostRowsByAddress?.[address] ?? [];
+      const rows = sqlIncludesNotExistsTxIn(sql) ? base : [...base, ...ghosts];
       return { rows, rowCount: rows.length };
     }
     throw new Error(`fakePool: unhandled SQL: ${sql.slice(0, 120)}`);
@@ -130,7 +155,7 @@ function bytes48(seed: number): Uint8Array {
 }
 
 describe("PostgresDbSyncClient.primeProtocolState — schema probe + dual path", () => {
-  it("uses the consumed_by_tx_id fast path when the column is present", async () => {
+  it("uses the consumed_by_tx_id fast path with belt-and-braces NOT EXISTS when the column is present", async () => {
     const { pool, recorded } = fakePool({
       consumedByPresent: true,
       latestBlock: { slot: "12345", hash: "ab".repeat(32), block_no: 678 },
@@ -157,7 +182,9 @@ describe("PostgresDbSyncClient.primeProtocolState — schema probe + dual path",
     expect(snapshot.feeShardUtxos).toHaveLength(1);
     expect(snapshot.referenceUtxo?.txHash).toBe("cc".repeat(32));
 
-    // Probe ran exactly once and the address scans took the fast path.
+    // Probe ran exactly once and the address scans took the fast path
+    // — both clauses present (column compare AND defense-in-depth
+    // NOT EXISTS, the issue #111 fix).
     const probeCalls = recorded.filter((r) => r.sql.includes("information_schema.columns"));
     expect(probeCalls).toHaveLength(1);
     const addressScans = recorded.filter(
@@ -166,7 +193,8 @@ describe("PostgresDbSyncClient.primeProtocolState — schema probe + dual path",
     expect(addressScans.length).toBeGreaterThanOrEqual(2);
     for (const q of addressScans) {
       expect(q.sql).toContain("tx_out.consumed_by_tx_id IS NULL");
-      expect(q.sql).not.toContain("NOT EXISTS");
+      expect(q.sql).toContain("NOT EXISTS");
+      expect(q.sql).toContain("FROM tx_in");
     }
 
     // Statement timeout was lifted inside the prime txn.
@@ -293,6 +321,68 @@ describe("PostgresDbSyncClient.primeProtocolState — schema probe + dual path",
     // fee-shard), not just one. The reference-NFT query also calls it,
     // so we expect at least 3 total.
     expect(assetCalls.length).toBeGreaterThanOrEqual(3);
+  });
+
+  it("filters ghost UTxOs (column NULL but tx_in says spent) on the fast path — issue #111 regression", async () => {
+    // Models a deploy that enabled `consumed_tx_out` mid-stream
+    // without running db-sync's backfill: the column probe sees the
+    // column and engages the fast path, but pre-existing spent
+    // outputs still have NULL in `consumed_by_tx_id` and would look
+    // live to a column-only filter. The fix `AND`s a `NOT EXISTS`
+    // against `tx_in` so the ghost is dropped at SQL time.
+    //
+    // The fake pool here returns ghost rows only for SQL that omits
+    // the NOT EXISTS clause; if the prime SQL is missing it (the
+    // pre-fix shape), the ghost shows up in the snapshot and this
+    // test fails.
+    const realMixRow = dbsyncRow(
+      "aa".repeat(32),
+      0,
+      MIX_ADDR,
+      10_000_000n,
+      encodeMixDatumDef(bytes48(1), bytes48(2)),
+      "1",
+    );
+    const ghostMixRow = dbsyncRow(
+      "ee".repeat(32),
+      0,
+      MIX_ADDR,
+      10_000_000n,
+      encodeMixDatumDef(bytes48(7), bytes48(8)),
+      "999",
+    );
+    const realFeeRow = dbsyncRow("bb".repeat(32), 0, FEE_ADDR, 5_000_000n, "d87980", "2");
+    const ghostFeeRow = dbsyncRow("ff".repeat(32), 0, FEE_ADDR, 5_000_000n, "d87980", "998");
+    const realRefRow = dbsyncRow("cc".repeat(32), 0, "addr_test1ref", 5_000_000n, null, "3");
+    const ghostRefRow = dbsyncRow("dd".repeat(32), 0, "addr_test1ref", 5_000_000n, null, "997");
+
+    const { pool } = fakePool({
+      consumedByPresent: true,
+      latestBlock: { slot: "1", hash: "00".repeat(32), block_no: 1 },
+      addressRows: { [MIX_ADDR]: [realMixRow], [FEE_ADDR]: [realFeeRow] },
+      ghostRowsByAddress: { [MIX_ADDR]: [ghostMixRow], [FEE_ADDR]: [ghostFeeRow] },
+      referenceNftRows: [realRefRow],
+      ghostReferenceNftRows: [ghostRefRow],
+    });
+
+    const client = new PostgresDbSyncClient("postgres://unused", { pool });
+    const snapshot = await client.primeProtocolState(PARAMS);
+
+    expect(snapshot.mixBoxUtxos).toHaveLength(1);
+    expect(snapshot.mixBoxUtxos[0]!.txHash).toBe("aa".repeat(32));
+    expect(snapshot.feeShardUtxos).toHaveLength(1);
+    expect(snapshot.feeShardUtxos[0]!.txHash).toBe("bb".repeat(32));
+    expect(snapshot.referenceUtxo?.txHash).toBe("cc".repeat(32));
+
+    // Sanity: confirm no ghost tx_hash sneaked into any of the three.
+    const allHashes = [
+      ...snapshot.mixBoxUtxos.map((u) => u.txHash),
+      ...snapshot.feeShardUtxos.map((u) => u.txHash),
+      snapshot.referenceUtxo?.txHash,
+    ];
+    expect(allHashes).not.toContain("ee".repeat(32));
+    expect(allHashes).not.toContain("ff".repeat(32));
+    expect(allHashes).not.toContain("dd".repeat(32));
   });
 
   it("applies the configured prime statement_timeout via SET LOCAL", async () => {
