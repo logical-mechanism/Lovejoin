@@ -108,7 +108,7 @@ importers:
     dependencies:
       '@meshsdk/core':
         specifier: 1.8.14
-        version: 1.8.14(@babel/core@7.29.0)(@bufbuild/protobuf@1.10.1)(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(bare-url@2.4.2)(bufferutil@4.1.0)(react-dom@19.2.5(react@19.2.5))(react@19.2.5)(rxjs@7.8.2)(utf-8-validate@6.0.6)
+        version: 1.8.14(@babel/core@7.29.0)(@bufbuild/protobuf@1.10.1)(bare-url@2.4.2)(bufferutil@4.1.0)(react-dom@19.2.5(react@19.2.5))(react@19.2.5)(rxjs@7.8.2)(utf-8-validate@6.0.6)
       '@meshsdk/core-csl':
         specifier: 1.8.14
         version: 1.8.14
@@ -196,6 +196,9 @@ importers:
         specifier: ^7.1.0
         version: 7.14.2(react-dom@19.2.5(react@19.2.5))(react@19.2.5)
     devDependencies:
+      '@axe-core/playwright':
+        specifier: ^4.11.3
+        version: 4.11.3(playwright-core@1.59.1)
       '@playwright/test':
         specifier: ^1.49.0
         version: 1.59.1
@@ -256,6 +259,11 @@ packages:
 
   '@asamuzakjp/css-color@3.2.0':
     resolution: {integrity: sha512-K1A6z8tS3XsmCMM86xoWdn7Fkdn9m6RSVtocUrJYIwZnFVkng/PvkEoWtOWmP+Scc6saYWHWZYbndEEXxl24jw==}
+
+  '@axe-core/playwright@4.11.3':
+    resolution: {integrity: sha512-h/kfksv4F0cVIDlKpT4700OehdRgpvuVskuQ2nb7/JmtWUXpe9ftHAPtwyXGvVSsa6SJ64A9ER7Zrzc/sIvC4w==}
+    peerDependencies:
+      playwright-core: '>= 1.0.0'
 
   '@babel/code-frame@7.29.0':
     resolution: {integrity: sha512-9NhCeYjq9+3uxgdtp20LSiJXJvN0FeCtNGpJxuMFZ1Kv3cWUNb6DOhJwUvcVCzKGR66cw4njwM6hrJLqgOwbcw==}
@@ -2405,6 +2413,10 @@ packages:
 
   avvio@9.2.0:
     resolution: {integrity: sha512-2t/sy01ArdHHE0vRH5Hsay+RtCZt3dLPji7W7/MMOCEgze5b7SNDC4j5H6FnVgPkI1MTNFGzHdHrVXDDl7QSSQ==}
+
+  axe-core@4.11.4:
+    resolution: {integrity: sha512-KunSNx+TVpkAw/6ULfhnx+HWRecjqZGTOyquAoWHYLRSdK1tB5Ihce1ZW+UY3fj33bYAFWPu7W/GRSmmrCGuxA==}
+    engines: {node: '>=4'}
 
   axios@0.28.1:
     resolution: {integrity: sha512-iUcGA5a7p0mVb4Gm/sy+FSECNkPFT4y7wt6OM/CDpO/OnNCvSs3PoMG8ibrC9jRoGYU0gUK5pXVC4NPXq6lHRQ==}
@@ -5618,6 +5630,11 @@ snapshots:
       '@csstools/css-tokenizer': 3.0.4
       lru-cache: 10.4.3
 
+  '@axe-core/playwright@4.11.3(playwright-core@1.59.1)':
+    dependencies:
+      axe-core: 4.11.4
+      playwright-core: 1.59.1
+
   '@babel/code-frame@7.29.0':
     dependencies:
       '@babel/helper-validator-identifier': 7.28.5
@@ -5837,10 +5854,8 @@ snapshots:
       - '@dcspark/cardano-multiplatform-lib-browser'
       - '@dcspark/cardano-multiplatform-lib-nodejs'
       - bufferutil
-      - debug
       - encoding
       - react-native-b4a
-      - supports-color
       - utf-8-validate
 
   '@cardano-sdk/core@0.36.0(bufferutil@4.1.0)(rxjs@7.8.2)(utf-8-validate@6.0.6)':
@@ -6717,20 +6732,18 @@ snapshots:
       - '@dcspark/cardano-multiplatform-lib-browser'
       - '@dcspark/cardano-multiplatform-lib-nodejs'
       - bufferutil
-      - debug
       - encoding
       - react-native-b4a
       - rxjs
-      - supports-color
       - utf-8-validate
 
-  '@meshsdk/core@1.8.14(@babel/core@7.29.0)(@bufbuild/protobuf@1.10.1)(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(bare-url@2.4.2)(bufferutil@4.1.0)(react-dom@19.2.5(react@19.2.5))(react@19.2.5)(rxjs@7.8.2)(utf-8-validate@6.0.6)':
+  '@meshsdk/core@1.8.14(@babel/core@7.29.0)(@bufbuild/protobuf@1.10.1)(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(bare-url@2.4.2)(bufferutil@4.1.0)(react-dom@19.2.5(react@19.2.5))(react@19.2.5)(tailwindcss@4.2.4)(utf-8-validate@6.0.6)':
     dependencies:
       '@meshsdk/common': 1.8.14
       '@meshsdk/core-csl': 1.8.14
       '@meshsdk/core-cst': 1.8.14(bufferutil@4.1.0)(rxjs@7.8.2)(utf-8-validate@6.0.6)
       '@meshsdk/provider': 1.8.14(@bufbuild/protobuf@1.10.1)(bufferutil@4.1.0)(rxjs@7.8.2)(utf-8-validate@6.0.6)
-      '@meshsdk/react': 1.8.14(@babel/core@7.29.0)(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(bare-url@2.4.2)(bufferutil@4.1.0)(react-dom@19.2.5(react@19.2.5))(react@19.2.5)(rxjs@7.8.2)(utf-8-validate@6.0.6)
+      '@meshsdk/react': 1.8.14(@babel/core@7.29.0)(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(bare-url@2.4.2)(bufferutil@4.1.0)(react-dom@19.2.5(react@19.2.5))(react@19.2.5)(tailwindcss@4.2.4)(utf-8-validate@6.0.6)
       '@meshsdk/transaction': 1.8.14(bufferutil@4.1.0)(rxjs@7.8.2)(utf-8-validate@6.0.6)
       '@meshsdk/wallet': 1.8.14(bufferutil@4.1.0)(rxjs@7.8.2)(utf-8-validate@6.0.6)
     transitivePeerDependencies:
@@ -6755,13 +6768,13 @@ snapshots:
       - tailwindcss
       - utf-8-validate
 
-  '@meshsdk/core@1.8.14(@babel/core@7.29.0)(@bufbuild/protobuf@1.10.1)(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(bare-url@2.4.2)(bufferutil@4.1.0)(react-dom@19.2.5(react@19.2.5))(react@19.2.5)(tailwindcss@4.2.4)(utf-8-validate@6.0.6)':
+  '@meshsdk/core@1.8.14(@babel/core@7.29.0)(@bufbuild/protobuf@1.10.1)(bare-url@2.4.2)(bufferutil@4.1.0)(react-dom@19.2.5(react@19.2.5))(react@19.2.5)(rxjs@7.8.2)(utf-8-validate@6.0.6)':
     dependencies:
       '@meshsdk/common': 1.8.14
       '@meshsdk/core-csl': 1.8.14
       '@meshsdk/core-cst': 1.8.14(bufferutil@4.1.0)(rxjs@7.8.2)(utf-8-validate@6.0.6)
       '@meshsdk/provider': 1.8.14(@bufbuild/protobuf@1.10.1)(bufferutil@4.1.0)(rxjs@7.8.2)(utf-8-validate@6.0.6)
-      '@meshsdk/react': 1.8.14(@babel/core@7.29.0)(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(bare-url@2.4.2)(bufferutil@4.1.0)(react-dom@19.2.5(react@19.2.5))(react@19.2.5)(tailwindcss@4.2.4)(utf-8-validate@6.0.6)
+      '@meshsdk/react': 1.8.14(@babel/core@7.29.0)(bare-url@2.4.2)(bufferutil@4.1.0)(react-dom@19.2.5(react@19.2.5))(react@19.2.5)(rxjs@7.8.2)(utf-8-validate@6.0.6)
       '@meshsdk/transaction': 1.8.14(bufferutil@4.1.0)(rxjs@7.8.2)(utf-8-validate@6.0.6)
       '@meshsdk/wallet': 1.8.14(bufferutil@4.1.0)(rxjs@7.8.2)(utf-8-validate@6.0.6)
     transitivePeerDependencies:
@@ -6803,42 +6816,6 @@ snapshots:
       - encoding
       - react-native-b4a
       - rxjs
-      - supports-color
-      - utf-8-validate
-
-  '@meshsdk/react@1.8.14(@babel/core@7.29.0)(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(bare-url@2.4.2)(bufferutil@4.1.0)(react-dom@19.2.5(react@19.2.5))(react@19.2.5)(rxjs@7.8.2)(utf-8-validate@6.0.6)':
-    dependencies:
-      '@fabianbormann/cardano-peer-connect': 1.2.18(@babel/core@7.29.0)(bare-url@2.4.2)
-      '@meshsdk/common': 1.8.14
-      '@meshsdk/transaction': 1.8.14(bufferutil@4.1.0)(rxjs@7.8.2)(utf-8-validate@6.0.6)
-      '@meshsdk/wallet': 1.8.14(bufferutil@4.1.0)(rxjs@7.8.2)(utf-8-validate@6.0.6)
-      '@radix-ui/react-dialog': 1.1.15(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.2.5(react@19.2.5))(react@19.2.5)
-      '@radix-ui/react-dropdown-menu': 2.1.16(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.2.5(react@19.2.5))(react@19.2.5)
-      '@radix-ui/react-icons': 1.3.2(react@19.2.5)
-      '@radix-ui/react-label': 2.1.8(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.2.5(react@19.2.5))(react@19.2.5)
-      '@radix-ui/react-tooltip': 1.2.8(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.2.5(react@19.2.5))(react@19.2.5)
-      class-variance-authority: 0.7.1
-      react: 19.2.5
-      react-dom: 19.2.5(react@19.2.5)
-      tailwind-merge: 2.6.1
-      tailwindcss-animate: 1.0.7(tailwindcss@4.2.4)
-    transitivePeerDependencies:
-      - '@babel/core'
-      - '@dcspark/cardano-multiplatform-lib-asmjs'
-      - '@dcspark/cardano-multiplatform-lib-browser'
-      - '@dcspark/cardano-multiplatform-lib-nodejs'
-      - '@types/react'
-      - '@types/react-dom'
-      - bare-abort-controller
-      - bare-buffer
-      - bare-url
-      - bufferutil
-      - debug
-      - encoding
-      - react-native-b4a
-      - rxjs
-      - supports-color
-      - tailwindcss
       - utf-8-validate
 
   '@meshsdk/react@1.8.14(@babel/core@7.29.0)(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(bare-url@2.4.2)(bufferutil@4.1.0)(react-dom@19.2.5(react@19.2.5))(react@19.2.5)(tailwindcss@4.2.4)(utf-8-validate@6.0.6)':
@@ -6876,6 +6853,40 @@ snapshots:
       - tailwindcss
       - utf-8-validate
 
+  '@meshsdk/react@1.8.14(@babel/core@7.29.0)(bare-url@2.4.2)(bufferutil@4.1.0)(react-dom@19.2.5(react@19.2.5))(react@19.2.5)(rxjs@7.8.2)(utf-8-validate@6.0.6)':
+    dependencies:
+      '@fabianbormann/cardano-peer-connect': 1.2.18(@babel/core@7.29.0)(bare-url@2.4.2)
+      '@meshsdk/common': 1.8.14
+      '@meshsdk/transaction': 1.8.14(bufferutil@4.1.0)(rxjs@7.8.2)(utf-8-validate@6.0.6)
+      '@meshsdk/wallet': 1.8.14(bufferutil@4.1.0)(rxjs@7.8.2)(utf-8-validate@6.0.6)
+      '@radix-ui/react-dialog': 1.1.15(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.2.5(react@19.2.5))(react@19.2.5)
+      '@radix-ui/react-dropdown-menu': 2.1.16(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.2.5(react@19.2.5))(react@19.2.5)
+      '@radix-ui/react-icons': 1.3.2(react@19.2.5)
+      '@radix-ui/react-label': 2.1.8(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.2.5(react@19.2.5))(react@19.2.5)
+      '@radix-ui/react-tooltip': 1.2.8(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.2.5(react@19.2.5))(react@19.2.5)
+      class-variance-authority: 0.7.1
+      react: 19.2.5
+      react-dom: 19.2.5(react@19.2.5)
+      tailwind-merge: 2.6.1
+      tailwindcss-animate: 1.0.7(tailwindcss@4.2.4)
+    transitivePeerDependencies:
+      - '@babel/core'
+      - '@dcspark/cardano-multiplatform-lib-asmjs'
+      - '@dcspark/cardano-multiplatform-lib-browser'
+      - '@dcspark/cardano-multiplatform-lib-nodejs'
+      - '@types/react'
+      - '@types/react-dom'
+      - bare-abort-controller
+      - bare-buffer
+      - bare-url
+      - bufferutil
+      - encoding
+      - react-native-b4a
+      - rxjs
+      - supports-color
+      - tailwindcss
+      - utf-8-validate
+
   '@meshsdk/transaction@1.8.14(bufferutil@4.1.0)(rxjs@7.8.2)(utf-8-validate@6.0.6)':
     dependencies:
       '@meshsdk/common': 1.8.14
@@ -6887,11 +6898,9 @@ snapshots:
       - '@dcspark/cardano-multiplatform-lib-browser'
       - '@dcspark/cardano-multiplatform-lib-nodejs'
       - bufferutil
-      - debug
       - encoding
       - react-native-b4a
       - rxjs
-      - supports-color
       - utf-8-validate
 
   '@meshsdk/wallet@1.8.14(bufferutil@4.1.0)(rxjs@7.8.2)(utf-8-validate@6.0.6)':
@@ -6906,11 +6915,9 @@ snapshots:
       - '@dcspark/cardano-multiplatform-lib-browser'
       - '@dcspark/cardano-multiplatform-lib-nodejs'
       - bufferutil
-      - debug
       - encoding
       - react-native-b4a
       - rxjs
-      - supports-color
       - utf-8-validate
 
   '@multiformats/dns@1.0.13':
@@ -8049,6 +8056,8 @@ snapshots:
     dependencies:
       '@fastify/error': 4.2.0
       fastq: 1.20.1
+
+  axe-core@4.11.4: {}
 
   axios@0.28.1:
     dependencies:
