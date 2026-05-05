@@ -20,11 +20,24 @@ import type { DbSyncClient, DbSyncUtxo, ProtocolPrimeParams } from "../db/dbsync
 import type { IndexerState, PrimeSnapshot } from "./state.js";
 import type { ChainTip, ProducedUtxo } from "./types.js";
 
+/**
+ * Logging surface for the prime path. Two overloads so a pino instance
+ * (`info(obj, msg)`) and a plain console-style logger (`info(msg)`)
+ * both satisfy the interface. The string-only form is retained for
+ * tests that capture formatted messages directly.
+ */
+export interface PrimeLogger {
+  info(obj: object, msg?: string): void;
+  info(msg: string): void;
+  warn(obj: object, msg?: string): void;
+  warn(msg: string): void;
+}
+
 export interface PrimeContext {
   state: IndexerState;
   dbsync: DbSyncClient;
   params: ProtocolPrimeParams;
-  logger?: { info: (msg: string) => void; warn: (msg: string) => void };
+  logger?: PrimeLogger;
 }
 
 /**
@@ -67,13 +80,19 @@ export async function primeFromDbSync(ctx: PrimeContext): Promise<ChainTip> {
   ctx.state.primeFrom(primeSnapshot);
 
   ctx.logger?.info(
-    `prime: applied snapshot at slot ${snapshot.tip.slot} (height ${snapshot.tip.height}) in ${elapsedMs}ms: ` +
-      `${mixBoxUtxos.length} mix-box, ${feeShardUtxos.length} fee shard, reference=${
-        referenceUtxo ? "ok" : "missing"
-      }`,
+    {
+      slot: snapshot.tip.slot,
+      height: snapshot.tip.height,
+      elapsedMs,
+      mixBoxCount: mixBoxUtxos.length,
+      feeShardCount: feeShardUtxos.length,
+      reference: referenceUtxo ? "ok" : "missing",
+    },
+    "prime: applied snapshot",
   );
   if (!referenceUtxo) {
     ctx.logger?.warn(
+      { slot: snapshot.tip.slot, height: snapshot.tip.height },
       "prime: reference NFT not observed in db-sync; running with referenceAlarm set " +
         "(bootstrap not yet applied, or db-sync lagging the bootstrap tx)",
     );

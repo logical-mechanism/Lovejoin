@@ -378,7 +378,8 @@
     "privacy_p2": "Lovejoin 의 현재 Preprod 보정: 공유 fee shard 를 통한 <b>N = 3</b>(지갑 익명 경로) 또는 제출자가 자기 지갑에서 수수료를 낼 때의 <b>N = 4</b>. 이 상한은 검증자의 CPU 예산 문제이지 보안 문제가 아닙니다. N = 3 에서 열 라운드면 연결 확률을 약 6 만 분의 1 까지, 스무 라운드면 약 35 억 분의 1 까지 떨어뜨립니다. N = 4 에서 열 라운드면 약 백만 분의 1, 스무 라운드면 약 1 조 분의 1 에 도달합니다.",
     "withdraw_p1": "풀에서 빠져나오려면 <c>b = [x] · a</c> 뒤의 <c>x</c> 를 안다는 <e>Schnorr 증명</e>을 곁들여 <c>mix_box</c> 스크립트의 소유자 분기에서 mix-box 를 소비합니다. Schnorr 는 가장 단순한 sigma 프로토콜입니다: 증명자가 무작위 점을 커밋하고, 검증자가 챌린지를 던지고, 증명자가 응답합니다. Fiat–Shamir 는 검증자의 챌린지를 해시로 대체하여, 전체 교환을 단일 데이터 한 조각으로 만듭니다:",
     "withdraw_p2": "<c>c</c> 를 만드는 해시는 <c>tx.outputs</c> 를 덮으므로, 증명은 당신이 서명한 정확한 목적지 주소에 묶입니다. 출력을 바꾸면 <c>c</c> 가 무효가 되어, 악의적인 제출자가 당신이 요청하지 않은 어디로도 출금을 우회시킬 수 없습니다. box 자체에는 지갑 서명이 없습니다; 목적지 출력만 (수수료를 내는) 제출자 지갑에 의해 tx 에서 승인됩니다.",
-    "further_p": "완전한 구성과 보안 증명은 <paper>Sigmajoin 논문</paper>에 있습니다. 온체인 검증기는 <c>contracts/validators/mix_logic.ak</c> 에, 오프체인 빌더는 <c>offchain/src/tx/mix.ts</c> 에, 언어 간 테스트 벡터는 <c>crypto/test-vectors/</c> 에 있습니다."
+    "further_p": "완전한 구성과 보안 증명은 <paper>Sigmajoin 논문</paper>에 있습니다. 온체인 검증기는 <c>contracts/validators/mix_logic.ak</c> 에, 오프체인 빌더는 <c>offchain/src/tx/mix.ts</c> 에, 언어 간 테스트 벡터는 <c>crypto/test-vectors/</c> 에 있습니다.",
+    "back_to_top": "위로"
   },
   "vault": {
     "title": "볼트",

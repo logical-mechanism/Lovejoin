@@ -8,6 +8,7 @@ import rateLimit from "@fastify/rate-limit";
 import swagger from "@fastify/swagger";
 import swaggerUi from "@fastify/swagger-ui";
 import Fastify, {
+  type FastifyBaseLogger,
   type FastifyError,
   type FastifyInstance,
   type FastifyReply,
@@ -21,6 +22,7 @@ import type { IndexerRuntime } from "../indexer/runtime.js";
 import type { OgmiosTxClient } from "../indexer/ogmios-tx.js";
 import type { MempoolPoller } from "../indexer/mempool.js";
 import type { FeeShard, PoolEntry } from "../indexer/types.js";
+import { buildLogger, type LovejoinLogger } from "../logger.js";
 import {
   OPENAPI_INFO,
   OPENAPI_TAGS,
@@ -65,6 +67,14 @@ export interface ApiServerDeps {
    * without mempool-aware picking.
    */
   mempoolPoller?: MempoolPoller | null;
+  /**
+   * Root logger threaded into Fastify as `loggerInstance`. Routes use
+   * `request.log` (which inherits this instance) for per-request
+   * structured logging. Optional — when omitted, `buildServer` builds
+   * a fresh pino instance from env (`LOG_LEVEL`, `LOG_PRETTY`,
+   * `NODE_ENV`, `VITEST`); tests therefore stay silent by default.
+   */
+  logger?: LovejoinLogger;
   /** When set, used as the "now" for `lagSeconds`; tests pin it. */
   nowMs?: () => number;
 }
@@ -76,8 +86,19 @@ const PRESERVE_BIGINT_REPLACER = (_key: string, value: unknown): unknown =>
   typeof value === "bigint" ? value.toString() : value;
 
 export async function buildServer(deps: ApiServerDeps): Promise<FastifyInstance> {
+  const logger = deps.logger ?? buildLogger();
+  // Cast back to the default `FastifyInstance` (with `FastifyBaseLogger`).
+  // Without this, passing a concrete pino instance lets TypeScript
+  // infer `Logger = pino.Logger`, which then makes every helper
+  // (`registerHealth`, etc.) typed against the wider pino surface and
+  // clashes with Fastify's `FastifyBaseLogger` default — pino's
+  // `BaseLogger` carries `msgPrefix` while Fastify's does not.
   const fastify = Fastify({
-    logger: false,
+    // Cast widens pino.Logger to FastifyBaseLogger so Fastify's generic
+    // inference defaults to `Logger = FastifyBaseLogger` and the
+    // route-helper signatures stay compatible. Pino's Logger is a
+    // structural superset of FastifyBaseLogger, so the cast is sound.
+    loggerInstance: logger as FastifyBaseLogger,
     // Render bigints as strings so JSON.stringify doesn't throw on them.
     // Fastify's default reply serializer goes through JSON.stringify; the
     // replacer here keeps the wire format consistent with the spec
@@ -317,7 +338,7 @@ function registerProtocolParams(fastify: FastifyInstance, deps: ApiServerDeps): 
   fastify.get(
     "/protocol-params",
     { schema: ROUTE_SCHEMAS.protocolParams },
-    async (_req, reply: FastifyReply) => {
+    async (req, reply: FastifyReply) => {
       if (!deps.ogmiosTx) {
         reply.code(503);
         return {
@@ -330,7 +351,7 @@ function registerProtocolParams(fastify: FastifyInstance, deps: ApiServerDeps): 
         return params;
       } catch (err) {
         const raw = (err as Error).message ?? "ogmios error";
-        console.error(`[/protocol-params] ogmios error: ${raw}`);
+        req.log.error({ err, raw }, "/protocol-params: ogmios error");
         reply.code(502);
         return {
           error: "ogmios_error",
@@ -531,7 +552,7 @@ function registerSubmit(fastify: FastifyInstance, deps: ApiServerDeps): void {
         // infrastructure topology to the caller (security review v1,
         // finding H3). Full message is logged server-side.
         const raw = (err as Error).message ?? "submit failed";
-        console.error(`[/submit] ogmios error: ${raw}`);
+        req.log.error({ err, raw }, "/submit: ogmios error");
         reply.code(400);
         return {
           error: "submit_failed",
@@ -575,7 +596,7 @@ function registerEvaluate(fastify: FastifyInstance, deps: ApiServerDeps): void {
         return { redeemers: budgets };
       } catch (err) {
         const raw = (err as Error).message ?? "evaluate failed";
-        console.error(`[/evaluate] ogmios error: ${raw}`);
+        req.log.error({ err, raw }, "/evaluate: ogmios error");
         reply.code(400);
         return {
           error: "evaluate_failed",
@@ -702,7 +723,7 @@ function registerTxQueries(fastify: FastifyInstance, deps: ApiServerDeps): void 
         return summary;
       } catch (err) {
         const raw = (err as Error).message ?? "dbsync error";
-        console.error(`[dbsync] ${req.url}: ${raw}`);
+        req.log.error({ err, raw, url: req.url }, "dbsync: txSummary failed");
         reply.code(502);
         return { error: "dbsync_error", message: "internal database error" };
       }
@@ -735,7 +756,7 @@ function registerTxQueries(fastify: FastifyInstance, deps: ApiServerDeps): void 
         return { txHash, utxos: utxos.map(serializeUtxo) };
       } catch (err) {
         const raw = (err as Error).message ?? "dbsync error";
-        console.error(`[dbsync] ${req.url}: ${raw}`);
+        req.log.error({ err, raw, url: req.url }, "dbsync: txUtxos failed");
         reply.code(502);
         return { error: "dbsync_error", message: "internal database error" };
       }
@@ -799,8 +820,9 @@ function clamp(value: number, min: number, max: number, fallback: number): numbe
  * Blockfrost project ids, IPv4 addresses with optional ports, and bare
  * URLs. Caps the result at 256 chars so a chatty upstream stack trace
  * can't be used as an amplifier for log spam (security review v1,
- * finding H3). Operators get the full message via console.error;
- * clients get a redacted, length-bounded summary.
+ * finding H3). Operators get the full message via the structured
+ * pino logger (`request.log.error({ raw, err }, ...)`); clients get a
+ * redacted, length-bounded summary.
  */
 export function redactUpstreamMessage(raw: string | undefined | null): string {
   if (!raw) return "upstream error";

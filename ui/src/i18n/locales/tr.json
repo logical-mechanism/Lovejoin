@@ -378,7 +378,8 @@
     "privacy_p2": "Lovejoin'in bugünkü Preprod kalibrasyonu: paylaşılan fee shard üzerinden <b>N = 3</b> (cüzdan-anonim yol) veya gönderici ücreti kendi cüzdanından öderse <b>N = 4</b>. Üst sınır validator için bir CPU bütçesi meselesidir, güvenlik değil. N = 3'te on tur bağlanmayı yaklaşık 60.000'de bire ve yirmi tur yaklaşık 3,5 milyarda bire indirir. N = 4'te on tur sizi yaklaşık bir milyonda bire, yirmi tur yaklaşık bir trilyonda bire taşır.",
     "withdraw_p1": "Havuzdan çıkmak için, <c>b = [x] · a</c>'nın arkasındaki <c>x</c>'i bildiğinize dair bir <e>Schnorr kanıtı</e> ile <c>mix_box</c> scriptinin sahip dalında mix-box'ı harcarsınız. Schnorr en basit sigma protokolüdür: prover rastgele bir noktaya commit eder, verifier meydan okur, prover yanıtlar. Fiat–Shamir verifier'ın meydan okumasını bir hash ile değiştirerek tüm alışverişi tek bir veri parçası hâline getirir:",
     "withdraw_p2": "<c>c</c>'yi üreten hash <c>tx.outputs</c>'u kapsar; bu da kanıtın imzaladığınız tam hedef adreslere bağlandığı anlamına gelir. Çıktıları değiştirmek <c>c</c>'yi geçersiz kılar, dolayısıyla kötü niyetli bir gönderici çekiminizi istemediğiniz bir yere yönlendiremez. Box'ın kendisinde cüzdan imzası yoktur; yalnızca hedef çıktılar gönderici cüzdanı tarafından (ücreti ödeyen) tx'te yetkilendirilir.",
-    "further_p": "Tam yapı + güvenlik kanıtları <paper>Sigmajoin makalesinde</paper>. On-chain doğrulayıcı <c>contracts/validators/mix_logic.ak</c>'tedir; off-chain builder <c>offchain/src/tx/mix.ts</c>'dir; çapraz dil test vektörleri <c>crypto/test-vectors/</c>'dadır."
+    "further_p": "Tam yapı + güvenlik kanıtları <paper>Sigmajoin makalesinde</paper>. On-chain doğrulayıcı <c>contracts/validators/mix_logic.ak</c>'tedir; off-chain builder <c>offchain/src/tx/mix.ts</c>'dir; çapraz dil test vektörleri <c>crypto/test-vectors/</c>'dadır.",
+    "back_to_top": "Başa dön"
   },
   "vault": {
     "title": "Kasa",

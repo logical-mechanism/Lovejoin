@@ -11,10 +11,23 @@
 //   * docs/spec/06-ui.md §"Withdraw" — preconditions copy when no wallet
 //     is connected.
 //
+// Plus an automated WCAG 2.1 A/AA scan via @axe-core/playwright on every
+// route in this spec. The UI already has good a11y bones (skip link,
+// sr-only h1 per route, ARIA labels on nav, RTL via the locale registry);
+// the axe scan is the regression net for the next change that would
+// otherwise ship a missing label, a colour-contrast slip, or a broken
+// landmark structure.
+//
 // The funded-wallet Preprod flow lives in full-flow.spec.ts (skipped
 // unless E2E_PREPROD_WALLET=1).
 
-import { expect, test } from "@playwright/test";
+import AxeBuilder from "@axe-core/playwright";
+import { expect, test, type Page } from "@playwright/test";
+
+async function expectNoA11yViolations(page: Page) {
+  const results = await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa"]).analyze();
+  expect(results.violations).toEqual([]);
+}
 
 test.describe("M6.5 router smoke", () => {
   test("Home route renders hero + three pillars", async ({ page }) => {
@@ -28,6 +41,7 @@ test.describe("M6.5 router smoke", () => {
     await expect(page.getByRole("heading", { level: 3, name: "Mix" })).toBeVisible();
     await expect(page.getByRole("heading", { level: 3, name: "Withdraw" })).toBeVisible();
     await expect(page.getByRole("navigation", { name: /main/i })).toBeVisible();
+    await expectNoA11yViolations(page);
   });
 
   test("Pool route shows the fee-payer toggle + review block", async ({ page }) => {
@@ -41,6 +55,7 @@ test.describe("M6.5 router smoke", () => {
     // Review block — surfaces the chosen Mix width even before any
     // pool / addresses load (defaults to 2).
     await expect(page.getByText(/Mix width/i).first()).toBeVisible();
+    await expectNoA11yViolations(page);
   });
 
   test("Vault route shows the wallet-derived unlock CTA when locked", async ({ page }) => {
@@ -50,11 +65,13 @@ test.describe("M6.5 router smoke", () => {
     // Tier-2 fallback link is present but de-emphasised. en.json
     // vault.recover_link = "Use a recovery password instead".
     await expect(page.getByRole("button", { name: /recovery password/i })).toBeVisible();
+    await expectNoA11yViolations(page);
   });
 
   test("Deposit route shows preconditions copy when no wallet is connected", async ({ page }) => {
     await page.goto("/deposit");
     await expect(page.getByText(/Connect a wallet/i).first()).toBeVisible();
+    await expectNoA11yViolations(page);
   });
 
   test("/withdraw redirects to /vault (the merged owned-boxes view)", async ({ page }) => {
@@ -64,5 +81,6 @@ test.describe("M6.5 router smoke", () => {
     await page.goto("/withdraw");
     await expect(page).toHaveURL(/\/vault$/);
     await expect(page.getByRole("heading", { name: /Vault locked/i })).toBeVisible();
+    await expectNoA11yViolations(page);
   });
 });

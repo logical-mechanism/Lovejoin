@@ -146,11 +146,19 @@ describe("primeFromDbSync (cold-start orchestrator, issue #87)", () => {
     );
     const state = makeState();
     const warnings: string[] = [];
+    // Pino-shape `warn(obj, msg)` and console-shape `warn(msg)` are
+    // both supported by `PrimeLogger`; the fake captures the message
+    // from whichever overload the production code uses (issue #99
+    // moved prime.ts to the structured form).
+    const captureWarn = (a: object | string, b?: string): void => {
+      if (typeof a === "string") warnings.push(a);
+      else if (typeof b === "string") warnings.push(b);
+    };
     await primeFromDbSync({
       state,
       dbsync,
       params: PRIME_PARAMS,
-      logger: { info: () => {}, warn: (m) => warnings.push(m) },
+      logger: { info: () => {}, warn: captureWarn },
     });
     expect(state.alarm()).toMatch(/reference NFT not observable/);
     expect(warnings.some((w) => w.includes("reference NFT not observed"))).toBe(true);

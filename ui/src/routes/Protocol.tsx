@@ -15,6 +15,7 @@
 // cryptographic material typically leave in place.
 
 import { Trans, useTranslation } from "react-i18next";
+import { useEffect, useState } from "react";
 
 import { Eyebrow } from "../components/ui/Eyebrow.js";
 
@@ -144,6 +145,38 @@ verify:    [s] · a ≟ t + [c] · b`}</code>
           }}
         />
       </p>
+
+      <BackToTopButton />
     </article>
+  );
+}
+
+// Floating back-to-top button. Mirrors the affordance on `Help.tsx`:
+// the protocol page is several screens of math + prose, and a quick
+// jump back to the section list keeps reading flows fast. Visibility
+// threshold matches Help (240px) so the two pages feel identical.
+function BackToTopButton() {
+  const { t } = useTranslation();
+  const [visible, setVisible] = useState(false);
+
+  useEffect(() => {
+    const onScroll = () => setVisible(window.scrollY > 240);
+    onScroll();
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, []);
+
+  if (!visible) return null;
+  return (
+    <button
+      type="button"
+      className="lj-back-to-top"
+      onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
+      aria-label={t("protocol.back_to_top")}
+      title={t("protocol.back_to_top")}
+    >
+      <span aria-hidden="true">↑</span>
+      <span className="lj-back-to-top__label">{t("protocol.back_to_top")}</span>
+    </button>
   );
 }
