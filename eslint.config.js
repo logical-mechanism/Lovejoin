@@ -199,6 +199,19 @@ export default tseslint.config(
     },
   },
 
+  // Backend service code: forbid raw console.* in favour of the
+  // structured pino logger threaded through Fastify (issue #99). The
+  // backend runs in a container with log aggregation; bare console
+  // calls escape level filtering and structured fields. Tests +
+  // scripts are exempt by file-set because their output is read by
+  // humans, not log aggregators.
+  {
+    files: ["backend/src/**/*.{ts,tsx,js,mjs,cjs}"],
+    rules: {
+      "no-console": "error",
+    },
+  },
+
   // Disable every rule Prettier already covers. MUST be last so it
   // wins the rule resolution.
   prettierConfig,
