@@ -215,6 +215,7 @@ export class PostgresDbSyncClient implements DbSyncClient {
     }
     const sql = `
       SELECT
+        tx_out.id::TEXT                       AS tx_out_id,
         ENCODE(tx.hash, 'hex')                AS tx_hash,
         tx_out.index                          AS output_index,
         tx_out.address                        AS address,
@@ -231,6 +232,7 @@ export class PostgresDbSyncClient implements DbSyncClient {
       ORDER BY tx_out.index
     `;
     const result = await this.pool.query<{
+      tx_out_id: string;
       tx_hash: string;
       output_index: number;
       address: string;
@@ -241,14 +243,14 @@ export class PostgresDbSyncClient implements DbSyncClient {
       ref_script_cbor: string | null;
     }>(sql, [txHash.toLowerCase()]);
     if (result.rows.length === 0) return [];
-    const refs = result.rows.map((r) => `${r.tx_hash}:${r.output_index}`);
-    const assets = await this.assetsForUtxos(refs);
+    const txOutIds = result.rows.map((r) => r.tx_out_id);
+    const assets = await this.assetsForUtxos(txOutIds);
     return result.rows.map((r) => ({
       txHash: r.tx_hash,
       outputIndex: r.output_index,
       address: r.address,
       lovelace: BigInt(r.lovelace),
-      assets: assets.get(`${r.tx_hash}:${r.output_index}`) ?? {},
+      assets: assets.get(r.tx_out_id) ?? {},
       inlineDatum: r.inline_datum,
       datumHash: r.datum_hash,
       referenceScriptCbor: r.ref_script_cbor,
@@ -465,6 +467,7 @@ export class PostgresDbSyncClient implements DbSyncClient {
         )`;
     const sql = `
       SELECT
+        tx_out.id::TEXT                       AS tx_out_id,
         ENCODE(tx.hash, 'hex')                AS tx_hash,
         tx_out.index                          AS output_index,
         tx_out.address                        AS address,
@@ -482,6 +485,7 @@ export class PostgresDbSyncClient implements DbSyncClient {
       ORDER BY tx_out.tx_id, tx_out.index
     `;
     const result = await client.query<{
+      tx_out_id: string;
       tx_hash: string;
       output_index: number;
       address: string;
@@ -492,14 +496,14 @@ export class PostgresDbSyncClient implements DbSyncClient {
       ref_script_cbor: string | null;
     }>(sql, [address]);
     if (result.rows.length === 0) return [];
-    const refs = result.rows.map((r) => `${r.tx_hash}:${r.output_index}`);
-    const assets = await this.assetsForUtxos(refs, client);
+    const txOutIds = result.rows.map((r) => r.tx_out_id);
+    const assets = await this.assetsForUtxos(txOutIds, client);
     return result.rows.map((r) => ({
       txHash: r.tx_hash,
       outputIndex: r.output_index,
       address: r.address,
       lovelace: BigInt(r.lovelace),
-      assets: assets.get(`${r.tx_hash}:${r.output_index}`) ?? {},
+      assets: assets.get(r.tx_out_id) ?? {},
       inlineDatum: r.inline_datum,
       datumHash: r.datum_hash,
       referenceScriptCbor: r.ref_script_cbor,
@@ -534,6 +538,7 @@ export class PostgresDbSyncClient implements DbSyncClient {
         )`;
     const sql = `
       SELECT
+        tx_out.id::TEXT                       AS tx_out_id,
         ENCODE(tx.hash, 'hex')                AS tx_hash,
         tx_out.index                          AS output_index,
         tx_out.address                        AS address,
@@ -556,6 +561,7 @@ export class PostgresDbSyncClient implements DbSyncClient {
       LIMIT 1
     `;
     const result = await client.query<{
+      tx_out_id: string;
       tx_hash: string;
       output_index: number;
       address: string;
@@ -567,14 +573,13 @@ export class PostgresDbSyncClient implements DbSyncClient {
     }>(sql, [policyHex, assetNameHex]);
     const row = result.rows[0];
     if (!row) return null;
-    const ref = `${row.tx_hash}:${row.output_index}`;
-    const assets = await this.assetsForUtxos([ref], client);
+    const assets = await this.assetsForUtxos([row.tx_out_id], client);
     return {
       txHash: row.tx_hash,
       outputIndex: row.output_index,
       address: row.address,
       lovelace: BigInt(row.lovelace),
-      assets: assets.get(ref) ?? {},
+      assets: assets.get(row.tx_out_id) ?? {},
       inlineDatum: row.inline_datum,
       datumHash: row.datum_hash,
       referenceScriptCbor: row.ref_script_cbor,
@@ -583,54 +588,45 @@ export class PostgresDbSyncClient implements DbSyncClient {
   }
 
   /**
-   * Pull native-asset rows for a batch of UTxOs in one query. Returns a
-   * map keyed by `${txHash}:${outputIndex}` to a `unit → quantity` map.
-   * Empty for refs with no native assets.
+   * Pull native-asset rows for a batch of UTxOs in one query. Callers
+   * pass `tx_out.id` values (bigint, serialised as TEXT to dodge JS
+   * Number precision) rather than `(txHash, outputIndex)` tuples — the
+   * earlier shape forced a hash-join across `tx_out × tx` and wrapped
+   * `tx.hash` in `ENCODE(...)`, which defeated the `tx_unique` index
+   * and timed prime out twice in production. Going through the
+   * integer PK lets postgres index-scan `ma_tx_out_tx_out_id_idx`
+   * directly. Returns a map keyed by `tx_out_id` (TEXT) to a
+   * `unit → quantity` map. Empty for ids with no native assets.
    */
   private async assetsForUtxos(
-    refs: string[],
+    txOutIds: string[],
     client?: pg.PoolClient,
   ): Promise<Map<string, Record<string, bigint>>> {
-    if (refs.length === 0) return new Map();
-    // Build (txHash, outputIndex) tuples; the SQL unnests two parallel
-    // arrays so postgres planner can index-scan each tx_out row.
-    const txHashes: string[] = [];
-    const outputIndices: number[] = [];
-    for (const ref of refs) {
-      const [hash, idx] = ref.split(":");
-      txHashes.push(hash!);
-      outputIndices.push(Number(idx));
-    }
+    if (txOutIds.length === 0) return new Map();
     const sql = `
       SELECT
-        ENCODE(tx.hash, 'hex')    AS tx_hash,
-        tx_out.index              AS output_index,
+        mto.tx_out_id::TEXT       AS tx_out_id,
         ENCODE(ma.policy, 'hex')  AS policy,
         ENCODE(ma.name, 'hex')    AS asset_name,
         SUM(mto.quantity)::TEXT   AS quantity
       FROM ma_tx_out mto
       JOIN multi_asset ma ON mto.ident = ma.id
-      JOIN tx_out ON mto.tx_out_id = tx_out.id
-      JOIN tx     ON tx_out.tx_id  = tx.id
-      WHERE (ENCODE(tx.hash, 'hex'), tx_out.index)
-            IN (SELECT * FROM UNNEST($1::text[], $2::int[]))
-      GROUP BY tx.hash, tx_out.index, ma.policy, ma.name
+      WHERE mto.tx_out_id = ANY($1::bigint[])
+      GROUP BY mto.tx_out_id, ma.policy, ma.name
     `;
     const runner = client ?? this.pool;
     const result = await runner.query<{
-      tx_hash: string;
-      output_index: number;
+      tx_out_id: string;
       policy: string;
       asset_name: string;
       quantity: string;
-    }>(sql, [txHashes, outputIndices]);
+    }>(sql, [txOutIds]);
     const out = new Map<string, Record<string, bigint>>();
     for (const r of result.rows) {
-      const key = `${r.tx_hash}:${r.output_index}`;
       const unit = `${r.policy}${r.asset_name}`;
-      const bag = out.get(key) ?? {};
+      const bag = out.get(r.tx_out_id) ?? {};
       bag[unit] = BigInt(r.quantity);
-      out.set(key, bag);
+      out.set(r.tx_out_id, bag);
     }
     return out;
   }

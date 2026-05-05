@@ -87,11 +87,22 @@ export async function main(): Promise<void> {
         logger: indexerLogger,
       });
     } catch (err) {
-      indexerLogger.warn({ err }, "prime: db-sync prime failed; falling back to chainsync replay");
+      // Issue #107: prime regressed twice in production with the
+      // fallback silently kicking in at `warn`. The replay path
+      // costs many hours of catch-up before `/pool` returns real
+      // data, so an alerting tier needs to see this. `error` plus
+      // a structured `mode` field makes a one-line monitoring rule
+      // trivial. The DBSYNC_URL-missing branch below stays at
+      // `warn` because it's an operator config choice, not a
+      // regression.
+      indexerLogger.error(
+        { err, mode: "chainsync_replay", cause: "dbsync_prime_failed" },
+        "prime: db-sync prime failed; falling back to chainsync replay",
+      );
     }
   } else if (coldStartMode === "prime" && !dbsync) {
     indexerLogger.warn(
-      { reason: "DBSYNC_URL not configured" },
+      { reason: "DBSYNC_URL not configured", mode: "chainsync_replay" },
       "prime: INDEXER_COLD_START=prime requested but disabled; falling back to chainsync replay",
     );
   }
