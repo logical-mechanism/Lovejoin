@@ -179,22 +179,96 @@ describe("tx/withdraw — encodeOwnerRedeemer", () => {
 });
 
 describe("tx/withdraw — computeOwnerCtx", () => {
-  it("hashes outputs ‖ mix_script_hash with blake2b-256", () => {
+  it("hashes outputs ‖ input_refs ‖ mix_script_hash with blake2b-256", () => {
     const outputsCbor = new Uint8Array([0xde, 0xad, 0xbe, 0xef]);
+    const inputRefsCbor = new Uint8Array([0xca, 0xfe, 0xba, 0xbe]);
     const mixHash = "ba176a7604f3e062a7ed315780801495ed0ffb0191c6f8e7d88362e2";
-    const ctx = computeOwnerCtx({ outputsCbor, mixScriptHashHex: mixHash });
+    const ctx = computeOwnerCtx({ outputsCbor, inputRefsCbor, mixScriptHashHex: mixHash });
     // Independent recomputation of the expected hash.
     const hashBytes = Buffer.from(mixHash, "hex");
-    const preimage = new Uint8Array(outputsCbor.length + hashBytes.length);
+    const preimage = new Uint8Array(outputsCbor.length + inputRefsCbor.length + hashBytes.length);
     preimage.set(outputsCbor, 0);
-    preimage.set(hashBytes, outputsCbor.length);
+    preimage.set(inputRefsCbor, outputsCbor.length);
+    preimage.set(hashBytes, outputsCbor.length + inputRefsCbor.length);
     expect(ctx).toEqual(blake2b256(preimage));
+  });
+
+  it("differs when input_refs differ — F-4 binding (replay regression)", () => {
+    // Two ctxs with identical outputs + mix-script-hash but different
+    // input_refs MUST produce distinct digests; otherwise duplicate-(a,b)
+    // mix-boxes would be replayable across txs that share an output set.
+    const outputsCbor = new Uint8Array([0xde, 0xad, 0xbe, 0xef]);
+    const mixHash = "ba176a7604f3e062a7ed315780801495ed0ffb0191c6f8e7d88362e2";
+    const ctx1 = computeOwnerCtx({
+      outputsCbor,
+      inputRefsCbor: new Uint8Array([0x01]),
+      mixScriptHashHex: mixHash,
+    });
+    const ctx2 = computeOwnerCtx({
+      outputsCbor,
+      inputRefsCbor: new Uint8Array([0x02]),
+      mixScriptHashHex: mixHash,
+    });
+    expect(Buffer.from(ctx1)).not.toEqual(Buffer.from(ctx2));
   });
 
   it("rejects misshaped mix script hashes", () => {
     expect(() =>
-      computeOwnerCtx({ outputsCbor: new Uint8Array(0), mixScriptHashHex: "ab".repeat(20) }),
+      computeOwnerCtx({
+        outputsCbor: new Uint8Array(0),
+        inputRefsCbor: new Uint8Array(0),
+        mixScriptHashHex: "ab".repeat(20),
+      }),
     ).toThrow(/28 bytes/);
+  });
+});
+
+describe("tx/withdraw — F-4 input-refs binding (prover round-trip)", () => {
+  // Cryptographic regression for audit F-4 (next-redeploy bundle Q-1):
+  // an Owner Schnorr proof signed against ctx_1 = blake2b(outs || refs_1
+  // || mix_script_hash) must NOT verify against ctx_2 derived from a
+  // different input-ref set (refs_2). Pre-fix the ctx hashed only outs +
+  // mix_script_hash; a malicious depositor publishing a duplicate-(a, b)
+  // mix-box could replay an owner's proof to drain the duplicate. The
+  // Aiken-side regression lives in
+  // contracts/validators/f4_regression_kat.test.ak; this is the
+  // off-chain twin (the issue requires both per docs/next-redeploy.md
+  // Q-1 verification).
+  it("proof bound to refs_1 fails verify when ctx is recomputed with refs_2", () => {
+    const { a, b } = ab();
+    const aPoint = pointFromBytes(a);
+    const bPoint = pointFromBytes(b);
+    const outputsCbor = new Uint8Array([0x80]); // serialise_data([])
+    const mixHash = "55".repeat(28);
+    // Hand-rolled canonical Plutus-Data CBOR for [OutputReference{...}].
+    // (The encoding-parity tests pin this byte format against Aiken.)
+    const refsCbor = (txIdHex: string, idx: number): Uint8Array => {
+      const txId = Buffer.from(txIdHex, "hex");
+      if (txId.length !== 32) throw new Error("expected 32-byte tx id");
+      const idxByte = idx < 24 ? Uint8Array.of(idx) : Uint8Array.of(0x18, idx);
+      return new Uint8Array([0x9f, 0xd8, 0x79, 0x9f, 0x58, 0x20, ...txId, ...idxByte, 0xff, 0xff]);
+    };
+    const refs1 = refsCbor("aa".repeat(32), 0);
+    const refs2 = refsCbor("bb".repeat(32), 0);
+    const ctx1 = computeOwnerCtx({
+      outputsCbor,
+      inputRefsCbor: refs1,
+      mixScriptHashHex: mixHash,
+    });
+    const ctx2 = computeOwnerCtx({
+      outputsCbor,
+      inputRefsCbor: refs2,
+      mixScriptHashHex: mixHash,
+    });
+    expect(Buffer.from(ctx1)).not.toEqual(Buffer.from(ctx2));
+    const proof = generateOwnerSchnorrProof({ ownerSecret: SECRET, a, b, ctx: ctx1 });
+    // Positive control: proof verifies against the ctx it was signed
+    // against (sanity for the test fixture itself).
+    expect(verifySchnorr(aPoint, bPoint, proof, ctx1)).toBe(true);
+    // F-4 regression: replay against a tx with a different input ref
+    // set must fail. Pre-fix this would have passed because ctx didn't
+    // depend on inputs[].output_reference.
+    expect(verifySchnorr(aPoint, bPoint, proof, ctx2)).toBe(false);
   });
 });
 

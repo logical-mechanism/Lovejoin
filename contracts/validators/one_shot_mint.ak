@@ -4,8 +4,18 @@
 ////
 //// Parameterized by a seed `OutputReference`: the policy permits a single mint event
 //// in which (a) the seed UTxO is consumed and (b) exactly one token is minted under
-//// this policy. After the seed UTxO is consumed once, the policy can never fire
-//// again — this is what makes the reference NFT a one-of-one for life.
+//// this policy at the canonical asset name `"lovejoin"`. After the seed UTxO is
+//// consumed once, the policy can never fire again — this is what makes the
+//// reference NFT a one-of-one for life.
+////
+//// Audit F-17 (next-redeploy bundle Q-2): the asset name is baked into the
+//// validator (`#"6c6f76656a6f696e"` = ASCII "lovejoin"). Pre-fix it was
+//// supplied at bootstrap time via the `REF_NFT_ASSET_NAME` env-var; a typo
+//// would mint the protocol NFT under a non-canonical name and the rest of
+//// the bootstrap (which derives addresses from `(policy, name)`) would
+//// silently sail past the mistake. With the literal baked in, the policy
+//// id captures the protocol's identity and the asset name is no longer a
+//// runtime degree of freedom.
 
 use aiken/collection/dict
 use aiken/collection/list
@@ -24,19 +34,17 @@ validator one_shot_mint(seed_tx_id: TransactionId, seed_idx: Int) {
       self.inputs
         |> list.any(fn(input) { input.output_reference == seed })
 
-    // Exactly one asset name under this policy with quantity 1. Tightening past
-    // a simple sum rules out `[(n1, 2), (n2, -1)]`-style mints that the ledger's
-    // balancing already blocks in practice but that the spec ("exactly one NFT")
-    // is unambiguous about.
+    // Exactly one (asset_name, quantity) pair under this policy. The
+    // pattern-match on `[Pair(_, _)]` enforces dict size == 1, so the
+    // explicit size check folds away. Asset name is pinned to
+    // `"lovejoin"` (hex 6c6f76656a6f696e); quantity is pinned to 1.
     let tokens_under_policy = assets.tokens(self.mint, policy_id)
-    let total_minted =
-      tokens_under_policy
-        |> dict.foldr(0, fn(_asset_name, quantity, acc) { quantity + acc })
+    expect [Pair(asset_name, quantity)] = tokens_under_policy |> dict.to_pairs
 
     and {
       seed_consumed,
-      dict.size(tokens_under_policy) == 1,
-      total_minted == 1,
+      asset_name == #"6c6f76656a6f696e",
+      quantity == 1,
     }
   }
 

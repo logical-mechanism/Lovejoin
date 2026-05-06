@@ -31,6 +31,7 @@
     "cli": "tsx src/cli/index.ts",
     "docs:sdk": "typedoc",
     "gen:parity": "tsx scripts/gen-encoding-parity.ts",
+    "gen:f4-regression": "tsx scripts/gen-f4-regression.ts",
     "gen:schnorr-kat": "tsx scripts/gen-schnorr-kat.ts",
     "gen:dhtuple-kat": "tsx scripts/gen-dhtuple-kat.ts",
     "gen:sigmaor-kat": "tsx scripts/gen-sigmaor-kat.ts",

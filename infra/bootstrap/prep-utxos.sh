@@ -8,7 +8,9 @@
 #                                     ada-only, returned by the ledger under
 #                                     happy path so it persists across stages
 #   C (SEED):               ~7 ADA  — consumed by one_shot_mint in stage 2
-#   D (FUNDING_STAGE3):   ~45 ADA  — 03-fund-fee-contract's funding
+#   D (FUNDING_STAGE3):   ~55 ADA  — 03-fund-fee-contract's funding
+#                                   (10 shards × 5 ADA + ~5 ADA buffer
+#                                   for tx fee + change min-utxo).
 #
 # After this tx confirms, query the wallet (`cardano-cli query utxo`) and copy
 # the four UTxO refs into the env vars listed at the bottom.
@@ -40,7 +42,7 @@
 #   STAGE1_LOVELACE    — default 85_000_000
 #   COLLATERAL_LOVELACE — default 10_000_000
 #   SEED_LOVELACE      — default  7_000_000
-#   STAGE3_LOVELACE    — default 45_000_000
+#   STAGE3_LOVELACE    — default 55_000_000
 
 set -euo pipefail
 
@@ -63,7 +65,7 @@ PAYMENT_SKEY="${PAYMENT_SKEY:?PAYMENT_SKEY required}"
 STAGE1_LOVELACE="${STAGE1_LOVELACE:-85000000}"
 COLLATERAL_LOVELACE="${COLLATERAL_LOVELACE:-10000000}"
 SEED_LOVELACE="${SEED_LOVELACE:-7000000}"
-STAGE3_LOVELACE="${STAGE3_LOVELACE:-45000000}"
+STAGE3_LOVELACE="${STAGE3_LOVELACE:-55000000}"
 
 REPO_ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 ARTIFACTS_DIR="$REPO_ROOT/artifacts/$NETWORK"

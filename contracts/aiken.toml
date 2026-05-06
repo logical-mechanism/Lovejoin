@@ -15,4 +15,12 @@ name = "aiken-lang/stdlib"
 version = "v3.1.0"
 source = "github"
 
+# Property-based testing — used by Q-3 (audit F-19) fuzz tests over
+# decoders, value normalization, and sigma-OR XOR fold. See
+# contracts/lib/lovejoin/*_fuzz.test.ak.
+[[dependencies]]
+name = "aiken-lang/fuzz"
+version = "v2.2.0"
+source = "github"
+
 [config]
