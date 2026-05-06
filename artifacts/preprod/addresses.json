@@ -5,19 +5,31 @@
     "max_fee_per_mix_lovelace": 2000000,
     "fee_shard_target": 10
   },
-  "referenceNftPolicy": "fc5de619ab0a1ec45f4dfcfc57f3e7e4f8a4b2596f18b354cc17333b",
+  "referenceNftPolicy": "e901e8e91d11ec91e29090cede62c2474373ef6cd8b6edd26cc94f35",
   "referenceNftAssetName": "6c6f76656a6f696e",
-  "referenceUtxoRef": "6a42da7f6cfbd5f7daa23d031aac4b44e93f953669248b9cd7781347a296fe5c#0",
-  "referenceHolderScriptHash": "cc664ac3a200dfc4587c85940bd54c887a800851fbfdb545a45d0187",
-  "mixLogicScriptHash": "ebfd633af2d483762bb217b17d4f527713c487e9f496e4763c17f234",
-  "mixBoxScriptHash": "9c50ce8ab2816ce5e2d6789e2918cd5a4abe0b18b6fda979a4efb9c5",
-  "feeScriptHash": "f27c0202e7e2c7a62ce476acd28b9497669e3a8ab7c94658382c6c03",
+  "referenceUtxoRef": "98a623a697dbf4eedce82dab3065553b364bccc27304cc3fab89126b7045fbcd#0",
+  "referenceHolderScriptHash": "48a9800e5e9bca75f038cd64a75daed6a60d06c28c362b8c0733bee4",
+  "mixLogicScriptHash": "c8ab33a593a8bb3912b36d9696e9b73e4c57b341c72ecbe01fb6b361",
+  "mixBoxScriptHash": "13e29f06526fa1ad42e89f85f07febc239c293a4585b88f5c440a2bd",
+  "feeScriptHash": "1a97d573875487d46d1c8593529e607c21ac25165a87deccb7224e64",
   "feeShardUtxos": [
-    "bb6bab8f24ed457c2cb3488f1d714e3c35c9812d5421064e831e88354927566d#0"
+    "9f6a5920d84515b7f7cd83dd6af36d9577d2691a9406dee11bd86ff0fc5e52fd#0",
+    "9f6a5920d84515b7f7cd83dd6af36d9577d2691a9406dee11bd86ff0fc5e52fd#1",
+    "9f6a5920d84515b7f7cd83dd6af36d9577d2691a9406dee11bd86ff0fc5e52fd#2",
+    "9f6a5920d84515b7f7cd83dd6af36d9577d2691a9406dee11bd86ff0fc5e52fd#3",
+    "9f6a5920d84515b7f7cd83dd6af36d9577d2691a9406dee11bd86ff0fc5e52fd#4",
+    "9f6a5920d84515b7f7cd83dd6af36d9577d2691a9406dee11bd86ff0fc5e52fd#5",
+    "9f6a5920d84515b7f7cd83dd6af36d9577d2691a9406dee11bd86ff0fc5e52fd#6",
+    "9f6a5920d84515b7f7cd83dd6af36d9577d2691a9406dee11bd86ff0fc5e52fd#7",
+    "9f6a5920d84515b7f7cd83dd6af36d9577d2691a9406dee11bd86ff0fc5e52fd#8",
+    "9f6a5920d84515b7f7cd83dd6af36d9577d2691a9406dee11bd86ff0fc5e52fd#9"
   ],
   "referenceScriptUtxos": {
-    "mix_box": "9b6bd243b41520447af2b51815bc0e8e123e9baeb8ff81c91478af13243687e2#0",
-    "mix_logic": "bfef1be624a5d15bd4065102449e02a0350dce0b365f12d3e26c4cb9b6da4997#0",
-    "fee_contract": "1a63a3f5c932752df8d63b2c936fe89a93ccbbfb07a454920a520401811ed6fa#0"
-  }
+    "mix_box": "c1c7759505ca9aecba12d5913b6cf9822d6d710ca982272607b5a56dc1216e14#0",
+    "mix_logic": "0222b84dbc53ce9fd069c12253968b3c2d16f3ae3c08857b13f65ee1499e595e#0",
+    "fee_contract": "015385452784bc043063be98ebd3d3a4e0ff5d16adab5588149ced5f7b386e0a#0"
+  },
+  "dappStakeKeyHashHex": "86c769419aaa673c963da04e4b5bae448d490e2ceac902cb82e4da76",
+  "stage1ChangeUtxo": "015385452784bc043063be98ebd3d3a4e0ff5d16adab5588149ced5f7b386e0a#1",
+  "mixLogicRegisterTx": "6c79baa160aaf966ba9789b50253d10d10319445c4884f57e81bf0a83ead7ba7"
 }

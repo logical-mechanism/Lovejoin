@@ -10,7 +10,7 @@
 # That keeps fee overhead low and makes the resulting feeShardUtxos
 # trivially `[<txid>#0, …, <txid>#(N-1)]`.
 #
-# Inputs (env):
+# Inputs (env or first positional):
 #   NETWORK            — "preprod" | "test" (default: preprod)
 #   TESTNET_MAGIC      — default 1 (Preprod)
 #   BOOTSTRAP_ADDR     — wallet supplying lovelace; receives the change
@@ -18,7 +18,9 @@
 #   FUNDING_STAGE3     — "<txid>#<idx>" funding UTxO; the rest goes to change.
 #                        Must hold ≥ N × SHARD_LOVELACE + tx fee (≈ 1 ADA).
 #   SHARD_LOVELACE     — lovelace at each shard (default: 5_000_000 = 5 ADA)
-#   SHARD_COUNT        — number of shards to seed (default: 10)
+#   SHARD_COUNT        — number of shards to seed (default: 10).
+#                        Also accepted as the first positional arg:
+#                        `./03-fund-fee-contract.sh 5` → SHARD_COUNT=5.
 #
 # Reads:
 #   artifacts/<network>/{fee_contract.plutus, addresses.json}
@@ -39,7 +41,7 @@ PAYMENT_SKEY="${PAYMENT_SKEY:?}"
 FUNDING_STAGE3="${FUNDING_STAGE3:?FUNDING_STAGE3 required (run ./balance.sh to see the four export lines)}"
 
 SHARD_LOVELACE="${SHARD_LOVELACE:-5000000}"
-SHARD_COUNT="${SHARD_COUNT:-10}"
+SHARD_COUNT="${SHARD_COUNT:-${1:-10}}"
 
 if ! [[ "$SHARD_COUNT" =~ ^[1-9][0-9]*$ ]]; then
   echo "03-fund-fee-contract: SHARD_COUNT must be a positive integer (got: $SHARD_COUNT)" >&2
