@@ -124,7 +124,7 @@ Workspace tool: **pnpm 10**. Top-level [Makefile](Makefile) is the canonical ent
 
 Everything that talks to chain (SDK, UI, integration tests, stress tests, backend itself) goes through the [`ChainProvider`](offchain/src/chain/provider.ts) interface: `submitTx`, `getUtxos`, `awaitConfirmation`, `getReferenceUtxo`, `getProtocolParams`. Two implementations exist:
 
-- [`BlockfrostProvider`](offchain/src/chain/blockfrost.ts): the default, drives the alpha.
+- [`BlockfrostProvider`](offchain/src/chain/blockfrost.ts): the default, drives the live Preprod deployment.
 - The self-hosted backend ([backend/src/indexer](backend/src/indexer) + [backend/src/api](backend/src/api)).
 
 They are runtime-swappable via `network.<net>.json`'s `provider` block. **Implication for new code:** never call Blockfrost directly. Add capabilities to `ChainProvider` and let the backend grow a matching implementation.
