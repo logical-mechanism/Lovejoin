@@ -276,7 +276,7 @@ export function Pool() {
             <div className="lj-empty">
               <p className="lj-empty__title">{t("pool.empty_title")}</p>
               <p>{t("pool.empty_hint")}</p>
-              <div className="mt-5 flex justify-center">
+              <div className="mt-5">
                 <Link to="/deposit" className="lj-btn lj-btn--primary lj-btn--lg">
                   {t("pool.empty_cta")}
                 </Link>

@@ -122,7 +122,7 @@ export function WalletModal({ open, onClose, onConnected }: WalletModalProps) {
                   disabled={busyId !== null}
                   aria-busy={isConnecting}
                   aria-label={t("wallet.connect_to", { name: w.name || w.id })}
-                  className={`flex w-full items-center gap-3 px-1 py-3 text-left transition-colors hover:bg-surface disabled:cursor-not-allowed ${
+                  className={`flex w-full items-center gap-3 px-1 py-3 text-start transition-colors hover:bg-surface disabled:cursor-not-allowed ${
                     isOtherBusy ? "opacity-40" : ""
                   }`}
                 >
