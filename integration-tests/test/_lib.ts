@@ -1,6 +1,6 @@
 // Shared helpers for the M4 integration tests on Preprod.
 //
-// Spec: docs/spec/09-milestones.md M4 — "Mix tx with n = max_n succeeds",
+// Spec: M4 — "Mix tx with n = max_n succeeds",
 // "Mix tx with n = 2 succeeds", "Mix when fee shard has just enough;
 // rejects when below MAX_FEE_PER_MIX", "full-lifecycle".
 //

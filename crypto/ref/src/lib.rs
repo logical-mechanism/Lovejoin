@@ -2,7 +2,7 @@
 //! independent implementations (TS prover/verifier in `offchain/src/crypto/`,
 //! Aiken verifier in `contracts/lib/lovejoin/`, Rust ref here).
 //!
-//! Spec: `docs/spec/02-cryptography.md`. Curve: BLS12-381 G1.
+//! Curve: BLS12-381 G1.
 //!
 //! This crate's job is narrow but load-bearing: read the canonical KAT vectors
 //! emitted by the TS prover and assert the Sigmajoin math accepts every

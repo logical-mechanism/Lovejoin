@@ -1,7 +1,7 @@
 // Composite indexer state — pool, fee shards, reference UTxO, plus a
 // rolling buffer of recent block diffs for rollback recovery.
 //
-// Spec: docs/spec/05-backend.md §"Indexer", §"Rollback handling".
+// Spec: §"Indexer", §"Rollback handling".
 //
 // Design:
 //   - The chainsync emits forward / backward events. Forward events

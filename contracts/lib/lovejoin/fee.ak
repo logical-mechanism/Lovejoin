@@ -1,6 +1,6 @@
 //// Fee-shard helpers.
 ////
-//// Spec: docs/spec/03-contracts.md §0 Rule 2 (hyperstructure datum
+//// Spec: §0 Rule 2 (hyperstructure datum
 //// tolerance), §3.
 ////
 //// `fee_contract`'s legitimate datum is the unit constructor `()`. Any other

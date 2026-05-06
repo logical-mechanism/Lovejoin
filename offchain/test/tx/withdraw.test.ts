@@ -232,8 +232,7 @@ describe("tx/withdraw — F-4 input-refs binding (prover round-trip)", () => {
   // mix-box could replay an owner's proof to drain the duplicate. The
   // Aiken-side regression lives in
   // contracts/validators/f4_regression_kat.test.ak; this is the
-  // off-chain twin (the issue requires both per docs/next-redeploy.md
-  // Q-1 verification).
+  // off-chain twin.
   it("proof bound to refs_1 fails verify when ctx is recomputed with refs_2", () => {
     const { a, b } = ab();
     const aPoint = pointFromBytes(a);

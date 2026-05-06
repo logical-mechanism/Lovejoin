@@ -1,6 +1,6 @@
 // Backend configuration: env vars + the bootstrap-produced addresses.json.
 //
-// Spec: docs/spec/05-backend.md §"Environment / config".
+// Spec: §"Environment / config".
 //
 // We load addresses.json once at startup. Re-bootstrapping the protocol
 // produces a new file; the indexer should be restarted to pick it up. That

@@ -505,7 +505,7 @@
     "faq": {
       "intro_p1": "Respostas curtas. O <a1>guia do usuário</a1> cobre cada tópico em mais detalhe.",
       "safe_h": "Meu ADA está seguro?",
-      "safe_p2": "O protocolo não pode perder seus fundos para ninguém além do detentor do seu owner secret. O validador da mix-box só libera uma box mediante prova Schnorr de conhecimento do segredo por trás dela; transações de mix apenas re-aleatorizam os bytes; os contratos não têm admin key, caminho de upgrade nem confiança externa. <b>Consulte o repositório do projeto para o status atual de auditoria e bug bounty.</b>",
+      "safe_p2": "O protocolo não pode perder seus fundos para ninguém além do detentor do seu owner secret. O validador da mix-box só libera uma box mediante prova Schnorr de conhecimento do segredo por trás dela; transações de mix apenas re-aleatorizam os bytes; os contratos não têm admin key, caminho de upgrade nem confiança externa. <b>O protocolo não passou por auditoria independente de terceiros e não há programa de bug bounty. O código é aberto e a matemática está no artigo. Use de acordo.</b>",
       "safe_p3": "O modo de falha mais provável é <b>você</b> perder o acesso ao seu segredo de dono. O cofre derivado da carteira torna isso difícil (sua carteira é o backup), mas o fallback de senha de recuperação torna fácil se você escolher uma fraca e alguém fizer força bruta offline contra seu endereço de stake público.",
       "vault_h": "O que é um cofre?",
       "vault_p1": "O cofre é a contabilidade no navegador que rastreia quais mix-boxes são suas. Ele não guarda ADA. Guarda um contador de derivação que, junto com uma assinatura que sua carteira produz no primeiro desbloqueio, permite o Lovejoin re-derivar cada segredo de dono que você já gerou.",

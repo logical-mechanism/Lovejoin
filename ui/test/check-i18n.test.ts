@@ -1,6 +1,6 @@
 // Sanity check for the i18n lint script.
 //
-// Spec: docs/spec/06-ui.md §"i18n from day one" — the lint must reject raw
+// Spec: §"i18n from day one" — the lint must reject raw
 // English in JSX. We invoke the script as a subprocess against the live
 // src/ tree (positive case) plus a fake file with a raw string (negative).
 //

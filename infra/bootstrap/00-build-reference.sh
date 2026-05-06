@@ -3,8 +3,6 @@
 # UTxO and emit deployable .plutus TextEnvelopes + script hashes into
 # artifacts/<network>/.
 #
-# Spec: docs/spec/03-contracts.md §4.
-#
 # Parameter chain (each step's hash flows into the next):
 #
 #     one_shot_mint(seed_tx_id, seed_idx)            → policy_id (= reference NFT policy)

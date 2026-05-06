@@ -1,6 +1,6 @@
 //// Schnorr / proveDlog verifier.
 ////
-//// Spec: docs/spec/02-cryptography.md §"Schnorr / proveDlog".
+//// Spec: §"Schnorr / proveDlog".
 ////
 //// Statement: prover knows `x ∈ Z_r` such that `u = [x]·base`.
 //// Verifier accepts iff `[z]·base == t + [c]·u`, where

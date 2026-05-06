@@ -1,6 +1,6 @@
 // "Mix N random boxes" button — the Pool screen's primary CTA.
 //
-// Spec: docs/spec/06-ui.md §"Pool" + M6.5 — picks N boxes uniformly at
+// Spec: §"Pool" + M6.5 — picks N boxes uniformly at
 // random from the pool, picks a fee shard, requests collateral, builds +
 // submits the Mix tx. M6.5 restored the fee-payer toggle (shard | wallet)
 // the M6 implementation hard-coded.

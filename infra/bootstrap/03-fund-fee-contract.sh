@@ -2,8 +2,7 @@
 # 03-fund-fee-contract.sh — seed N fee shards at the fee_contract address,
 # each carrying SHARD_LOVELACE and an inline () datum. The SDK + backend
 # pick a shard uniformly at random per Mix tx, so N controls the
-# concurrency ceiling. Spec calls for N=10 (docs/spec/03-contracts.md §3),
-# matched by docs/next-redeploy.md and infra/bootstrap/README.md.
+# concurrency ceiling. The protocol calls for N=10.
 #
 # All N shards are minted in a single tx (one funding input → N script
 # outputs at positions 0..N-1, plus a change output to BOOTSTRAP_ADDR).

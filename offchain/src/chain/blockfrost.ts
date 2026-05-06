@@ -1,6 +1,6 @@
 // Blockfrost-backed implementation of `ChainProvider`.
 //
-// Spec: docs/spec/09-milestones.md M2 notes — Blockfrost is the v1 chain
+// Spec: M2 notes — Blockfrost is the v1 chain
 // provider; the same interface gets a second self-hosted implementation in M5.
 //
 // Why hand-rolled vs mesh's `BlockfrostProvider`: we need a stable, narrow

@@ -1,6 +1,6 @@
 // Protocol page — explains how Lovejoin works, with the math.
 //
-// Spec: docs/spec/02-cryptography.md + papers/sigmajoin.pdf, condensed
+// Spec: + papers/sigmajoin.pdf, condensed
 // for a non-academic reader. The goal isn't a full security proof — that
 // lives in the paper — it's a self-contained walkthrough that someone
 // who knows what an elliptic-curve point is can read in five minutes.

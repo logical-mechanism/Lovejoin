@@ -505,7 +505,7 @@
     "faq": {
       "intro_p1": "Short answers. The <a1>user guide</a1> covers each topic in more detail.",
       "safe_h": "Is my ADA safe?",
-      "safe_p2": "The protocol cannot lose your funds to any party other than the holder of your owner secret. The mix-box validator only releases a box to a Schnorr proof of knowledge of the secret behind it; mix transactions only re-randomize the bytes; the contracts have no admin key, no upgrade path, and no external trust. <b>See the project repository for current audit and bug-bounty status.</b>",
+      "safe_p2": "The protocol cannot lose your funds to any party other than the holder of your owner secret. The mix-box validator only releases a box to a Schnorr proof of knowledge of the secret behind it; mix transactions only re-randomize the bytes; the contracts have no admin key, no upgrade path, and no external trust. <b>The protocol has not undergone an independent third-party audit, and there is no bug bounty program. The code is open and the math is in the paper. Use accordingly.</b>",
       "safe_p3": "The likeliest failure mode is <b>you</b> losing access to your owner secret. The wallet-derived vault makes this hard (your wallet is the backup), but the recovery-password fallback makes it easy if you choose a weak password and someone offline-brute-forces it against your public stake address.",
       "vault_h": "What is a vault?",
       "vault_p1": "The vault is the in-browser bookkeeping that tracks which mix-boxes belong to you. It does not hold ADA. It holds a derivation counter that, combined with one signature your wallet produces on first unlock, lets Lovejoin re-derive every owner secret you ever generated.",

@@ -1,7 +1,7 @@
 // Wallet adapter — mesh integration for CIP-30 (browser) and server-side
 // wallets (CLI keys, mnemonic).
 //
-// Spec: docs/spec/04-offchain.md §"Package layout" and §"Wallet integration".
+// Spec: §"Package layout" and §"Wallet integration".
 //
 // The tx builders in `tx/{deposit,withdraw,mix}.ts` consume a structural
 // `LovejoinWallet` interface — the minimum surface they need to fund inputs,

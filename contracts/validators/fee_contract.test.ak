@@ -1,6 +1,6 @@
 //// `fee_contract` tests — every rule in spec §3 covered with positive + negative.
 ////
-//// Spec: docs/spec/03-contracts.md §0 Rule 2 (datum tolerance), §3.
+//// Spec: §0 Rule 2 (datum tolerance), §3.
 
 use aiken/collection/list
 use cardano/address.{Script}

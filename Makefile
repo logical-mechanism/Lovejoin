@@ -1,5 +1,5 @@
 # Lovejoin top-level Makefile.
-# See docs/spec/12-build-guide.md for the per-milestone build order.
+# See CLAUDE.md for the conventions and the build-history record.
 
 PNPM ?= pnpm
 AIKEN ?= aiken

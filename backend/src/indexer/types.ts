@@ -1,4 +1,4 @@
-// Indexer state shapes. Spec: docs/spec/05-backend.md §"Models".
+// Indexer state shapes. Spec:  §"Models".
 //
 // Kept separate from the model implementations so tests / API routes can
 // import the types without dragging in the chainsync runtime.

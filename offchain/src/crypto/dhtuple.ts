@@ -1,4 +1,4 @@
-// proveDHTuple (Sigmajoin paper §2.2; Lovejoin spec docs/spec/02-cryptography.md).
+// proveDHTuple (Sigmajoin paper §2.2; Lovejoin spec ).
 //
 // Statement: prover knows `x ∈ Z_r` such that `u = [x]·g` AND `v = [x]·h`,
 // for given `(g, h, u, v)`. In Mix branch terms: g=a, h=b, u=a', v=b', witness y.

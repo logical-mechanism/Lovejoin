@@ -52,10 +52,10 @@ chronological order.
 **Question:** can `@meshsdk/core@1.8.14`'s `MeshTxBuilder` build the three
 Lovejoin tx shapes — Deposit, Withdraw, and (the harder one) Mix?
 
-**Method:** static read of mesh's TS surface against the spec's tx
-diagrams (docs/spec/01-protocol.md), plus type-level wiring in
+**Method:** static read of mesh's TS surface against the three tx
+shapes, plus type-level wiring in
 `offchain/src/tx/{deposit,withdraw}.ts` against `MeshTxBuilder`'s
-fluent API. No Preprod submission yet — that is the M3 integration
+fluent API. No Preprod submission yet; that is the M3 integration
 test's job, not the SDK module's.
 
 **Findings:**
@@ -152,8 +152,9 @@ redeploy + `max-n-calibration` re-run + `max_n` bump in
 `config/network.preprod.json` is the operator step that closes the
 milestone.
 
-**What shipped** (see [`docs/perf-m4-5-audit.md`](perf-m4-5-audit.md)
-for the full audit + reject list):
+**What shipped** (the full audit + reject list lived alongside this
+file during the M4.5 squeeze; the optimisations themselves are the
+record now):
 
 1. `sigma_or.verify_pre` no longer allocates two N-element wrapper
    lists per call (was: `stmt_for_hash`, `commitments_for_hash`
@@ -247,11 +248,9 @@ estimated from suite numbers):
 | 8   | ~430M            | ~4.3%                      |
 
 The validator at N=4 was overshooting by an unquantified amount in
-the M4 deployment ([milestones.json M4.5 notes][m45]); whether the
+the M4 deployment (M4.5 notes); whether the
 ~1.2% reclaimed at N=4 closes that gap is the recalibration's job to
 confirm.
-
-[m45]: ../milestones.json
 
 ### Operator step (closes M4.5 exit criteria)
 

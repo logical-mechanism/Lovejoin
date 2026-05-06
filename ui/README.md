@@ -2,7 +2,7 @@
 
 The Lovejoin web app. React 19 + Vite + Tailwind v4 + react-i18next, CIP-30 wallet via mesh, served by nginx in production. Ships in 20 languages.
 
-Spec: [docs/spec/06-ui.md](../docs/spec/06-ui.md). The README is a quickstart; the spec is canonical.
+This README is the quickstart; [CLAUDE.md](../CLAUDE.md) carries the conventions and constraints.
 
 ## What's here
 
@@ -81,4 +81,4 @@ pnpm --filter @lovejoin/ui test:e2e                              # smoke only
 
 ## Privacy posture
 
-No analytics, no telemetry, no cookies. Wallet-derived vault seed lives in memory for the session; IndexedDB stores no seed material. See [docs/spec/06-ui.md](../docs/spec/06-ui.md) §"Privacy UX rules".
+No analytics, no telemetry, no cookies. Wallet-derived vault seed lives in memory for the session; IndexedDB stores no seed material. See §"Privacy UX rules".

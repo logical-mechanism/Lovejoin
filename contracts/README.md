@@ -2,7 +2,7 @@
 
 Aiken validators and minting policies for Lovejoin. Plutus V3, BLS12-381 G1 builtins.
 
-Spec: [docs/spec/03-contracts.md](../docs/spec/03-contracts.md). The README is a quickstart; the spec is canonical.
+This README is the quickstart; [CLAUDE.md](../CLAUDE.md) carries the conventions and constraints.
 
 ## What's here
 
@@ -20,7 +20,7 @@ plutus.json              Compiled blueprint emitted by `aiken build` (committed)
 build.sh                 Stage-1 build: aiken build + emit per-validator artifacts.
 ```
 
-The `mix_box` / `mix_logic` split is the M2 withdraw-zero refactor and is intentionally different from the original spec's "mix-box runs once per input" model. Read [docs/spec/03-contracts.md](../docs/spec/03-contracts.md) §0 before changing either file.
+The `mix_box` / `mix_logic` split is the M2 withdraw-zero refactor and is intentionally different from the original spec's "mix-box runs once per input" model. Read §0 before changing either file.
 
 ## Validator-to-spec map
 
@@ -72,4 +72,4 @@ CI fails if any rule from spec §1-§3 lacks both a positive and a negative test
 
 ## Pinned versions
 
-Aiken `1.1.21` and stdlib `v3.1.0` are pinned in [aiken.toml](aiken.toml). Bumps are deliberate; coordinate via [docs/spec/07-testing.md](../docs/spec/07-testing.md) OQ-F.
+Aiken `1.1.21` and stdlib `v3.1.0` are pinned in [aiken.toml](aiken.toml). Bumps are deliberate; coordinate via OQ-F.

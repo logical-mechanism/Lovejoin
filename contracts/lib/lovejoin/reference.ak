@@ -1,6 +1,6 @@
 //// Reference UTxO lookup helper.
 ////
-//// Spec: docs/spec/03-contracts.md §1.
+//// Spec: §1.
 ////
 //// The protocol's hyperstructure anchor is a single permanent UTxO at the
 //// always-False `reference_holder` validator. It carries a one-of-one NFT

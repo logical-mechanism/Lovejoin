@@ -1,6 +1,6 @@
 //// `mix_box` — pooled mix-box spend validator (withdraw-zero pass-through).
 ////
-//// Spec: docs/spec/03-contracts.md §0 (rules), §2 (validator design).
+//// Spec: §0 (rules), §2 (validator design).
 ////
 //// This validator is intentionally tiny. The actual Owner / Mix logic — proof
 //// verification, output structure, ctx computation — lives in `mix_logic`, which

@@ -13,7 +13,7 @@ variant after the audit gate.
 
 > **Mainnet caveat.** Don't deploy to mainnet until M7 has tagged a
 > real release and the protocol has cleared the audit gate
-> (docs/spec/11-open-questions.md OQ-Y). The bootstrap ceremony is
+> ( OQ-Y). The bootstrap ceremony is
 > irreversible per network.
 
 ## Architecture
@@ -589,7 +589,7 @@ root path as a static-asset probe.
 ## Rate limiting + privacy
 
 The backend's `@fastify/rate-limit` keys per IP; `RATE_LIMIT_PER_MIN`
-sets the cap. Per [`docs/spec/06-ui.md`](spec/06-ui.md) §"Privacy UX
+sets the cap. Per [``](spec/06-ui.md) §"Privacy UX
 rules" the backend logs IPs only for rate limiting and retains them
 for less than 24 h. The UI nginx's `access_log` is **off** so IPs
 never reach disk on the frontend tier.
@@ -612,6 +612,6 @@ never reach disk on the frontend tier.
 - [`backend/Dockerfile`](../backend/Dockerfile) — runtime image.
 - [`ui/Dockerfile`](../ui/Dockerfile) + [`ui/nginx.conf`](../ui/nginx.conf) — static-bundle image.
 - [`.do/app.yaml`](../.do/app.yaml) — committed App spec for Preprod.
-- [`docs/spec/05-backend.md`](spec/05-backend.md) — backend API surface.
-- [`docs/spec/06-ui.md`](spec/06-ui.md) — UI screens, privacy rules,
+- [``](spec/05-backend.md) — backend API surface.
+- [``](spec/06-ui.md) — UI screens, privacy rules,
   config model.

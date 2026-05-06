@@ -1,7 +1,7 @@
 // `/fee` — snapshot of the sharded fee contract: total lovelace,
 // per-shard balances, and the deployment-derived `maxFeePerMix` cap.
 //
-// Spec: docs/spec/05-backend.md §"REST API".
+// Spec: §"REST API".
 
 import type { FastifyPluginAsync } from "fastify";
 

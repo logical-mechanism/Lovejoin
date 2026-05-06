@@ -505,7 +505,7 @@
     "faq": {
       "intro_p1": "Kısa cevaplar. <a1>Kullanıcı kılavuzu</a1> her konuyu daha ayrıntılı kapsar.",
       "safe_h": "ADA'm güvende mi?",
-      "safe_p2": "Protokol, owner secret'ınızın sahibi dışında kimseye paranızı kaybedemez. mix-box validator'ı bir kutuyu yalnızca arkasındaki sırrı bildiğine dair Schnorr ispatına karşılık serbest bırakır; mix işlemleri sadece byte'ları yeniden rastgele yapar; kontratların admin anahtarı, yükseltme yolu veya dış güveni yoktur. <b>Mevcut denetim ve bug bounty durumu için proje deposuna bakın.</b>",
+      "safe_p2": "Protokol, owner secret'ınızın sahibi dışında kimseye paranızı kaybedemez. mix-box validator'ı bir kutuyu yalnızca arkasındaki sırrı bildiğine dair Schnorr ispatına karşılık serbest bırakır; mix işlemleri sadece byte'ları yeniden rastgele yapar; kontratların admin anahtarı, yükseltme yolu veya dış güveni yoktur. <b>Protokol bağımsız bir üçüncü taraf denetiminden geçmemiştir ve bug bounty programı yoktur. Kod açıktır ve matematik makalededir. Buna göre kullanın.</b>",
       "safe_p3": "En olası hata yolu <b>senin</b> sahip sırrına erişimi kaybetmendir. Cüzdan türevli kasa bunu zorlaştırır (cüzdanın yedektir), ancak kurtarma şifresi yedeği zayıf bir şifre seçer ve birisi bunu açık stake adresine karşı çevrimdışı zorla denerse kolaylaştırır.",
       "vault_h": "Kasa nedir?",
       "vault_p1": "Kasa, hangi mix-box'ların sana ait olduğunu izleyen tarayıcıdaki defter. ADA tutmaz. Cüzdanının ilk açılışta ürettiği imzayla birleştiğinde Lovejoin'in oluşturduğun her sahip sırrını yeniden türetmesine olanak tanıyan bir türetme sayacı tutar.",

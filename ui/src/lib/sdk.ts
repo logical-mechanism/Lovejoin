@@ -1,6 +1,6 @@
 // SDK bridge — wires @lovejoin/sdk into the React app.
 //
-// Spec: docs/spec/06-ui.md + M6.5 (06-ui.md "config" deliverable).
+// Spec: + M6.5 (06-ui.md "config" deliverable).
 //
 // Two-layer config model:
 //   1. Build-time defaults baked from Vite env vars (VITE_NETWORK,

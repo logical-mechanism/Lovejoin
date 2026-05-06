@@ -1,6 +1,6 @@
 // Live collateral-provider status pill + banner.
 //
-// Spec: docs/spec/06-ui.md §"Privacy UX rules" rule 8 — when the collateral
+// Spec: §"Privacy UX rules" rule 8 — when the collateral
 // provider is unreachable, surface a yellow banner and DISABLE the Mix
 // button. There is no fallback to wallet-collateral.
 //

@@ -1,6 +1,6 @@
 //// BLS12-381 G1 wrappers for Lovejoin's sigma-protocol verifiers.
 ////
-//// Spec: docs/spec/02-cryptography.md
+//// Spec: (see CLAUDE.md)
 ////   - Curve: BLS12-381 G1, 48-byte compressed points, 32-byte big-endian scalars.
 ////   - r = 0x73eda753299d7d483339d80809a1d80553bda402fffe5bfeffffffff00000001
 

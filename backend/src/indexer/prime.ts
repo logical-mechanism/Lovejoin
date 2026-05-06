@@ -3,7 +3,7 @@
 // so chainsync can resume from db-sync's tip instead of replaying every
 // block from `bootstrapStartPoint`.
 //
-// Spec: docs/spec/05-backend.md §"Cold-start prime" (issue #87).
+// Spec: §"Cold-start prime" (issue #87).
 //
 // Why a separate module:
 //   - The `IndexerState` is the "what is the current chain state"

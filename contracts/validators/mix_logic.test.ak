@@ -1,6 +1,6 @@
 //// `mix_logic` structural tests.
 ////
-//// Spec: docs/spec/03-contracts.md §0, §2.
+//// Spec: §0, §2.
 ////
 //// Coverage today:
 ////   * Owner branch — input/proof count rules (positive=N inputs + N proofs,
@@ -502,7 +502,7 @@ test owner_rejects_no_reference_input() fail {
 }
 
 // ---------------------------------------------------------------------------
-// Publish purpose — stake credential lifecycle. Spec: docs/spec/03-contracts.md §0.
+// Publish purpose — stake credential lifecycle. Spec:  §0.
 //
 // The mix_logic credential MUST be registered exactly once (per network) so
 // withdraw-zero spends are valid going forward. After that, no further cert

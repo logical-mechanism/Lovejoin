@@ -1,7 +1,7 @@
 name: CI
 
-# Fast PR + main suite. M7 spec (docs/spec/09-milestones.md):
-#   "Builds all packages. Unit + validator + property tests on every PR."
+# Fast PR + main suite: builds all packages, runs unit + validator +
+# property tests on every PR.
 #
 # Chain-touching checks (Preprod integration suite, 30-min fuzz harness)
 # are operator-run today, not on a cron — automating them in GitHub
@@ -217,11 +217,10 @@ jobs:
 
   coverage:
     name: TS coverage (v8 lcov artifact)
-    # Soft target: 70% lines on offchain/src/crypto/. Numbers are tracked
-    # in docs/test-coverage.md. We do not enforce a vitest threshold here
-    # — per CLAUDE.md "no third-party telemetry", we never wired Codecov,
-    # so the lcov artifact is the audit trail. Failing CI on a coverage
-    # dip would punish unrelated PRs; the doc + artifact is the contract.
+    # Soft target: 70% lines on offchain/src/crypto/. We do not enforce a
+    # vitest threshold here. Per CLAUDE.md "no third-party telemetry", we
+    # never wired Codecov, so the lcov artifact uploaded below is the audit
+    # trail. Failing CI on a coverage dip would punish unrelated PRs.
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:

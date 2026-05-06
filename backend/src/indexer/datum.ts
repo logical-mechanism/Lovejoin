@@ -1,6 +1,6 @@
 // Plutus-Data CBOR decoder for `MixDatum { a, b }`.
 //
-// Spec: docs/spec/03-contracts.md §"Datums" — `MixDatum` is `Constr 0
+// Spec: §"Datums" — `MixDatum` is `Constr 0
 // [bytes(48), bytes(48)]`. The off-chain SDK encodes it as definite-length
 // CBOR (cbor-x), but the Aiken validator's canonicalisation step (see
 // the M4 commits "use canonical indef-length array form for MixDatum in

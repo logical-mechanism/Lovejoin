@@ -15,7 +15,7 @@
 // during `applyForward` so we don't re-encode `Constr 0 [bytes(48),
 // bytes(48)]` here — that would invite TS↔Aiken parity drift.
 //
-// Spec: docs/spec/05-backend.md §"REST API".
+// Spec: §"REST API".
 
 import type { FastifyPluginAsync, FastifyReply, FastifyRequest } from "fastify";
 

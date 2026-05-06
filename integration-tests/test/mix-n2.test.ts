@@ -1,6 +1,6 @@
 // M4 integration test: a single Mix tx at N=2 on Preprod.
 //
-// Spec exit criterion: docs/spec/09-milestones.md M4 — "Preprod
+// Spec exit criterion:  M4 — "Preprod
 // integration test mix-n2 passes".
 //
 // Method: deposit two mix-boxes, fetch the pool, pick our two boxes,

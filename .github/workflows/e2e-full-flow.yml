@@ -6,7 +6,7 @@ name: E2E (full-flow against staging)
 # Wired as workflow_dispatch only: every run consumes Preprod tADA, and
 # we don't want PR cycles to burn the funded wallet.
 #
-# Spec: docs/spec/09-milestones.md M6 + ui/e2e/full-flow.spec.ts.
+# Spec:  M6 + ui/e2e/full-flow.spec.ts.
 #
 # Required repo secrets (all four must be present — the job exits early
 # if any is missing):

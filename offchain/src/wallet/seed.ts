@@ -1,6 +1,6 @@
 // Wallet-derived seed + per-index owner-secret derivation.
 //
-// Spec: docs/spec/06-ui.md M6.5 vault rework + project memory
+// Spec: M6.5 vault rework + project memory
 // project_owner_secret_storage_m6.md.
 //
 // The vault's primary flow is "no new keys for the user to manage": the

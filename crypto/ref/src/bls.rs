@@ -15,7 +15,7 @@ pub const G1_COMPRESSED_BYTES: usize = 48;
 /// 32-byte canonical scalar size.
 pub const SCALAR_BYTES: usize = 32;
 
-/// Subgroup order r as a hex string (matches docs/spec/02-cryptography.md).
+/// Subgroup order r as a hex string.
 const SCALAR_ORDER_HEX: &str =
     "73eda753299d7d483339d80809a1d80553bda402fffe5bfeffffffff00000001";
 

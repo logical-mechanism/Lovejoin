@@ -1,6 +1,6 @@
 // Deposit — single form, vault-derived owner secret.
 //
-// Spec: docs/spec/06-ui.md §"Deposit" + M6.5 vault rework. The owner
+// Spec: §"Deposit" + M6.5 vault rework. The owner
 // secret is derived from the unlocked seed at the next available index;
 // on success we toast (with a cardanoscan link) and trigger a rescan
 // so the new box surfaces in the Vault screen within a few seconds.

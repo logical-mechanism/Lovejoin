@@ -1,6 +1,6 @@
 // Pool — the user-as-mixer surface.
 //
-// Spec: docs/spec/06-ui.md §"Pool" + M6.5 design pass + M6.5+ punch-list
+// Spec: §"Pool" + M6.5 design pass + M6.5+ punch-list
 // (H2 loading, H6 empty onboarding, H7 concrete linkage review, M2
 // coral on errors, L1 friendly error copy).
 //

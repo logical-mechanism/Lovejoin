@@ -1,6 +1,6 @@
 // Load test — `/pool` with 50k boxes must respond at p99 < 100ms.
 //
-// Spec exit criterion (M5 in milestones.json): "Load test exists and
+// Spec exit criterion (M5): "Load test exists and
 // passes" via `pnpm --filter backend test -- load`. We seed the
 // in-memory IndexerState with 50,000 valid mix-boxes and hit `/pool` a
 // hundred times; the slowest 1% must finish in under 100ms each.

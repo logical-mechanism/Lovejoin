@@ -2,8 +2,8 @@
 // i18n lint — fails if any JSX text node or user-facing attribute in the
 // UI's components / routes contains a raw English literal.
 //
-// Spec: docs/spec/06-ui.md §"i18n from day one" — "Lint rule rejects raw
-// English in JSX components." Every user-facing string lives in
+// Lints user-facing strings: every JSX text node and user-facing
+// attribute must come from i18n. Every user-facing string lives in
 // src/i18n/locales/en.json and reaches the DOM via `t("...")`.
 //
 // Strategy: parse every .tsx file under src/ with TypeScript's own parser

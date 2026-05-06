@@ -1,6 +1,6 @@
 // Playwright configuration for the M6 E2E suite.
 //
-// Spec: docs/spec/09-milestones.md M6 — "E2E Playwright test on Preprod:
+// Spec: M6 — "E2E Playwright test on Preprod:
 // connect wallet, deposit, run 3 mixes via 'Mix N random boxes' at varied
 // N, withdraw to fresh address, verify on chain."
 //

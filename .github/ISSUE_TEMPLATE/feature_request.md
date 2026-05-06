@@ -16,19 +16,17 @@ abstract goals. -->
 <!-- The shape of the change. Don't worry about being exhaustive; alignment
 on direction is the goal here. -->
 
-## Spec impact
+## Surface affected
 
-<!-- Does this change anything in docs/spec/? Which section? On-chain
-parameters, validator rules, off-chain SDK shape, UI contract? If you are
-unsure, say so and we will figure it out together. -->
+<!-- On-chain parameters, validator rules, off-chain SDK shape, backend API,
+UI contract? If you are unsure, say so and we will figure it out together. -->
 
 ## Alternatives considered
 
 <!-- Optional: simpler, smaller, or alternative approaches you ruled out, and
 why. -->
 
-## Out of scope for v1?
+## Out of scope?
 
-<!-- If you suspect this belongs after v1.0.0 (post-v1 label), say so. See
-docs/spec/00-overview.md "Non-goals" and OQ-Y in 11-open-questions.md for the
-current non-goals. -->
+<!-- See CLAUDE.md "Out of scope" for the current non-goals. If you suspect
+this belongs there, say so. -->

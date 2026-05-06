@@ -1,6 +1,6 @@
 // `/box/:txhash/:idx` — point lookup for a single mix-box by output ref.
 //
-// Spec: docs/spec/05-backend.md §"REST API".
+// Spec: §"REST API".
 
 import type { FastifyPluginAsync, FastifyReply, FastifyRequest } from "fastify";
 

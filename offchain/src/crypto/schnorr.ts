@@ -1,4 +1,4 @@
-// Schnorr / proveDlog (Sigmajoin paper §2.1; Lovejoin spec docs/spec/02-cryptography.md).
+// Schnorr / proveDlog (Sigmajoin paper §2.1; Lovejoin spec ).
 //
 // Statement: prover knows `x ∈ Z_r` such that `u = [x]·base`.
 //   * "Vanilla" Schnorr uses `base = g` (the canonical generator).

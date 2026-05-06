@@ -1,7 +1,7 @@
 // M4 integration test: full lifecycle on Preprod — deposit, mix, withdraw,
 // verify funds arrive at a fresh destination.
 //
-// Spec: docs/spec/09-milestones.md M4 — "Preprod integration test
+// Spec: M4 — "Preprod integration test
 // full-lifecycle passes" + the "Deposit 8 boxes, run 30 mixes" stress
 // criterion. This test is the smaller end-to-end smoke that proves the
 // pieces fit together. The 30-mix stress is run separately via the
