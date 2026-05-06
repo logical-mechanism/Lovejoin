@@ -76,6 +76,13 @@ export function Help() {
   const initial = searchParams.get("doc");
   const active: DocId = isDocId(initial) ? initial : "guide";
 
+  // Scroll to top when the active doc changes (tab click or in-page
+  // text links into another doc). Without this, switching docs from
+  // a deep scroll position leaves the user mid-panel on the new doc.
+  useEffect(() => {
+    window.scrollTo({ top: 0 });
+  }, [active]);
+
   return (
     <article className="lj-prose">
       <header>
@@ -155,9 +162,6 @@ function Guide() {
       <h2>{t("help.guide.what_h")}</h2>
       <p>{t("help.guide.what_p1")}</p>
       <p>{t("help.guide.what_p2")}</p>
-      <p>
-        <Trans i18nKey="help.guide.what_p3" components={inlineTags} />
-      </p>
 
       <h2>{t("help.guide.mixing_h")}</h2>
       <p>{t("help.guide.mixing_p1")}</p>
@@ -289,29 +293,12 @@ function Faq() {
       </p>
 
       <h2>{t("help.faq.safe_h")}</h2>
-      <p>{t("help.faq.safe_p1")}</p>
       <p>
         <Trans i18nKey="help.faq.safe_p2" components={inlineTags} />
       </p>
       <p>
         <Trans i18nKey="help.faq.safe_p3" components={inlineTags} />
       </p>
-
-      <h2>{t("help.faq.testnet_h")}</h2>
-      <p>{t("help.faq.testnet_p1")}</p>
-      <ol>
-        <li>{t("help.faq.testnet_li1")}</li>
-        <li>{t("help.faq.testnet_li2")}</li>
-        <li>
-          <Trans
-            i18nKey="help.faq.testnet_li3"
-            components={{
-              ...inlineTags,
-              a1: ext("https://docs.cardano.org/cardano-testnets/tools/faucet/"),
-            }}
-          />
-        </li>
-      </ol>
 
       <h2>{t("help.faq.vault_h")}</h2>
       <p>{t("help.faq.vault_p1")}</p>
@@ -364,13 +351,7 @@ function Faq() {
           <Trans i18nKey="help.faq.errors_li3" components={inlineTags} />
         </li>
         <li>
-          <Trans
-            i18nKey="help.faq.errors_li4"
-            components={{
-              ...inlineTags,
-              a1: ext("https://docs.cardano.org/cardano-testnets/tools/faucet/"),
-            }}
-          />
+          <Trans i18nKey="help.faq.errors_li4" components={inlineTags} />
         </li>
         <li>
           <Trans i18nKey="help.faq.errors_li5" components={inlineTags} />
