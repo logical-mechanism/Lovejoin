@@ -1,11 +1,11 @@
 // Deposit tx builder.
 //
-// Spec:
-//   * docs/spec/01-protocol.md §"Deposit" — tx structure (1 fee shard input
+// Spec: (see CLAUDE.md)
+//   *  §"Deposit" — tx structure (1 fee shard input
 //     with Replenish, 1 mix-box output, 1 replenished fee shard output).
-//   * docs/spec/03-contracts.md §3 (validate_replenish) — the on-chain rules
+//   *  §3 (validate_replenish) — the on-chain rules
 //     this tx must satisfy.
-//   * docs/spec/04-offchain.md §"buildDepositTx".
+//   *  §"buildDepositTx".
 //
 // Architecture: split into a pure planning function (`planDepositTx`) and a
 // mesh-driven assembler (`buildDepositTx`). The planning function is the

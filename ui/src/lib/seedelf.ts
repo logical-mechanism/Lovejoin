@@ -1,6 +1,6 @@
 // Seedelf-address detection + destination-address validation.
 //
-// Spec: docs/spec/06-ui.md §"Withdraw" + M6.5+ punch-list H3. The
+// Spec: §"Withdraw" + M6.5+ punch-list H3. The
 // Withdraw screen distinguishes between a regular Cardano payment-key
 // destination (warning hint: wallet identity visible) and a stealth
 // Seedelf destination (confirmation that wallet identity is hidden

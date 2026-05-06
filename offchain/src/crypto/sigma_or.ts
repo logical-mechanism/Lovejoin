@@ -1,6 +1,6 @@
 // N-way sigma-OR proof (Cramer-Damgård OR composition; Sigmajoin paper Appendix C).
 //
-// Spec: docs/spec/02-cryptography.md §"N-way Sigma-OR (paper Appendix C, generalized)".
+// Spec: §"N-way Sigma-OR (paper Appendix C, generalized)".
 //
 // Statement: prover knows a witness for at least one of N statements
 //   τ_i = proveDHTuple(a, b, a'_i, b'_i),  i ∈ {0..N-1}.

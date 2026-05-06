@@ -1,5 +1,5 @@
 // Funded-wallet Preprod E2E — the deep flow described in
-// docs/spec/09-milestones.md M6: connect, deposit, run mixes via "Mix N
+//  M6: connect, deposit, run mixes via "Mix N
 // random boxes" at varied N, withdraw to a fresh address, verify on chain.
 //
 // This spec is intentionally skipped under default `pnpm test:e2e`; the

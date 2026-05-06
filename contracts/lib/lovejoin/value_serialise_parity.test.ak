@@ -18,7 +18,7 @@
 //// canonical is indefinite-length), or (b) get a clear failure that
 //// shows Aiken's bytes, and we patch the TS to match.
 ////
-//// Spec: docs/spec/12-build-guide.md §Risk 1.
+//// Spec: §Risk 1.
 
 use aiken/builtin
 use aiken/primitive/bytearray

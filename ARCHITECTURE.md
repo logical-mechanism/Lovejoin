@@ -1,6 +1,6 @@
 # Architecture
 
-A one-page contributor overview. For full design context read [docs/spec/00-overview.md](docs/spec/00-overview.md) and the rest of [docs/spec/](docs/spec/).
+A one-page contributor overview. For conventions and constraints read [CLAUDE.md](CLAUDE.md); for the math read [papers/sigmajoin.pdf](papers/sigmajoin.pdf); for the on-chain rules read the validators in [contracts/validators/](contracts/validators/) and their `*.test.ak` siblings.
 
 ## What it is
 
@@ -8,7 +8,7 @@ Lovejoin is a Cardano-native privacy mixer implementing **Sigmajoin**, an outsou
 
 ## The four hyperstructure pillars
 
-Every architectural decision threads through these four ideas. Read the corresponding spec section before changing any of them.
+Every architectural decision threads through these four ideas. The validators in [contracts/validators/](contracts/validators/) are the ground truth; the math is in [papers/sigmajoin.pdf](papers/sigmajoin.pdf).
 
 ```mermaid
 flowchart TB
@@ -19,8 +19,6 @@ flowchart TB
         P4["4. Sharded fee contract<br/>(self-sustaining + concurrent)<br/><br/>10 fee UTxOs at fee_contract.<br/>PayMixFee redeemer consumed by Mix:<br/>fee_in - fee_out == tx.fee, capped at<br/>max_fee_per_mix_lovelace.<br/>Replenish path tops up via Deposits."]
     end
 ```
-
-Spec pointers: [03-contracts.md §1](docs/spec/03-contracts.md), [02-cryptography.md "N-way Sigma-OR"](docs/spec/02-cryptography.md), [01-protocol.md "Collateral provider"](docs/spec/01-protocol.md), [03-contracts.md §3](docs/spec/03-contracts.md).
 
 ## The three operations
 
@@ -124,7 +122,7 @@ Workspace tool: **pnpm 10**. Top-level [Makefile](Makefile) is the canonical ent
 
 Everything that talks to chain (SDK, UI, integration tests, stress tests, backend itself) goes through the [`ChainProvider`](offchain/src/chain/provider.ts) interface: `submitTx`, `getUtxos`, `awaitConfirmation`, `getReferenceUtxo`, `getProtocolParams`. Two implementations exist:
 
-- [`BlockfrostProvider`](offchain/src/chain/blockfrost.ts): the default, drives the alpha.
+- [`BlockfrostProvider`](offchain/src/chain/blockfrost.ts): the default, drives the live Preprod deployment.
 - The self-hosted backend ([backend/src/indexer](backend/src/indexer) + [backend/src/api](backend/src/api)).
 
 They are runtime-swappable via `network.<net>.json`'s `provider` block. **Implication for new code:** never call Blockfrost directly. Add capabilities to `ChainProvider` and let the backend grow a matching implementation.
@@ -133,11 +131,11 @@ They are runtime-swappable via `network.<net>.json`'s `provider` block. **Implic
 
 The cryptography lives in three independent implementations: TypeScript (proves and verifies), Aiken (verifies on-chain), Rust (reference). The Rust impl generates **KAT vectors** in [crypto/test-vectors/](crypto/test-vectors/); each vector must verify byte-exact in all three. Negative vectors must be rejected by all three. This catches the silent killer of multi-language crypto: encoding drift.
 
-Specifically, the Fiat-Shamir challenge is computed in **both** TS (when proving) and Aiken (when verifying). A one-byte CBOR difference silently fails every proof on chain. See [docs/spec/12-build-guide.md "Risk 1"](docs/spec/12-build-guide.md) for the parity-test discipline.
+Specifically, the Fiat-Shamir challenge is computed in **both** TS (when proving) and Aiken (when verifying). A one-byte CBOR difference silently fails every proof on chain. The parity-test discipline lives in [offchain/test/crypto/encoding-parity.test.ts](offchain/test/crypto/encoding-parity.test.ts) and [contracts/lib/lovejoin/encoding_parity_kat.test.ak](contracts/lib/lovejoin/encoding_parity_kat.test.ak); both run in CI.
 
 ## Where to go next
 
-- **Implementers:** [docs/spec/01-protocol.md](docs/spec/01-protocol.md), [02-cryptography.md](docs/spec/02-cryptography.md), [03-contracts.md](docs/spec/03-contracts.md), in order.
-- **Auditors:** [docs/spec/08-threat-model.md](docs/spec/08-threat-model.md) first, then [03-contracts.md](docs/spec/03-contracts.md) and [02-cryptography.md](docs/spec/02-cryptography.md).
-- **First-time contributors:** [CONTRIBUTING.md](CONTRIBUTING.md), then [docs/spec/12-build-guide.md](docs/spec/12-build-guide.md) for the practical pitfalls.
-- **Working in Claude Code:** [CLAUDE.md](CLAUDE.md) is the conventions and gotchas reference.
+- **Implementers:** [CLAUDE.md](CLAUDE.md) for conventions, then the validators in [contracts/validators/](contracts/validators/) plus their `*.test.ak` siblings, then the SDK in [offchain/src/](offchain/src/).
+- **Auditors:** [SECURITY.md](SECURITY.md) for the disclosure policy and review posture, then the validators and their tests, then [papers/sigmajoin.pdf](papers/sigmajoin.pdf) for the underlying construction.
+- **First-time contributors:** [CONTRIBUTING.md](CONTRIBUTING.md) for the branch model and dev setup, [CLAUDE.md](CLAUDE.md) for the gotchas (TS to Aiken encoding parity, the simulator/chain `serialise_data` trap, locale parity).
+- **Working in Claude Code:** [CLAUDE.md](CLAUDE.md) is the conventions reference Claude reads on every session.

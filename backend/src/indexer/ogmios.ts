@@ -1,6 +1,6 @@
 // Ogmios chainsync client.
 //
-// Spec: docs/spec/05-backend.md §"Indexer / Chainsync via ogmios".
+// Spec: §"Indexer / Chainsync via ogmios".
 //
 // Protocol: ogmios v6 speaks JSON-RPC 2.0 over WebSocket. The
 // chainsync mini-protocol exposes two methods we need:

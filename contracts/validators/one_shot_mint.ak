@@ -1,6 +1,6 @@
 //// One-shot minting policy.
 ////
-//// Spec: docs/spec/03-contracts.md §1.
+//// Spec: §1.
 ////
 //// Parameterized by a seed `OutputReference`: the policy permits a single mint event
 //// in which (a) the seed UTxO is consumed and (b) exactly one token is minted under

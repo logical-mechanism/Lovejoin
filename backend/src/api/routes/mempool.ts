@@ -7,7 +7,7 @@
 // (`acquiredAtMs === 0`). Clients treat the empty case as "fall through
 // to the retry path."
 //
-// Spec: docs/spec/05-backend.md §"REST API".
+// Spec: §"REST API".
 
 import type { FastifyPluginAsync } from "fastify";
 

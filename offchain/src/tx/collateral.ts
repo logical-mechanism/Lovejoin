@@ -1,7 +1,7 @@
 // Collateral-provider abstraction.
 //
-// Spec: docs/spec/01-protocol.md §"Collateral provider", docs/spec/04-offchain.md
-// §"Collateral provider client", docs/spec/08-threat-model.md §A6.
+// Spec: §"Collateral provider",
+// §"Collateral provider client",  §A6.
 //
 // Plutus txs require a collateral input that is **key-witnessed** — a wallet
 // holding ADA stakes a UTxO that gets seized if any script fails validation.

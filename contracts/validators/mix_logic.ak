@@ -1,9 +1,9 @@
 //// `mix_logic` — withdraw-zero validator. Runs once per Mix or Owner tx;
 //// carries the real per-input proof verification.
 ////
-//// Spec: docs/spec/03-contracts.md §0 (rules), §2 (Owner branch, Mix branch
+//// Spec: §0 (rules), §2 (Owner branch, Mix branch
 ////   — variable N).
-//// Crypto: docs/spec/02-cryptography.md §"Hash function and Fiat-Shamir
+//// Crypto: §"Hash function and Fiat-Shamir
 ////   context binding" for `ctx`, and §"N-way Sigma-OR" for the OR-proof
 ////   verifier.
 ////
@@ -130,7 +130,7 @@ fn validate_owner(
   let ctx = builtin.blake2b_256(ctx_preimage)
 
   // Per-input Schnorr verification. Each proof proves "I know x_i such that
-  // b_i = [x_i] a_i" against the shared ctx — see docs/spec/02-cryptography.md
+  // b_i = [x_i] a_i" against the shared ctx — see 
   // §"Schnorr".
   pairs_match_and_all(
     mix_inputs,
@@ -203,7 +203,7 @@ fn validate_mix(
 
   // Per-input OR-proof verification. `proofs[i]` proves "input i's witness
   // re-randomized to one of the N outputs" — see
-  // docs/spec/02-cryptography.md §"N-way Sigma-OR". `header_const_prefix`
+  //  §"N-way Sigma-OR". `header_const_prefix`
   // (= DOMAIN || 0x03 || N(1 byte)) is computed once and shared across all
   // N inputs; only the per-input (a, b) gets appended in `verify_pre`.
   // Saves N `from_int_big_endian` + 2N concats per Mix tx.

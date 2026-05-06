@@ -1,6 +1,6 @@
 // Box detail / withdraw — single owned box, with the inline withdraw form.
 //
-// Spec: docs/spec/06-ui.md §"Box" + M6.5 dogfood feedback + M6.5+ punch-list
+// Spec: §"Box" + M6.5 dogfood feedback + M6.5+ punch-list
 // (H1 amount/destination review, H3 client-side bech32 + network check).
 // The vault row's primary action lands here pre-pointed at the withdraw
 // form. Address-kind hints (stealth vs key) are surfaced inline under
@@ -228,13 +228,7 @@ export function Box() {
                   )}
                   {validation.status === "wrong-network" && (
                     <p className="lj-field__warn" role="alert">
-                      {t("withdraw.dest_wrong_network", {
-                        addressNet:
-                          validation.addressNetwork === "testnet"
-                            ? t("withdraw.net_testnet")
-                            : t("withdraw.net_mainnet"),
-                        expected: config.network,
-                      })}
+                      {t("withdraw.dest_wrong_network")}
                     </p>
                   )}
                   {validation.status === "ok" && validation.kind.kind === "regular-key" && (

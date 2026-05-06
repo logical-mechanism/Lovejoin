@@ -1,6 +1,6 @@
 // Home — splash hero, three-pillar pitch, calm CTAs.
 //
-// Spec: docs/spec/06-ui.md M6.5 — "splash-style Home (hero + 3-bullet
+// Spec: M6.5 — "splash-style Home (hero + 3-bullet
 // pitch + connect CTA, not a status-dump dashboard)". Network status
 // stays in the Pool screen, not here; Home is the front door.
 

@@ -1,10 +1,10 @@
 // Mix tx builder — variable-N Sigmajoin re-randomization.
 //
-// Spec:
-//   * docs/spec/01-protocol.md §"Mix — variable N (the full Sigmajoin construction)".
-//   * docs/spec/02-cryptography.md §"N-way Sigma-OR" + §"Context binding (Mix redeemer)".
-//   * docs/spec/03-contracts.md §2 (Mix branch) + §3 (PayMixFee).
-//   * docs/spec/04-offchain.md §"buildMixTx — variable N + collateral provider".
+// Spec: (see CLAUDE.md)
+//   *  §"Mix — variable N (the full Sigmajoin construction)".
+//   *  §"N-way Sigma-OR" + §"Context binding (Mix redeemer)".
+//   *  §2 (Mix branch) + §3 (PayMixFee).
+//   *  §"buildMixTx — variable N + collateral provider".
 //
 // Architecture: the same split-into-plan-and-build pattern deposit.ts and
 // withdraw.ts use. `planMixTx(...)` is the pure module — it picks fresh
@@ -876,7 +876,7 @@ export async function buildMixTx(args: BuildMixArgs): Promise<MixResult> {
       throw new Error(
         `Mix plan: proof for input ${failingProof} (${plan.inputs[failingProof]!.ref.txId}#` +
           `${plan.inputs[failingProof]!.ref.outputIndex}) fails local sigma-OR verification. ` +
-          `This is an encoding-parity bug — see docs/spec/12-build-guide.md §Risk 1.`,
+          `This is an encoding-parity bug — see  §Risk 1.`,
       );
     }
 

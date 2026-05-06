@@ -1,7 +1,7 @@
 // Protocol-parameter loader.
 //
-// Spec: docs/spec/01-protocol.md §"Configuration source: the reference UTxO"
-// and docs/spec/03-contracts.md §1 (the ReferenceDatum shape).
+// Spec: §"Configuration source: the reference UTxO"
+// and  §1 (the ReferenceDatum shape).
 //
 // At runtime every Lovejoin tx reads its parameters from the inline datum on
 // the reference UTxO. This module is the off-chain mirror of the Aiken

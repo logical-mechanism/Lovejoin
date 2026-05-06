@@ -1,7 +1,7 @@
 // M4 integration test: Mix txs respect the fee-shard exhaustion rule.
 //
-// Spec: docs/spec/09-milestones.md M4 — "Preprod integration test
-// fee-exhaustion passes". Per docs/spec/03-contracts.md §3, a Mix tx
+// Spec: M4 — "Preprod integration test
+// fee-exhaustion passes". Per  §3, a Mix tx
 // can only succeed when `fee_in - fee_out == tx.fee` and `tx.fee ≤
 // max_fee_per_mix_lovelace`. Construct a fee shard with insufficient
 // funds and verify submission fails (or the local plan refuses to

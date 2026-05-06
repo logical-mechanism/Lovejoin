@@ -1,7 +1,7 @@
 // Fee-shard selection.
 //
-// Spec: docs/spec/01-protocol.md §"Fee contract: 10 sharded UTxOs" and
-// docs/spec/03-contracts.md §3.
+// Spec: §"Fee contract: 10 sharded UTxOs" and
+//  §3.
 //
 // The fee_contract is a logical pool of `fee_shard_target` (= 10) UTxOs at
 // the same script address. SDK callers pick one uniformly at random for
@@ -65,7 +65,7 @@ export function cryptoRandomInt(n: number): number {
  *   * carries no native assets
  *
  * The protocol's hyperstructure recovery rule (Rule 2 in
- * docs/spec/03-contracts.md §0) means malformed UTxOs at the fee script can
+ *  §0) means malformed UTxOs at the fee script can
  * be swept by anyone; we just don't want to use them as fee shards. Native
  * assets fail the on-chain `validate_pay_mix_fee` rule 6, so picking such a
  * UTxO would deterministically fail tx submission.
@@ -189,7 +189,7 @@ export async function pickFeeShardOptional(args: {
 /**
  * Compute the lovelace value the Replenish output of a Deposit tx should hold.
  *
- * Spec: docs/spec/01-protocol.md §"Deposit" — the user contributes
+ * Spec:  §"Deposit" — the user contributes
  * `rounds × max_fee_per_mix` lovelace, on top of whatever the input shard
  * already held. The on-chain validator only checks `fee_out > fee_in` (strict
  * increase), so any positive contribution satisfies the rule; the

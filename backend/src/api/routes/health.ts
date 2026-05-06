@@ -1,6 +1,6 @@
 // `/health` — liveness + indexer-state summary.
 //
-// Spec: docs/spec/05-backend.md §"REST API".
+// Spec: §"REST API".
 
 import type { FastifyPluginAsync, FastifyReply } from "fastify";
 

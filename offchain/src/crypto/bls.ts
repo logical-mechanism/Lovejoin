@@ -1,6 +1,6 @@
 // BLS12-381 G1 wrappers for Lovejoin's sigma protocols.
 //
-// Spec: docs/spec/02-cryptography.md
+// Spec: (see CLAUDE.md)
 //   - Curve: BLS12-381 G1 (prime-order subgroup; cofactor handled by uncompress' subgroup check).
 //   - Compressed group element: 48 bytes.
 //   - Scalar: 32 bytes big-endian, value strictly less than r.

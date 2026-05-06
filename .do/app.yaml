@@ -73,7 +73,7 @@ services:
       # backend/src/config.ts runtime env. RUN_AND_BUILD_TIME makes
       # DO pass it both as `--build-arg NETWORK=…` to docker build
       # and as a process env var at runtime. Bump to mainnet only
-      # after the audit gate (docs/spec/11-open-questions.md OQ-Y).
+      # after the audit gate ( OQ-Y).
       - key: NETWORK
         scope: RUN_AND_BUILD_TIME
         value: preprod

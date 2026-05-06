@@ -1,6 +1,6 @@
 // Pool — the user-as-mixer surface.
 //
-// Spec: docs/spec/06-ui.md §"Pool" + M6.5 design pass + M6.5+ punch-list
+// Spec: §"Pool" + M6.5 design pass + M6.5+ punch-list
 // (H2 loading, H6 empty onboarding, H7 concrete linkage review, M2
 // coral on errors, L1 friendly error copy).
 //
@@ -276,7 +276,7 @@ export function Pool() {
             <div className="lj-empty">
               <p className="lj-empty__title">{t("pool.empty_title")}</p>
               <p>{t("pool.empty_hint")}</p>
-              <div className="mt-5 flex justify-center">
+              <div className="mt-5">
                 <Link to="/deposit" className="lj-btn lj-btn--primary lj-btn--lg">
                   {t("pool.empty_cta")}
                 </Link>

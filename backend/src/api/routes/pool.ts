@@ -5,7 +5,7 @@
 // needs for an ownership scan, so a thousand-box page fits in a few
 // dozen kilobytes.
 //
-// Spec: docs/spec/05-backend.md §"REST API".
+// Spec: §"REST API".
 
 import type { FastifyPluginAsync, FastifyRequest } from "fastify";
 

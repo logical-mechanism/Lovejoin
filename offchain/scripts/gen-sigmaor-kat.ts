@@ -1,6 +1,6 @@
 // Generate cross-language sigma-OR KAT vectors at N ∈ {2, 3, 4, 6, 8}.
 //
-// Per the M1 exit criteria (milestones.json) — and docs/spec/02-cryptography.md
+// Per the M1 KAT-vector criteria — and
 // §"Test vectors" — the KAT file holds 200 vectors per N. Re-runnable; the same
 // inputs always produce the same proof bytes (RFC 6979 + HKDF determinism).
 

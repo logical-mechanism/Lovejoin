@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // lovejoin CLI — `lovejoin <subcommand> [...]`.
 //
-// Spec: docs/spec/04-offchain.md §"CLI" — `lovejoin deposit --rounds N`,
+// Spec: §"CLI" — `lovejoin deposit --rounds N`,
 // `lovejoin withdraw --secret … --to …`. Mix lands in M4.
 //
 // The CLI is a thin wrapper around the SDK's tx/deposit + tx/withdraw

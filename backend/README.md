@@ -2,7 +2,7 @@
 
 Node + Fastify backend for Lovejoin. An ogmios chainsync indexer keeps an in-memory view of the live mix-box pool, fee shards, and reference UTxO; a small REST API serves it to the SDK and UI under the same `ChainProvider` shape that `BlockfrostProvider` exposes.
 
-Spec: [docs/spec/05-backend.md](../docs/spec/05-backend.md). The README is a quickstart; the spec is canonical.
+This README is the quickstart; [CLAUDE.md](../CLAUDE.md) carries the conventions and constraints.
 
 ## What's here
 
@@ -58,7 +58,7 @@ From the repo root: `make backend-dev` does the same and sources `../.env` autom
 
 ## API surface
 
-All routes are GET unless noted. Full schemas in [docs/spec/05-backend.md](../docs/spec/05-backend.md).
+All routes are GET unless noted. Full schemas in .
 
 | Route              | Returns                                                                |
 | ------------------ | ---------------------------------------------------------------------- |
@@ -88,4 +88,4 @@ Tests use synthetic ogmios fixtures and an env-injected config; they run in CI w
 
 ## Privacy posture
 
-No analytics. No telemetry. No cookies. The only request data the backend keeps in memory is the per-IP rate-limit counter, which expires within 24h. See [docs/spec/06-ui.md](../docs/spec/06-ui.md) §"Privacy UX rules".
+No analytics. No telemetry. No cookies. The only request data the backend keeps in memory is the per-IP rate-limit counter, which expires within 24h. See §"Privacy UX rules".

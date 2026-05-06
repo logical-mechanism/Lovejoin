@@ -1,6 +1,6 @@
 // Fee-shard donation tx builder.
 //
-// Spec: docs/spec/03-contracts.md §3 (validate_replenish). That section
+// Spec: §3 (validate_replenish). That section
 // lists the on-chain rules a Replenish tx must satisfy. Donation is a
 // Replenish-only tx with no mix-box output: the caller's wallet
 // contributes lovelace to a fee shard, the same shard datum (`()`) is

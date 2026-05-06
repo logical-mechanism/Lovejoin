@@ -2,7 +2,7 @@
 //
 // Why: the Fiat-Shamir hash is computed in BOTH TS (when proving) and Aiken (when
 // verifying). A 1-byte difference in the byte-concat layout silently breaks every
-// proof on chain. Per docs/spec/12-build-guide.md §Risk 1, this generator is the
+// proof on chain. Per  §Risk 1, this generator is the
 // gate before any sigma-protocol code is trusted.
 //
 // Output:
@@ -370,7 +370,7 @@ function emitAiken(vecs: ParityVec[]): string {
 //// \`serialise_data\` output for output_refs vectors) returns the
 //// byte-identical bytes that the TS prover computed for the same logical
 //// inputs. If any test fails, the TS↔Aiken encoding parity is broken —
-//// see docs/spec/12-build-guide.md §Risk 1 before doing anything else.
+//// see  §Risk 1 before doing anything else.
 
 use aiken/builtin
 use cardano/transaction.{OutputReference}

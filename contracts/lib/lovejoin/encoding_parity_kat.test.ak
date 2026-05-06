@@ -5,7 +5,7 @@
 //// `serialise_data` output for output_refs vectors) returns the
 //// byte-identical bytes that the TS prover computed for the same logical
 //// inputs. If any test fails, the TS↔Aiken encoding parity is broken —
-//// see docs/spec/12-build-guide.md §Risk 1 before doing anything else.
+//// see  §Risk 1 before doing anything else.
 
 use aiken/builtin
 use cardano/transaction.{OutputReference}

@@ -1,6 +1,6 @@
 // Encoding-parity test for the Fiat-Shamir construction.
 //
-// docs/spec/12-build-guide.md §Risk 1: the FS hash is computed in BOTH TS and
+//  §Risk 1: the FS hash is computed in BOTH TS and
 // Aiken; a single-byte mismatch silently breaks every proof on chain. This file
 // covers the TS side of that contract:
 //

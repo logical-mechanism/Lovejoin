@@ -1,8 +1,8 @@
 // Fiat-Shamir challenge construction for the sigma protocols.
 //
-// Spec: docs/spec/02-cryptography.md §"Hash function and Fiat-Shamir context binding".
+// Spec: §"Hash function and Fiat-Shamir context binding".
 //
-// Hash input layout (byte concatenation, no CBOR — see docs/spec/12-build-guide.md
+// Hash input layout (byte concatenation, no CBOR — see
 // §Risk 1: encoding parity is what makes TS prover and Aiken verifier agree):
 //
 //   H( DOMAIN_TAG_v1

@@ -4,7 +4,7 @@ Lovejoin reference cryptography in Rust (`blst`), plus the cross-language Known-
 
 This crate is the **third independent verifier**. The TS SDK (`offchain/src/crypto`) generates KAT vectors; the Aiken validator (`contracts/validators/mix_logic.ak`) verifies them on chain; this crate verifies them off chain in Rust against `blst`. Any disagreement between the three is a bug we want to catch before it reaches the chain.
 
-Spec: [docs/spec/02-cryptography.md](../docs/spec/02-cryptography.md). The README is a quickstart; the spec is canonical.
+This README is the quickstart; [CLAUDE.md](../CLAUDE.md) carries the conventions and constraints.
 
 ## What's here
 
@@ -40,7 +40,7 @@ pnpm --filter @lovejoin/sdk gen:parity     # CBOR-encoding parity vectors
 
 Generators are deterministic (RFC 6979 nonces, fixed seed inputs). Re-running on the same inputs produces byte-identical JSON, so spurious diffs in `crypto/test-vectors/*.json` mean an upstream change broke determinism.
 
-Watch out for the build-blocker risk in [docs/spec/12-build-guide.md](../docs/spec/12-build-guide.md) §"Risk 1": one byte of disagreement between TS and Aiken CBOR silently breaks every Mix on chain. Re-run `gen:parity` and the parity test before changing any serialization.
+Watch out for the build-blocker risk in §"Risk 1": one byte of disagreement between TS and Aiken CBOR silently breaks every Mix on chain. Re-run `gen:parity` and the parity test before changing any serialization.
 
 ## How to verify them in Rust
 
@@ -67,4 +67,4 @@ The three implementations agree on bytes for every positive KAT and reject every
 - **Curve:** BLS12-381 G1 only. Compressed group elements are 48 bytes; scalars are 32 bytes big-endian, strictly less than `r`.
 - **Hash:** blake2b-256, Plutus builtin. Domain tag `"lovejoin/sigmajoin/v1/"`. Statement IDs `0x01`=proveDlog, `0x02`=proveDHTuple, `0x03`=sigma-or-N (N as 1-byte prefix).
 
-See [docs/spec/02-cryptography.md](../docs/spec/02-cryptography.md) for the canonical definitions.
+See for the canonical definitions.

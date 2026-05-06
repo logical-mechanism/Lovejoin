@@ -1,6 +1,6 @@
 //// `reference_holder` validator tests.
 ////
-//// Spec: docs/spec/03-contracts.md §0 Rule 2 (the explicit exception), §1.
+//// Spec: §0 Rule 2 (the explicit exception), §1.
 ////
 //// Always-False is intentional: the reference UTxO is the hyperstructure
 //// anchor and must never move. Any spend attempt is rejected. The validator

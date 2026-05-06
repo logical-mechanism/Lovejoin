@@ -3,7 +3,7 @@
 // per-tx script-cost budget, this test surfaces it before stress
 // calibration runs.
 //
-// Spec exit criterion: docs/spec/09-milestones.md M4 — "Preprod
+// Spec exit criterion:  M4 — "Preprod
 // integration test mix-at-max-n passes".
 
 import { describe, expect, it } from "vitest";

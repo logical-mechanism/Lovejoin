@@ -5,7 +5,7 @@
 // `/params` for "what does Lovejoin charge" and `/protocol-params`
 // for "what does the ledger charge in fees this epoch".
 //
-// Spec: docs/spec/05-backend.md §"REST API".
+// Spec: §"REST API".
 
 import type { FastifyPluginAsync, FastifyReply } from "fastify";
 

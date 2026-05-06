@@ -1,7 +1,7 @@
 // fee-calibration.ts — measure the worst-case Cardano-charged fee for a Mix tx
 // at the recommended max_n, and set max_fee_per_mix_lovelace = ceil(max × 1.25).
 //
-// Spec: docs/spec/09-milestones.md M4.
+// Spec: M4.
 //
 // Method:
 //   1. Determine the target N from config (max_n).

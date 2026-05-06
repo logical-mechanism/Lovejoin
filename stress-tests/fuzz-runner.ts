@@ -4,7 +4,7 @@
 // prediction. Writes the run status to `tests/fuzz/last-run-status.txt`
 // (PASS or FAIL) so M4's exit criterion check can grep it.
 //
-// Spec: docs/spec/09-milestones.md M4 — "30-minute fuzz with no panics or
+// Spec: M4 — "30-minute fuzz with no panics or
 // unexpected accepts".
 //
 // This runner is a SHELL: it wires up the action selection and outcome

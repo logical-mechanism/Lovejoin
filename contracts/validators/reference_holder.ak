@@ -1,7 +1,7 @@
 //// Reference holder — always-False spend, parameterized by the protocol's
 //// reference NFT identity.
 ////
-//// Spec: docs/spec/03-contracts.md §1.
+//// Spec: §1.
 ////
 //// The protocol's hyperstructure anchor: the one-of-one NFT and the inline
 //// `ReferenceDatum` live forever at this validator. Cardano reads

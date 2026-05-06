@@ -6,7 +6,7 @@
 // security headers, CORS, rate limit, OpenAPI) and a fan-out of
 // `app.register()` calls into the per-resource plugins.
 //
-// Spec: docs/spec/05-backend.md §"REST API".
+// Spec: §"REST API".
 
 import cors from "@fastify/cors";
 import rateLimit from "@fastify/rate-limit";

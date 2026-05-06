@@ -2,7 +2,7 @@
 
 TypeScript SDK for Lovejoin: BLS sigma-protocol prover, transaction builders (deposit, withdraw, mix), CIP-30 wallet helpers, collateral-provider client, and a `ChainProvider` abstraction with a Blockfrost implementation.
 
-Spec: [docs/spec/04-offchain.md](../docs/spec/04-offchain.md). The README is a quickstart; the spec is canonical.
+This README is the quickstart; [CLAUDE.md](../CLAUDE.md) carries the conventions and constraints.
 
 ## What's here
 
@@ -83,4 +83,4 @@ The repo-root `make test`, `make build`, `make lint` are the umbrella entry poin
 
 ## Risk note
 
-The Fiat-Shamir challenge and `MixDatum` CBOR are computed in both TS (here) and Aiken (the validator). One byte of disagreement silently breaks every Mix on chain. The `gen:parity` script and [test/crypto/encoding-parity.test.ts](test/crypto/encoding-parity.test.ts) exist to catch that. Run them before changing any serialization. See [docs/spec/12-build-guide.md](../docs/spec/12-build-guide.md) §"Risk 1".
+The Fiat-Shamir challenge and `MixDatum` CBOR are computed in both TS (here) and Aiken (the validator). One byte of disagreement silently breaks every Mix on chain. The `gen:parity` script and [test/crypto/encoding-parity.test.ts](test/crypto/encoding-parity.test.ts) exist to catch that. Run them before changing any serialization. See §"Risk 1".

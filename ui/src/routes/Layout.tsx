@@ -1,6 +1,6 @@
 // App shell — header (with wallet pill) + outlet for the active route.
 //
-// Spec: docs/spec/06-ui.md §"Layout" + M6.5 design pass + M6.5+ punch-list
+// Spec: §"Layout" + M6.5 design pass + M6.5+ punch-list
 // (L2 dev-only AdvancedPanel, M7 sr-only h1 per route).
 //
 // The user-facing Configuration panel that M6 mounted unconditionally is

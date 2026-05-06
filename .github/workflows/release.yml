@@ -1,8 +1,8 @@
 name: Release (on merge to main)
 
-# Ships per-merge artifacts. M7 spec (docs/spec/09-milestones.md):
-#   "On merge to main: publishes SDK to npm under `dev` tag;
-#    builds + pushes backend Docker image; uploads UI bundle."
+# Ships per-merge artifacts: publishes the SDK to npm under the `dev`
+# tag, builds and pushes the backend Docker image, and uploads the UI
+# bundle.
 #
 # Three independent jobs — one published artifact each — plus a
 # preflight that checks which credentials are available so forks /

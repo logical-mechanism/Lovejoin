@@ -1,6 +1,6 @@
 //// `one_shot_mint` validator tests.
 ////
-//// Spec: docs/spec/03-contracts.md §1, rules:
+//// Spec: §1, rules:
 ////  - The seed UTxO is consumed in the mint tx.
 ////  - Exactly one (asset_name, quantity) pair under this policy.
 ////  - asset_name == "lovejoin" (hex 6c6f76656a6f696e).

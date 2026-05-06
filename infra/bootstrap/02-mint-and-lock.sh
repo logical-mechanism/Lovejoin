@@ -30,7 +30,7 @@
 #   artifacts/<network>/addresses.json     (referenceUtxoRef populated)
 #
 # THIS IS A ONE-SHOT IRREVERSIBLE CEREMONY. Practice on a private Preprod
-# wallet first. See docs/spec/12-build-guide.md §Risk 4.
+# wallet first.
 
 set -euo pipefail
 

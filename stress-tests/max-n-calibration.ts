@@ -2,7 +2,7 @@
 // inside the network's per-tx script-cost budget on Preprod, then commit the
 // recommendation to config/network.preprod.json.
 //
-// Spec: docs/spec/09-milestones.md M4, docs/spec/12-build-guide.md §"Within M2
+// Spec: M4,  §"Within M2
 // / Layer 9".
 //
 // Method:

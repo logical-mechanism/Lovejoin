@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # scripts/check-reproducibility.sh — verify the contract build is byte-deterministic.
 #
-# Spec: docs/spec/09-milestones.md M7 — "Reproducible-build verification: re-build
-# from a tag and assert byte-identical contract artifacts."
+# Re-builds the contracts from a tag and asserts byte-identical
+# artifacts across runs.
 #
 # What it does: runs contracts/build.sh twice from a clean state (rm -rf
 # contracts/build && contracts/plutus.json between runs) and verifies that
