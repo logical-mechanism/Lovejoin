@@ -10,29 +10,43 @@
 //
 //   The Owner Schnorr proof binds to
 //
-//       ctx = blake2b_256( serialise_data(self.outputs) || mix_script_hash )
+//       ctx = blake2b_256(
+//         serialise_data(self.outputs)
+//           || serialise_data(self.inputs[].output_reference)
+//           || mix_script_hash
+//       )
 //
-//   so the proof can only authorize this specific output configuration —
-//   substitution invalidates it. That `serialise_data(self.outputs)` is
-//   Aiken's canonical Plutus-Data CBOR of the entire tx output list, with
-//   change + collateral-return + everything mesh decides to add.
+//   so the proof can only authorize this specific output configuration AND
+//   this specific input set — substitution of either invalidates it. The
+//   input-refs binding (audit F-4) prevents replay against a duplicate
+//   `(a, b)` mix-box: even if two boxes share `(a, b)`, their
+//   `output_reference`s differ, so a proof signed against box 1's input
+//   ref doesn't verify when copied verbatim into a tx spending box 2.
+//
+//   `serialise_data(...)` is Aiken's canonical Plutus-Data CBOR. For the
+//   outputs list it's the full tx output list (change + collateral-return
+//   + everything mesh decides to add). For the input-refs list it's a
+//   `[Constr 0 [bytes(32), int]]` list, in the ledger's canonical input
+//   ordering (lex-sorted by `(txId, outputIndex)`).
 //
 //   The build is therefore two-pass:
 //     1. Build with a placeholder Schnorr proof of the correct shape.
-//        Extract the resulting outputs from the unsigned tx body.
-//     2. Compute ctx + the real Schnorr proof against those outputs.
+//        Extract the resulting outputs + inputs from the unsigned tx body.
+//     2. Compute ctx + the real Schnorr proof against those outputs and
+//        input refs.
 //     3. Rebuild the tx with the real proof. Same inputs, same outputs,
 //        same redeemer size → same fee → byte-identical body except for
 //        the redeemer field of the withdrawal.
 //     4. Sign + submit.
 //
 //   Because the on-chain validator's `serialise_data` is the Plutus encoding
-//   of `tx.outputs` as it appears in the script context, we need an
-//   encoder that matches it exactly. We rely on mesh's CST bindings
-//   (Cardano-SDK Serialization) to produce the canonical encoding. If
-//   encoding parity ever drifts, the integration test on Preprod fails
-//   loudly — the localized helper `serializeOutputsForCtx` is the single
-//   point to debug.
+//   of `tx.outputs` / `tx.inputs[].output_reference` as it appears in the
+//   script context, we need encoders that match it exactly. We rely on
+//   mesh's CST bindings (Cardano-SDK Serialization) to produce the
+//   canonical encoding. If encoding parity ever drifts, the integration
+//   test on Preprod fails loudly — the localized helpers
+//   `serializeOutputsForCtx` and `serializeInputRefsForCtx` are the single
+//   points to debug.
 
 import { Encoder, Tag } from "cbor-x";
 
@@ -181,23 +195,37 @@ export function planWithdrawTx(args: PlanWithdrawArgs): WithdrawPlan {
 /**
  * Compute the Owner-branch Fiat-Shamir context.
  *
- *   ctx = blake2b_256( serialise_data(outputs) || mix_script_hash )
+ *   ctx = blake2b_256(
+ *     serialise_data(outputs)
+ *       || serialise_data(input_refs)
+ *       || mix_script_hash
+ *   )
  *
- * `outputsCbor` MUST be the canonical Plutus-Data CBOR of `self.outputs` as
- * the Aiken validator sees it. See `serializeOutputsForCtx` for the helper
- * that produces this from a built tx.
+ * `outputsCbor` MUST be the canonical Plutus-Data CBOR of `self.outputs`
+ * and `inputRefsCbor` the canonical Plutus-Data CBOR of
+ * `self.inputs[].output_reference` (a list of `OutputReference`, lex-sorted
+ * to match the ledger's canonical input order). See `serializeOutputsForCtx`
+ * and `serializeInputRefsForCtx` for the helpers that produce these bytes
+ * from a built tx.
+ *
+ * Audit F-4: the input-refs binding pins the proof to a specific input
+ * set, blocking replay against a duplicate-`(a, b)` mix-box.
  */
 export function computeOwnerCtx(args: {
   outputsCbor: Uint8Array;
+  inputRefsCbor: Uint8Array;
   mixScriptHashHex: string;
 }): Uint8Array {
   const hashBytes = hexToBytes(args.mixScriptHashHex);
   if (hashBytes.length !== 28) {
     throw new Error(`mix_script_hash must be 28 bytes, got ${hashBytes.length}`);
   }
-  const preimage = new Uint8Array(args.outputsCbor.length + hashBytes.length);
+  const preimage = new Uint8Array(
+    args.outputsCbor.length + args.inputRefsCbor.length + hashBytes.length,
+  );
   preimage.set(args.outputsCbor, 0);
-  preimage.set(hashBytes, args.outputsCbor.length);
+  preimage.set(args.inputRefsCbor, args.outputsCbor.length);
+  preimage.set(hashBytes, args.outputsCbor.length + args.inputRefsCbor.length);
   return blake2b256(preimage);
 }
 
@@ -513,8 +541,10 @@ export async function buildWithdrawTx(args: BuildWithdrawArgs): Promise<Withdraw
 
     const computeProofForOutputs = (txCborHex: string): string => {
       const outputsCbor = serializeOutputsForCtx(txCborHex, cst);
+      const inputRefsCbor = serializeInputRefsForCtx(txCborHex, cst);
       const ctx = computeOwnerCtx({
         outputsCbor,
+        inputRefsCbor,
         mixScriptHashHex: params.mixScriptHash,
       });
       const proof = generateOwnerSchnorrProof({
@@ -692,10 +722,13 @@ export async function buildBulkWithdrawTx(
     // Sort entries by (txId asc, outputIndex asc) — matches the ledger's
     // canonical input ordering. The validator's `collect_well_formed_mix_inputs`
     // walks `tx.inputs` in that same order, so `proofs[i]` MUST line up.
+    // Lowercase the hex defensively: hex-string lex == byte-lex only when
+    // casing is canonical, and a caller-supplied uppercase txId would
+    // silently misalign proofs with inputs.
     const entries = [...args.entries].sort((a, b) => {
-      if (a.mixBox.ref.txId !== b.mixBox.ref.txId) {
-        return a.mixBox.ref.txId < b.mixBox.ref.txId ? -1 : 1;
-      }
+      const aTx = a.mixBox.ref.txId.toLowerCase();
+      const bTx = b.mixBox.ref.txId.toLowerCase();
+      if (aTx !== bTx) return aTx < bTx ? -1 : 1;
       return a.mixBox.ref.outputIndex - b.mixBox.ref.outputIndex;
     });
     const n = entries.length;
@@ -849,8 +882,10 @@ export async function buildBulkWithdrawTx(
 
     const computeRedeemerForOutputs = (txCborHex: string): string => {
       const outputsCbor = serializeOutputsForCtx(txCborHex, cst);
+      const inputRefsCbor = serializeInputRefsForCtx(txCborHex, cst);
       const ctx = computeOwnerCtx({
         outputsCbor,
+        inputRefsCbor,
         mixScriptHashHex: params.mixScriptHash,
       });
       const proofs = entries.map((e) => {
@@ -1010,6 +1045,88 @@ export function serializeOutputsForCtx(
   for (const d of outputDatas) list.add(d);
   const wrapped = cst.PlutusData.newList(list);
   return hexToBytes(wrapped.toCbor());
+}
+
+/**
+ * Compute the Plutus-Data CBOR of a tx's `self.inputs[].output_reference`
+ * as the on-chain `builtin.serialise_data(self.inputs |> list.map(_.output_reference))`
+ * would.
+ *
+ * Aiken's `OutputReference` is `Constr 0 [bytes(32), int]` (transaction_id,
+ * output_index). We emit a Plutus list of those constrs, in the ledger's
+ * canonical input ordering (lex-sorted by `(txId asc, outputIndex asc)`).
+ * Mesh / cardano-sdk's tx body usually serializes inputs in that order,
+ * but we sort defensively so off-chain ctx matches on-chain regardless of
+ * builder quirks.
+ *
+ * If the on-chain validator rejects with "owner proof failed" while the
+ * math looks right, this is the second function to debug after
+ * `serializeOutputsForCtx`. See docs/spec/12-build-guide.md §"All my
+ * proofs fail but the math looks right".
+ */
+export function serializeInputRefsForCtx(
+  unsignedTxCborHex: string,
+  cst: typeof import("@meshsdk/core-cst"),
+): Uint8Array {
+  const tx = cst.deserializeTx(unsignedTxCborHex);
+  const inputs = tx.body().inputs();
+  const refs: { txIdHex: string; outputIndex: bigint }[] = [];
+  for (const inp of inputs.values()) {
+    // Force lowercase: hex-string lex == byte-lex only when casing is
+    // canonical. cardano-sdk normalises in practice, but a single
+    // uppercase txId would silently diverge our sort from the ledger's
+    // canonical input order and break the F-4 ctx parity.
+    refs.push({
+      txIdHex: inp.transactionId().toString().toLowerCase(),
+      outputIndex: BigInt(inp.index()),
+    });
+  }
+  refs.sort((a, b) => {
+    if (a.txIdHex !== b.txIdHex) return a.txIdHex < b.txIdHex ? -1 : 1;
+    if (a.outputIndex < b.outputIndex) return -1;
+    if (a.outputIndex > b.outputIndex) return 1;
+    return 0;
+  });
+  return serializeInputRefsList(refs, cst);
+}
+
+/**
+ * Pure helper: encode a list of `(txIdHex, outputIndex)` pairs as the
+ * canonical Plutus-Data CBOR of `[OutputReference]`. Exposed so the
+ * encoding-parity generator + offchain F-4 regression test can produce
+ * the byte-equal output without going through a full mesh-built tx.
+ *
+ * Caller is responsible for sorting; this function preserves input order.
+ */
+export function serializeInputRefsList(
+  refs: ReadonlyArray<{ txIdHex: string; outputIndex: bigint | number }>,
+  cst: typeof import("@meshsdk/core-cst"),
+): Uint8Array {
+  const list = new cst.PlutusList();
+  for (const r of refs) {
+    list.add(outputReferenceToPlutusData(r.txIdHex, BigInt(r.outputIndex), cst));
+  }
+  const wrapped = cst.PlutusData.newList(list);
+  return hexToBytes(wrapped.toCbor());
+}
+
+function outputReferenceToPlutusData(
+  txIdHex: string,
+  outputIndex: bigint,
+  cst: typeof import("@meshsdk/core-cst"),
+): import("@meshsdk/core-cst").PlutusData {
+  // Plutus V3: OutputReference = Constr 0 [bytes(32) txId, int outputIndex].
+  const txIdBytes = hexToBytes(txIdHex);
+  if (txIdBytes.length !== 32) {
+    throw new Error(`OutputReference.transaction_id must be 32 bytes, got ${txIdBytes.length}`);
+  }
+  if (outputIndex < 0n) {
+    throw new Error(`OutputReference.output_index must be non-negative, got ${outputIndex}`);
+  }
+  const fields = new cst.PlutusList();
+  fields.add(cst.PlutusData.newBytes(txIdBytes));
+  fields.add(cst.PlutusData.newInteger(outputIndex));
+  return cst.PlutusData.newConstrPlutusData(new cst.ConstrPlutusData(0n, fields));
 }
 
 function transactionOutputToPlutusData(

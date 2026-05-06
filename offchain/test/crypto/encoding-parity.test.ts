@@ -64,7 +64,13 @@ type SigmaOrVec = {
   expected_input: string;
   expected_hash: string;
 };
-type ParityVec = SchnorrVec | DHTupleVec | SigmaOrVec;
+type OutputRefsVec = {
+  kind: "output_refs";
+  N: number;
+  refs: { tx_id: string; output_index: number }[];
+  expected_serialize: string;
+};
+type ParityVec = SchnorrVec | DHTupleVec | SigmaOrVec | OutputRefsVec;
 
 const vectors: ParityVec[] = JSON.parse(readFileSync(VECTORS_PATH, "utf8")) as ParityVec[];
 
@@ -129,4 +135,105 @@ describe("crypto/hash — encoding parity (1000 vectors, TS side)", () => {
       expect(seenN.has(expectedN)).toBe(true);
     }
   });
+
+  it("output_refs vectors match expected_serialize for every N (audit F-4)", () => {
+    // Mirrors the canonical Plutus-Data CBOR layout used in
+    // gen-encoding-parity.ts's hand-roll. Aiken's `serialise_data` on a
+    // `List<OutputReference>` must produce byte-identical output (verified
+    // by encoding_parity_kat.test.ak); the runtime SDK helper
+    // `serializeInputRefsList` (CST-based) is exercised by the Preprod
+    // integration test, not here, because mesh's CST can't load under
+    // the unit-test harness.
+    const outputRefs = vectors.filter((v): v is OutputRefsVec => v.kind === "output_refs");
+    expect(outputRefs.length).toBeGreaterThan(0);
+    const seenN = new Set<number>();
+    for (const v of outputRefs) {
+      seenN.add(v.N);
+      const re = encodeOutputRefList(
+        v.refs.map((r) => ({ tx_id: bytes(r.tx_id), output_index: BigInt(r.output_index) })),
+      );
+      expect(hex(re)).toBe(v.expected_serialize);
+    }
+    // Cover single-input, common bulk-withdraw shape (2 + 3), and a wider 5.
+    for (const expectedN of [1, 2, 3, 5]) {
+      expect(seenN.has(expectedN)).toBe(true);
+    }
+  });
 });
+
+// ---------------------------------------------------------------------------
+// Hand-rolled canonical Plutus-Data CBOR for `List<OutputReference>`. Mirrors
+// `builtin.serialise_data` on the Aiken side and the encoder in
+// offchain/scripts/gen-encoding-parity.ts. Used here to assert the JSON's
+// `expected_serialize` is what we documented; the Aiken-side test asserts
+// `builtin.serialise_data(...)` matches the same bytes, locking parity.
+// ---------------------------------------------------------------------------
+function cborMinorInt(value: bigint): Uint8Array {
+  if (value < 0n) throw new Error("output_index must be non-negative");
+  if (value < 24n) return Uint8Array.of(Number(value));
+  if (value < 0x100n) return Uint8Array.of(0x18, Number(value));
+  if (value < 0x10000n) {
+    const v = Number(value);
+    return Uint8Array.of(0x19, (v >> 8) & 0xff, v & 0xff);
+  }
+  if (value < 0x100000000n) {
+    const v = Number(value);
+    return Uint8Array.of(0x1a, (v >>> 24) & 0xff, (v >>> 16) & 0xff, (v >>> 8) & 0xff, v & 0xff);
+  }
+  const out = new Uint8Array(9);
+  out[0] = 0x1b;
+  for (let i = 7; i >= 0; i--) {
+    out[1 + i] = Number(value & 0xffn);
+    value >>= 8n;
+  }
+  return out;
+}
+
+function cborBytes(b: Uint8Array): Uint8Array {
+  const len = b.length;
+  let header: Uint8Array;
+  if (len < 24) header = Uint8Array.of(0x40 + len);
+  else if (len < 0x100) header = Uint8Array.of(0x58, len);
+  else if (len < 0x10000) header = Uint8Array.of(0x59, (len >> 8) & 0xff, len & 0xff);
+  else
+    header = Uint8Array.of(
+      0x5a,
+      (len >>> 24) & 0xff,
+      (len >>> 16) & 0xff,
+      (len >>> 8) & 0xff,
+      len & 0xff,
+    );
+  const out = new Uint8Array(header.length + len);
+  out.set(header, 0);
+  out.set(b, header.length);
+  return out;
+}
+
+function concatBytes(parts: Uint8Array[]): Uint8Array {
+  let total = 0;
+  for (const p of parts) total += p.length;
+  const out = new Uint8Array(total);
+  let off = 0;
+  for (const p of parts) {
+    out.set(p, off);
+    off += p.length;
+  }
+  return out;
+}
+
+function encodeOutputReference(txId: Uint8Array, outputIndex: bigint): Uint8Array {
+  if (txId.length !== 32) throw new Error(`tx_id must be 32 bytes, got ${txId.length}`);
+  return concatBytes([
+    Uint8Array.of(0xd8, 0x79, 0x9f),
+    cborBytes(txId),
+    cborMinorInt(outputIndex),
+    Uint8Array.of(0xff),
+  ]);
+}
+
+function encodeOutputRefList(refs: { tx_id: Uint8Array; output_index: bigint }[]): Uint8Array {
+  const parts: Uint8Array[] = [Uint8Array.of(0x9f)];
+  for (const r of refs) parts.push(encodeOutputReference(r.tx_id, r.output_index));
+  parts.push(Uint8Array.of(0xff));
+  return concatBytes(parts);
+}

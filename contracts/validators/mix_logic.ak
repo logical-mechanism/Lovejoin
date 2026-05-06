@@ -76,18 +76,29 @@ validator mix_logic(
 
 // ---------------------------------------------------------------------------
 // Owner branch — N ≥ 1 well-formed mix inputs and N matching Schnorr proofs.
-// Every proof binds to the same `ctx` (the tx's full output set + mix script
-// hash), so output substitution invalidates every proof at once. Each proof
-// is checked against the (a_i, b_i) of its corresponding input — proofs
-// cannot be swapped between inputs because each Schnorr is bound to a
-// specific (a, b).
+// Every proof binds to the same `ctx` (the tx's full output set + every
+// input's `output_reference` + mix script hash), so output substitution OR
+// input substitution invalidates every proof at once. Each proof is checked
+// against the (a_i, b_i) of its corresponding input — proofs cannot be
+// swapped between inputs because each Schnorr is bound to a specific (a, b).
+//
+// Audit F-4: hashing only `self.outputs` is insufficient when two distinct
+// mix-boxes share the same `(a, b)` (which the standard SDK's per-deposit
+// HKDF index avoids, but a non-conforming depositor could induce). An
+// attacker observing the owner's withdraw of box 1 with proof π could
+// rebuild the same outputs against box 2 and reuse π verbatim, redirecting
+// box 2's denom to themselves. Mixing input refs into the ctx pins the
+// proof to a specific input set; Cardano's UTxO model already prevents
+// rebuilding a tx with an identical input set (those UTxOs are consumed
+// once). Mirrors the Mix branch's "one ctx, N proofs share it" pattern.
 //
 // Bulk withdraw safety:
-//   * `ctx` covers `self.outputs` so the destination(s) and amounts are
-//     committed; an attacker who reuses N-1 of the user's proofs in a
-//     different tx must produce identical outputs AND identical inputs (the
-//     Nth input would need a forged proof for its (a, b)). Conservation of
-//     value blocks any partial-input replay.
+//   * `ctx` covers `self.outputs` AND `self.inputs[].output_reference` so
+//     the destination(s), amounts, and the input set are all committed; an
+//     attacker who reuses N-1 of the user's proofs in a different tx must
+//     produce identical outputs AND an identical input set (the Nth input
+//     would need a forged proof for its (a, b)). Conservation of value plus
+//     UTxO uniqueness block any partial-input replay.
 //   * No collateral input check — same as the single-input path. The owner's
 //     wallet supplies collateral and signs the tx envelope.
 // ---------------------------------------------------------------------------
@@ -102,10 +113,20 @@ fn validate_owner(
   expect n >= 1
   expect list.length(proofs) == n
 
-  // ctx = blake2b_256( serialise(self.outputs) || mix_script_hash )
+  // ctx = blake2b_256(
+  //   serialise(self.outputs)
+  //     || serialise(self.inputs[].output_reference)
+  //     || mix_script_hash
+  // )
   let outputs_bytes = builtin.serialise_data(self.outputs)
+  let input_refs_bytes =
+    builtin.serialise_data(
+      self.inputs |> list.map(fn(i) { i.output_reference }),
+    )
   let ctx_preimage =
-    outputs_bytes |> bytearray.concat(reference_datum.mix_script_hash)
+    outputs_bytes
+      |> bytearray.concat(input_refs_bytes)
+      |> bytearray.concat(reference_datum.mix_script_hash)
   let ctx = builtin.blake2b_256(ctx_preimage)
 
   // Per-input Schnorr verification. Each proof proves "I know x_i such that
