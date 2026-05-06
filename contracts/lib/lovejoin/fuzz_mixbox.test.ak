@@ -21,8 +21,7 @@ use aiken/builtin
 use aiken/fuzz
 use aiken/primitive/bytearray
 use lovejoin/mixbox.{
-  decode_mix_datum_strict, mix_datum_field_length,
-  try_decode_well_formed_data,
+  decode_mix_datum_strict, mix_datum_field_length, try_decode_well_formed_data,
 }
 use lovejoin/types.{MixDatum}
 
@@ -42,8 +41,10 @@ fn well_formed_mix_datum_data() -> Fuzzer<Data> {
   // Force `a != b`: append distinct sentinel bytes (`0x00` to a, `0x01` to
   // b) and re-truncate. Cheap and deterministic, preserves the fuzz
   // distribution over the prefix.
-  let a_distinct = bytearray.take(bytearray.push(a, 0x00), mix_datum_field_length)
-  let b_distinct = bytearray.take(bytearray.push(b, 0x01), mix_datum_field_length)
+  let a_distinct =
+    bytearray.take(bytearray.push(a, 0x0), mix_datum_field_length)
+  let b_distinct =
+    bytearray.take(bytearray.push(b, 0x1), mix_datum_field_length)
   let datum: Data = MixDatum { a: a_distinct, b: b_distinct }
   fuzz.constant(datum)
 }
@@ -51,15 +52,18 @@ fn well_formed_mix_datum_data() -> Fuzzer<Data> {
 /// A `Constr 0 [B, B]` shape but with one or both byte fields at the wrong
 /// length, OR `a == b`. The decoder MUST reject these (`None`).
 fn malformed_mix_datum_data() -> Fuzzer<Data> {
-  let len_a <- fuzz.and_then(fuzz.either3(
-    fuzz.constant(0),
-    fuzz.constant(mix_datum_field_length - 1),
-    fuzz.constant(mix_datum_field_length + 1),
-  ))
-  let len_b <- fuzz.and_then(fuzz.either(
-    fuzz.constant(mix_datum_field_length),
-    fuzz.constant(0),
-  ))
+  let len_a <-
+    fuzz.and_then(
+      fuzz.either3(
+        fuzz.constant(0),
+        fuzz.constant(mix_datum_field_length - 1),
+        fuzz.constant(mix_datum_field_length + 1),
+      ),
+    )
+  let len_b <-
+    fuzz.and_then(
+      fuzz.either(fuzz.constant(mix_datum_field_length), fuzz.constant(0)),
+    )
   let a <- fuzz.and_then(ba_of(len_a))
   let b <- fuzz.and_then(ba_of(len_b))
   let datum: Data = MixDatum { a, b }

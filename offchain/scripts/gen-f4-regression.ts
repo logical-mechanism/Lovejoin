@@ -198,12 +198,18 @@ use lovejoin/types.{Owner}
 use mix_logic
 
 // (a, b) — duplicate-(a,b) shared by the two boxes at distinct input refs.
-const a_bytes: ByteArray = ${aikenLiteral(aBytes)}
-const b_bytes: ByteArray = ${aikenLiteral(bBytes)}
+const a_bytes: ByteArray =
+  ${aikenLiteral(aBytes)}
+
+const b_bytes: ByteArray =
+  ${aikenLiteral(bBytes)}
 
 // Real Schnorr proof for ctx_1 = blake2b_256(0x80 || serialise_data([ref_1]) || mix_script_hash).
-const proof_t: ByteArray = ${aikenLiteral(proof1.t)}
-const proof_z: ByteArray = ${aikenLiteral(proof1.z)}
+const proof_t: ByteArray =
+  ${aikenLiteral(proof1.t)}
+
+const proof_z: ByteArray =
+  ${aikenLiteral(proof1.z)}
 
 fn pi() -> SchnorrProof {
   SchnorrProof { t: proof_t, z: proof_z }

@@ -310,16 +310,23 @@ function aikenDHTuple(v: DHTupleVec, idx: number): string {
 }
 
 function aikenSigmaOr(v: SigmaOrVec, idx: number): string {
+  // Emit multi-line records to match `aiken fmt` output.
   const branches = v.branches
     .map(
       (br) =>
-        `    hash.SigmaOrStatementBranch { ap: ${aikenHexLiteral(br.ap)}, bp: ${aikenHexLiteral(br.bp)} },`,
+        `      hash.SigmaOrStatementBranch {\n` +
+        `        ap: ${aikenHexLiteral(br.ap)},\n` +
+        `        bp: ${aikenHexLiteral(br.bp)},\n` +
+        `      },`,
     )
     .join("\n");
   const commitments = v.commitments
     .map(
       (c) =>
-        `    hash.SigmaOrCommitment { t0: ${aikenHexLiteral(c.t0)}, t1: ${aikenHexLiteral(c.t1)} },`,
+        `      hash.SigmaOrCommitment {\n` +
+        `        t0: ${aikenHexLiteral(c.t0)},\n` +
+        `        t1: ${aikenHexLiteral(c.t1)},\n` +
+        `      },`,
     )
     .join("\n");
   return `test parity_sigma_or_n${v.N}_${idx}() {

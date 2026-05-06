@@ -25,10 +25,12 @@ use lovejoin/types.{MixDatum}
 fn mix_datum_fuzzer() -> Fuzzer<MixDatum> {
   let a <- fuzz.and_then(fuzz.bytearray_fixed(48))
   let b <- fuzz.and_then(fuzz.bytearray_fixed(48))
-  fuzz.constant(MixDatum {
-    a: bytearray.take(bytearray.push(a, 0x00), 48),
-    b: bytearray.take(bytearray.push(b, 0x01), 48),
-  })
+  fuzz.constant(
+    MixDatum {
+      a: bytearray.take(bytearray.push(a, 0x0), 48),
+      b: bytearray.take(bytearray.push(b, 0x1), 48),
+    },
+  )
 }
 
 test prop_serialise_data_deterministic(md via mix_datum_fuzzer()) {

@@ -43,8 +43,7 @@ test prop_xor_length_preservation(args via ba32_pair()) {
 
 test prop_xor_self_inverse(a via ba32()) {
   // a XOR a = 0
-  let zero =
-    builtin.xor_bytearray(False, a, a)
+  let zero = builtin.xor_bytearray(False, a, a)
   zero == #"0000000000000000000000000000000000000000000000000000000000000000"
 }
 
@@ -58,13 +57,13 @@ test prop_xor_associative(args via ba32_triple()) {
   // it folds branches left-to-right but the math is order-invariant.
   let (a, b, c) = args
   let left = builtin.xor_bytearray(False, builtin.xor_bytearray(False, a, b), c)
-  let right = builtin.xor_bytearray(False, a, builtin.xor_bytearray(False, b, c))
+  let right =
+    builtin.xor_bytearray(False, a, builtin.xor_bytearray(False, b, c))
   left == right
 }
 
 test prop_xor_zero_is_identity(a via ba32()) {
   // a XOR 0 == a. Holds for the fold's seed (zero32 in sigma_or).
-  let zero =
-    #"0000000000000000000000000000000000000000000000000000000000000000"
+  let zero = #"0000000000000000000000000000000000000000000000000000000000000000"
   builtin.xor_bytearray(False, a, zero) == a
 }

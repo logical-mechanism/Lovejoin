@@ -39,8 +39,7 @@ validator one_shot_mint(seed_tx_id: TransactionId, seed_idx: Int) {
     // explicit size check folds away. Asset name is pinned to
     // `"lovejoin"` (hex 6c6f76656a6f696e); quantity is pinned to 1.
     let tokens_under_policy = assets.tokens(self.mint, policy_id)
-    expect [Pair(asset_name, quantity)] =
-      tokens_under_policy |> dict.to_pairs
+    expect [Pair(asset_name, quantity)] = tokens_under_policy |> dict.to_pairs
 
     and {
       seed_consumed,

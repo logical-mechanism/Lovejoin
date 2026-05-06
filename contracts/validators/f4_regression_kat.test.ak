@@ -29,12 +29,18 @@ use lovejoin/types.{Owner}
 use mix_logic
 
 // (a, b) — duplicate-(a,b) shared by the two boxes at distinct input refs.
-const a_bytes: ByteArray = #"97f1d3a73197d7942695638c4fa9ac0fc3688c4f9774b905a14e3a3f171bac586c55e83ff97a1aeffb3af00adb22c6bb"
-const b_bytes: ByteArray = #"a4e8f4a4f81f855f46512af8cdcbc9ae8a7eb395a75f135e5569b758a8d92349681a0358500f2d41f4578d3f7ffaa90f"
+const a_bytes: ByteArray =
+  #"97f1d3a73197d7942695638c4fa9ac0fc3688c4f9774b905a14e3a3f171bac586c55e83ff97a1aeffb3af00adb22c6bb"
+
+const b_bytes: ByteArray =
+  #"a4e8f4a4f81f855f46512af8cdcbc9ae8a7eb395a75f135e5569b758a8d92349681a0358500f2d41f4578d3f7ffaa90f"
 
 // Real Schnorr proof for ctx_1 = blake2b_256(0x80 || serialise_data([ref_1]) || mix_script_hash).
-const proof_t: ByteArray = #"8fd67e49dceaba923adf175bcc1be562d4e1fb9e5b4c4d522ffce8d7821d798d67795d58701c9e8cfd5f28878662ece5"
-const proof_z: ByteArray = #"1a9c946d2282c12a477bd55e6a7d27753f65268d80e7d2e0f82d3fff52220f27"
+const proof_t: ByteArray =
+  #"8fd67e49dceaba923adf175bcc1be562d4e1fb9e5b4c4d522ffce8d7821d798d67795d58701c9e8cfd5f28878662ece5"
+
+const proof_z: ByteArray =
+  #"1a9c946d2282c12a477bd55e6a7d27753f65268d80e7d2e0f82d3fff52220f27"
 
 fn pi() -> SchnorrProof {
   SchnorrProof { t: proof_t, z: proof_z }
