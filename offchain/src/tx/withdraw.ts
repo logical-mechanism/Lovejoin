@@ -722,10 +722,13 @@ export async function buildBulkWithdrawTx(
     // Sort entries by (txId asc, outputIndex asc) — matches the ledger's
     // canonical input ordering. The validator's `collect_well_formed_mix_inputs`
     // walks `tx.inputs` in that same order, so `proofs[i]` MUST line up.
+    // Lowercase the hex defensively: hex-string lex == byte-lex only when
+    // casing is canonical, and a caller-supplied uppercase txId would
+    // silently misalign proofs with inputs.
     const entries = [...args.entries].sort((a, b) => {
-      if (a.mixBox.ref.txId !== b.mixBox.ref.txId) {
-        return a.mixBox.ref.txId < b.mixBox.ref.txId ? -1 : 1;
-      }
+      const aTx = a.mixBox.ref.txId.toLowerCase();
+      const bTx = b.mixBox.ref.txId.toLowerCase();
+      if (aTx !== bTx) return aTx < bTx ? -1 : 1;
       return a.mixBox.ref.outputIndex - b.mixBox.ref.outputIndex;
     });
     const n = entries.length;
@@ -1069,8 +1072,12 @@ export function serializeInputRefsForCtx(
   const inputs = tx.body().inputs();
   const refs: { txIdHex: string; outputIndex: bigint }[] = [];
   for (const inp of inputs.values()) {
+    // Force lowercase: hex-string lex == byte-lex only when casing is
+    // canonical. cardano-sdk normalises in practice, but a single
+    // uppercase txId would silently diverge our sort from the ledger's
+    // canonical input order and break the F-4 ctx parity.
     refs.push({
-      txIdHex: inp.transactionId().toString(),
+      txIdHex: inp.transactionId().toString().toLowerCase(),
       outputIndex: BigInt(inp.index()),
     });
   }
