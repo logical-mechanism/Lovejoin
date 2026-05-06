@@ -21,11 +21,6 @@ helps reviewers. -->
 
 -
 
-## Spec section touched
-
-<!-- Which docs/spec/ file(s) does this change relate to, if any? Use "none"
-if it is purely tooling / governance / docs. -->
-
 ## How tested
 
 <!-- The tests you added, the commands you ran, and any manual verification

@@ -505,7 +505,7 @@
     "faq": {
       "intro_p1": "Jawaban singkat. <a1>Panduan pengguna</a1> membahas setiap topik lebih rinci.",
       "safe_h": "Apakah ADA-ku aman?",
-      "safe_p2": "Protokol tidak dapat kehilangan dana Anda kepada pihak mana pun selain pemegang owner secret Anda. Validator mix-box hanya melepaskan kotak terhadap bukti Schnorr atas pengetahuan rahasia di baliknya; transaksi mix hanya mengacak ulang byte; kontrak tidak memiliki admin key, jalur upgrade, atau kepercayaan eksternal. <b>Lihat repositori proyek untuk status audit dan bug bounty terkini.</b>",
+      "safe_p2": "Protokol tidak dapat kehilangan dana Anda kepada pihak mana pun selain pemegang owner secret Anda. Validator mix-box hanya melepaskan kotak terhadap bukti Schnorr atas pengetahuan rahasia di baliknya; transaksi mix hanya mengacak ulang byte; kontrak tidak memiliki admin key, jalur upgrade, atau kepercayaan eksternal. <b>Protokol belum menjalani audit pihak ketiga yang independen, dan tidak ada program bug bounty. Kode terbuka dan matematikanya ada di paper. Gunakan sesuai dengan itu.</b>",
       "safe_p3": "Mode kegagalan paling mungkin adalah <b>kamu</b> kehilangan akses ke rahasia pemilikmu. Brankas turunan dompet membuat ini sulit (dompetmu adalah cadangan), tetapi fallback kata sandi pemulihan membuatnya mudah jika kamu memilih kata sandi lemah dan ada yang melakukan brute-force offline pada alamat stake publikmu.",
       "vault_h": "Apa itu brankas?",
       "vault_p1": "Brankas adalah pembukuan di browser yang melacak mix-box mana milikmu. Tidak menyimpan ADA. Menyimpan penghitung turunan yang, digabung dengan tanda tangan yang dompetmu hasilkan saat pertama kali membuka, memungkinkan Lovejoin menurunkan ulang setiap rahasia pemilik yang pernah kamu hasilkan.",

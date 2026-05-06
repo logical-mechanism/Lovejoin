@@ -6,19 +6,66 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## Versioning
 
-Lovejoin is alpha on Preprod and does not yet expose a public API surface, so we don't follow [SemVer](https://semver.org/) yet. Instead, each section is dated to the day a `dev` branch rollup merged into `main`. Day-to-day work accumulates under `Unreleased` while it lives on `dev`; on rollup day we rename `Unreleased` to that day's date and open a fresh `Unreleased` section.
-
-We will switch to SemVer at v1.0.0, when the audit / mainnet boundary makes versioning a real contract with users.
+Lovejoin does not yet expose a stable public API surface, so we don't follow [SemVer](https://semver.org/) yet. Instead, each section is dated to the day a `dev` branch rollup merged into `main`. Day-to-day work accumulates under `Unreleased` while it lives on `dev`; on rollup day we rename `Unreleased` to that day's date and open a fresh `Unreleased` section. We will switch to SemVer when the API surface stabilises.
 
 ## [Unreleased]
 
+## [2026-05-06]
+
+Public-readiness pass: reconciled the disclosure narrative across README, SECURITY, CLAUDE, and the UI to match the actual posture (no third-party audit, no bug bounty, mainnet deployment of the same contracts in preparation).
+
 ### Added
 
-- Repo governance and open-source artifacts: `LICENSE` (MIT), `CONTRIBUTING.md`, `SECURITY.md`, `CODE_OF_CONDUCT.md` (Contributor Covenant 2.1 by reference), `CODEOWNERS`, `.editorconfig`, GitHub issue templates (bug, feature, security pointer), GitHub PR template, and this changelog.
+- Repo governance and open-source artifacts: `LICENSE` (MIT), `CONTRIBUTING.md`, `SECURITY.md`, `CODE_OF_CONDUCT.md` (Contributor Covenant 2.1 by reference), `CODEOWNERS`, `.editorconfig`, GitHub issue templates (bug, feature, security pointer), GitHub PR template (#39).
+- ESLint + Prettier baseline; husky `pre-commit` running `lint-staged`; CI `lint` job; Conventional Commits (#36).
+- Test coverage instrumentation across the offchain SDK, backend, and UI workspaces (#37).
+- Playwright E2E in CI driving the live Preprod deployment (#38).
+- Component READMEs for `contracts/`, `offchain/`, `backend/`, `ui/`, `crypto/`, and `infra/bootstrap/` (#40).
+- SDK TSDoc generation and backend OpenAPI spec (#41).
+- User-facing docs: in-app `/help` route covering FAQ, glossary, and operations, in 20 locales (#42).
+- README overhaul and a one-page `ARCHITECTURE.md` with mermaid diagrams (#43).
+- Internal pre-launch security review across crypto, validators, backend, UI, CI/CD; 0 critical / 3 high (all fixed) / 9 medium (6 fixed) (#44).
+- Mainnet-prep disclosure UX in the UI (#45).
+- DigitalOcean App Platform deploy spec and Cloudflare Tunnel sidecar for ogmios + db-sync (#46, #21).
+- Monitoring and runbook for the production indexer (#47).
+- Release automation: tag-driven release workflow + Dependabot (#48).
+- WCAG 2.2 AA accessibility pass on the UI (#22).
+- 19 non-English locales: es, zh, hi, fr, ar, bn, ru, pt, ur, ja, ko, tr, vi, id, de, pl, it, fa, th. RTL support via the locale registry's `dir` flag.
+- `BackendChainProvider` plus a mesh `BackendMeshProvider` so the self-hosted indexer is a drop-in for Blockfrost in both query and tx-builder paths.
+- Fee-pool donation route, fee-shard donation tx builder, and per-shard balance display (#21).
+- Mempool-aware shard picking + retry-with-backoff + busy-shard error surfacing.
+- Bulk deposit (N fresh mix-boxes per tx) and bulk withdraw (N inputs + single combined destination) tx builders and UI flows.
+- Wallet-anonymous withdraw via the external collateral provider on the Owner branch.
+- Adversarial in-house security audit of the on-chain validators with status tracking (#80, #85).
+- Backend `/utxos` lockdown to protocol addresses; served from indexer state (#89).
+- Cold-sync optimization for the indexer (#87).
+- Bounded ogmios reconnect with exponential backoff and circuit breaker (#77).
+- UI CSP tightening and transitive-dependency hygiene pass (#76).
+- Backend API route modules split out of `server.ts` for clearer ownership (#98).
+- Vault sub-components extracted; route-level tests added (#97).
 
 ### Changed
 
-- Switched the changelog versioning model from SemVer-style `[0.7.0]` to date-based `[YYYY-MM-DD]` entries, one per `dev → main` rollup, until v1.0.0.
+- Switched the changelog versioning model from SemVer-style `[0.7.0]` to date-based `[YYYY-MM-DD]` entries, one per `dev → main` rollup.
+- Validator `mix_logic` Owner Schnorr context now binds `inputs[].output_reference` so duplicate `(a, b)` pairs cannot be replayed (F-4).
+- `one_shot_mint` validator bakes the `lovejoin` asset name into the policy (F-17).
+- `mix_box` withdraw-zero gating triggers off `InlineDatum` source rather than resolved `Option<Data>` (F-2).
+- `fee_contract` `PayMixFee` requires the `mix_logic` withdraw redeemer to be `Mix { .. }`, not `Owner` (F-1).
+- Bootstrap `03-fund-fee-contract.sh` now seeds all 10 fee shards in one pass and accepts `SHARD_COUNT` as a positional arg.
+- README and SECURITY rewritten to drop "alpha on Preprod" framing in favour of "live on Preprod, mainnet of the same contracts in preparation, no third-party audit, no bug bounty".
+
+### Fixed
+
+- SDK Conway reference-script-fee correction; pass real protocol params to `MeshTxBuilder`; submit-time exUnits aliasing in mesh; collateral-provider scope tightened to fee-shard mode only.
+- Backend `assetsForUtxos` query plan fix and prime fast-path returning spent UTxOs (#107, #111).
+- UI collateral endpoint resolution and diagnostic logging.
+- Withdraw lex-sort on tx-id hex (F-4 defensive).
+- CI pnpm pin single-sourced from `packageManager` to avoid drift across workflows.
+
+### Deployed
+
+- Preprod redeploy of the optimized validators after the M4.5/M4.6 CPU squeeze and audit fixes; new `artifacts/preprod/addresses.json`.
+- Mainnet deployment of the same on-chain code is in preparation as of this rollup.
 
 ## [2026-05-01]
 

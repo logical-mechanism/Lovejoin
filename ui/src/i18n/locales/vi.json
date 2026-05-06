@@ -505,7 +505,7 @@
     "faq": {
       "intro_p1": "Câu trả lời ngắn. <a1>Hướng dẫn người dùng</a1> đề cập đến từng chủ đề chi tiết hơn.",
       "safe_h": "ADA của tôi có an toàn không?",
-      "safe_p2": "Giao thức không thể mất tiền của bạn cho bất kỳ ai ngoài người giữ owner secret của bạn. Validator mix-box chỉ giải phóng một hộp khi có chứng minh Schnorr về việc biết bí mật phía sau nó; giao dịch mix chỉ ngẫu nhiên lại các byte; hợp đồng không có khóa quản trị, không có lộ trình nâng cấp và không có niềm tin bên ngoài. <b>Xem repository của dự án để biết trạng thái kiểm toán và bug bounty hiện tại.</b>",
+      "safe_p2": "Giao thức không thể mất tiền của bạn cho bất kỳ ai ngoài người giữ owner secret của bạn. Validator mix-box chỉ giải phóng một hộp khi có chứng minh Schnorr về việc biết bí mật phía sau nó; giao dịch mix chỉ ngẫu nhiên lại các byte; hợp đồng không có khóa quản trị, không có lộ trình nâng cấp và không có niềm tin bên ngoài. <b>Giao thức chưa được kiểm toán bởi bên thứ ba độc lập và không có chương trình bug bounty. Mã nguồn là mở và toán học nằm trong bài báo. Hãy sử dụng cho phù hợp.</b>",
       "safe_p3": "Chế độ thất bại có khả năng nhất là <b>bạn</b> mất quyền truy cập vào bí mật chủ sở hữu. Két dẫn xuất từ ví khiến điều này khó (ví của bạn là bản sao lưu), nhưng dự phòng mật khẩu khôi phục khiến nó dễ nếu bạn chọn một mật khẩu yếu và ai đó thử brute-force ngoại tuyến vào địa chỉ stake công khai của bạn.",
       "vault_h": "Két là gì?",
       "vault_p1": "Két là sổ ghi chép trên trình duyệt theo dõi mix-box nào thuộc về bạn. Nó không giữ ADA. Nó giữ một bộ đếm dẫn xuất, kết hợp với một chữ ký mà ví của bạn tạo ra khi mở khóa lần đầu, cho phép Lovejoin dẫn xuất lại mọi bí mật chủ sở hữu mà bạn đã từng tạo.",

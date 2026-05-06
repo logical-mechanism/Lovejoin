@@ -14,9 +14,7 @@ If you want destination anonymity (the address you withdraw to should also be un
 
 ## Try it
 
-Lovejoin is in **alpha on the Cardano Preprod testnet**. No real funds are at risk. The hosted UI ships at **lovejo.in** with **preprod.lovejo.in** for staging once domain setup completes; until then, see the **Develop** section below to run the UI locally against the live Preprod deployment.
-
-<!-- Screenshot placeholder: add docs/images/lovejoin-pool.png once captured. -->
+Lovejoin is **live on Cardano Preprod** with a mainnet deployment of the same contracts in preparation. The hosted UI ships at **preprod.lovejo.in** for the current testnet pool and **lovejo.in** for the upcoming mainnet pool. To run the UI locally against the live Preprod deployment, see the **Develop** section below.
 
 The protocol is live, the validators are deployed, and the contracts cannot be changed. Three operations:
 
@@ -29,8 +27,7 @@ After `k` mixes at width `N`, an outsider's chance of correctly mapping your dep
 ## What this is not
 
 - **Not a custodian.** Your funds are protected by your wallet's signature and a proof you generate locally. We never touch your keys.
-- **Not audited.** No third-party audit has been completed. The code is open; the math is in the paper. Treat the alpha as experimental.
-- **Not on mainnet.** Preprod only until threat model and an external audit are signed off.
+- **Not audited.** No third-party audit has been completed and none is planned. There is no bug bounty program. Internal review notes live in this repo's commit history. The code is open and the math is in the paper. Use accordingly.
 - **Not a magic wand.** Mixers raise the cost of deanonymisation; they do not make it impossible. Wallet hygiene, traffic patterns, and timing still leak signal. Treat it as one tool, not a complete privacy strategy.
 - **No analytics, no telemetry, no cookies.** The backend logs IPs only for rate limiting, with sub-24-hour retention.
 

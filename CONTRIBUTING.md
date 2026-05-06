@@ -7,8 +7,7 @@ This guide covers what you need to know to get a change landed.
 ## Before you start
 
 - Read [README.md](README.md) for the 5-minute summary.
-- Read [CLAUDE.md](CLAUDE.md) for the architectural pillars and conventions baked into the codebase.
-- For anything non-trivial, skim the relevant spec file under [docs/spec/](docs/spec/). The spec is canonical; the README is a summary.
+- Read [ARCHITECTURE.md](ARCHITECTURE.md) for the one-page overview, then [CLAUDE.md](CLAUDE.md) for the architectural pillars and conventions baked into the codebase.
 - Check open issues to see whether someone is already on it: `gh issue list --state open`.
 - For larger changes, open an issue first to align on scope. We would rather discuss for 10 minutes than ask you to rewrite a 500-line PR.
 
@@ -55,7 +54,7 @@ A husky `pre-commit` hook runs `lint-staged` (prettier + eslint --fix on staged 
 - Commits follow [Conventional Commits](https://www.conventionalcommits.org/): `feat(scope): ...`, `fix(scope): ...`, `test(scope): ...`, `chore(scope): ...`, `docs(scope): ...`. Reference the issue in a trailer (`Refs #N` or `Closes #N`).
 - Many small green commits beat one giant squash. Push periodically.
 
-When opening a PR (`gh pr create --base dev`), the PR template will prompt for what changed, how it was tested, and which spec section is affected. Fill it out; reviewers rely on it.
+When opening a PR (`gh pr create --base dev`), the PR template will prompt for what changed and how it was tested. Fill it out; reviewers rely on it.
 
 ## Changelog
 
@@ -67,10 +66,10 @@ Pre-v1.0.0 we use date-based sections, not SemVer. **On `dev → main` rollup da
 
 - Every new file with logic gets a test file. Minimum: one happy-path and at least one failure mode.
 - Crypto, serialization, and on-chain validators target byte-exact KAT vectors. The Rust reference impl in [crypto/](crypto/) is the cross-language ground truth; vectors live in [crypto/test-vectors/](crypto/test-vectors/).
-- Validator tests in [contracts/](contracts/) target 100% spec-rule coverage. CI fails if a rule from [docs/spec/03-contracts.md](docs/spec/03-contracts.md) sections 1 through 3 lacks a positive and a negative test.
+- Validator tests in [contracts/](contracts/) target 100% rule coverage. Every invariant enforced by a validator must have both a positive and a negative test in the validator's `*.test.ak` file; CI fails on coverage gaps.
 - UI strings: lovejoin ships in 20 locales. When you add or change a string, update the canonical English file (`ui/src/i18n/locales/en.json`) and the 19 non-English locale files in the same change. The lint rule rejects raw English in JSX.
 - For Cardano-touching code, prefer real Preprod via env-var URLs over mocks. If Preprod is unreachable, ask in the issue rather than mocking.
-- `aiken simulate` is not a faithful chain emulator for `serialise_data` round-trips. Build parity tests from record literals; see [docs/spec/12-build-guide.md](docs/spec/12-build-guide.md).
+- `aiken simulate` is not a faithful chain emulator for `serialise_data` round-trips. The simulator caches original parse bytes through `serialise_data`, but the chain re-canonicalises. Build parity tests from record literals rather than trusting simulated round-trips.
 
 ## Code style
 
@@ -86,7 +85,7 @@ Pre-v1.0.0 we use date-based sections, not SemVer. **On `dev → main` rollup da
 - **Never** add analytics, telemetry, or cookies to the UI or backend. Backend logs IPs only for rate limiting, retention under 24 hours.
 - **Never** weaken the wallet-anonymity properties of Mix txs. The collateral provider abstraction in [offchain/src/tx/collateral.ts](offchain/src/tx/collateral.ts) exists for this reason; do not fall back to wallet collateral for Mix.
 - **Never** call Blockfrost directly from new code. Add capabilities to `ChainProvider` ([offchain/src/chain/provider.ts](offchain/src/chain/provider.ts)) and let both implementations grow.
-- TS / Aiken byte-encoding parity is a silent killer. Before writing or changing any sigma-protocol code, run the parity tests; see [docs/spec/12-build-guide.md](docs/spec/12-build-guide.md) section "Risk 1".
+- TS / Aiken byte-encoding parity is a silent killer. Before writing or changing any sigma-protocol code, run the parity tests under [offchain/test/crypto/encoding-parity.test.ts](offchain/test/crypto/encoding-parity.test.ts) and the Aiken side under [contracts/lib/lovejoin/encoding_parity_kat.test.ak](contracts/lib/lovejoin/encoding_parity_kat.test.ak). A one-byte CBOR difference silently fails every proof on chain.
 
 ## Where to ask questions
 

@@ -152,8 +152,9 @@ redeploy + `max-n-calibration` re-run + `max_n` bump in
 `config/network.preprod.json` is the operator step that closes the
 milestone.
 
-**What shipped** (see [`docs/perf-m4-5-audit.md`](perf-m4-5-audit.md)
-for the full audit + reject list):
+**What shipped** (the full audit + reject list lived alongside this
+file during the M4.5 squeeze; the optimisations themselves are the
+record now):
 
 1. `sigma_or.verify_pre` no longer allocates two N-element wrapper
    lists per call (was: `stmt_for_hash`, `commitments_for_hash`

@@ -2,9 +2,11 @@
 
 ## Status of the protocol
 
-Lovejoin is **alpha software, deployed only on Cardano Preprod**. No real funds are at stake. The on-chain protocol has not yet undergone an external audit. A formal audit and a coordinated disclosure window will precede any mainnet deployment.
+Lovejoin is **live on Cardano Preprod**, with a mainnet deployment of the same on-chain code in preparation. The validators are immutable; once a network's reference UTxO is minted, the protocol on that network cannot be changed.
 
-Despite the alpha status, we take security seriously and want to hear from you if you find a problem. Disclosure is the right way to make the project safer.
+**Lovejoin has not undergone an independent third-party audit, and there are no plans to commission one.** There is **no bug bounty program**, paid or otherwise. What exists is the open code in this repository, the math in [`papers/sigmajoin.pdf`](papers/sigmajoin.pdf), and an internal review pass that the maintainers ran before launch. If you need a third-party audit before using this software, do not use it.
+
+We still take security seriously and want to hear from you if you find a problem. Disclosure is the right way to make the project safer for everyone, and credit in the changelog is a real thing.
 
 ## What's in scope
 
@@ -18,7 +20,7 @@ Specifically of interest:
 
 - Any way to deanonymize a depositor / withdrawer pair beyond the `(1/N)^k` linkage bound the protocol claims.
 - Any way to spend a mix-box without satisfying the Owner branch's Schnorr proof or the Mix branch's N-way sigma-OR proof.
-- Any way to drain the fee-contract pool, double-spend a fee shard, or cause a Mix tx to pay less than the spec requires.
+- Any way to drain the fee-contract pool, double-spend a fee shard, or cause a Mix tx to pay less than the protocol requires.
 - Any way to forge or replay a CIP-8 wallet signature so as to recover or steal another user's vault seed.
 - TS / Aiken byte-encoding parity divergences that would make a proof valid off-chain but invalid on-chain (or vice versa).
 - XSS, CSRF, prototype pollution, or any other web-side issue in the UI that could exfiltrate the in-memory vault seed or the IndexedDB-encrypted backup.
@@ -49,18 +51,18 @@ If you want to encrypt the report, ask in your first email and we will reply wit
 1. You report privately.
 2. We confirm and triage. We will tell you whether we agree the issue is in scope and roughly when we expect a fix.
 3. We work on a fix. You are welcome to review patches before they ship.
-4. We deploy the fix. For on-chain issues, this may require a redeploy of the reference UTxO; the existing pool is not upgradable.
+4. We deploy the fix. For on-chain issues, this may require a redeploy of the reference UTxO; an existing pool is not upgradable.
 5. We coordinate a public disclosure. Default window: **90 days from the initial report**, or sooner if a fix has shipped and reached users. We are flexible if you need more time and explain why.
 6. We publish a security note in [CHANGELOG.md](CHANGELOG.md) and credit you (unless you prefer to remain anonymous).
 
 If we have not responded within the timelines above, you are welcome to disclose publicly. We would rather you push us than sit on an issue.
 
-## Bounty
+## What you get
 
-Because lovejoin is **alpha on Preprod with no real funds at stake**, we do not currently run a paid bug bounty program. We do offer:
+There is no paid bounty. What we offer:
 
 - **Public credit** in the changelog and release notes (or anonymity, your call).
 - **Direct contact** with the maintainer for follow-up work.
 - **Swag and modest gratitude payments** at the maintainer's discretion for high-quality reports, especially ones that find on-chain protocol issues.
 
-A formal bounty program will be considered alongside the pre-mainnet audit. Until then, treat reports as a contribution to the project's safety, not as a transaction.
+Treat reports as a contribution to the project's safety, not as a transaction.
