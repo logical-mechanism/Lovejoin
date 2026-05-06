@@ -21,8 +21,15 @@
 # Inputs (env or first positional):
 #   SEED                 — "<txid>#<idx>" of an unspent UTxO at BOOTSTRAP_ADDR.
 #   NETWORK              — "preprod" | "test" (default: preprod)
-#   REF_NFT_ASSET_NAME   — hex-encoded asset name for the reference NFT
-#                          (default: "lovejoin" hex-encoded → 6c6f76656a6f696e).
+#   REF_NFT_ASSET_NAME   — hex-encoded asset name for the reference NFT.
+#                          Default = "lovejoin" hex-encoded → 6c6f76656a6f696e.
+#                          Audit F-17 (next-redeploy bundle Q-2): the
+#                          validator now bakes this literal in. The env
+#                          var remains as a cross-check — if you override
+#                          it to anything other than 6c6f76656a6f696e the
+#                          mint tx will be rejected by `one_shot_mint` at
+#                          submission time. Treat any deviation here as a
+#                          configuration mistake, not a feature.
 #
 # Tool deps:
 #   aiken (1.1.21)        — `aiken build`, `aiken blueprint apply`,
@@ -57,6 +64,16 @@ if [[ -z "$SEED" ]]; then
 fi
 
 REF_NFT_ASSET_NAME="${REF_NFT_ASSET_NAME:-6c6f76656a6f696e}"
+
+# Defensive cross-check: the on-chain `one_shot_mint` validator pins the
+# asset name to "lovejoin" (audit F-17). Refuse to bootstrap with anything
+# else — the mint tx would just bounce, but failing here saves a wasted
+# round-trip to the chain.
+if [[ "$REF_NFT_ASSET_NAME" != "6c6f76656a6f696e" ]]; then
+  echo "00-build-reference: REF_NFT_ASSET_NAME must be 6c6f76656a6f696e (\"lovejoin\");" >&2
+  echo "  the on-chain one_shot_mint validator rejects any other name. (got: $REF_NFT_ASSET_NAME)" >&2
+  exit 1
+fi
 
 REPO_ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 ARTIFACTS_DIR="$REPO_ROOT/artifacts/$NETWORK"
