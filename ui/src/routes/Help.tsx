@@ -76,6 +76,13 @@ export function Help() {
   const initial = searchParams.get("doc");
   const active: DocId = isDocId(initial) ? initial : "guide";
 
+  // Scroll to top when the active doc changes (tab click or in-page
+  // text links into another doc). Without this, switching docs from
+  // a deep scroll position leaves the user mid-panel on the new doc.
+  useEffect(() => {
+    window.scrollTo({ top: 0 });
+  }, [active]);
+
   return (
     <article className="lj-prose">
       <header>
