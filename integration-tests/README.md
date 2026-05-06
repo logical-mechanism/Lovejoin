@@ -65,7 +65,7 @@ pnpm --filter integration-tests test -- deposit-withdraw
 
 ## What "passes 10 consecutive runs" means
 
-The exit criterion in `milestones.json` (M3) requires 10 sequential green
+The exit criterion for M3 historically required 10 sequential green
 runs of `deposit-withdraw`. Once a single run is reliably green, wrap it
 in a shell loop:
 

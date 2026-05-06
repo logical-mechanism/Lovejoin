@@ -8,7 +8,7 @@ M0 through M7 have landed end-to-end on Preprod, and the v1.0.0 hardening work (
 
 **Now: preparing the mainnet deployment of the same on-chain code.** No third-party audit will precede mainnet, and no bug bounty program is planned. The internal review pass is the only review the protocol will have before mainnet; that posture is reflected in [README.md](README.md) and [SECURITY.md](SECURITY.md) and must not be silently contradicted in user-facing copy.
 
-[milestones.json](milestones.json) is the historical source of truth for the M0 through M7 build phase (the `/milestones` slash command lists them). Day-to-day work flows through ordinary GitHub issues against `dev`; PRs target `dev` and roll up to `main` periodically (see the branch model in [CONTRIBUTING.md](CONTRIBUTING.md)).
+Day-to-day work flows through ordinary GitHub issues against `dev`; PRs target `dev` and roll up to `main` periodically (see the branch model in [CONTRIBUTING.md](CONTRIBUTING.md)). The M0 through M7 build history lives in this file's "Build history" section and in the git log; there is no separate milestones tracker.
 
 ## What this project is
 

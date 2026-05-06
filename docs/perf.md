@@ -248,11 +248,9 @@ estimated from suite numbers):
 | 8   | ~430M            | ~4.3%                      |
 
 The validator at N=4 was overshooting by an unquantified amount in
-the M4 deployment ([milestones.json M4.5 notes][m45]); whether the
+the M4 deployment (M4.5 notes); whether the
 ~1.2% reclaimed at N=4 closes that gap is the recalibration's job to
 confirm.
-
-[m45]: ../milestones.json
 
 ### Operator step (closes M4.5 exit criteria)
 

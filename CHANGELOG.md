@@ -13,6 +13,7 @@ Lovejoin does not yet expose a stable public API surface, so we don't follow [Se
 ### Removed
 
 - **`docs/spec/` retired.** The 13-file spec was build-time scaffolding for the M0 through M7 phase. The build is done, the contracts are immutable on Preprod, and the code is the ground truth. New canonical references: [README.md](README.md) (5-min summary), [ARCHITECTURE.md](ARCHITECTURE.md) (one-page overview with mermaid diagrams), [CLAUDE.md](CLAUDE.md) (conventions and constraints), [papers/sigmajoin.pdf](papers/sigmajoin.pdf) (the math), and the validators in [contracts/validators/](contracts/validators/) plus their `*.test.ak` siblings (the on-chain rules, with positive and negative coverage). All `docs/spec/` links in source comments, READMEs, workflows, scripts, and configs have been stripped or rewritten. Reading order for new contributors is now README to ARCHITECTURE to CLAUDE to code, captured at the bottom of CLAUDE.md.
+- **`milestones.json` retired** along with the `/milestones` slash command. Same reason: build-phase scaffolding outlived the build. The status fields were stale (M4.5 marked `in-progress` after redeploy, v1 marked `in-progress` after all 23 issues closed), exit criteria pointed at URLs that don't resolve yet, and there are no remaining milestones to list. The build history that mattered is captured in CLAUDE.md's "Build history" section and in the git log; CHANGELOG is the user-facing record going forward. The `/work` slash command keeps its issue workflow and drops the now-empty milestone branch.
 
 ## [2026-05-06]
 
