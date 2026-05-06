@@ -3,7 +3,7 @@ import { DOMAIN_TAG_V1, SDK_VERSION } from "../src/index.js";
 
 describe("@lovejoin/sdk smoke", () => {
   it("exposes a version", () => {
-    expect(SDK_VERSION).toBe("0.2.0");
+    expect(SDK_VERSION).toBe("0.3.0");
   });
 
   it("declares the canonical FS domain tag", () => {

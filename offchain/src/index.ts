@@ -1,4 +1,4 @@
-export const SDK_VERSION = "0.2.0";
+export const SDK_VERSION = "0.3.0";
 
 // M1: cryptography (variable-N sigma-OR + Schnorr + DH-tuple).
 // See  and .

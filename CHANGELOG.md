@@ -6,18 +6,19 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## Versioning
 
-Lovejoin does not yet expose a stable public API surface, so we don't follow [SemVer](https://semver.org/) yet. Instead, each section is dated to the day a `dev` branch rollup merged into `main`. Day-to-day work accumulates under `Unreleased` while it lives on `dev`; on rollup day we rename `Unreleased` to that day's date and open a fresh `Unreleased` section. We will switch to SemVer when the API surface stabilises.
+Lovejoin follows [SemVer](https://semver.org/) starting at 0.3.0. Day-to-day work accumulates under `Unreleased` while it lives on `dev`; when a `dev → main` rollup goes out as a release, `Unreleased` is renamed to that release's `[X.Y.Z] - YYYY-MM-DD` heading and a fresh `Unreleased` section opens. Pre-0.3.0 entries are dated rather than versioned because the project did not yet make a versioned-release commitment.
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-05-06
+
+Public-readiness release. The codebase is post-build-phase: validators deployed and immutable on Preprod, off-chain SDK + backend + UI shipped against the live deployment, hardening pass closed, internal review pass complete, disclosure narrative reconciled across README, SECURITY, CLAUDE, and the UI to match the actual posture (no third-party audit, no bug bounty, mainnet deployment of the same contracts in preparation).
+
 ### Removed
 
-- **`docs/spec/` retired.** The 13-file spec was build-time scaffolding for the M0 through M7 phase. The build is done, the contracts are immutable on Preprod, and the code is the ground truth. New canonical references: [README.md](README.md) (5-min summary), [ARCHITECTURE.md](ARCHITECTURE.md) (one-page overview with mermaid diagrams), [CLAUDE.md](CLAUDE.md) (conventions and constraints), [papers/sigmajoin.pdf](papers/sigmajoin.pdf) (the math), and the validators in [contracts/validators/](contracts/validators/) plus their `*.test.ak` siblings (the on-chain rules, with positive and negative coverage). All `docs/spec/` links in source comments, READMEs, workflows, scripts, and configs have been stripped or rewritten. Reading order for new contributors is now README to ARCHITECTURE to CLAUDE to code, captured at the bottom of CLAUDE.md.
-- **`milestones.json` retired** along with the `/milestones` slash command. Same reason: build-phase scaffolding outlived the build. The status fields were stale (M4.5 marked `in-progress` after redeploy, v1 marked `in-progress` after all 23 issues closed), exit criteria pointed at URLs that don't resolve yet, and there are no remaining milestones to list. The build history that mattered is captured in CLAUDE.md's "Build history" section and in the git log; CHANGELOG is the user-facing record going forward. The `/work` slash command keeps its issue workflow and drops the now-empty milestone branch.
-
-## [2026-05-06]
-
-Public-readiness pass: reconciled the disclosure narrative across README, SECURITY, CLAUDE, and the UI to match the actual posture (no third-party audit, no bug bounty, mainnet deployment of the same contracts in preparation).
+- **`docs/spec/` retired.** The 13-file spec was build-time scaffolding. The build is done, the contracts are immutable on Preprod, and the code is the ground truth. New canonical references: [README.md](README.md) (5-min summary), [ARCHITECTURE.md](ARCHITECTURE.md) (one-page overview with mermaid diagrams), [CLAUDE.md](CLAUDE.md) (conventions and constraints), [papers/sigmajoin.pdf](papers/sigmajoin.pdf) (the math), and the validators in [contracts/validators/](contracts/validators/) plus their `*.test.ak` siblings (the on-chain rules, with positive and negative coverage). All `docs/spec/` links in source comments, READMEs, workflows, scripts, and configs have been stripped or rewritten. Reading order for new contributors is now README to ARCHITECTURE to CLAUDE to code, captured at the bottom of CLAUDE.md.
+- **`milestones.json` retired** along with the `/milestones` slash command. The status fields were stale (M4.5 marked `in-progress` after the redeploy landed, v1 marked `in-progress` after all 23 issues were closed), exit criteria pointed at URLs that don't resolve yet, and there are no remaining milestones for the listing slash command to surface. CLAUDE.md and the git log carry the build narrative; CHANGELOG is the user-facing record going forward. The `/work` slash command keeps its issue workflow and drops the now-empty milestone branch.
+- **Internal one-off docs**: `audit-2026-05-03.md`, `security-review-v1.md`, `m3.5-verification.md`, `next-redeploy.md`, `optimization-audit-2026-04-28.md`, `perf-m4-5-audit.md`, `test-coverage.md`. The closed work they recorded lives in the commit history.
 
 ### Added
 
@@ -72,9 +73,9 @@ Public-readiness pass: reconciled the disclosure narrative across README, SECURI
 - Preprod redeploy of the optimized validators after the M4.5/M4.6 CPU squeeze and audit fixes; new `artifacts/preprod/addresses.json`.
 - Mainnet deployment of the same on-chain code is in preparation as of this rollup.
 
-## [2026-05-01]
+## [0.2.0] - 2026-05-01
 
-Snapshot of `main` at the most recent `dev → main` rollup (PR #62). Consolidates M0 through M7 — the work that brought the repo from green-field to a working alpha on Preprod. Individual commits are the authoritative history; this entry gives the shape of what landed.
+Snapshot of `main` at the `dev → main` rollup in PR #62. Consolidates the M0 through M7 build phase, which brought the repo from green-field to a working alpha on Preprod. Individual commits are the authoritative history; this entry gives the shape of what landed.
 
 ### Added
 
