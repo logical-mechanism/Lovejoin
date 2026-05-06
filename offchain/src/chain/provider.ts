@@ -6,7 +6,7 @@
 // self-hosted indexer). Switching between them is a config-only change for the
 // SDK consumer.
 //
-// Spec: docs/spec/09-milestones.md M2 notes ("Provider abstraction is
+// Spec: M2 notes ("Provider abstraction is
 // introduced at M2 because the stress-test submitters need it").
 
 /** A 32-byte hash, lowercase hex, no `0x` prefix. */

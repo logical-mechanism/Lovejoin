@@ -1,6 +1,6 @@
 // N-width slider — picks the Mix tx's `N` (2 ≤ N ≤ max_n).
 //
-// Spec: docs/spec/06-ui.md §"Pool" + M6.5 — slider clamps to the runtime
+// Spec: §"Pool" + M6.5 — slider clamps to the runtime
 // max_n (no hard-coded fallback). Default is the deployed cap so users
 // get the strongest privacy gain by default; advanced users dial down.
 //

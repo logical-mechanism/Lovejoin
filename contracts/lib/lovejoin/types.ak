@@ -1,6 +1,6 @@
 //// Protocol types shared across validators.
 ////
-//// Spec: docs/spec/03-contracts.md §1, §2, §3.
+//// Spec: §1, §2, §3.
 ////
 //// All on-chain types use the proper stdlib aliases:
 ////   * ScriptHash for Plutus script hashes (Hash<Blake2b_224, Script>)

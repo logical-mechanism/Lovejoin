@@ -1,6 +1,6 @@
 // App header — brand mark on the left, primary nav, wallet pill on the right.
 //
-// Spec: docs/spec/06-ui.md §"Layout" + M6.5 — "connect/disconnect lives in
+// Spec: §"Layout" + M6.5 — "connect/disconnect lives in
 // the header (visible state + change-address truncated to one line);
 // installed-wallet picker rendered as a modal on click; the WalletPanel
 // section disappears as a free-floating block."

@@ -1,7 +1,7 @@
 // Vault — wallet-derived owned-boxes view + lock + tier-2 BIP-39 fallback +
 // inline (single + bulk) withdraw form.
 //
-// Spec: docs/spec/06-ui.md M6.5 — "wallet-derived vault (default flow) —
+// Spec: M6.5 — "wallet-derived vault (default flow) —
 // zero new keys for the user to manage. On first 'unlock' the connected
 // CIP-30 wallet does a single signData(stakeAddr, 'lovejoin/owner/v1');
 // ... seed = blake2b_256(signature_bytes); per-deposit owner secret x_i =

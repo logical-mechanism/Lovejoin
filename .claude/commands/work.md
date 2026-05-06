@@ -31,19 +31,12 @@ Inspect `$ARGUMENTS` and decide which shape this is:
    - Branch name: `milestone/<id>-<slug>`, where `<id>` is the lowercase id (`m1`, `m3.5` — `.` stays as `.`) and `<slug>` is a kebab-case slug of the milestone name. Example: `milestone/m1-cryptography-variable-n`.
    - Resuming: `git switch` to the existing branch and `git pull --ff-only` if it has a remote.
    - Starting fresh: ensure working tree clean, `git fetch origin`, `git switch -c milestone/<id>-<slug> origin/main`. Refuse to start from anywhere other than the current `origin/main` tip — bail and ask if `main` is dirty or unpushed.
-5. **Read context.** In this order:
-   - `docs/spec/09-milestones.md` — find the section matching the milestone ID.
-   - `docs/spec/12-build-guide.md` — build-order playbook.
-   - The component-level spec files relevant to this milestone:
-     - M0: README, all of `docs/spec/`
-     - M1: `02-cryptography.md`
-     - M2: `03-contracts.md`, plus `02-cryptography.md` for verifier translations
-     - M3 / M3.5: `04-offchain.md` deposit/withdraw/collateral sections
-     - M4 / M4.5: `04-offchain.md` mix sections, `01-protocol.md` Mix tx structure
-     - M5: `05-backend.md`
-     - M6 / M6.5: `06-ui.md`
-     - M7: `07-testing.md`, `09-milestones.md` M7
-   - `docs/spec/08-threat-model.md` if the milestone touches security-sensitive code.
+5. **Read context.** M0 through M7 are historical at this point; the spec docs they were built against have been removed. For a redo or resume on a milestone branch, the canonical context is now:
+   - `milestones.json` for the milestone's exit criteria and dependencies.
+   - `CLAUDE.md` for the conventions, the four pillars, the build-blocker risk (TS to Aiken encoding parity), and the testing posture.
+   - The validators in `contracts/validators/` and their `*.test.ak` siblings for on-chain rules.
+   - The relevant SDK / backend / UI subtree under `offchain/src/`, `backend/src/`, `ui/src/`.
+   - `SECURITY.md` if the milestone touches security-sensitive code.
 6. **Mark in-progress.** Edit `milestones.json` to set status to `in-progress`. Commit immediately (`chore(<id>): start milestone`) so the branch has a clear "started" marker.
 7. **Implement.** Build bottom-up per the build guide. Small, testable changes.
 8. **Tests as you go.** Every new file with logic gets a test file. Minimum: one happy-path + at least one failure-mode. For crypto and serialization: KAT vectors, byte-exact assertions.
@@ -82,9 +75,8 @@ Inspect `$ARGUMENTS` and decide which shape this is:
    - Starting fresh: ensure working tree clean, `git fetch origin`, `git switch -c issue/<n>-<slug> origin/main`. Refuse to start from anywhere other than the current `origin/main` tip — bail and ask if `main` is dirty or unpushed.
 3. **Read context.** In this order:
    - The issue body itself — it is the canonical scope (Goal / Deliverables / Verification).
-   - Any spec files referenced from the issue body (`docs/spec/...`).
    - For v1 issues: `/home/logic/.claude/plans/we-are-going-to-abundant-backus.md` — the plan file the issues were generated from.
-   - `docs/spec/08-threat-model.md` if the issue is labelled `security`.
+   - `SECURITY.md` if the issue is labelled `security`.
    - `CLAUDE.md` — always.
 4. **Assign yourself + comment "starting".** (Optional but useful for tracking.)
    ```bash

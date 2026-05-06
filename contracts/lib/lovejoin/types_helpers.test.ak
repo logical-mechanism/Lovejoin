@@ -1,6 +1,6 @@
 //// Unit tests for the lib helpers underlying Rule 2 (hyperstructure datum tolerance).
 ////
-//// Spec: docs/spec/03-contracts.md §0, §2 (well-formed MixDatum), §3 (unit fee datum).
+//// Spec: §0, §2 (well-formed MixDatum), §3 (unit fee datum).
 
 use cardano/transaction.{DatumHash, InlineDatum, NoDatum}
 use lovejoin/fee

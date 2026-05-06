@@ -6,7 +6,7 @@
       "name": "Foundations and tooling",
       "status": "done",
       "depends_on": [],
-      "spec": "docs/spec/09-milestones.md#m0--foundations-and-tooling",
+      "spec": "",
       "deliverables": [
         "Monorepo skeleton (contracts/, offchain/, backend/, ui/, infra/, integration-tests/, stress-tests/, crypto/, bench/)",
         "Aiken 1.1.21 pinned in contracts/aiken.toml",
@@ -51,7 +51,7 @@
       "name": "Cryptography (variable N)",
       "status": "done",
       "depends_on": ["M0"],
-      "spec": "docs/spec/09-milestones.md#m1--cryptography-variable-n",
+      "spec": "",
       "deliverables": [
         "TS sigma protocols (Schnorr, DH-tuple, N-way sigma-OR) in offchain/src/crypto/",
         "Aiken verifiers in contracts/lib/lovejoin/{schnorr,dhtuple,sigma_or}.ak",
@@ -95,7 +95,7 @@
       "name": "Validators + Preprod bootstrap + N calibration",
       "status": "done",
       "depends_on": ["M1"],
-      "spec": "docs/spec/09-milestones.md#m2--validators-3-of-them--preprod-bootstrap",
+      "spec": "",
       "notes": [
         "Chain provider for v1: Blockfrost (https://blockfrost.io). Local cardano-node + ogmios + db-sync are NOT required to ship M2/M3/M4 — Blockfrost's hosted API covers tx submission + chain queries via mesh's BlockfrostProvider. The backend's ogmios + db-sync indexer (M5 spec) becomes the second implementation of the same provider interface, swappable at runtime.",
         "Canonical test network: Preprod (via Blockfrost Preprod project ID, free at blockfrost.io). Mainnet remains gated behind the audit gate per spec OQ-Y — the bootstrap ceremony is irreversible per network and creates permanent on-chain artifacts, so do NOT run it against mainnet during pre-alpha.",
@@ -104,7 +104,7 @@
       ],
       "deliverables": [
         "validators/{reference_holder,one_shot_mint,mix_box,mix_logic,fee_contract}.ak compiled successfully",
-        "mix_box is a cheap spend-side delegator; mix_logic is the withdraw-zero validator that handles Owner + Mix logic once per tx (see docs/spec/03-contracts.md §0)",
+        "mix_box is a cheap spend-side delegator; mix_logic is the withdraw-zero validator that handles Owner + Mix logic once per tx (see  §0)",
         "Spend validators tolerate bad/missing datums (return True) per the hyperstructure principle; mix_logic silently ignores malformed mix inputs",
         "Mix branch handles variable N at runtime (2 ≤ N)",
         "test files cover every rule with positive + negative tests at multiple N values",
@@ -142,7 +142,7 @@
       "name": "SDK: deposit + withdraw + collateral provider client",
       "status": "done",
       "depends_on": ["M2"],
-      "spec": "docs/spec/09-milestones.md#m3--sdk-deposit--withdraw",
+      "spec": "",
       "deliverables": [
         "offchain/src/tx/{deposit,withdraw,fee,params,collateral}.ts",
         "offchain/src/wallet/cip30.ts mesh integration",
@@ -168,7 +168,7 @@
         },
         {
           "description": "Mesh viability decision documented",
-          "check": "grep -F 'mesh viability' docs/spec/11-open-questions.md || grep -F 'mesh viability' docs/perf.md || grep -rli 'mesh viability' docs/"
+          "check": "grep -F 'mesh viability'  || grep -F 'mesh viability' docs/perf.md || grep -rli 'mesh viability' docs/"
         }
       ]
     },
@@ -177,7 +177,7 @@
       "name": "UI vertical slice — wallet + deposit + withdraw",
       "status": "done",
       "depends_on": ["M3"],
-      "spec": "docs/spec/12-build-guide.md#the-thin-happy-path-slice-target-end-of-m3",
+      "spec": "",
       "notes": [
         "Inserted between M3 and M4 (per 2026-04-27 decision): headless integration testing of M3 is hard to debug and not how users will interact, so build the smallest possible UI that exercises the SDK with a real CIP-30 browser wallet. This validates buildDepositTx + buildWithdrawTx + the BrowserWallet adapter together, and surfaces any browser-only issues (mesh bundling, libsodium polyfill, window globals) before we go deep on M4's Mix builder.",
         "Scope is intentionally minimal: wallet picker, deposit form, in-memory list of just-deposited boxes, withdraw form. NO IndexedDB encryption, NO i18n lint rule, NO Pool screen, NO Mix screen, NO Playwright E2E. Those land in M6 with the rest of the polish.",
@@ -204,7 +204,7 @@
       "name": "Mix tx builder + Mix UI",
       "status": "done",
       "depends_on": ["M3.5"],
-      "spec": "docs/spec/09-milestones.md#m4--mix-tx-builder",
+      "spec": "",
       "notes": [
         "Empirical max_n calibration, the fee-calibration sweep, and the 30-minute fuzz harness moved here from M2 (per 2026-04-27 decision): they all need a real Mix tx builder to exercise. Run them after the variable-N Mix builder is functional on Preprod and commit the empirical max_n + max_fee_per_mix_lovelace into config/network.preprod.json + docs/perf.md before closing M4.",
         "Bundles the Mix UI screen with the SDK work (per 2026-04-27 decision): same reasoning as M3.5 — verifying Mix headlessly is harder than just building the UI to drive it. Pool view (which requires backend chain-scan) stays deferred until M5/M6."
@@ -264,7 +264,7 @@
       "name": "Mix tx CPU/mem optimization",
       "status": "in-progress",
       "depends_on": ["M4"],
-      "spec": "docs/spec/09-milestones.md#m45--mix-tx-cpu-optimization",
+      "spec": "",
       "notes": [
         "Inserted between M4 and M5 (per 2026-04-27 decision after live Preprod testing): N=4 overshoots the per-tx CPU budget (10G mainnet steps) on the validator we shipped with M4. The Mix tx's per-tx cost is dominated by ~2N² bls12_381_g1_uncompress calls plus ~4N² scalar muls; bringing the constant down (rather than capping max_n at 3) is the highest-leverage path to making the protocol useful for real users. Privacy at width N=3 reaches 1/2^30 linkage in 19 rounds vs 12 at N=4 — a ~60% rise in user fees.",
         "First optimisation already shipped on the M4 branch: 'perf(m4): pre-uncompress sigma-OR statements in mix_logic' — drops N² statement-point uncompresses to N. M4.5's job is the rest of the cost-cutting + a redeploy + re-calibration."
@@ -304,7 +304,7 @@
       "name": "Backend indexer + API",
       "status": "done",
       "depends_on": ["M2"],
-      "spec": "docs/spec/09-milestones.md#m5--backend-indexer--api",
+      "spec": "",
       "notes": [
         "Execution-ordering decision (2026-04-27): deferred until after M4 + M6 polish. The M2 ChainProvider abstraction means Blockfrost is sufficient for the alpha — every SDK + UI call goes through it. The self-hosted ogmios + db-sync indexer is a second ChainProvider implementation, swap-in via config when Blockfrost rate limits or self-hosting needs hit. Pool-view UI in M6 reads from whichever provider is wired."
       ],
@@ -335,7 +335,7 @@
       "name": "UI v1 — polish + remaining screens",
       "status": "done",
       "depends_on": ["M3.5", "M4", "M5"],
-      "spec": "docs/spec/09-milestones.md#m6--ui-v1",
+      "spec": "",
       "notes": [
         "Scope updated 2026-04-27: deposit + withdraw screens shipped in M3.5 (vertical slice); Mix screen shipped in M4. M6 now finishes the rest — Pool/Vault/Box/Home screens, IndexedDB encrypted box-secret storage (Argon2id), i18n lint, the N-width slider, Seedelf destination detection, Playwright E2E. Pool view depends on M5's indexer being wired (or Blockfrost-direct as a fallback)."
       ],
@@ -363,7 +363,7 @@
       "name": "UI v1.5 — design pass + UX rework",
       "status": "done",
       "depends_on": ["M6"],
-      "spec": "docs/spec/06-ui.md",
+      "spec": "",
       "notes": [
         "Inserted between M6 and M7 (per 2026-04-27 dogfood review): M6 shipped every spec'd screen + behavior, but the result reads as a test page. M6.5 is the design + UX pass that turns it into something a real user can use without prior protocol knowledge.",
         "Configuration panel removal (deliverable 1) is per the dogfood call: real users don't paste Blockfrost project IDs. The hosted UI ships with a baked-in backend URL (the backend is the chain provider for non-developers) + a default collateral-provider endpoint. Self-hosters override at build time via Vite env vars; there is NO user-facing config surface in the production UI. A developer-only ?advanced=1 query unlocks an overrides panel for local debugging.",
@@ -419,7 +419,7 @@
       "name": "CI/CD and release engineering",
       "status": "done",
       "depends_on": ["M0", "M1", "M2", "M3", "M3.5", "M4", "M5", "M6", "M6.5"],
-      "spec": "docs/spec/09-milestones.md#m7--cicd-and-release-engineering",
+      "spec": "",
       "notes": [
         "Scope reduced 2026-04-28 vs. the original spec: nightly Preprod integration + 30-min fuzz on a cron were dropped. Two reasons: (1) automating them on GitHub-hosted runners requires putting a funded Preprod wallet's key into repo secrets, which is a real risk surface for a one-maintainer project; (2) the spec also assumes Blockfrost is the canonical chain provider for CI, but post-M5 the self-hosted backend is the path forward and Blockfrost is the fallback — wiring Blockfrost into CI now would entrench the wrong default. The integration harness (integration-tests/) and fuzz harness (stress-tests/fuzz-runner.ts) still exist and are operator-run; they'll come back as a manual workflow_dispatch pre-release gate on a self-hosted runner when we tag a real version (post-M4.5 redeploy).",
         "Deploy hosting decision (2026-04-30): DigitalOcean App Platform for the alpha. Two services on one shared domain (backend at /api, UI at /), GitHub-source auto-deploy on push to main. The release.yml docker/ui-bundle jobs publish artifacts; App Platform consumes the same Dockerfiles via dockerfile_path. Rationale: a single managed platform handles build + run + TLS + custom domain + auto-rollback without a Kubernetes cluster, which is overkill for a one-maintainer alpha."

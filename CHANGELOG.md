@@ -10,6 +10,10 @@ Lovejoin does not yet expose a stable public API surface, so we don't follow [Se
 
 ## [Unreleased]
 
+### Removed
+
+- **`docs/spec/` retired.** The 13-file spec was build-time scaffolding for the M0 through M7 phase. The build is done, the contracts are immutable on Preprod, and the code is the ground truth. New canonical references: [README.md](README.md) (5-min summary), [ARCHITECTURE.md](ARCHITECTURE.md) (one-page overview with mermaid diagrams), [CLAUDE.md](CLAUDE.md) (conventions and constraints), [papers/sigmajoin.pdf](papers/sigmajoin.pdf) (the math), and the validators in [contracts/validators/](contracts/validators/) plus their `*.test.ak` siblings (the on-chain rules, with positive and negative coverage). All `docs/spec/` links in source comments, READMEs, workflows, scripts, and configs have been stripped or rewritten. Reading order for new contributors is now README to ARCHITECTURE to CLAUDE to code, captured at the bottom of CLAUDE.md.
+
 ## [2026-05-06]
 
 Public-readiness pass: reconciled the disclosure narrative across README, SECURITY, CLAUDE, and the UI to match the actual posture (no third-party audit, no bug bounty, mainnet deployment of the same contracts in preparation).

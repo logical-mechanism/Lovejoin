@@ -1,10 +1,10 @@
 // Withdraw tx builder.
 //
-// Spec:
-//   * docs/spec/01-protocol.md §"Withdraw" — tx structure (mix-box input
+// Spec: (see CLAUDE.md)
+//   *  §"Withdraw" — tx structure (mix-box input
 //     spent via Owner(SchnorrProof), wallet covers fee + collateral).
-//   * docs/spec/03-contracts.md §2 (Owner branch) — the on-chain rules.
-//   * docs/spec/04-offchain.md §"buildWithdrawTx".
+//   *  §2 (Owner branch) — the on-chain rules.
+//   *  §"buildWithdrawTx".
 //
 // Architecture:
 //
@@ -1027,7 +1027,7 @@ async function evaluateBulkExUnits(
  * matching the Plutus V3 ledger API.
  *
  * If the on-chain validator rejects with "owner proof failed" while the
- * math looks right (see docs/spec/12-build-guide.md §"All my proofs fail
+ * math looks right (see  §"All my proofs fail
  * but the math looks right"), this is the function to debug — by an
  * order of magnitude the most likely culprit.
  */
@@ -1061,7 +1061,7 @@ export function serializeOutputsForCtx(
  *
  * If the on-chain validator rejects with "owner proof failed" while the
  * math looks right, this is the second function to debug after
- * `serializeOutputsForCtx`. See docs/spec/12-build-guide.md §"All my
+ * `serializeOutputsForCtx`. See  §"All my
  * proofs fail but the math looks right".
  */
 export function serializeInputRefsForCtx(

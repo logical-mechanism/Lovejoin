@@ -1,6 +1,6 @@
 // M3 integration test: deposit a mix-box on Preprod, then withdraw it.
 //
-// Spec: docs/spec/09-milestones.md M3 exit criterion #4 — "Preprod
+// Spec: M3 exit criterion #4 — "Preprod
 // integration test deposit-withdraw passes ten consecutive runs". This
 // file is one round; run it ten times in a row to satisfy the criterion.
 //

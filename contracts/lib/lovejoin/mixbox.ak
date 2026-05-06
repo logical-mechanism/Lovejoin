@@ -1,6 +1,6 @@
 //// Mix-box helpers: input/output classification, datum well-formedness.
 ////
-//// Spec: docs/spec/03-contracts.md §0 Rule 2 (hyperstructure datum
+//// Spec: §0 Rule 2 (hyperstructure datum
 //// tolerance), §2.
 ////
 //// "Well-formed" `MixDatum` = decodes as `Constr 0 [a: bytes, b: bytes]`

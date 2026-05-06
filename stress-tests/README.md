@@ -7,7 +7,7 @@ Preprod-targeted runners that calibrate the empirical limits set in `network.pre
 - `max-n-calibration.ts` — submits Mix txs at increasing N until a script-cost
   threshold is hit. Records per-tx CPU/mem and the highest N that fits under
   70% of the mainnet limit. Updates `config/network.preprod.json` with the
-  recommended `max_n`. Spec: docs/spec/09-milestones.md M2 Risk 3.
+  recommended `max_n`. Spec: M2 Risk 3.
 
 - `fee-calibration.ts` — submits Mix txs at the recommended `max_n` across a
   range of pool sizes; records the worst-case Cardano-charged fee. Recommends

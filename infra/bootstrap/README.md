@@ -232,4 +232,4 @@ network)` — once you've spent the seed, you can't reuse it. On Preprod
 that's fine (request more faucet ADA), but the practice helps you catch
 parameter mismatches before the canonical run lands.
 
-See [docs/spec/12-build-guide.md §Risk 4](../../docs/spec/12-build-guide.md).
+See [CLAUDE.md](../../CLAUDE.md) for the architectural pillars this ceremony anchors.

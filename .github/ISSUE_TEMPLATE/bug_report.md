@@ -46,4 +46,4 @@ relevant transaction hashes if applicable. -->
 
 ## Anything else
 
-<!-- Optional: hypotheses, related issues, links to spec sections. -->
+<!-- Optional: hypotheses, related issues, links to relevant code paths. -->

@@ -1,11 +1,11 @@
 //// Fiat-Shamir challenge construction for the sigma-protocol verifiers.
 ////
-//// Spec: docs/spec/02-cryptography.md §"Hash function and Fiat-Shamir context binding".
+//// Spec: §"Hash function and Fiat-Shamir context binding".
 ////
 //// All inputs are pre-encoded as `ByteArray` (compressed group elements at 48 bytes,
 //// scalars at 32 bytes, etc.); the hash is plain byte concatenation, no CBOR.
 //// This is what makes byte-for-byte parity with the TS prover possible
-//// (see docs/spec/12-build-guide.md §Risk 1).
+//// (see  §Risk 1).
 
 use aiken/collection/list
 use aiken/crypto.{blake2b_256}

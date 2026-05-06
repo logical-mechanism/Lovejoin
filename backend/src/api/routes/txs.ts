@@ -10,7 +10,7 @@
 // registered the routes in that order and the committed
 // `openapi.json` is keyed off the resulting path order.
 //
-// Spec: docs/spec/05-backend.md §"REST API".
+// Spec: §"REST API".
 
 import type { FastifyPluginAsync, FastifyReply, FastifyRequest } from "fastify";
 

@@ -1,6 +1,6 @@
 //// `fee_contract` — sharded fee pool spend validator.
 ////
-//// Spec: docs/spec/03-contracts.md §0 Rule 2, §3.
+//// Spec: §0 Rule 2, §3.
 ////
 //// 10 shard UTxOs (the `fee_shard_target`) live at this validator. Two
 //// redeemer paths preserve the shard count (1 input → 1 output):

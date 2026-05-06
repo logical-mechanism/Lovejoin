@@ -1,6 +1,6 @@
 // Backend API client.
 //
-// Spec: docs/spec/05-backend.md / docs/spec/06-ui.md §"Pool" — the Pool
+// Spec: /  §"Pool" — the Pool
 // screen reads pool size + fee shard balance + indexer lag from the M5
 // backend's REST API. Falls back gracefully when the backend isn't
 // configured: the UI still renders, but the pool view shows a "configure

@@ -1,7 +1,7 @@
 // Pool scanner: walk the on-chain UTxO set at the mix-box script and
 // surface the boxes the SDK can reason about.
 //
-// Spec: docs/spec/04-offchain.md §"Pool helpers" + §"Owning-box identification".
+// Spec: §"Pool helpers" + §"Owning-box identification".
 //
 // A "pool entry" is a UTxO at `mixBoxScriptAddress` whose inline datum decodes
 // as a well-formed `MixDatum { a, b }` and whose value is exactly the protocol

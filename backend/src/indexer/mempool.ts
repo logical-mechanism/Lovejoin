@@ -4,7 +4,7 @@
 // to answer `/mempool/inputs`, which UI clients use for mempool-aware
 // fee-shard picking (and pool-box picking on mix).
 //
-// Spec context: docs/spec/05-backend.md §"Mempool awareness". The
+// Spec context:  §"Mempool awareness". The
 // mempool view is the cardano-node's view, so it sees every tx
 // propagated through the network's gossip layer regardless of which
 // submission endpoint produced it. Lag between submit and visibility

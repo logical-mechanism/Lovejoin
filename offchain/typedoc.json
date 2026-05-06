@@ -12,7 +12,6 @@
   "excludeInternal": true,
   "excludeNotDocumented": false,
   "navigationLinks": {
-    "Spec": "https://github.com/logical-mechanism/Lovejoin/tree/dev/docs/spec",
     "Repo": "https://github.com/logical-mechanism/Lovejoin"
   },
   "categorizeByGroup": true,

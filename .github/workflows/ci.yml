@@ -1,7 +1,7 @@
 name: CI
 
-# Fast PR + main suite. M7 spec (docs/spec/09-milestones.md):
-#   "Builds all packages. Unit + validator + property tests on every PR."
+# Fast PR + main suite: builds all packages, runs unit + validator +
+# property tests on every PR.
 #
 # Chain-touching checks (Preprod integration suite, 30-min fuzz harness)
 # are operator-run today, not on a cron — automating them in GitHub

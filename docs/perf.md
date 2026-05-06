@@ -52,10 +52,10 @@ chronological order.
 **Question:** can `@meshsdk/core@1.8.14`'s `MeshTxBuilder` build the three
 Lovejoin tx shapes — Deposit, Withdraw, and (the harder one) Mix?
 
-**Method:** static read of mesh's TS surface against the spec's tx
-diagrams (docs/spec/01-protocol.md), plus type-level wiring in
+**Method:** static read of mesh's TS surface against the three tx
+shapes, plus type-level wiring in
 `offchain/src/tx/{deposit,withdraw}.ts` against `MeshTxBuilder`'s
-fluent API. No Preprod submission yet — that is the M3 integration
+fluent API. No Preprod submission yet; that is the M3 integration
 test's job, not the SDK module's.
 
 **Findings:**

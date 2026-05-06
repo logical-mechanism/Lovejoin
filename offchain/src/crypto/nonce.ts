@@ -1,6 +1,6 @@
 // RFC 6979 deterministic nonce derivation for the sigma-protocol prover.
 //
-// Spec: docs/spec/02-cryptography.md §"Nonce generation: RFC 6979 deterministic"
+// Spec: §"Nonce generation: RFC 6979 deterministic"
 //
 //   "r_p = HMAC-SHA256-DRBG(seed = secretKey || H(message) || domain_tag || counter)"
 //

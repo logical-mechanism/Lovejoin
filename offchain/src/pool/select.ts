@@ -1,6 +1,6 @@
 // Random N-tuple selection over a pool of mix-boxes.
 //
-// Spec: docs/spec/04-offchain.md §"Random N-tuple selection".
+// Spec: §"Random N-tuple selection".
 //
 // The Mix tx submitter picks N pool entries to re-randomize together. To
 // preserve the (1/N)^k linkage-probability bound, the choice MUST be

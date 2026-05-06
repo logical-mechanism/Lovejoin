@@ -1,6 +1,6 @@
 //// proveDHTuple verifier.
 ////
-//// Spec: docs/spec/02-cryptography.md §"proveDHTuple".
+//// Spec: §"proveDHTuple".
 ////
 //// Statement: prover knows `x ∈ Z_r` such that `u = [x]·g` AND `v = [x]·h`.
 //// In Mix branch terms: g=a, h=b, u=a', v=b'. Verifier accepts iff

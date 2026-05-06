@@ -7,7 +7,7 @@
 //   - PostgresDbSyncClient (optional; for /history)
 //   - Fastify server on PORT, listening on HOST.
 //
-// Spec: docs/spec/05-backend.md.
+// Spec: .
 
 import { loadConfig } from "./config.js";
 import { PostgresDbSyncClient, type DbSyncClient } from "./db/dbsync.js";

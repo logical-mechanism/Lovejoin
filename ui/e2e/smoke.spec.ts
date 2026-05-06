@@ -2,13 +2,13 @@
 // server. No wallet, no chain.
 //
 // Spec coverage:
-//   * docs/spec/06-ui.md §"Layout" — brand mark + nav + footer.
-//   * docs/spec/06-ui.md §"Home" — splash hero + the three I/II/III pillars.
-//   * docs/spec/06-ui.md §"Pool" — Pool section title, fee-payer toggle,
+//   *  §"Layout" — brand mark + nav + footer.
+//   *  §"Home" — splash hero + the three I/II/III pillars.
+//   *  §"Pool" — Pool section title, fee-payer toggle,
 //     review block.
-//   * docs/spec/06-ui.md §"Vault" — locked-state copy + the
+//   *  §"Vault" — locked-state copy + the
 //     wallet-derived unlock CTA.
-//   * docs/spec/06-ui.md §"Withdraw" — preconditions copy when no wallet
+//   *  §"Withdraw" — preconditions copy when no wallet
 //     is connected.
 //
 // Plus an automated WCAG 2.1 A/AA scan via @axe-core/playwright on every
