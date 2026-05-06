@@ -187,7 +187,7 @@
   .lj-footer {
     border-top: 1px solid var(--color-rule);
     padding: 0.85rem 1.5rem;
-    text-align: center;
+    text-align: start;
     color: var(--color-whisper);
     font-size: 0.7rem;
     letter-spacing: 0.08em;
@@ -195,7 +195,7 @@
     font-family: var(--font-mono);
     display: flex;
     align-items: center;
-    justify-content: center;
+    justify-content: flex-start;
     gap: 0.6rem;
     flex-wrap: wrap;
   }
@@ -306,8 +306,8 @@
     display: flex;
     align-items: center;
     gap: 1.25rem;
-    margin-left: auto;
-    margin-right: 1.25rem;
+    margin-inline-start: auto;
+    margin-inline-end: 1.25rem;
   }
   .lj-nav a {
     position: relative;
@@ -997,7 +997,7 @@
     font-size: 0.84rem;
   }
   .lj-table th {
-    text-align: left;
+    text-align: start;
     font-weight: 500;
     font-size: 0.66rem;
     letter-spacing: 0.16em;
@@ -1030,7 +1030,7 @@
   .lj-table th.lj-table__num {
     font-family: var(--font-mono);
     font-variant-numeric: tabular-nums;
-    text-align: right;
+    text-align: end;
   }
 
   /* Tighter toggle group — sized to content. */
@@ -1079,7 +1079,7 @@
   }
 
   .lj-empty {
-    text-align: center;
+    text-align: start;
     padding: 2.25rem 1rem;
     color: var(--color-muted);
     font-size: 0.9rem;
@@ -1604,8 +1604,8 @@
     .lj-nav {
       order: 99;
       width: 100%;
-      margin-left: 0;
-      margin-right: 0;
+      margin-inline-start: 0;
+      margin-inline-end: 0;
       gap: 1rem;
       overflow-x: auto;
       -webkit-overflow-scrolling: touch;
@@ -1623,7 +1623,7 @@
       font-size: 0.95rem;
     }
     .lj-wallet-pill {
-      margin-left: auto;
+      margin-inline-start: auto;
     }
     .lj-wallet-pill__addr {
       display: none;
