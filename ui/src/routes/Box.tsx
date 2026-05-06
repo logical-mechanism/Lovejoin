@@ -228,13 +228,7 @@ export function Box() {
                   )}
                   {validation.status === "wrong-network" && (
                     <p className="lj-field__warn" role="alert">
-                      {t("withdraw.dest_wrong_network", {
-                        addressNet:
-                          validation.addressNetwork === "testnet"
-                            ? t("withdraw.net_testnet")
-                            : t("withdraw.net_mainnet"),
-                        expected: config.network,
-                      })}
+                      {t("withdraw.dest_wrong_network")}
                     </p>
                   )}
                   {validation.status === "ok" && validation.kind.kind === "regular-key" && (
