@@ -88,7 +88,7 @@ you split the faucet drop into the four shapes below:
 | **A** FUNDING (stage 1) |   85 ADA | funds `01a-publish`'s 3-tx chain; the chain's final change UTxO funds `01b-register`         |
 | **B** COLLATERAL        |   10 ADA | `01b-register` + `02-mint-and-lock`; ada-only, returned by ledger so it persists across both |
 | **C** SEED              |    7 ADA | `02-mint-and-lock.sh` (consumed by `one_shot_mint`)                                          |
-| **D** FUNDING (stage 3) |   45 ADA | `03-fund-fee-contract.sh` (10 shards × 4 ADA + fee)                                          |
+| **D** FUNDING (stage 3) |   55 ADA | `03-fund-fee-contract.sh` (10 shards × 5 ADA + fee)                                          |
 |                         | + change | leftover, sits at the wallet for next time                                                   |
 
 `prep-utxos.sh` does the split in one tx and prints the UTxO refs you need
