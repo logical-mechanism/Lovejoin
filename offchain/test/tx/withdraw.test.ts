@@ -179,21 +179,46 @@ describe("tx/withdraw — encodeOwnerRedeemer", () => {
 });
 
 describe("tx/withdraw — computeOwnerCtx", () => {
-  it("hashes outputs ‖ mix_script_hash with blake2b-256", () => {
+  it("hashes outputs ‖ input_refs ‖ mix_script_hash with blake2b-256", () => {
     const outputsCbor = new Uint8Array([0xde, 0xad, 0xbe, 0xef]);
+    const inputRefsCbor = new Uint8Array([0xca, 0xfe, 0xba, 0xbe]);
     const mixHash = "ba176a7604f3e062a7ed315780801495ed0ffb0191c6f8e7d88362e2";
-    const ctx = computeOwnerCtx({ outputsCbor, mixScriptHashHex: mixHash });
+    const ctx = computeOwnerCtx({ outputsCbor, inputRefsCbor, mixScriptHashHex: mixHash });
     // Independent recomputation of the expected hash.
     const hashBytes = Buffer.from(mixHash, "hex");
-    const preimage = new Uint8Array(outputsCbor.length + hashBytes.length);
+    const preimage = new Uint8Array(outputsCbor.length + inputRefsCbor.length + hashBytes.length);
     preimage.set(outputsCbor, 0);
-    preimage.set(hashBytes, outputsCbor.length);
+    preimage.set(inputRefsCbor, outputsCbor.length);
+    preimage.set(hashBytes, outputsCbor.length + inputRefsCbor.length);
     expect(ctx).toEqual(blake2b256(preimage));
+  });
+
+  it("differs when input_refs differ — F-4 binding (replay regression)", () => {
+    // Two ctxs with identical outputs + mix-script-hash but different
+    // input_refs MUST produce distinct digests; otherwise duplicate-(a,b)
+    // mix-boxes would be replayable across txs that share an output set.
+    const outputsCbor = new Uint8Array([0xde, 0xad, 0xbe, 0xef]);
+    const mixHash = "ba176a7604f3e062a7ed315780801495ed0ffb0191c6f8e7d88362e2";
+    const ctx1 = computeOwnerCtx({
+      outputsCbor,
+      inputRefsCbor: new Uint8Array([0x01]),
+      mixScriptHashHex: mixHash,
+    });
+    const ctx2 = computeOwnerCtx({
+      outputsCbor,
+      inputRefsCbor: new Uint8Array([0x02]),
+      mixScriptHashHex: mixHash,
+    });
+    expect(Buffer.from(ctx1)).not.toEqual(Buffer.from(ctx2));
   });
 
   it("rejects misshaped mix script hashes", () => {
     expect(() =>
-      computeOwnerCtx({ outputsCbor: new Uint8Array(0), mixScriptHashHex: "ab".repeat(20) }),
+      computeOwnerCtx({
+        outputsCbor: new Uint8Array(0),
+        inputRefsCbor: new Uint8Array(0),
+        mixScriptHashHex: "ab".repeat(20),
+      }),
     ).toThrow(/28 bytes/);
   });
 });
