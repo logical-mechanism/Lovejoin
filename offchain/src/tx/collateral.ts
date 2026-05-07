@@ -251,17 +251,18 @@ export interface GivemeMyOptions {
  *   POST  <endpoint>
  *   Content-Type: application/json
  *   Body:
- *     { "tx_body": "<full transaction CBOR hex>" }
+ *     { "tx": "<full transaction CBOR hex>" }
  *
  *   Response 200:
  *     { "witness": "<cbor hex>" }   // hex-encoded `cbor([0, [vkey, sig]])`
  *
  *   Other status codes / `{error: ...}` payloads → throw.
  *
- * The "tx_body" name is misleading — the upstream server takes the FULL
- * transaction (`[body, witness_set, valid, aux]`) and extracts `tx[0]` as
- * the body. So callers must pass the completed mesh tx CBOR, not just the
- * body bytes.
+ * The field is the FULL transaction CBOR (`[body, witness_set, valid, aux]`),
+ * not just the body — the server extracts `tx[0]` itself. The historical
+ * `tx_body` field name reflected that misnomer; upstream renamed it to `tx`
+ * in v1.2.0 and accepts the old name as an alias for one transition release,
+ * so callers on older clients still work but new code should send `tx`.
  *
  * Trust model: the host signs over the canonical tx-body hash (after
  * re-canonicalising the OrderedSet fields), so a malicious response can't
@@ -363,7 +364,7 @@ export class GivemeMyProvider implements CollateralProvider {
     if (!/^[0-9a-fA-F]+$/.test(txCborHex) || txCborHex.length < 2) {
       throw new Error("GivemeMyProvider.signTxBody: txCborHex must be non-empty hex");
     }
-    const body = JSON.stringify({ tx_body: txCborHex });
+    const body = JSON.stringify({ tx: txCborHex });
 
     console.log(
       `[lovejoin/collateral] POST ${this.endpoint} ` +

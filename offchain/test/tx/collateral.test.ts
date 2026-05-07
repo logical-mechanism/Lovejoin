@@ -253,7 +253,7 @@ describe("tx/collateral — GivemeMyProvider", () => {
     // Endpoint matches the pinned giveme.my preprod URL.
     expect(captured!.url).toBe("https://www.giveme.my/preprod/collateral/");
     const parsed = JSON.parse(captured!.body);
-    expect(parsed).toEqual({ tx_body: "84aa00deadbeef" });
+    expect(parsed).toEqual({ tx: "84aa00deadbeef" });
     expect(captured!.headers?.["Content-Type"]).toBe("application/json");
   });
 
