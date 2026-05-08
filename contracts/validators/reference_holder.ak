@@ -1,5 +1,4 @@
-//// Reference holder — always-False spend, parameterized by the protocol's
-//// reference NFT identity.
+//// Reference holder — always-False spend.
 ////
 //// Spec: §1.
 ////
@@ -9,22 +8,18 @@
 //// runs in normal operation. Always-False is defense-in-depth — any direct
 //// spend attempt rejects.
 ////
-//// We parameterize the validator by `(reference_nft_policy, reference_nft_name)`
-//// so the script's hash (and therefore its address) is unique per protocol
-//// deployment, even though the body always rejects. Two different mixers using
-//// the same Aiken source still get distinct reference_holder addresses
-//// because their NFTs differ. Aiken bakes the parameters into the compiled
-//// UPLC even when the body doesn't reference them, so the underscore-prefixed
-//// names are correct: they're "unused inside the body" but very much used by
-//// the script-hash derivation.
+//// Audit L-01 / L-02 (issue #130): the validator takes no parameters. The
+//// previous `(reference_nft_policy, reference_nft_name)` pair was documentary
+//// only — the body never read it — and removing it lets `one_shot_mint` take
+//// `reference_holder_hash` as a parameter without forming a compile-time
+//// circular dependency. Bootstrap now computes the reference-holder hash
+//// first (parameter-free) and threads it into `one_shot_mint`, which then
+//// asserts on chain that the minted NFT lands at this script with a
+//// well-formed `ReferenceDatum`.
 
-use cardano/assets.{AssetName, PolicyId}
 use cardano/transaction.{OutputReference, Transaction}
 
-validator reference_holder(
-  _reference_nft_policy: PolicyId,
-  _reference_nft_name: AssetName,
-) {
+validator reference_holder {
   spend(_d: Option<Data>, _r: Data, _utxo: OutputReference, _self: Transaction) {
     False
   }
