@@ -14,9 +14,10 @@ use lovejoin/sigma_or.{SigmaOrBranch, SigmaOrProof}
 use lovejoin/test_fixtures.{
   a48, b48, default_reference_input, denom_lovelace, fee_script_hash,
   fee_shard_input, fee_shard_output, fee_shard_output_no_datum,
+  fee_shard_output_with_address, fee_shard_output_with_ref_script,
   max_fee_per_mix_lovelace, mix_box_input, mix_logic_hash, out_ref,
   random_user_vk, ref_nft_name, ref_nft_policy, script_address,
-  vk_output_lovelace,
+  script_address_with_stake_vk, vk_output_lovelace,
 }
 use lovejoin/types.{Mix, Owner, PayMixFee, Replenish}
 
@@ -538,6 +539,77 @@ test pay_mix_fee_rejects_missing_mix_logic_redeemer() fail {
 }
 
 // ---------------------------------------------------------------------------
+// PayMixFee — perimeter rules on continuing fee output (audit H-01, M-01).
+//
+// `output_at_fee` requires `stake_credential == None` AND
+// `reference_script == None`. A bad-perimeter fee output is filtered out by
+// `list.filter(output_at_fee, ...)`, leaving the result list empty, which
+// makes `expect [fee_output] = fee_outputs` abort.
+// ---------------------------------------------------------------------------
+
+test pay_mix_fee_rejects_fee_output_with_attacker_stake_vk() fail {
+  // H-01 on the fee shard. An attacker re-routes fee-shard staking rewards
+  // to their own stake key by attaching a stake credential to the
+  // continuing fee output. Stake credential pinned to None must reject.
+  let attacker_stake: ByteArray =
+    #"deadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef"
+  let bad_addr = script_address_with_stake_vk(fee_script_hash, attacker_stake)
+  let fee_in = fee_shard_input(fee_input_byte, 0, default_fee_in)
+  let fee_out =
+    fee_shard_output_with_address(bad_addr, default_fee_in - 200_000)
+  let mix_inputs = build_mix_inputs(2)
+  let user_change = vk_output_lovelace(random_user_vk, 1_000_000)
+  let tx =
+    Transaction {
+      ..transaction.placeholder,
+      reference_inputs: [default_reference_input()],
+      inputs: list.concat(mix_inputs, [fee_in]),
+      outputs: [fee_out, user_change],
+      fee: 200_000,
+      redeemers: [Pair(Withdraw(Script(mix_logic_hash)), bogus_mix_redeemer(2))],
+    }
+  let unit: Data = Void
+  fee_contract.fee_contract.spend(
+    ref_nft_policy,
+    ref_nft_name,
+    Some(unit),
+    PayMixFee,
+    fee_in.output_reference,
+    tx,
+  )
+}
+
+test pay_mix_fee_rejects_fee_output_with_reference_script_attached() fail {
+  // M-01 on the fee shard. Same rule: any non-None reference_script is
+  // perimeter-rejected by `output_at_fee`.
+  let attacker_ref: ByteArray =
+    #"abadbabeabadbabeabadbabeabadbabeabadbabeabadbabeabadbabe"
+  let fee_in = fee_shard_input(fee_input_byte, 0, default_fee_in)
+  let fee_out =
+    fee_shard_output_with_ref_script(default_fee_in - 200_000, attacker_ref)
+  let mix_inputs = build_mix_inputs(2)
+  let user_change = vk_output_lovelace(random_user_vk, 1_000_000)
+  let tx =
+    Transaction {
+      ..transaction.placeholder,
+      reference_inputs: [default_reference_input()],
+      inputs: list.concat(mix_inputs, [fee_in]),
+      outputs: [fee_out, user_change],
+      fee: 200_000,
+      redeemers: [Pair(Withdraw(Script(mix_logic_hash)), bogus_mix_redeemer(2))],
+    }
+  let unit: Data = Void
+  fee_contract.fee_contract.spend(
+    ref_nft_policy,
+    ref_nft_name,
+    Some(unit),
+    PayMixFee,
+    fee_in.output_reference,
+    tx,
+  )
+}
+
+// ---------------------------------------------------------------------------
 // Replenish builder + tests
 // ---------------------------------------------------------------------------
 
@@ -710,6 +782,63 @@ test replenish_rejects_native_asset_in_output() fail {
       outputs: [fee_out],
       fee: 0,
     }
+  fee_contract.fee_contract.spend(
+    ref_nft_policy,
+    ref_nft_name,
+    Some(unit),
+    Replenish,
+    fee_in.output_reference,
+    tx,
+  )
+}
+
+// ---------------------------------------------------------------------------
+// Replenish — perimeter rules on continuing fee output (audit H-01, M-01).
+// Same logic as the PayMixFee perimeter tests above, but reached via the
+// Replenish branch (the strict-increase top-up path).
+// ---------------------------------------------------------------------------
+
+test replenish_rejects_fee_output_with_attacker_stake_vk() fail {
+  let attacker_stake: ByteArray =
+    #"deadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef"
+  let bad_addr = script_address_with_stake_vk(fee_script_hash, attacker_stake)
+  let fee_in = fee_shard_input(fee_input_byte, 0, 5_000_000)
+  let fee_out = fee_shard_output_with_address(bad_addr, 8_000_000)
+  let user_change = vk_output_lovelace(random_user_vk, 1_000_000)
+  let tx =
+    Transaction {
+      ..transaction.placeholder,
+      reference_inputs: [default_reference_input()],
+      inputs: [fee_in],
+      outputs: [fee_out, user_change],
+      fee: 0,
+    }
+  let unit: Data = Void
+  fee_contract.fee_contract.spend(
+    ref_nft_policy,
+    ref_nft_name,
+    Some(unit),
+    Replenish,
+    fee_in.output_reference,
+    tx,
+  )
+}
+
+test replenish_rejects_fee_output_with_reference_script_attached() fail {
+  let attacker_ref: ByteArray =
+    #"abadbabeabadbabeabadbabeabadbabeabadbabeabadbabeabadbabe"
+  let fee_in = fee_shard_input(fee_input_byte, 0, 5_000_000)
+  let fee_out = fee_shard_output_with_ref_script(8_000_000, attacker_ref)
+  let user_change = vk_output_lovelace(random_user_vk, 1_000_000)
+  let tx =
+    Transaction {
+      ..transaction.placeholder,
+      reference_inputs: [default_reference_input()],
+      inputs: [fee_in],
+      outputs: [fee_out, user_change],
+      fee: 0,
+    }
+  let unit: Data = Void
   fee_contract.fee_contract.spend(
     ref_nft_policy,
     ref_nft_name,

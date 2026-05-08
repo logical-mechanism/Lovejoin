@@ -34,8 +34,11 @@ use lovejoin/sigma_or.{SigmaOrBranch, SigmaOrProof}
 use lovejoin/test_fixtures.{
   a48, b48, c48, default_reference_input, denom_lovelace, fee_shard_output,
   mix_box_input, mix_box_input_bad_datum, mix_box_output,
+  mix_box_output_with_address, mix_box_output_with_ref_script,
   mix_box_output_with_value, mix_logic_hash, mix_script_hash, random_user_vk,
-  ref_nft_name, ref_nft_policy, script_address, vk_output_lovelace,
+  ref_nft_name, ref_nft_policy, script_address,
+  script_address_with_stake_pointer, script_address_with_stake_script,
+  script_address_with_stake_vk, vk_output_lovelace,
 }
 use lovejoin/types.{Mix, MixDatum, Owner}
 use mix_logic
@@ -415,6 +418,140 @@ test mix_rejects_short_bytes_output_datum() fail {
   // rejected by `decode_mix_datum_strict`.
   let inputs = build_mix_inputs_at_a(2)
   let bad_out = mix_box_output(#"01", b48, denom_lovelace)
+  let good_out = mix_box_output(c48, b48, denom_lovelace)
+  let tx =
+    Transaction {
+      ..transaction.placeholder,
+      reference_inputs: [default_reference_input()],
+      inputs,
+      outputs: [bad_out, good_out],
+      fee: 200_000,
+    }
+  mix_logic.mix_logic.withdraw(
+    ref_nft_policy,
+    ref_nft_name,
+    Mix { proofs: [bogus_sigma_or(2), bogus_sigma_or(2)] },
+    script_address(mix_script_hash).payment_credential,
+    tx,
+  )
+}
+
+// ---------------------------------------------------------------------------
+// Mix branch — perimeter rules on continuing outputs (audit H-01, M-01).
+//
+// `output_at_script` requires `stake_credential == None` AND
+// `reference_script == None` for any output at the mix-script payment
+// credential. The four shape variants below all have a valid mix-script
+// payment credential and a well-formed `MixDatum` at canonical denom — only
+// the perimeter field is wrong, isolating the new check.
+//
+// We keep both prefix outputs structurally well-formed except for the bad
+// perimeter on output 0; output 1 is the canonical good output. The prefix
+// walk visits output 0 first, so `expect output_at_script(...)` aborts and
+// the test passes via the `fail` annotation.
+// ---------------------------------------------------------------------------
+
+const attacker_stake_vk: ByteArray =
+  #"deadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef"
+
+const attacker_stake_script: ByteArray =
+  #"baadcafebaadcafebaadcafebaadcafebaadcafebaadcafebaadcafe"
+
+const attacker_ref_script: ByteArray =
+  #"abadbabeabadbabeabadbabeabadbabeabadbabeabadbabeabadbabe"
+
+test mix_rejects_continuing_output_with_attacker_stake_vk() fail {
+  // H-01: a Mix tx attaches the attacker's stake-key credential to the
+  // continuing mix-box output, redirecting the staking rewards on the
+  // entire pool to the attacker until the next Mix contests it. The new
+  // perimeter check (stake_credential == None) must reject.
+  let inputs = build_mix_inputs_at_a(2)
+  let bad_addr =
+    script_address_with_stake_vk(mix_script_hash, attacker_stake_vk)
+  let bad_out = mix_box_output_with_address(bad_addr, b48, c48, denom_lovelace)
+  let good_out = mix_box_output(c48, b48, denom_lovelace)
+  let tx =
+    Transaction {
+      ..transaction.placeholder,
+      reference_inputs: [default_reference_input()],
+      inputs,
+      outputs: [bad_out, good_out],
+      fee: 200_000,
+    }
+  mix_logic.mix_logic.withdraw(
+    ref_nft_policy,
+    ref_nft_name,
+    Mix { proofs: [bogus_sigma_or(2), bogus_sigma_or(2)] },
+    script_address(mix_script_hash).payment_credential,
+    tx,
+  )
+}
+
+test mix_rejects_continuing_output_with_attacker_stake_script() fail {
+  // H-01 variant: stake credential is a script (e.g. an attacker-controlled
+  // withdraw-zero contract that auto-routes rewards). Same perimeter rule;
+  // any non-None stake credential is rejected.
+  let inputs = build_mix_inputs_at_a(2)
+  let bad_addr =
+    script_address_with_stake_script(mix_script_hash, attacker_stake_script)
+  let bad_out = mix_box_output_with_address(bad_addr, b48, c48, denom_lovelace)
+  let good_out = mix_box_output(c48, b48, denom_lovelace)
+  let tx =
+    Transaction {
+      ..transaction.placeholder,
+      reference_inputs: [default_reference_input()],
+      inputs,
+      outputs: [bad_out, good_out],
+      fee: 200_000,
+    }
+  mix_logic.mix_logic.withdraw(
+    ref_nft_policy,
+    ref_nft_name,
+    Mix { proofs: [bogus_sigma_or(2), bogus_sigma_or(2)] },
+    script_address(mix_script_hash).payment_credential,
+    tx,
+  )
+}
+
+test mix_rejects_continuing_output_with_pointer_stake_credential() fail {
+  // H-01 completeness: pointer stake credentials (CIP-19 type 04/05) are
+  // a valid Shelley-era address shape; the perimeter check rejects them
+  // for the same reason as the inline variants. Rare on chain today but
+  // we don't want any blind spot in the rule.
+  let inputs = build_mix_inputs_at_a(2)
+  let bad_addr = script_address_with_stake_pointer(mix_script_hash)
+  let bad_out = mix_box_output_with_address(bad_addr, b48, c48, denom_lovelace)
+  let good_out = mix_box_output(c48, b48, denom_lovelace)
+  let tx =
+    Transaction {
+      ..transaction.placeholder,
+      reference_inputs: [default_reference_input()],
+      inputs,
+      outputs: [bad_out, good_out],
+      fee: 200_000,
+    }
+  mix_logic.mix_logic.withdraw(
+    ref_nft_policy,
+    ref_nft_name,
+    Mix { proofs: [bogus_sigma_or(2), bogus_sigma_or(2)] },
+    script_address(mix_script_hash).payment_credential,
+    tx,
+  )
+}
+
+test mix_rejects_continuing_output_with_reference_script_attached() fail {
+  // M-01: a Mix tx attaches an arbitrary reference_script payload to the
+  // continuing mix-box output, using our pool as free reference-script
+  // storage. Bounded min-ADA bloat per output, recurring on every Mix.
+  // The new perimeter check (reference_script == None) must reject.
+  let inputs = build_mix_inputs_at_a(2)
+  let bad_out =
+    mix_box_output_with_ref_script(
+      b48,
+      c48,
+      denom_lovelace,
+      attacker_ref_script,
+    )
   let good_out = mix_box_output(c48, b48, denom_lovelace)
   let tx =
     Transaction {
