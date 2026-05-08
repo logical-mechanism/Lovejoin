@@ -5,11 +5,19 @@
 #
 # Parameter chain (each step's hash flows into the next):
 #
-#     one_shot_mint(seed_tx_id, seed_idx)            → policy_id (= reference NFT policy)
-#     mix_logic(reference_nft_policy, asset_name)    → mix_logic_script_hash
-#     mix_box(mix_logic_script_hash)                 → mix_box_script_hash
-#     fee_contract(reference_nft_policy, asset_name) → fee_script_hash
-#     reference_holder                               → reference_holder_script_hash (no params)
+#     reference_holder                                                 → reference_holder_script_hash (no params)
+#     one_shot_mint(seed_tx_id, seed_idx, reference_holder_hash)       → policy_id (= reference NFT policy)
+#     mix_logic(reference_nft_policy, asset_name)                      → mix_logic_script_hash
+#     mix_box(mix_logic_script_hash)                                   → mix_box_script_hash
+#     fee_contract(reference_nft_policy, asset_name)                   → fee_script_hash
+#
+# Audit L-01 / L-02 (issue #130): `reference_holder_hash` is now a parameter
+# of `one_shot_mint` so the mint tx itself asserts the protocol NFT lands at
+# the reference-holder script with a sane inline `ReferenceDatum`. We compute
+# the holder's hash first (parameter-free) and thread it forward — that breaks
+# the previous circular `(policy, holder)` dependency, which existed only
+# because the holder's two parameters were documentary (its body never read
+# them) and is harmless to drop.
 #
 # Every validator takes flat scalar params (ByteArray / Int) so that
 # `aiken blueprint apply` can supply each one as a single CBOR atom — that's
@@ -123,38 +131,42 @@ parameterize() {
   printf "    %-16s %s\n" "$stage_label" "$(cat "$ARTIFACTS_DIR/$validator.hash")"
 }
 
-# --- step 1: one_shot_mint(seed_tx_id, seed_idx) ---------------------------
-echo "==> Parameterizing one_shot_mint(seed_tx_id, seed_idx)"
+# --- step 1: reference_holder (no params) ---------------------------------
+# Audit L-01 / L-02 (issue #130): `reference_holder` no longer takes any
+# parameters — its body is always-False and the previous `(policy, name)`
+# pair was documentary only. We compute its hash first so we can thread it
+# into `one_shot_mint`'s parameter list below.
+echo "==> Parameterizing reference_holder (no params)"
+parameterize reference_holder "reference =" # no params; just convert + hash
+REF_HOLDER_HASH=$(cat "$ARTIFACTS_DIR/reference_holder.hash")
+REF_HOLDER_HASH_CBOR=$(encode_bytes_cbor "$REF_HOLDER_HASH")
+
+# --- step 2: one_shot_mint(seed_tx_id, seed_idx, reference_holder_hash) ---
+echo "==> Parameterizing one_shot_mint(seed_tx_id, seed_idx, reference_holder_hash)"
 SEED_TX_ID_CBOR=$(encode_bytes_cbor "$SEED_TX_ID")
 SEED_IDX_CBOR=$(encode_int_cbor "$SEED_IDX")
-parameterize one_shot_mint "policy_id =" "$SEED_TX_ID_CBOR" "$SEED_IDX_CBOR"
+parameterize one_shot_mint "policy_id =" \
+  "$SEED_TX_ID_CBOR" "$SEED_IDX_CBOR" "$REF_HOLDER_HASH_CBOR"
 
 REF_NFT_POLICY=$(cat "$ARTIFACTS_DIR/one_shot_mint.hash")
 REF_NFT_POLICY_CBOR=$(encode_bytes_cbor "$REF_NFT_POLICY")
 REF_NFT_NAME_CBOR=$(encode_bytes_cbor "$REF_NFT_ASSET_NAME")
 
-# --- step 2: mix_logic(reference_nft_policy, asset_name) -------------------
+# --- step 3: mix_logic(reference_nft_policy, asset_name) -------------------
 echo "==> Parameterizing mix_logic(reference_nft_policy, asset_name)"
 parameterize mix_logic "mix_logic =" "$REF_NFT_POLICY_CBOR" "$REF_NFT_NAME_CBOR"
 MIX_LOGIC_HASH=$(cat "$ARTIFACTS_DIR/mix_logic.hash")
 
-# --- step 3: mix_box(mix_logic_script_hash) --------------------------------
+# --- step 4: mix_box(mix_logic_script_hash) --------------------------------
 echo "==> Parameterizing mix_box(mix_logic_script_hash)"
 MIX_LOGIC_HASH_CBOR=$(encode_bytes_cbor "$MIX_LOGIC_HASH")
 parameterize mix_box "mix_box =" "$MIX_LOGIC_HASH_CBOR"
 MIX_BOX_HASH=$(cat "$ARTIFACTS_DIR/mix_box.hash")
 
-# --- step 4: fee_contract(reference_nft_policy, asset_name) ----------------
+# --- step 5: fee_contract(reference_nft_policy, asset_name) ----------------
 echo "==> Parameterizing fee_contract(reference_nft_policy, asset_name)"
 parameterize fee_contract "fee_contract =" "$REF_NFT_POLICY_CBOR" "$REF_NFT_NAME_CBOR"
 FEE_HASH=$(cat "$ARTIFACTS_DIR/fee_contract.hash")
-
-# --- step 5: reference_holder(reference_nft_policy, asset_name) -----------
-# Parameterized with the NFT identity so each protocol deployment gets a
-# unique reference_holder address even though the body is always-False.
-echo "==> Parameterizing reference_holder(reference_nft_policy, asset_name)"
-parameterize reference_holder "reference =" "$REF_NFT_POLICY_CBOR" "$REF_NFT_NAME_CBOR"
-REF_HOLDER_HASH=$(cat "$ARTIFACTS_DIR/reference_holder.hash")
 
 # --- update addresses.json --------------------------------------------------
 # Note: every dApp UTxO is parked at a CIP-19 enterprise script address
