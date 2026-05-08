@@ -32,7 +32,7 @@ import {
 } from "../../src/tx/deposit.js";
 import type { LovejoinAddresses, ProtocolParams } from "../../src/tx/params.js";
 import type { Utxo } from "../../src/chain/provider.js";
-import { buildEnterpriseScriptAddress } from "../../src/tx/address.js";
+import { buildScriptAddress } from "../../src/tx/address.js";
 
 const ADDRESSES: LovejoinAddresses = {
   network: "preprod",
@@ -72,7 +72,7 @@ function feeShard(lovelace: bigint = 5_000_000n): Utxo {
       txId: "34a117d9699e8537529aa093943cdeda6f525fd167a74e6f1bd9229ef805a080",
       outputIndex: 0,
     },
-    address: buildEnterpriseScriptAddress(ADDRESSES.feeScriptHash, 0),
+    address: buildScriptAddress(ADDRESSES.feeScriptHash, 0),
     lovelace,
     assets: {},
     inlineDatum: UNIT_DATUM_CBOR_HEX,
@@ -171,9 +171,7 @@ describe("tx/deposit — planDepositTx", () => {
       feeShard: feeShard(),
       networkId: 0,
     });
-    expect(plan.mixBoxOutput.addressBech32).toBe(
-      buildEnterpriseScriptAddress(ADDRESSES.mixBoxScriptHash, 0),
-    );
+    expect(plan.mixBoxOutput.addressBech32).toBe(buildScriptAddress(ADDRESSES.mixBoxScriptHash, 0));
     expect(plan.mixBoxOutput.lovelace).toBe(10_000_000n);
     // Default re-randomization: a ≠ g (would let observers fingerprint
     // fresh deposits as `a == g` otherwise).

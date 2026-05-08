@@ -135,11 +135,7 @@ export async function depositSeries(args: {
  * fetch the pool view when the test wants to verify post-mix invariants.
  */
 export async function mixBoxAddressBech32(addresses: LovejoinAddresses): Promise<string> {
-  return buildScriptAddress(
-    addresses.mixBoxScriptHash,
-    networkIdFor(NETWORK),
-    addresses.dappStakeKeyHashHex ?? null,
-  );
+  return buildScriptAddress(addresses.mixBoxScriptHash, networkIdFor(NETWORK));
 }
 
 export { buildDepositTx, buildMixTx, buildWithdrawTx, fetchPool, fetchProtocolParams, ownsBox };

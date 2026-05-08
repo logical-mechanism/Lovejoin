@@ -569,16 +569,8 @@ export function planMixTx(args: PlanMixArgs): MixPlan {
     proofs.push({ branches: proof.branches });
   }
 
-  const mixBoxAddress = buildScriptAddress(
-    args.addresses.mixBoxScriptHash,
-    args.networkId,
-    args.addresses.dappStakeKeyHashHex ?? null,
-  );
-  // Fee shards live at the enterprise (unstaked) script address — the
-  // bootstrap funded them there. Mix-box outputs keep the dApp stake key
-  // (single-stake-credential discoverability for the indexer); fee
-  // outputs do not, because that's where the on-chain UTxOs already are.
-  const feeAddress = buildScriptAddress(args.addresses.feeScriptHash, args.networkId, null);
+  const mixBoxAddress = buildScriptAddress(args.addresses.mixBoxScriptHash, args.networkId);
+  const feeAddress = buildScriptAddress(args.addresses.feeScriptHash, args.networkId);
 
   const feePayer: MixFeePayer = args.feePayer ?? "shard";
 
@@ -845,11 +837,7 @@ export async function buildMixTx(args: BuildMixArgs): Promise<MixResult> {
           ? args.feeShard
           : await pickRandomFeeShard({
               provider: args.provider,
-              feeScriptAddressBech32: buildScriptAddress(
-                args.addresses.feeScriptHash,
-                networkId,
-                null,
-              ),
+              feeScriptAddressBech32: buildScriptAddress(args.addresses.feeScriptHash, networkId),
               minLovelace: MIN_FEE_SHARD_LOVELACE,
               ...(args.excludeFeeShardRefs && args.excludeFeeShardRefs.length > 0
                 ? { excludeRefs: args.excludeFeeShardRefs }

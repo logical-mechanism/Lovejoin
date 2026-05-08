@@ -1,5 +1,11 @@
 // Seedelf-detection tests — exercise the address classifier across the
 // CIP-19 address types the Withdraw screen will see.
+//
+// The classifier ships in the UI because the Withdraw screen accepts a
+// user-supplied destination, which can be any CIP-19 shape. The SDK only
+// builds enterprise script addresses (the protocol perimeter pins
+// `stake_credential == None`), so the base-script-key fixture below is
+// hand-rolled rather than borrowed from the SDK builder.
 
 import { describe, expect, it } from "vitest";
 
@@ -12,7 +18,17 @@ import {
 } from "../src/lib/seedelf.js";
 
 const SCRIPT_HASH_28 = "ba176a7604f3e062a7ed315780801495ed0ffb0191c6f8e7d88362e2";
-const STAKE_HASH_28 = "1e3105f23f2ac91b3fb4c35fa4fe301421028e356e114944e902005b";
+
+// CIP-19 base address (header type 0001) for SCRIPT_HASH_28 paired with
+// stake-key hash 1e3105f23f2ac91b3fb4c35fa4fe301421028e356e114944e902005b
+// on testnet, computed via the standard bech32 encode of:
+//   header (0x10) || script_hash (28) || stake_hash (28).
+// Verified against `cardano-cli conway address build
+//   --payment-script-hash <SCRIPT_HASH_28>
+//   --stake-verification-key-hash <STAKE_HASH_28>
+//   --testnet-magic 1`.
+const PREPROD_BASE_SCRIPT_KEY_ADDR =
+  "addr_test1zzapw6nkqne7qc48a5c40qyqzj276rlmqxgud788mzpk9cs7xyzly0e2eydnldxrt7j0uvq5yypgudtwz9y5f6gzqpdsnh3uy4";
 
 describe("classifyAddress", () => {
   it("flags a script-payment enterprise address as stealth", () => {
@@ -25,8 +41,10 @@ describe("classifyAddress", () => {
   });
 
   it("flags a script-payment base address as stealth", () => {
-    const addr = buildScriptAddress(SCRIPT_HASH_28, 0, STAKE_HASH_28);
-    const k = classifyAddress(addr);
+    // Withdraw destinations can still be base-script-key shapes even
+    // though the SDK never produces them — the classifier must keep
+    // recognising the shape so withdraws to such addresses work.
+    const k = classifyAddress(PREPROD_BASE_SCRIPT_KEY_ADDR);
     expect(k.kind).toBe("stealth");
     if (k.kind === "stealth") {
       expect(k.addressType).toBe("base-script-key");

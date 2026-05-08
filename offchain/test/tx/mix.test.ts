@@ -31,7 +31,7 @@ import {
   verifyMixPlanWithHash,
 } from "../../src/tx/mix.js";
 import { encodeMixDatum, UNIT_DATUM_CBOR_HEX } from "../../src/tx/deposit.js";
-import { buildEnterpriseScriptAddress } from "../../src/tx/address.js";
+import { buildScriptAddress } from "../../src/tx/address.js";
 import type { LovejoinAddresses, ProtocolParams } from "../../src/tx/params.js";
 import type { Utxo } from "../../src/chain/provider.js";
 
@@ -65,8 +65,8 @@ const PARAMS: ProtocolParams = {
   feeScriptHash: ADDRESSES.feeScriptHash,
 };
 
-const MIX_BOX_ADDRESS = buildEnterpriseScriptAddress(ADDRESSES.mixBoxScriptHash, 0);
-const FEE_ADDRESS = buildEnterpriseScriptAddress(ADDRESSES.feeScriptHash, 0);
+const MIX_BOX_ADDRESS = buildScriptAddress(ADDRESSES.mixBoxScriptHash, 0);
+const FEE_ADDRESS = buildScriptAddress(ADDRESSES.feeScriptHash, 0);
 
 function makeMixInput(
   txId: string,

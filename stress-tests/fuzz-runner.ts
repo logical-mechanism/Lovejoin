@@ -57,7 +57,6 @@ async function main(): Promise<void> {
   const mixBoxAddress = buildScriptAddress(
     addresses.mixBoxScriptHash!,
     network === "mainnet" ? 1 : 0,
-    addresses.dappStakeKeyHashHex ?? null,
   );
 
   let unexpectedAccepts = 0;

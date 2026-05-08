@@ -39,8 +39,6 @@ export interface LovejoinAddresses {
   mixBoxScriptHash: Hex28;
   feeScriptHash: Hex28;
   feeShardUtxos: string[];
-  /** Optional dApp stake-key hash for base-address derivation. */
-  dappStakeKeyHashHex?: Hex28;
   /**
    * Optional chain point at-or-just-before the protocol's bootstrap tx.
    * The indexer uses this as its chainsync intersection so a fresh
@@ -69,7 +67,12 @@ export interface BackendConfig {
   /** Per-IP rate limit, requests per minute. */
   rateLimitPerMin: number;
   addresses: LovejoinAddresses;
-  /** Bech32 address strings derived from the script hashes + dapp stake key. */
+  /**
+   * Bech32 enterprise script-address strings derived from the script
+   * hashes. All dApp UTxOs live at enterprise addresses (no stake
+   * credential) — the on-chain perimeter (audit H-01) rejects anything
+   * else, so this is the single canonical address shape per script.
+   */
   derived: {
     mixBoxAddress: string;
     feeContractAddress: string;
@@ -116,18 +119,10 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): BackendConfig 
   const bootstrapStartPoint = resolveBootstrapStartPoint(env, addresses);
 
   const networkId: 0 | 1 = network === "mainnet" ? 1 : 0;
-  const stakeKey = addresses.dappStakeKeyHashHex ?? null;
   const derived = {
-    mixBoxAddress: buildScriptAddress(addresses.mixBoxScriptHash, networkId, stakeKey),
-    // Fee shards live at the enterprise (unstaked) script address — the
-    // bootstrap funded them there, so the indexer + API must look up the
-    // unstaked address regardless of the dApp stake key.
-    feeContractAddress: buildScriptAddress(addresses.feeScriptHash, networkId, null),
-    referenceHolderAddress: buildScriptAddress(
-      addresses.referenceHolderScriptHash,
-      networkId,
-      stakeKey,
-    ),
+    mixBoxAddress: buildScriptAddress(addresses.mixBoxScriptHash, networkId),
+    feeContractAddress: buildScriptAddress(addresses.feeScriptHash, networkId),
+    referenceHolderAddress: buildScriptAddress(addresses.referenceHolderScriptHash, networkId),
   };
 
   return {
