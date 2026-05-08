@@ -207,7 +207,12 @@ takes one block window (~20 s) end to end.
 - **Inline-datum decode error at the reference UTxO.** Validators that read
   `ProtocolParams` will hard-fail if the datum doesn't decode. After 02
   confirms, sanity-check the inline datum (`cardano-cli query utxo`
-  `--address <reference_holder_addr> --output-json`).
+  `--address <reference_holder_addr> --output-json`). Audit L-01 / L-02
+  (issue #130) closed the worst version of this — the `one_shot_mint`
+  policy now asserts on chain that the NFT lands at `reference_holder` and
+  that the inline datum decodes as `ReferenceDatum` with `denom > 0`,
+  `max_fee > 0`, `max_fee < denom`. The mint tx will bounce instead of
+  bricking the protocol with a permanent malformed reference UTxO.
 - **01a chain breaks mid-flight.** If tx 2 or 3 of 01a fails to confirm,
   re-run with a fresh `FUNDING_STAGE1` — the already-published ref scripts
   from the failed run cost only their funding (no protocol meaning until
