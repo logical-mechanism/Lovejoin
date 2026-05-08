@@ -66,6 +66,14 @@ export PATH="$HOME/.nvm/versions/node/v22.12.0/bin:$PATH"
 
 CI uses `actions/setup-node`, so this is only a local-shell concern.
 
+**Pinned to pnpm 10.** `package.json` pins `packageManager` and `engines.pnpm` to a 10.x range. pnpm 11 requires Node ≥ 22.13 and is incompatible with the project's `engines.node: >=20`. If `pnpm self-update` ever bumps you to v11 (it rewrites `packageManager` in `package.json`), revert that line and downgrade locally:
+
+```sh
+npm install -g pnpm@10
+```
+
+Modern pnpm reads the `packageManager` field and auto-switches to the pinned version on `pnpm install`, so once a pnpm 10.x binary is on PATH the right version is selected automatically.
+
 ### Backend env vars
 
 The backend (`backend/`) is the second [`ChainProvider`](offchain/src/chain/provider.ts) implementation: an ogmios chainsync indexer + db-sync history queries, exposing the same shapes the SDK consumes. Required when running the indexer / API:

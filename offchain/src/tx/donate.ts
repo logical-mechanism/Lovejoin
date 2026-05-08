@@ -66,8 +66,7 @@ export function planDonateTx(args: PlanDonateArgs): DonatePlan {
   if (args.donationLovelace <= 0n) {
     throw new Error(`donationLovelace must be a positive integer, got ${args.donationLovelace}`);
   }
-  // Fee shards live at the enterprise (unstaked) fee_contract address.
-  const feeAddress = buildScriptAddress(args.addresses.feeScriptHash, args.networkId, null);
+  const feeAddress = buildScriptAddress(args.addresses.feeScriptHash, args.networkId);
   return {
     feeShardInput: args.feeShard,
     feeShardOutput: {
@@ -158,7 +157,7 @@ export async function buildDonateTx(args: BuildDonateArgs): Promise<DonateResult
   // the chain. Same defense-in-depth as `buildDepositTx`.
   await fetchProtocolParams(args.addresses, args.provider);
 
-  const feeAddress = buildScriptAddress(args.addresses.feeScriptHash, networkId, null);
+  const feeAddress = buildScriptAddress(args.addresses.feeScriptHash, networkId);
   const collateral = args.collateralProvider ?? new WalletProvider(args.wallet);
 
   // Build + sign + submit, with retry on input collision. Retry semantics:

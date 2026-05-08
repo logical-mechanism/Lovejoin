@@ -278,11 +278,7 @@ async function cmdMix(argv: string[]): Promise<void> {
   const wallet = await loadWallet(env);
 
   const { params } = await fetchProtocolParams(addresses, provider);
-  const mixBoxAddress = buildScriptAddress(
-    addresses.mixBoxScriptHash,
-    env.networkId,
-    addresses.dappStakeKeyHashHex ?? null,
-  );
+  const mixBoxAddress = buildScriptAddress(addresses.mixBoxScriptHash, env.networkId);
 
   const explicitRefs: ReadonlyArray<string> | undefined = values["box-ref"] as
     | ReadonlyArray<string>

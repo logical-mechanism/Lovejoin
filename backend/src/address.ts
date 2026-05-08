@@ -1,21 +1,22 @@
-// CIP-19 script-address derivation. Standalone copy of the SDK helper —
-// kept here so the backend doesn't import `@lovejoin/sdk` and pull mesh
-// + cbor-x into the indexer process. The SDK version is the source of
-// truth at offchain/src/tx/address.ts; if behaviour ever drifts, the
-// SDK wins (because the SDK is what builds the actual on-chain
-// addresses we're trying to recognise here).
+// CIP-19 enterprise script-address derivation. Standalone copy of the SDK
+// helper — kept here so the backend doesn't import `@lovejoin/sdk` and
+// pull mesh + cbor-x into the indexer process. The SDK version at
+// offchain/src/tx/address.ts is the source of truth; if behaviour ever
+// drifts, the SDK wins (because the SDK is what builds the actual
+// on-chain addresses we're trying to recognise here).
+//
+// Address shape: enterprise (payment = script hash, no stake credential).
+// Pinned by audit H-01 (May 2026): the on-chain perimeter rejects every
+// continuing protocol output whose `stake_credential` is anything other
+// than `None`, so the only address shape the protocol accepts is the
+// enterprise one.
 
 const HRP_TESTNET = "addr_test";
 const HRP_MAINNET = "addr";
 const ENTERPRISE_SCRIPT_HEADER_HIGH_NIBBLE = 0x70;
-const BASE_SCRIPT_KEY_HEADER_HIGH_NIBBLE = 0x10;
 const BECH32_CHARSET = "qpzry9x8gf2tvdw0s3jn54khce6mua7l";
 
-export function buildScriptAddress(
-  scriptHashHex: string,
-  networkId: 0 | 1,
-  stakeKeyHashHex?: string | null,
-): string {
+export function buildScriptAddress(scriptHashHex: string, networkId: 0 | 1): string {
   const scriptHash = hexToBytes(scriptHashHex);
   if (scriptHash.length !== 28) {
     throw new Error(
@@ -23,22 +24,10 @@ export function buildScriptAddress(
     );
   }
   const hrp = networkId === 0 ? HRP_TESTNET : HRP_MAINNET;
-  if (!stakeKeyHashHex) {
-    const header = ENTERPRISE_SCRIPT_HEADER_HIGH_NIBBLE | networkId;
-    const payload = new Uint8Array(29);
-    payload[0] = header;
-    payload.set(scriptHash, 1);
-    return bech32Encode(hrp, payload);
-  }
-  const stakeHash = hexToBytes(stakeKeyHashHex);
-  if (stakeHash.length !== 28) {
-    throw new Error(`script address: stake-key hash must be 28 bytes, got ${stakeHash.length}`);
-  }
-  const header = BASE_SCRIPT_KEY_HEADER_HIGH_NIBBLE | networkId;
-  const payload = new Uint8Array(57);
+  const header = ENTERPRISE_SCRIPT_HEADER_HIGH_NIBBLE | networkId;
+  const payload = new Uint8Array(29);
   payload[0] = header;
   payload.set(scriptHash, 1);
-  payload.set(stakeHash, 29);
   return bech32Encode(hrp, payload);
 }
 

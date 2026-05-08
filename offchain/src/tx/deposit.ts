@@ -370,15 +370,8 @@ export function planDepositTx(args: PlanDepositArgs): DepositPlan {
   const a = pointToBytes(aPoint);
   const b = pointToBytes(bPoint);
 
-  const mixBoxAddress = buildScriptAddress(
-    args.addresses.mixBoxScriptHash,
-    args.networkId,
-    args.addresses.dappStakeKeyHashHex ?? null,
-  );
-  // Fee shards live at the enterprise (unstaked) script address — the
-  // bootstrap funded them there. Don't add the dApp stake key here or we'd
-  // be looking up an empty address.
-  const feeAddress = buildScriptAddress(args.addresses.feeScriptHash, args.networkId, null);
+  const mixBoxAddress = buildScriptAddress(args.addresses.mixBoxScriptHash, args.networkId);
+  const feeAddress = buildScriptAddress(args.addresses.feeScriptHash, args.networkId);
 
   // Shard-less deposit: emit only the mix-box. The fee_contract is not
   // invoked at all — mesh balances the lovelace against the wallet.
@@ -505,7 +498,7 @@ export async function buildDepositTx(args: BuildDepositArgs): Promise<DepositRes
   const networkId = networkIdFor(args.network);
 
   const { params } = await fetchProtocolParams(args.addresses, args.provider);
-  const feeAddress = buildScriptAddress(args.addresses.feeScriptHash, networkId, null);
+  const feeAddress = buildScriptAddress(args.addresses.feeScriptHash, networkId);
   // `undefined` → auto-pick (or null when no shards on chain); `null`
   // → explicit shard-less; a `Utxo` → explicit shard.
   const feeShard =
@@ -775,14 +768,8 @@ export function planBulkDepositTx(args: PlanBulkDepositArgs): BulkDepositPlan {
   }
   for (const x of args.ownerSecrets) assertOwnerSecret(x);
 
-  const mixBoxAddress = buildScriptAddress(
-    args.addresses.mixBoxScriptHash,
-    args.networkId,
-    args.addresses.dappStakeKeyHashHex ?? null,
-  );
-  // Fee shards live at the enterprise (unstaked) script address — see
-  // planDepositTx for the rationale.
-  const feeAddress = buildScriptAddress(args.addresses.feeScriptHash, args.networkId, null);
+  const mixBoxAddress = buildScriptAddress(args.addresses.mixBoxScriptHash, args.networkId);
+  const feeAddress = buildScriptAddress(args.addresses.feeScriptHash, args.networkId);
 
   const seenDatums = new Set<string>();
   const boxes: BulkDepositBoxPlan[] = [];
@@ -921,7 +908,7 @@ export async function buildBulkDepositTx(args: BuildBulkDepositArgs): Promise<Bu
   const networkId = networkIdFor(args.network);
 
   const { params } = await fetchProtocolParams(args.addresses, args.provider);
-  const feeAddress = buildScriptAddress(args.addresses.feeScriptHash, networkId, null);
+  const feeAddress = buildScriptAddress(args.addresses.feeScriptHash, networkId);
   // `undefined` → auto-pick (or null when no shards on chain); `null`
   // → explicit shard-less; a `Utxo` → explicit shard.
   const feeShard =

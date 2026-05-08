@@ -31,11 +31,7 @@ export async function fetchPoolDirect(args: {
 }): Promise<DirectPoolEntry[]> {
   const { provider, addresses } = args;
   const networkId: 0 | 1 = addresses.network === "mainnet" ? 1 : 0;
-  const mixBoxAddressBech32 = buildScriptAddress(
-    addresses.mixBoxScriptHash,
-    networkId,
-    addresses.dappStakeKeyHashHex ?? null,
-  );
+  const mixBoxAddressBech32 = buildScriptAddress(addresses.mixBoxScriptHash, networkId);
   const { params } = await fetchProtocolParams(addresses, provider);
   const entries = await fetchPool({
     provider,

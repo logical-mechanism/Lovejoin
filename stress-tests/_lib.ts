@@ -34,8 +34,6 @@ export interface Addresses {
   feeScriptHash: string | null;
   feeShardUtxos: string[];
   referenceScriptUtxos: Record<string, string>;
-  /** Optional 28-byte hex stake-key hash baked into every dApp UTxO. */
-  dappStakeKeyHashHex?: string;
 }
 
 export function repoRoot(): string {

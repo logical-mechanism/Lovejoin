@@ -14,15 +14,33 @@ use aiken/crypto.{ScriptHash}
 use cardano/address.{Script}
 use cardano/transaction.{Datum, InlineDatum, Input, Output}
 
-/// True iff the input is at the fee script.
+/// True iff the input's payment credential is the fee script.
+///
+/// Stake credential and reference script on the input are NOT inspected;
+/// see the matching note on `mixbox.input_at_script`.
 pub fn input_at_fee(input: Input, fee_script_hash: ScriptHash) -> Bool {
-  output_at_fee(input.output, fee_script_hash)
+  when input.output.address.payment_credential is {
+    Script(script_hash) -> script_hash == fee_script_hash
+    _ -> False
+  }
 }
 
-/// True iff the output is at the fee script.
+/// True iff the output is a well-formed continuing fee shard: payment
+/// credential is the fee script, no stake credential, no attached reference
+/// script.
+///
+/// Same audit rationale as `mixbox.output_at_script` (H-01 / M-01, May 2026
+/// internal review). The fee shards are a logically-separate pool from the
+/// mix boxes but the perimeter rules are identical: no staking rewards
+/// accrue to anyone (stake_credential pinned to `None`) and no attacker
+/// can park reference-script bytes on a shard.
 pub fn output_at_fee(output: Output, fee_script_hash: ScriptHash) -> Bool {
   when output.address.payment_credential is {
-    Script(script_hash) -> script_hash == fee_script_hash
+    Script(script_hash) -> and {
+        script_hash == fee_script_hash,
+        output.address.stake_credential == None,
+        output.reference_script == None,
+      }
     _ -> False
   }
 }
