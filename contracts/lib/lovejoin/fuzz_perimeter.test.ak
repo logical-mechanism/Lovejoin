@@ -1,9 +1,11 @@
-//// Property tests for the H-01 / M-01 perimeter checks on continuing
-//// protocol outputs.
+//// Property tests for the H-01 / M-01 perimeter checks on protocol
+//// outputs (continuing pool/fee outputs and the bootstrap reference UTxO).
 ////
 //// Spec / audit: docs/audit_report.md H-01 (stake-credential hijack) and
-//// M-01 (reference-script injection); the matching unit-level negatives
-//// live in `mix_logic.test.ak` and `fee_contract.test.ak`.
+//// M-01 (reference-script injection) for the continuing-output helpers;
+//// audit-of-audit L-01 for the bootstrap helper. The matching unit-level
+//// negatives live in `mix_logic.test.ak`, `fee_contract.test.ak`, and
+//// `one_shot_mint.test.ak`.
 ////
 //// Properties tested:
 ////   1. `output_at_script` returns False whenever `stake_credential` is any
@@ -16,6 +18,9 @@
 ////   4. Positive-sanity: with `stake_credential == None`,
 ////      `reference_script == None`, and matching payment credential,
 ////      both helpers return True for arbitrary (deterministic) hash bytes.
+////   5. Same perimeter rules for `output_at_reference_holder` plus the
+////      NFT-quantity rule (the helper additionally requires the protocol
+////      NFT to land on the same output).
 ////
 //// The fuzzer drives the script-hash bytes so we exercise hash equality
 //// (not just one fixed pair) and confirm the rule is purely structural.
@@ -28,6 +33,17 @@ use cardano/assets
 use cardano/transaction.{InlineDatum, Output}
 use lovejoin/fee.{output_at_fee}
 use lovejoin/mixbox.{output_at_script}
+use lovejoin/reference.{output_at_reference_holder}
+
+// Fixed `(policy, name)` for the reference-holder property suite. The
+// helper requires a 1-of-1 NFT to be present; any non-zero, non-multi
+// quantity at the matching `(policy, name)` exercises the rule. The
+// fuzzer drives the *payment hash* — the `(policy, name)` pair is
+// orthogonal to the perimeter rules so it stays fixed.
+const ref_policy: ByteArray =
+  #"abababababababababababababababababababababababababababab"
+
+const ref_name: ByteArray = "lovejoin"
 
 // 28-byte ScriptHash / VerificationKeyHash bytes; matches the on-chain
 // invariant — anything else is invalid Plutus context input.
@@ -73,6 +89,24 @@ fn output_at(address: Address, reference_script: Option<ByteArray>) -> Output {
   Output {
     address,
     value: assets.from_lovelace(2_000_000),
+    datum: InlineDatum(unit),
+    reference_script,
+  }
+}
+
+// Reference-holder shaped output — same as `output_at` but with the
+// `(ref_policy, ref_name, 1)` NFT added to the value bag, so the helper's
+// quantity-of check sees the canonical 1-of-1 even for negative perimeter
+// cases. (Negatives must fail on the perimeter rule, not on the NFT
+// missing — otherwise the test passes for the wrong reason.)
+fn ref_output_at(
+  address: Address,
+  reference_script: Option<ByteArray>,
+) -> Output {
+  let unit: Data = Void
+  Output {
+    address,
+    value: assets.add(assets.from_lovelace(2_000_000), ref_policy, ref_name, 1),
     datum: InlineDatum(unit),
     reference_script,
   }
@@ -209,4 +243,85 @@ test prop_output_at_fee_rejects_wrong_payment_hash(payment_hash via hash28()) {
   let addr = script_address_none(payment_hash)
   let out = output_at(addr, None)
   !output_at_fee(out, wrong)
+}
+
+// ---------------------------------------------------------------------------
+// Property 4 — same perimeter rules for `output_at_reference_holder`. The
+// helper additionally requires the protocol NFT to land on the output, so
+// the negative cases use `ref_output_at` (which holds the NFT at canonical
+// 1-of-1) — that pins the *cause* of rejection to the perimeter rule, not
+// to a missing NFT.
+//
+// Audit L-01 (audit-of-audit): the bootstrap codepath was missed when the
+// May 2026 perimeter pass closed H-01 / M-01 on `output_at_script` and
+// `output_at_fee`. This property suite mirrors those fuzz tests on the
+// new sister helper.
+// ---------------------------------------------------------------------------
+
+test prop_output_at_reference_holder_rejects_inline_stake_vk(
+  payment_hash via hash28(),
+) {
+  let stake_vk: ByteArray =
+    #"deadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef"
+  let addr =
+    script_address_with_inline_stake(payment_hash, VerificationKey(stake_vk))
+  let out = ref_output_at(addr, None)
+  !output_at_reference_holder(out, payment_hash, ref_policy, ref_name)
+}
+
+test prop_output_at_reference_holder_rejects_inline_stake_script(
+  payment_hash via hash28(),
+) {
+  let stake_script: ByteArray =
+    #"baadcafebaadcafebaadcafebaadcafebaadcafebaadcafebaadcafe"
+  let addr =
+    script_address_with_inline_stake(payment_hash, Script(stake_script))
+  let out = ref_output_at(addr, None)
+  !output_at_reference_holder(out, payment_hash, ref_policy, ref_name)
+}
+
+test prop_output_at_reference_holder_rejects_pointer_stake(
+  payment_hash via hash28(),
+) {
+  let addr = pointer_address(payment_hash)
+  let out = ref_output_at(addr, None)
+  !output_at_reference_holder(out, payment_hash, ref_policy, ref_name)
+}
+
+test prop_output_at_reference_holder_rejects_attached_reference_script(
+  payment_hash via hash28(),
+) {
+  let ref_bytes: ByteArray =
+    #"abadbabeabadbabeabadbabeabadbabeabadbabeabadbabeabadbabe"
+  let addr = script_address_none(payment_hash)
+  let out = ref_output_at(addr, Some(ref_bytes))
+  !output_at_reference_holder(out, payment_hash, ref_policy, ref_name)
+}
+
+test prop_output_at_reference_holder_accepts_clean_perimeter(
+  payment_hash via hash28(),
+) {
+  let addr = script_address_none(payment_hash)
+  let out = ref_output_at(addr, None)
+  output_at_reference_holder(out, payment_hash, ref_policy, ref_name)
+}
+
+test prop_output_at_reference_holder_rejects_wrong_payment_hash(
+  payment_hash via hash28(),
+) {
+  let wrong: ByteArray = #""
+  let addr = script_address_none(payment_hash)
+  let out = ref_output_at(addr, None)
+  !output_at_reference_holder(out, wrong, ref_policy, ref_name)
+}
+
+test prop_output_at_reference_holder_rejects_missing_nft(
+  payment_hash via hash28(),
+) {
+  // Sibling property: the NFT-quantity rule is also part of the helper's
+  // shape. Without the NFT in the value bag, even a clean perimeter
+  // rejects.
+  let addr = script_address_none(payment_hash)
+  let out = output_at(addr, None)
+  !output_at_reference_holder(out, payment_hash, ref_policy, ref_name)
 }

@@ -18,6 +18,8 @@ use cardano/transaction.{
 }
 use lovejoin/test_fixtures.{
   default_reference_datum, reference_holder_hash, script_address,
+  script_address_with_stake_pointer, script_address_with_stake_script,
+  script_address_with_stake_vk,
 }
 use lovejoin/types.{ReferenceDatum}
 use one_shot_mint
@@ -301,6 +303,42 @@ test one_shot_mint_rejects_empty_asset_name() {
   !run_mint(tx)
 }
 
+// Reference-holder output with the address overridden — used to build the
+// audit-of-audit L-01 negatives where the deployer mints the NFT to the
+// right payment credential but attaches a non-None stake credential.
+fn reference_output_with_address(address: address.Address) -> Output {
+  let datum: Data = default_reference_datum()
+  Output {
+    address,
+    value: assets.add(assets.from_lovelace(2_000_000), policy_id, asset_name, 1),
+    datum: InlineDatum(datum),
+    reference_script: None,
+  }
+}
+
+// Reference-holder output with an attached `reference_script` — the
+// audit-of-audit M-class negative on the bootstrap codepath. The script
+// payload bytes themselves don't matter; the validator rejects on
+// `Some(_)`, not on the contents.
+fn reference_output_with_ref_script(ref_script_hash: ByteArray) -> Output {
+  let datum: Data = default_reference_datum()
+  Output {
+    address: script_address(reference_holder_hash),
+    value: assets.add(assets.from_lovelace(2_000_000), policy_id, asset_name, 1),
+    datum: InlineDatum(datum),
+    reference_script: Some(ref_script_hash),
+  }
+}
+
+const attacker_stake_vk: ByteArray =
+  #"deadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef"
+
+const attacker_stake_script: ByteArray =
+  #"baadcafebaadcafebaadcafebaadcafebaadcafebaadcafebaadcafe"
+
+const attacker_ref_script: ByteArray =
+  #"abadbabeabadbabeabadbabeabadbabeabadbabeabadbabeabadbabe"
+
 // ---------------------------------------------------------------------------
 // Negative: NFT not sent to the reference_holder address (audit L-01).
 // Pre-fix, whoever first consumed the seed UTxO could put the NFT anywhere.
@@ -490,4 +528,79 @@ test one_shot_mint_rejects_when_target_datum_has_max_fee_equal_to_denom() {
       [reference_output_with_datum(bad_datum)],
     )
   !run_mint(tx)
+}
+
+// ---------------------------------------------------------------------------
+// Negative: reference-holder output with non-None stake_credential or
+// attached reference_script (audit L-01, audit-of-audit). Same H-01 / M-01
+// rule that `output_at_script` / `output_at_fee` enforce on the ongoing
+// pool/fee outputs, now applied to the one-time bootstrap output too.
+// Without these checks the deployer could permanently siphon staking
+// rewards on the reference UTxO's principal or park free reference-script
+// bytes on the protocol's min-ADA budget — `reference_holder` is
+// always-False so the gap would never close.
+//
+// All four are `fail` rather than `!run_mint`: when the destination
+// predicate matches no output, `expect Some(target)` aborts the script
+// (same rejection shape as `_when_nft_not_sent_to_reference_holder`).
+// ---------------------------------------------------------------------------
+
+test one_shot_mint_rejects_target_with_inline_vk_stake_credential() fail {
+  // Deployer attaches their own stake-key credential to the reference
+  // UTxO. Rewards on the locked principal would accrue to the deployer
+  // forever. Predicate finds no clean-perimeter output → expect aborts.
+  let bad_addr =
+    script_address_with_stake_vk(reference_holder_hash, attacker_stake_vk)
+  let tx =
+    tx_with(
+      [placeholder_input(seed)],
+      assets.from_asset(policy_id, asset_name, 1),
+      [reference_output_with_address(bad_addr)],
+    )
+  run_mint(tx)
+}
+
+test one_shot_mint_rejects_target_with_inline_script_stake_credential() fail {
+  // Variant: stake credential is a script (e.g. an attacker-controlled
+  // withdraw-zero contract that auto-routes rewards). Same rule.
+  let bad_addr =
+    script_address_with_stake_script(
+      reference_holder_hash,
+      attacker_stake_script,
+    )
+  let tx =
+    tx_with(
+      [placeholder_input(seed)],
+      assets.from_asset(policy_id, asset_name, 1),
+      [reference_output_with_address(bad_addr)],
+    )
+  run_mint(tx)
+}
+
+test one_shot_mint_rejects_target_with_pointer_stake_credential() fail {
+  // Completeness: pointer stake credentials (CIP-19 type 04/05) are a
+  // valid Shelley-era address shape. Rare on chain today but the
+  // perimeter rule must reject every non-None stake-credential shape, not
+  // just the inline ones.
+  let bad_addr = script_address_with_stake_pointer(reference_holder_hash)
+  let tx =
+    tx_with(
+      [placeholder_input(seed)],
+      assets.from_asset(policy_id, asset_name, 1),
+      [reference_output_with_address(bad_addr)],
+    )
+  run_mint(tx)
+}
+
+test one_shot_mint_rejects_target_with_attached_reference_script() fail {
+  // Deployer attaches an arbitrary reference_script payload to the
+  // reference UTxO, riding on the protocol's min-ADA budget for free
+  // script storage. The new `reference_script == None` perimeter rejects.
+  let tx =
+    tx_with(
+      [placeholder_input(seed)],
+      assets.from_asset(policy_id, asset_name, 1),
+      [reference_output_with_ref_script(attacker_ref_script)],
+    )
+  run_mint(tx)
 }

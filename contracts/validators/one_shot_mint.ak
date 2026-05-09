@@ -29,6 +29,17 @@
 //// permanently because the seed UTxO is single-use. Post-fix the mint tx
 //// rejects any deviation and the deployer can simply rebuild and resubmit.
 ////
+//// Audit L-01 (audit-of-audit, next-redeploy bundle): the destination
+//// predicate originally matched only `payment_credential` + NFT quantity.
+//// The bootstrap deployer could therefore attach an arbitrary
+//// `stake_credential` (siphoning staking rewards on the reference UTxO's
+//// principal forever — `reference_holder` is always-False) or an
+//// arbitrary `reference_script` payload (using the protocol's reference
+//// UTxO min-ADA budget as free script storage). The destination predicate
+//// now delegates to `reference.output_at_reference_holder`, which pins
+//// `stake_credential == None` and `reference_script == None` exactly like
+//// the H-01 / M-01 perimeter rule on `output_at_script` / `output_at_fee`.
+////
 //// The `reference_holder` validator carries no parameters, so its hash is a
 //// fixed compile-time constant computable before `one_shot_mint`. This
 //// breaks what would otherwise be a circular `(policy, holder)` dependency.
@@ -36,11 +47,11 @@
 use aiken/collection/dict
 use aiken/collection/list
 use aiken/crypto.{ScriptHash}
-use cardano/address.{Script}
 use cardano/assets
 use cardano/transaction.{
   InlineDatum, OutputReference, Transaction, TransactionId,
 }
+use lovejoin/reference.{output_at_reference_holder}
 use lovejoin/types.{ReferenceDatum}
 
 // Flat params so `aiken blueprint apply` can supply them as separate CBOR
@@ -66,22 +77,23 @@ validator one_shot_mint(
     let tokens_under_policy = assets.tokens(self.mint, policy_id)
     expect [Pair(asset_name, quantity)] = tokens_under_policy |> dict.to_pairs
 
-    // L-01: the NFT must land at the `reference_holder` script. We accept
-    // the first output that is at the right script and carries quantity 1
-    // of (policy, asset_name); duplicates would still be rejected by the
+    // L-01: the NFT must land at the `reference_holder` script with a
+    // clean perimeter (no stake credential, no attached reference script)
+    // and carry quantity 1 of (policy, asset_name). The shared helper
+    // keeps this rule shape-aligned with `output_at_script` /
+    // `output_at_fee`; duplicate matches would still be rejected by the
     // ledger value-balance rule because the mint provides exactly one
     // token in total.
     expect Some(target) =
       self.outputs
         |> list.find(
             fn(o) {
-              when o.address.payment_credential is {
-                Script(h) -> and {
-                    h == reference_holder_hash,
-                    assets.quantity_of(o.value, policy_id, asset_name) == 1,
-                  }
-                _ -> False
-              }
+              output_at_reference_holder(
+                o,
+                reference_holder_hash,
+                policy_id,
+                asset_name,
+              )
             },
           )
 
