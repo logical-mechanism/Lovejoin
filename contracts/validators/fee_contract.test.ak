@@ -937,8 +937,56 @@ fn const_pay_mix_fee_n8(_size: Int) -> Fuzzer<(Transaction, OutputReference)> {
   )
 }
 
+// Realistic Replenish fixture: 5 wallet inputs + 1 fee shard input, 3
+// outputs (fee_out, user_change, mix-box for the bundled deposit). This
+// shape mirrors a Deposit-tx that tops up the shard while creating a
+// mix-box and burning some change. The 1-input synthetic shape this
+// replaces wasn't representative of what `validate_replenish` walks at
+// runtime, so a regression that newly traverses self.inputs would
+// otherwise look free in the bench.
+fn replenish_tx_realistic() -> (Transaction, OutputReference) {
+  let fee_in = fee_shard_input(fee_input_byte, 0, default_fee_in)
+  let w0 =
+    Input {
+      output_reference: out_ref(0xc0, 0),
+      output: vk_output_lovelace(random_user_vk, 4_000_000),
+    }
+  let w1 =
+    Input {
+      output_reference: out_ref(0xc1, 0),
+      output: vk_output_lovelace(random_user_vk, 4_000_000),
+    }
+  let w2 =
+    Input {
+      output_reference: out_ref(0xc2, 0),
+      output: vk_output_lovelace(random_user_vk, 4_000_000),
+    }
+  let w3 =
+    Input {
+      output_reference: out_ref(0xc3, 0),
+      output: vk_output_lovelace(random_user_vk, 4_000_000),
+    }
+  let w4 =
+    Input {
+      output_reference: out_ref(0xc4, 0),
+      output: vk_output_lovelace(random_user_vk, 4_000_000),
+    }
+  let fee_out = fee_shard_output(default_fee_in + 5_000_000)
+  let user_change = vk_output_lovelace(random_user_vk, 1_000_000)
+  let mix_box_change = vk_output_lovelace(random_user_vk, 9_000_000)
+  let tx =
+    Transaction {
+      ..transaction.placeholder,
+      reference_inputs: [default_reference_input()],
+      inputs: [w0, w1, w2, w3, w4, fee_in],
+      outputs: [fee_out, user_change, mix_box_change],
+      fee: 0,
+    }
+  (tx, fee_in.output_reference)
+}
+
 fn const_replenish_tx(_size: Int) -> Fuzzer<(Transaction, OutputReference)> {
-  fuzz.constant(replenish_tx(default_fee_in, default_fee_in + 5_000_000))
+  fuzz.constant(replenish_tx_realistic())
 }
 
 bench fee_contract__pay_mix_fee__realistic_n3(
