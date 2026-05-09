@@ -3,6 +3,7 @@
 //// Spec: §0 Rule 2 (datum tolerance), §3.
 
 use aiken/collection/list
+use aiken/fuzz
 use cardano/address.{Script}
 use cardano/assets
 use cardano/transaction.{
@@ -172,9 +173,11 @@ fn do_build_mix_inputs(
   }
 }
 
-test pay_mix_fee_positive_n2() {
+test pay_mix_fee_positive_n3() {
+  // N=3 is the minimum mix-script-input count for a fee-paying mix; the
+  // smaller N=2 case is rejected (see `pay_mix_fee_rejects_two_mix_inputs`).
   let (tx, utxo) =
-    pay_mix_fee_tx(default_fee_in, default_fee_in - 200_000, 200_000, 2)
+    pay_mix_fee_tx(default_fee_in, default_fee_in - 200_000, 200_000, 3)
   let unit: Data = Void
   fee_contract.fee_contract.spend(
     ref_nft_policy,
@@ -207,7 +210,7 @@ test pay_mix_fee_positive_at_max_fee() {
       default_fee_in,
       default_fee_in - max_fee_per_mix_lovelace,
       max_fee_per_mix_lovelace,
-      2,
+      3,
     )
   let unit: Data = Void
   fee_contract.fee_contract.spend(
@@ -226,9 +229,26 @@ test pay_mix_fee_positive_at_max_fee() {
 // the ledger level — both mean validation fails).
 
 test pay_mix_fee_rejects_one_mix_input() fail {
-  // Spec rule: ≥ 2 mix-script inputs (a real Mix tx, not a Deposit-shaped one).
+  // Spec rule: ≥ 3 mix-script inputs for a fee-paying mix.
   let (tx, utxo) =
     pay_mix_fee_tx(default_fee_in, default_fee_in - 200_000, 200_000, 1)
+  let unit: Data = Void
+  fee_contract.fee_contract.spend(
+    ref_nft_policy,
+    ref_nft_name,
+    Some(unit),
+    PayMixFee,
+    utxo,
+    tx,
+  )
+}
+
+test pay_mix_fee_rejects_two_mix_inputs() fail {
+  // N=2 is legal in `mix_logic.validate_mix` (wallet-collateral mixes), but
+  // illegal here: consuming a fee shard at N=2 collapses the anonymity set
+  // against an observer who knows the shard input.
+  let (tx, utxo) =
+    pay_mix_fee_tx(default_fee_in, default_fee_in - 200_000, 200_000, 2)
   let unit: Data = Void
   fee_contract.fee_contract.spend(
     ref_nft_policy,
@@ -257,7 +277,7 @@ test pay_mix_fee_rejects_zero_mix_inputs() fail {
 test pay_mix_fee_rejects_fee_diff_too_small() fail {
   // fee_in - fee_out (100_000) < tx.fee (200_000): rule fails.
   let (tx, utxo) =
-    pay_mix_fee_tx(default_fee_in, default_fee_in - 100_000, 200_000, 2)
+    pay_mix_fee_tx(default_fee_in, default_fee_in - 100_000, 200_000, 3)
   let unit: Data = Void
   fee_contract.fee_contract.spend(
     ref_nft_policy,
@@ -273,7 +293,7 @@ test pay_mix_fee_rejects_fee_diff_too_large() fail {
   // fee_in - fee_out (300_000) > tx.fee (200_000): the shard would lose more
   // value than was actually paid; rule fails.
   let (tx, utxo) =
-    pay_mix_fee_tx(default_fee_in, default_fee_in - 300_000, 200_000, 2)
+    pay_mix_fee_tx(default_fee_in, default_fee_in - 300_000, 200_000, 3)
   let unit: Data = Void
   fee_contract.fee_contract.spend(
     ref_nft_policy,
@@ -289,7 +309,7 @@ test pay_mix_fee_rejects_fee_above_max() {
   // tx.fee just above max_fee_per_mix_lovelace.
   let over = max_fee_per_mix_lovelace + 1
   let (tx, utxo) =
-    pay_mix_fee_tx(default_fee_in, default_fee_in - over, over, 2)
+    pay_mix_fee_tx(default_fee_in, default_fee_in - over, over, 3)
   let unit: Data = Void
   !fee_contract.fee_contract.spend(
     ref_nft_policy,
@@ -302,7 +322,7 @@ test pay_mix_fee_rejects_fee_above_max() {
 }
 
 test pay_mix_fee_rejects_no_fee_output() fail {
-  let mix_inputs = build_mix_inputs(2)
+  let mix_inputs = build_mix_inputs(3)
   let fee_in = fee_shard_input(fee_input_byte, 0, default_fee_in)
   let user_change = vk_output_lovelace(random_user_vk, 1_000_000)
   let tx =
@@ -325,7 +345,7 @@ test pay_mix_fee_rejects_no_fee_output() fail {
 }
 
 test pay_mix_fee_rejects_two_fee_outputs() fail {
-  let mix_inputs = build_mix_inputs(2)
+  let mix_inputs = build_mix_inputs(3)
   let fee_in = fee_shard_input(fee_input_byte, 0, default_fee_in)
   let fee_out = fee_shard_output(default_fee_in - 200_000)
   let extra_fee_out = fee_shard_output(1)
@@ -349,7 +369,7 @@ test pay_mix_fee_rejects_two_fee_outputs() fail {
 }
 
 test pay_mix_fee_rejects_no_datum_on_output() fail {
-  let mix_inputs = build_mix_inputs(2)
+  let mix_inputs = build_mix_inputs(3)
   let fee_in = fee_shard_input(fee_input_byte, 0, default_fee_in)
   let fee_out = fee_shard_output_no_datum(default_fee_in - 200_000)
   let tx =
@@ -372,7 +392,7 @@ test pay_mix_fee_rejects_no_datum_on_output() fail {
 }
 
 test pay_mix_fee_rejects_native_asset_in_output() fail {
-  let mix_inputs = build_mix_inputs(2)
+  let mix_inputs = build_mix_inputs(3)
   let fee_in = fee_shard_input(fee_input_byte, 0, default_fee_in)
   let unit: Data = Void
   let dirty_value =
@@ -413,7 +433,7 @@ test pay_mix_fee_rejects_native_asset_in_input() fail {
   // Spec §3 PayMixFee rule 6: no native assets in the fee input either —
   // `expect_ada_only_lovelace(input.output.value)` aborts on the fee shard
   // input fold step.
-  let mix_inputs = build_mix_inputs(2)
+  let mix_inputs = build_mix_inputs(3)
   let unit: Data = Void
   let dirty_value =
     assets.merge(
@@ -442,7 +462,7 @@ test pay_mix_fee_rejects_native_asset_in_input() fail {
       inputs: list.concat(mix_inputs, [dirty_fee_in]),
       outputs: [fee_out],
       fee: 200_000,
-      redeemers: [Pair(Withdraw(Script(mix_logic_hash)), bogus_mix_redeemer(2))],
+      redeemers: [Pair(Withdraw(Script(mix_logic_hash)), bogus_mix_redeemer(3))],
     }
   fee_contract.fee_contract.spend(
     ref_nft_policy,
@@ -515,7 +535,7 @@ test pay_mix_fee_rejects_missing_mix_logic_redeemer() fail {
   // also abort because `pairs.get_first(...)` returns None.
   let fee_in = fee_shard_input(fee_input_byte, 0, default_fee_in)
   let fee_out = fee_shard_output(default_fee_in - 200_000)
-  let mix_inputs = build_mix_inputs(2)
+  let mix_inputs = build_mix_inputs(3)
   let inputs = list.concat(mix_inputs, [fee_in])
   let user_change = vk_output_lovelace(random_user_vk, 1_000_000)
   let tx =
@@ -557,7 +577,7 @@ test pay_mix_fee_rejects_fee_output_with_attacker_stake_vk() fail {
   let fee_in = fee_shard_input(fee_input_byte, 0, default_fee_in)
   let fee_out =
     fee_shard_output_with_address(bad_addr, default_fee_in - 200_000)
-  let mix_inputs = build_mix_inputs(2)
+  let mix_inputs = build_mix_inputs(3)
   let user_change = vk_output_lovelace(random_user_vk, 1_000_000)
   let tx =
     Transaction {
@@ -566,7 +586,7 @@ test pay_mix_fee_rejects_fee_output_with_attacker_stake_vk() fail {
       inputs: list.concat(mix_inputs, [fee_in]),
       outputs: [fee_out, user_change],
       fee: 200_000,
-      redeemers: [Pair(Withdraw(Script(mix_logic_hash)), bogus_mix_redeemer(2))],
+      redeemers: [Pair(Withdraw(Script(mix_logic_hash)), bogus_mix_redeemer(3))],
     }
   let unit: Data = Void
   fee_contract.fee_contract.spend(
@@ -587,7 +607,7 @@ test pay_mix_fee_rejects_fee_output_with_reference_script_attached() fail {
   let fee_in = fee_shard_input(fee_input_byte, 0, default_fee_in)
   let fee_out =
     fee_shard_output_with_ref_script(default_fee_in - 200_000, attacker_ref)
-  let mix_inputs = build_mix_inputs(2)
+  let mix_inputs = build_mix_inputs(3)
   let user_change = vk_output_lovelace(random_user_vk, 1_000_000)
   let tx =
     Transaction {
@@ -596,7 +616,7 @@ test pay_mix_fee_rejects_fee_output_with_reference_script_attached() fail {
       inputs: list.concat(mix_inputs, [fee_in]),
       outputs: [fee_out, user_change],
       fee: 200_000,
-      redeemers: [Pair(Withdraw(Script(mix_logic_hash)), bogus_mix_redeemer(2))],
+      redeemers: [Pair(Withdraw(Script(mix_logic_hash)), bogus_mix_redeemer(3))],
     }
   let unit: Data = Void
   fee_contract.fee_contract.spend(
@@ -890,6 +910,133 @@ test replenish_rejects_native_asset_in_input() fail {
     Some(unit),
     Replenish,
     dirty_fee_in.output_reference,
+    tx,
+  )
+}
+
+// ---------------------------------------------------------------------------
+// Benchmarks (audit I-01 / CWC-026): the fee_contract spend handler is on
+// every PayMixFee-paid Mix transaction (one per shard consumed). Per-tx
+// cost scales with the input fold's `mix_input_count`, so we bench at
+// the new floor (N=3, post audit-of-audit) and at a mid-range (N=8).
+// Replenish is the cold-ish path used during deposits + bootstrap top-up.
+//
+// Fuzzer fns compose the synthetic tx outside the bench body so only the
+// spend handler's work is measured.
+// ---------------------------------------------------------------------------
+
+fn const_pay_mix_fee_n3(_size: Int) -> Fuzzer<(Transaction, OutputReference)> {
+  fuzz.constant(
+    pay_mix_fee_tx(default_fee_in, default_fee_in - 200_000, 200_000, 3),
+  )
+}
+
+fn const_pay_mix_fee_n8(_size: Int) -> Fuzzer<(Transaction, OutputReference)> {
+  fuzz.constant(
+    pay_mix_fee_tx(default_fee_in, default_fee_in - 700_000, 700_000, 8),
+  )
+}
+
+// Realistic Replenish fixture: 5 wallet inputs + 1 fee shard input, 3
+// outputs (fee_out, user_change, mix-box for the bundled deposit). This
+// shape mirrors a Deposit-tx that tops up the shard while creating a
+// mix-box and burning some change. The 1-input synthetic shape this
+// replaces wasn't representative of what `validate_replenish` walks at
+// runtime, so a regression that newly traverses self.inputs would
+// otherwise look free in the bench.
+fn replenish_tx_realistic() -> (Transaction, OutputReference) {
+  let fee_in = fee_shard_input(fee_input_byte, 0, default_fee_in)
+  let w0 =
+    Input {
+      output_reference: out_ref(0xc0, 0),
+      output: vk_output_lovelace(random_user_vk, 4_000_000),
+    }
+  let w1 =
+    Input {
+      output_reference: out_ref(0xc1, 0),
+      output: vk_output_lovelace(random_user_vk, 4_000_000),
+    }
+  let w2 =
+    Input {
+      output_reference: out_ref(0xc2, 0),
+      output: vk_output_lovelace(random_user_vk, 4_000_000),
+    }
+  let w3 =
+    Input {
+      output_reference: out_ref(0xc3, 0),
+      output: vk_output_lovelace(random_user_vk, 4_000_000),
+    }
+  let w4 =
+    Input {
+      output_reference: out_ref(0xc4, 0),
+      output: vk_output_lovelace(random_user_vk, 4_000_000),
+    }
+  let fee_out = fee_shard_output(default_fee_in + 5_000_000)
+  let user_change = vk_output_lovelace(random_user_vk, 1_000_000)
+  let mix_box_change = vk_output_lovelace(random_user_vk, 9_000_000)
+  let tx =
+    Transaction {
+      ..transaction.placeholder,
+      reference_inputs: [default_reference_input()],
+      inputs: [w0, w1, w2, w3, w4, fee_in],
+      outputs: [fee_out, user_change, mix_box_change],
+      fee: 0,
+    }
+  (tx, fee_in.output_reference)
+}
+
+fn const_replenish_tx(_size: Int) -> Fuzzer<(Transaction, OutputReference)> {
+  fuzz.constant(replenish_tx_realistic())
+}
+
+bench fee_contract__pay_mix_fee__realistic_n3(
+  pair: (Transaction, OutputReference) via const_pay_mix_fee_n3,
+) {
+  // Floor: N=3 mix inputs + 1 fee shard (post audit-of-audit minimum).
+  let (tx, utxo) = pair
+  let unit: Data = Void
+  fee_contract.fee_contract.spend(
+    ref_nft_policy,
+    ref_nft_name,
+    Some(unit),
+    PayMixFee,
+    utxo,
+    tx,
+  )
+}
+
+bench fee_contract__pay_mix_fee__realistic_n8(
+  pair: (Transaction, OutputReference) via const_pay_mix_fee_n8,
+) {
+  // Mid-range: N=8 mix inputs. Quantifies per-input scaling on the
+  // fee-side input fold so a future regression that walks inputs more
+  // than once shows up here.
+  let (tx, utxo) = pair
+  let unit: Data = Void
+  fee_contract.fee_contract.spend(
+    ref_nft_policy,
+    ref_nft_name,
+    Some(unit),
+    PayMixFee,
+    utxo,
+    tx,
+  )
+}
+
+bench fee_contract__replenish__realistic(
+  pair: (Transaction, OutputReference) via const_replenish_tx,
+) {
+  // Replenish: deposit-tx-side spend that tops up the shard. No mix
+  // inputs in the input fold; cost is dominated by the value-increase
+  // check and the unit-datum verify.
+  let (tx, utxo) = pair
+  let unit: Data = Void
+  fee_contract.fee_contract.spend(
+    ref_nft_policy,
+    ref_nft_name,
+    Some(unit),
+    Replenish,
+    utxo,
     tx,
   )
 }

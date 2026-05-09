@@ -11,6 +11,7 @@
 ////      so mix_box must not gate them through the proof-required path
 ////      either — see audit F-2).
 
+use aiken/fuzz
 use cardano/address.{Address, Credential, Script}
 use cardano/assets
 use cardano/transaction.{
@@ -192,5 +193,84 @@ test mix_box_datum_hash_recovery_succeeds_even_when_other_withdrawals_present() 
   let zero32: ByteArray =
     #"0000000000000000000000000000000000000000000000000000000000000000"
   let tx = tx_with(DatumHash(zero32), [Pair(Script(mix_logic_hash), 0)])
+  mix_box.mix_box.spend(mix_logic_hash, None, Void, own_utxo, tx)
+}
+
+// ---------------------------------------------------------------------------
+// Benchmarks (audit I-01 / CWC-026): the mix_box delegator runs once per
+// mix-script input across a full Mix or Owner tx, so its per-input cost
+// is multiplied by N at the protocol level. The two paths we measure are
+// the dominant ones at runtime — well-formed inline (proof-required) and
+// Rule-2 recovery (silent accept).
+// ---------------------------------------------------------------------------
+
+const inline_well_formed_tx: Transaction =
+  Transaction {
+    ..transaction.placeholder,
+    inputs: [
+      Input {
+        output_reference: own_utxo,
+        output: Output {
+          address: Address {
+            payment_credential: Script(mix_script_hash),
+            stake_credential: None,
+          },
+          value: assets.from_lovelace(10_000_000),
+          datum: InlineDatum(MixDatum { a: a48, b: b48 }),
+          reference_script: None,
+        },
+      },
+    ],
+    withdrawals: [Pair(Script(mix_logic_hash), 0)],
+  }
+
+const rule2_recovery_tx: Transaction =
+  Transaction {
+    ..transaction.placeholder,
+    inputs: [
+      Input {
+        output_reference: own_utxo,
+        output: Output {
+          address: Address {
+            payment_credential: Script(mix_script_hash),
+            stake_credential: None,
+          },
+          value: assets.from_lovelace(10_000_000),
+          // a == b: structurally a `MixDatum` but malformed per spec §2,
+          // forcing the spend onto the silent-accept recovery branch.
+          datum: InlineDatum(MixDatum { a: a48, b: a48 }),
+          reference_script: None,
+        },
+      },
+    ],
+    withdrawals: [],
+  }
+
+fn const_inline_tx(_size: Int) -> Fuzzer<Transaction> {
+  fuzz.constant(inline_well_formed_tx)
+}
+
+fn const_recovery_tx(_size: Int) -> Fuzzer<Transaction> {
+  fuzz.constant(rule2_recovery_tx)
+}
+
+bench mix_box__spend__inline_well_formed(tx: Transaction via const_inline_tx) {
+  // Hot path: well-formed inline datum → look up mix_logic withdrawal.
+  // Runs once per mix-script input on every Mix and Owner tx.
+  mix_box.mix_box.spend(mix_logic_hash, None, Void, own_utxo, tx)
+}
+
+bench mix_box__spend__rule2_recovery(tx: Transaction via const_recovery_tx) {
+  // Recovery path: malformed inline datum → silent accept. Runs whenever
+  // a non-conforming UTxO accidentally lands at the mix-script address.
+  mix_box.mix_box.spend(mix_logic_hash, None, Void, own_utxo, tx)
+}
+
+bench worst_case_datum_size_for_mixbox(tx: Transaction via const_inline_tx) {
+  // Datum-size pressure: the worst-case `MixDatum` carries two 48-byte
+  // BLS12-381 G1 compressed fields; this bench pins that worst case so a
+  // future change that grows the datum (e.g. native-asset fields) shows
+  // up as a bench regression. Pairs with the mix_logic Mix benches —
+  // every well-formed mix input decodes a datum at this size.
   mix_box.mix_box.spend(mix_logic_hash, None, Void, own_utxo, tx)
 }
