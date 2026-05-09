@@ -3,6 +3,7 @@
 //// Spec: §0 Rule 2 (datum tolerance), §3.
 
 use aiken/collection/list
+use aiken/fuzz
 use cardano/address.{Script}
 use cardano/assets
 use cardano/transaction.{
@@ -909,6 +910,85 @@ test replenish_rejects_native_asset_in_input() fail {
     Some(unit),
     Replenish,
     dirty_fee_in.output_reference,
+    tx,
+  )
+}
+
+// ---------------------------------------------------------------------------
+// Benchmarks (audit I-01 / CWC-026): the fee_contract spend handler is on
+// every PayMixFee-paid Mix transaction (one per shard consumed). Per-tx
+// cost scales with the input fold's `mix_input_count`, so we bench at
+// the new floor (N=3, post audit-of-audit) and at a mid-range (N=8).
+// Replenish is the cold-ish path used during deposits + bootstrap top-up.
+//
+// Fuzzer fns compose the synthetic tx outside the bench body so only the
+// spend handler's work is measured.
+// ---------------------------------------------------------------------------
+
+fn const_pay_mix_fee_n3(_size: Int) -> Fuzzer<(Transaction, OutputReference)> {
+  fuzz.constant(
+    pay_mix_fee_tx(default_fee_in, default_fee_in - 200_000, 200_000, 3),
+  )
+}
+
+fn const_pay_mix_fee_n8(_size: Int) -> Fuzzer<(Transaction, OutputReference)> {
+  fuzz.constant(
+    pay_mix_fee_tx(default_fee_in, default_fee_in - 700_000, 700_000, 8),
+  )
+}
+
+fn const_replenish_tx(_size: Int) -> Fuzzer<(Transaction, OutputReference)> {
+  fuzz.constant(replenish_tx(default_fee_in, default_fee_in + 5_000_000))
+}
+
+bench fee_contract__pay_mix_fee__realistic_n3(
+  pair: (Transaction, OutputReference) via const_pay_mix_fee_n3,
+) {
+  // Floor: N=3 mix inputs + 1 fee shard (post audit-of-audit minimum).
+  let (tx, utxo) = pair
+  let unit: Data = Void
+  fee_contract.fee_contract.spend(
+    ref_nft_policy,
+    ref_nft_name,
+    Some(unit),
+    PayMixFee,
+    utxo,
+    tx,
+  )
+}
+
+bench fee_contract__pay_mix_fee__realistic_n8(
+  pair: (Transaction, OutputReference) via const_pay_mix_fee_n8,
+) {
+  // Mid-range: N=8 mix inputs. Quantifies per-input scaling on the
+  // fee-side input fold so a future regression that walks inputs more
+  // than once shows up here.
+  let (tx, utxo) = pair
+  let unit: Data = Void
+  fee_contract.fee_contract.spend(
+    ref_nft_policy,
+    ref_nft_name,
+    Some(unit),
+    PayMixFee,
+    utxo,
+    tx,
+  )
+}
+
+bench fee_contract__replenish__realistic(
+  pair: (Transaction, OutputReference) via const_replenish_tx,
+) {
+  // Replenish: deposit-tx-side spend that tops up the shard. No mix
+  // inputs in the input fold; cost is dominated by the value-increase
+  // check and the unit-datum verify.
+  let (tx, utxo) = pair
+  let unit: Data = Void
+  fee_contract.fee_contract.spend(
+    ref_nft_policy,
+    ref_nft_name,
+    Some(unit),
+    Replenish,
+    utxo,
     tx,
   )
 }

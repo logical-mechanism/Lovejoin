@@ -11,6 +11,7 @@
 ////
 //// We exercise every rule with positive + negative cases.
 
+use aiken/fuzz
 use cardano/address
 use cardano/assets
 use cardano/transaction.{
@@ -603,4 +604,51 @@ test one_shot_mint_rejects_target_with_attached_reference_script() fail {
       [reference_output_with_ref_script(attacker_ref_script)],
     )
   run_mint(tx)
+}
+
+// ---------------------------------------------------------------------------
+// Benchmark (audit I-01 / CWC-026): one-time bootstrap path.
+//
+// `one_shot_mint` runs exactly once per network deployment and the seed
+// UTxO consumption makes it permanently un-runnable thereafter. Bench
+// numbers here therefore aren't a regression-throttle for a hot path —
+// they're a sanity floor that anchors the protocol's bootstrap cost so
+// future audits can quote a stable baseline.
+// ---------------------------------------------------------------------------
+
+const canonical_bootstrap_tx: Transaction =
+  Transaction {
+    ..transaction.placeholder,
+    inputs: [placeholder_input(seed)],
+    mint: assets.from_asset(policy_id, asset_name, 1),
+    outputs: [
+      Output {
+        address: script_address(reference_holder_hash),
+        value: assets.add(
+          assets.from_lovelace(2_000_000),
+          policy_id,
+          asset_name,
+          1,
+        ),
+        datum: InlineDatum(default_reference_datum()),
+        reference_script: None,
+      },
+    ],
+  }
+
+fn const_canonical_bootstrap_tx(_size: Int) -> Fuzzer<Transaction> {
+  fuzz.constant(canonical_bootstrap_tx)
+}
+
+bench one_shot_mint__mint__canonical(
+  tx: Transaction via const_canonical_bootstrap_tx,
+) {
+  one_shot_mint.one_shot_mint.mint(
+    seed.transaction_id,
+    seed.output_index,
+    reference_holder_hash,
+    Void,
+    policy_id,
+    tx,
+  )
 }
