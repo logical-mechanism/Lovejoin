@@ -48,7 +48,7 @@ export const OPENAPI_INFO = {
     "Read-only chain-state API + tx submission/evaluation passthrough for the Lovejoin Sigmajoin protocol.\n\n" +
     "All routes return JSON. Lovelace amounts are encoded as decimal strings to preserve full bigint precision.\n\n" +
     "Authentication: none. Per-IP rate limit applied; tx routes (`/submit`, `/evaluate`) carry a tighter cap.",
-  version: "0.3.0",
+  version: "0.4.0",
   license: { name: "MIT" },
 } as const;
 
