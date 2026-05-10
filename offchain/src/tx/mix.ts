@@ -74,6 +74,7 @@ import {
   verifySigmaOr,
 } from "../crypto/index.js";
 import type { ChainProvider, Hex32, Lovelace, Utxo, UtxoRef } from "../chain/provider.js";
+import { lovejoinUtxoToOgmiosAdditional } from "../chain/ogmios-utxo.js";
 import { type CollateralProvider, GivemeMyProvider, WalletProvider } from "./collateral.js";
 import { appendVkeyWitness } from "./witness-merge.js";
 import { encodeMixDatum, generateOwnerSecret as drawScalar } from "./deposit.js";
@@ -761,6 +762,45 @@ export interface BuildMixArgs {
    */
   retry?: RetryOptions;
   /**
+   * Chain this Mix tx onto an in-flight parent (Deposit, Replenish, or
+   * a prior Mix) that hasn't confirmed yet. The `utxos` are the parent's
+   * outputs that this child consumes — they are forwarded verbatim to
+   * giveme.my's `additional_utxos` field so the upstream Koios/Ogmios
+   * evaluator can see them. See giveme.my v1.2.0 OpenAPI and Ogmios'
+   * `evaluateTransaction.additionalUtxo`.
+   *
+   * Caller responsibilities:
+   *   * The in-flight outputs MUST also be referenced in `args.inputs`
+   *     (and/or `args.feeShard` for a chained Replenish→Mix). chainFrom
+   *     is purely the evaluator-side splice — input selection is the
+   *     caller's job.
+   *   * `chainDepth` is an opt-in annotation: callers acknowledge how
+   *     deep the chain runs (1 = directly off an unconfirmed parent,
+   *     2 = grandparent in flight too, ...). The SDK logs the depth but
+   *     does NOT enforce a hard cap; cumulative orphan probability rises
+   *     non-linearly with depth, so going past 2 should come with a
+   *     measured throughput justification. Defaults to 1.
+   *   * Rollback handling: if the parent tx is dropped from the mempool
+   *     (rollback, fee race, replacement), the chained child becomes
+   *     invalid. The SDK does NOT auto-resubmit — `tx/retry.ts` handles
+   *     single-tx retries, not chain rollbacks. Catch the submit-time
+   *     failure and resubmit at the caller.
+   *
+   * Known limitation: the local mesh evaluator path (Blockfrost ogmios
+   * v6 `/utils/txs/evaluate?version=6`) does NOT splice these UTxOs
+   * today — it reads UTxOs from chain only. End-to-end chained
+   * submission therefore requires a chain provider whose evaluator
+   * understands additionalUtxos (e.g. the backend's `/mempool/outputs`
+   * route, tracked as a separate follow-up). Until then, chainFrom is
+   * useful for the wire-format integration tests but the build will
+   * fail at the local evaluator pass when inputs reference unconfirmed
+   * outputs.
+   */
+  chainFrom?: {
+    utxos: ReadonlyArray<Utxo>;
+    chainDepth?: number;
+  };
+  /**
    * Optional reproducibility hooks for tests. None of these affect the
    * plan structure — they just pin the random choices.
    */
@@ -1181,7 +1221,25 @@ export async function buildMixTx(args: BuildMixArgs): Promise<MixResult> {
     // returns WalletProvider when args.wallet is set.
     let signedTx: string;
     if (preparedCollateral.externallySigned) {
-      const hostWitness = await collateralProvider.signTxBody(unsignedTxHex);
+      // Splice in-flight parent outputs into the upstream evaluator via
+      // giveme.my's `additional_utxos`. Empty/missing -> field omitted on
+      // the wire. See BuildMixArgs.chainFrom.
+      const chainFromUtxos = args.chainFrom?.utxos ?? [];
+      const chainDepth = args.chainFrom?.chainDepth ?? 1;
+      const additionalUtxos =
+        chainFromUtxos.length > 0
+          ? chainFromUtxos.map((u) => lovejoinUtxoToOgmiosAdditional(u))
+          : undefined;
+      if (additionalUtxos && additionalUtxos.length > 0) {
+        console.log(
+          `[lovejoin/mix] chaining onto ${additionalUtxos.length} in-flight UTxO(s) ` +
+            `at chainDepth=${chainDepth}; forwarding to collateral host as additional_utxos`,
+        );
+      }
+      const hostWitness = await collateralProvider.signTxBody(
+        unsignedTxHex,
+        additionalUtxos ? { additionalUtxos } : undefined,
+      );
       if (!hostWitness) {
         throw new Error(
           "Mix tx: collateral provider claimed externallySigned but signTxBody() returned null",
