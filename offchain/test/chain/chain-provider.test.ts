@@ -307,3 +307,121 @@ describe("BlockfrostProvider", () => {
     }
   });
 });
+
+describe("BlockfrostProvider.evaluateTxWithAdditionalUtxos", () => {
+  // Issue #127: chained-Mix needs the LOCAL evaluator to see in-flight
+  // parent outputs. The standard /utils/txs/evaluate?version=6 endpoint
+  // doesn't accept additional UTxOs; we route through
+  // /utils/txs/evaluate/utxos?version=6 (JSON body) instead.
+
+  const EVAL_JSON_URL = `${BASE}/utils/txs/evaluate/utxos?version=6`;
+
+  it("POSTs cbor + additionalUtxoSet as JSON and translates the response to mesh Action[]", async () => {
+    const responses = new Map<string, MockResponseBody | MockResponseBody[]>([
+      [
+        EVAL_JSON_URL,
+        {
+          json: {
+            result: [
+              {
+                validator: { purpose: "spend", index: 0 },
+                budget: { memory: 1_000_000, cpu: 10_000_000 },
+              },
+              {
+                validator: { purpose: "withdraw", index: 0 },
+                budget: { memory: 2_500_000, cpu: 25_000_000 },
+              },
+            ],
+          },
+        },
+      ],
+    ]);
+    const { provider: p, calls } = provider(responses);
+    const additional = [
+      [
+        { transaction: { id: "ab".repeat(32) }, index: 0 },
+        {
+          address: "addr_test1qparent",
+          value: { ada: { lovelace: 7_500_000n } },
+          datum: "d87980",
+        },
+      ],
+    ] as const;
+    const actions = await (p as BlockfrostProvider).evaluateTxWithAdditionalUtxos(
+      "84aa00deadbeef",
+      additional,
+    );
+    expect(actions).toEqual([
+      { tag: "SPEND", index: 0, budget: { mem: 1_000_000, steps: 10_000_000 } },
+      { tag: "REWARD", index: 0, budget: { mem: 2_500_000, steps: 25_000_000 } },
+    ]);
+    expect(calls).toHaveLength(1);
+    const [call] = calls;
+    expect(call!.url).toBe(EVAL_JSON_URL);
+    expect(call!.method).toBe("POST");
+    expect(call!.headers["Content-Type"]).toBe("application/json");
+    expect(call!.headers["project_id"]).toBe("preprod_TEST");
+    // Body is the JSON body the upstream Blockfrost endpoint expects.
+    const parsed = JSON.parse(call!.body as string);
+    expect(parsed.cbor).toBe("84aa00deadbeef");
+    expect(parsed.additionalUtxoSet).toEqual([
+      [
+        { transaction: { id: "ab".repeat(32) }, index: 0 },
+        {
+          address: "addr_test1qparent",
+          value: { ada: { lovelace: 7_500_000 } }, // bigint serialised to number
+          datum: "d87980",
+        },
+      ],
+    ]);
+  });
+
+  it("surfaces upstream evaluator errors verbatim", async () => {
+    const responses = new Map<string, MockResponseBody | MockResponseBody[]>([
+      [
+        EVAL_JSON_URL,
+        {
+          json: {
+            error: {
+              code: 3010,
+              message: "missing required scripts",
+              data: { missing: ["abc"] },
+            },
+          },
+        },
+      ],
+    ]);
+    const { provider: p } = provider(responses);
+    await expect(
+      (p as BlockfrostProvider).evaluateTxWithAdditionalUtxos("deadbeef", []),
+    ).rejects.toThrow(/missing required scripts/);
+  });
+
+  it("throws when an additionalUtxoSet value exceeds Number.MAX_SAFE_INTEGER", async () => {
+    // Ogmios serialises out-of-range bigints with a tag rather than a JSON
+    // number, but our wire layer uses plain numbers; bail loudly instead
+    // of silently truncating.
+    const responses = new Map<string, MockResponseBody | MockResponseBody[]>([
+      [EVAL_JSON_URL, { json: { result: [] } }],
+    ]);
+    const { provider: p } = provider(responses);
+    await expect(
+      (p as BlockfrostProvider).evaluateTxWithAdditionalUtxos("deadbeef", [
+        [
+          { transaction: { id: "ab".repeat(32) }, index: 0 },
+          {
+            address: "addr_test1qparent",
+            value: { ada: { lovelace: 2n ** 60n } },
+          },
+        ],
+      ]),
+    ).rejects.toThrow(/MAX_SAFE_INTEGER/);
+  });
+
+  // The "exposed on the mesh sibling" wiring isn't unit-tested because
+  // `meshProvider()` triggers the libsodium-wrappers-sumo ESM import,
+  // which crashes under pnpm's strict node_modules layout (see
+  // CLAUDE.md "Local-dev gotchas"). The attachment is a one-line
+  // delegate to the top-level method exercised above; integration tests
+  // on Preprod cover the end-to-end mesh path.
+});

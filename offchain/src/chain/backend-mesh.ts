@@ -31,7 +31,8 @@
 //     own BlockfrostProvider drops; we populate it from ogmios v6's
 //     `minFeeReferenceScripts.base`.
 
-import type { MeshFetcherSubmitter, MeshProtocolParameters } from "./blockfrost.js";
+import type { MeshAction, MeshFetcherSubmitter, MeshProtocolParameters } from "./blockfrost.js";
+import type { AdditionalUtxo } from "./ogmios-utxo.js";
 
 /**
  * Fetch surface — kept structurally identical to BackendChainProvider's
@@ -259,16 +260,58 @@ export class BackendMeshProvider implements MeshFetcherSubmitter {
    * never see the difference between Blockfrost-ogmios-v6 and our own
    * ogmios-v6 — both go through the same purpose-string remapping.
    */
-  async evaluateTx(
+  async evaluateTx(cborHex: string): Promise<MeshAction[]> {
+    return this.evaluateTxImpl(cborHex, undefined);
+  }
+
+  /**
+   * Evaluate a tx with extra `[txin, txout]` pairs spliced into the
+   * Ogmios chain state. POSTs to the backend's `/evaluate` with an
+   * `additionalUtxoSet` array; the backend forwards it to ogmios as
+   * `evaluateTransaction.additionalUtxo`.
+   *
+   * Used by the Mix tx-builder's chained-Mix path; see
+   * `BuildMixArgs.chainFrom`.
+   */
+  async evaluateTxWithAdditionalUtxos(
     cborHex: string,
-  ): Promise<Array<{ tag: string; index: number; budget: { mem: number; steps: number } }>> {
+    additionalUtxos: ReadonlyArray<AdditionalUtxo>,
+  ): Promise<MeshAction[]> {
+    return this.evaluateTxImpl(cborHex, additionalUtxos);
+  }
+
+  /** Shared body for both evaluator paths; only differs in JSON body shape. */
+  private async evaluateTxImpl(
+    cborHex: string,
+    additionalUtxos: ReadonlyArray<AdditionalUtxo> | undefined,
+  ): Promise<MeshAction[]> {
     return this.tryWithFallback(
       "evaluateTx",
       async () => {
+        const requestBody: { cbor: string; additionalUtxoSet?: ReadonlyArray<AdditionalUtxo> } = {
+          cbor: cborHex,
+        };
+        if (additionalUtxos && additionalUtxos.length > 0) {
+          requestBody.additionalUtxoSet = additionalUtxos;
+        }
         const res = await this.fetchFn(`${this.baseUrl}/evaluate`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ cbor: cborHex }),
+          // Custom replacer drops bigint values down to numbers; the
+          // backend's fastify route forwards verbatim to ogmios which
+          // expects numeric quantities (same constraint as the
+          // Blockfrost JSON endpoint).
+          body: JSON.stringify(requestBody, (_k, v) => {
+            if (typeof v === "bigint") {
+              if (v > Number.MAX_SAFE_INTEGER) {
+                throw new Error(
+                  `BackendMeshProvider.evaluateTxWithAdditionalUtxos: bigint ${v} > MAX_SAFE_INTEGER`,
+                );
+              }
+              return Number(v);
+            }
+            return v;
+          }),
         });
         const body = await readJson(res);
         if (!res.ok) {
@@ -295,14 +338,15 @@ export class BackendMeshProvider implements MeshFetcherSubmitter {
           budget: { mem: r.budget.memory, steps: r.budget.cpu },
         }));
       },
-      (fb) =>
-        fb.evaluateTx(cborHex) as Promise<
-          Array<{
-            tag: string;
-            index: number;
-            budget: { mem: number; steps: number };
-          }>
-        >,
+      (fb) => {
+        // Fallback path: prefer the additional-utxos sibling on the fallback
+        // if the caller asked for one; degrade to the regular evaluator only
+        // when the fallback can't handle additional UTxOs.
+        if (additionalUtxos && additionalUtxos.length > 0 && fb.evaluateTxWithAdditionalUtxos) {
+          return fb.evaluateTxWithAdditionalUtxos(cborHex, additionalUtxos);
+        }
+        return fb.evaluateTx(cborHex) as Promise<MeshAction[]>;
+      },
     );
   }
 
