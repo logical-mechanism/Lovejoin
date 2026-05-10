@@ -209,6 +209,42 @@ export type CollateralFetchFn = (
   json(): Promise<unknown>;
 }>;
 
+/**
+ * Retry policy for transient HTTP failures from the collateral host.
+ *
+ * The upstream (giveme.my by default) occasionally returns Cloudflare 502 /
+ * 503 / 504 during deploys or load spikes. A single fetch turns a recoverable
+ * 30-second blip into a user-visible "submission failed" dialog. The retry
+ * loop hides that under a brief backoff.
+ *
+ * Retry triggers (in `signTxBody`):
+ *   - HTTP status `>= 500`, `408 Request Timeout`, or `429 Too Many Requests`.
+ *   - Any thrown error from the `fetchFn` (DNS / connection / abort).
+ *
+ * Non-retryable: 2xx with a bad body (config bug — another attempt sees the
+ * same shape) and 4xx other than 408 / 429 (caller bug — another attempt
+ * sees the same rejection).
+ *
+ * The request is idempotent: the server signs over the canonical tx-body
+ * hash, so a duplicate POST yields a valid witness for the same tx. Retrying
+ * does not risk double-spend or duplicate submission.
+ */
+export interface CollateralRetryPolicy {
+  /** Total attempts including the first. Must be `>= 1`. Default 3. */
+  maxAttempts: number;
+  /** Delay before attempt 2 in ms. Default 250. */
+  initialDelayMs: number;
+  /** Multiplier applied to the delay each retry. Default 2 (250ms, 500ms). */
+  backoffFactor: number;
+}
+
+/** Sensible defaults; see {@link CollateralRetryPolicy}. */
+export const DEFAULT_COLLATERAL_RETRY: Readonly<CollateralRetryPolicy> = {
+  maxAttempts: 3,
+  initialDelayMs: 250,
+  backoffFactor: 2,
+};
+
 export interface GivemeMyOptions {
   /**
    * The Lovejoin network discriminator. Maps internally to the upstream's
@@ -240,6 +276,13 @@ export interface GivemeMyOptions {
   endpoint?: string;
   /** Optional injected fetch (defaults to globalThis.fetch). */
   fetchFn?: CollateralFetchFn;
+  /**
+   * Retry policy for transient HTTP failures (5xx, 408, 429, network throw).
+   * Defaults to {@link DEFAULT_COLLATERAL_RETRY} (3 attempts, 250ms initial
+   * delay, 2x backoff). Pass `{ maxAttempts: 1, initialDelayMs: 0, backoffFactor: 1 }`
+   * to disable retries — useful for tests that want to see the bail path.
+   */
+  retry?: Partial<CollateralRetryPolicy>;
 }
 
 /**
@@ -275,6 +318,7 @@ export class GivemeMyProvider implements CollateralProvider {
   private readonly endpoint: string;
   private readonly fetchFn: CollateralFetchFn;
   private readonly collateralNetwork: CollateralNetwork;
+  private readonly retryPolicy: CollateralRetryPolicy;
 
   constructor(opts: GivemeMyOptions) {
     const collateralNetwork = lovejoinNetworkToCollateralNetwork(opts.network);
@@ -312,6 +356,14 @@ export class GivemeMyProvider implements CollateralProvider {
     // globalThis when we picked up the global; pass injected mocks
     // through unmodified so test stubs see their intended `this`.
     this.fetchFn = injected ?? (globalFetch!.bind(globalThis) as CollateralFetchFn);
+    this.retryPolicy = {
+      maxAttempts: Math.max(1, opts.retry?.maxAttempts ?? DEFAULT_COLLATERAL_RETRY.maxAttempts),
+      initialDelayMs: Math.max(
+        0,
+        opts.retry?.initialDelayMs ?? DEFAULT_COLLATERAL_RETRY.initialDelayMs,
+      ),
+      backoffFactor: opts.retry?.backoffFactor ?? DEFAULT_COLLATERAL_RETRY.backoffFactor,
+    };
   }
 
   /**
@@ -365,49 +417,99 @@ export class GivemeMyProvider implements CollateralProvider {
       throw new Error("GivemeMyProvider.signTxBody: txCborHex must be non-empty hex");
     }
     const body = JSON.stringify({ tx: txCborHex });
+    const { maxAttempts } = this.retryPolicy;
+    const txBytes = txCborHex.length / 2;
 
+    let lastErr: Error | null = null;
+    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+      console.log(
+        `[lovejoin/collateral] POST ${this.endpoint} ` +
+          `(host=${this.host.name}, txCbor=${txBytes} bytes, attempt ${attempt}/${maxAttempts})`,
+      );
+
+      // Network-level failure: fetch threw before producing a Response.
+      // Always retryable until we exhaust attempts; the request didn't
+      // reach the upstream so it can't have side effects.
+      let res: Awaited<ReturnType<CollateralFetchFn>>;
+      try {
+        res = await this.fetchFn(this.endpoint, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body,
+        });
+      } catch (fetchErr) {
+        const msg = fetchErr instanceof Error ? fetchErr.message : String(fetchErr);
+        lastErr = new Error(`GivemeMyProvider: fetch to ${this.endpoint} threw: ${msg}`);
+        if (attempt < maxAttempts) {
+          await this.sleepBeforeRetry(attempt, `fetch threw (${msg})`);
+          continue;
+        }
+        throw lastErr;
+      }
+
+      console.log(`[lovejoin/collateral] HTTP ${res.status} ${res.statusText}`);
+
+      // HTTP-level failure. Retry on the transient buckets (5xx / 408 / 429);
+      // bail immediately on the deterministic ones (other 4xx). On bail, drop
+      // the (first 400 bytes of) body into the message so the user sees
+      // exactly what the upstream said.
+      if (!res.ok) {
+        const rawText = await res.text();
+        const httpErr = new Error(
+          `GivemeMyProvider: ${this.endpoint} returned HTTP ${res.status} ${res.statusText}. ` +
+            `Body (first 400 bytes): ${rawText.slice(0, 400)}`,
+        );
+        const retryable = res.status >= 500 || res.status === 408 || res.status === 429;
+        lastErr = httpErr;
+        if (retryable && attempt < maxAttempts) {
+          await this.sleepBeforeRetry(attempt, `HTTP ${res.status}`);
+          continue;
+        }
+        throw httpErr;
+      }
+
+      // 2xx — parse and return. Bad body is non-retryable: the server replied,
+      // the response is just unexpected. Almost always a config bug (wrong
+      // endpoint, wrong network) and another attempt would yield the same
+      // shape. Detecting HTML up-front emits a pointed error when the
+      // override sent us to a homepage instead of the API endpoint (e.g.
+      // https://giveme.my vs https://www.giveme.my/preprod/collateral/).
+      const rawText = await res.text();
+      const looksHtml = /^\s*<(?:!doctype|html|head|body)/i.test(rawText);
+      if (looksHtml) {
+        throw new Error(
+          `GivemeMyProvider: ${this.endpoint} returned HTML, not JSON — almost certainly a wrong endpoint. ` +
+            `Expected a path ending in /{network}/collateral/. ` +
+            `Body (first 200 bytes): ${rawText.slice(0, 200)}`,
+        );
+      }
+      let json: unknown;
+      try {
+        json = JSON.parse(rawText);
+      } catch (parseErr) {
+        throw new Error(
+          `GivemeMyProvider: ${this.endpoint} returned non-JSON. ` +
+            `Original parse error: ${parseErr instanceof Error ? parseErr.message : String(parseErr)}. ` +
+            `Body (first 400 bytes): ${rawText.slice(0, 400)}`,
+        );
+      }
+      return parseGivemeMyWitnessResponse(json, this.host.publicKeyHex);
+    }
+    // Unreachable: every iteration either returns or throws. The bound is
+    // here to satisfy the type checker and to give a recognizable error if
+    // the loop ever exits without a result.
+    throw lastErr ?? new Error("GivemeMyProvider: retry loop exhausted without a result");
+  }
+
+  private async sleepBeforeRetry(attempt: number, symptom: string): Promise<void> {
+    const { maxAttempts, initialDelayMs, backoffFactor } = this.retryPolicy;
+    const delay = Math.round(initialDelayMs * Math.pow(backoffFactor, attempt - 1));
     console.log(
-      `[lovejoin/collateral] POST ${this.endpoint} ` +
-        `(host=${this.host.name}, txCbor=${txCborHex.length / 2} bytes)`,
+      `[lovejoin/collateral] retry ${attempt + 1}/${maxAttempts} after ${symptom}; sleeping ${delay}ms`,
     );
-    const res = await this.fetchFn(this.endpoint, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body,
-    });
-
-    console.log(`[lovejoin/collateral] HTTP ${res.status} ${res.statusText}`);
-
-    // Read body once as text. Detecting HTML up-front lets us emit a
-    // pointed error when the override sent us to a homepage instead of
-    // the API endpoint — which is the most common configuration mistake
-    // (e.g. https://giveme.my vs https://www.giveme.my/preprod/collateral/).
-    const rawText = await res.text();
-    const looksHtml = /^\s*<(?:!doctype|html|head|body)/i.test(rawText);
-    if (!res.ok) {
-      throw new Error(
-        `GivemeMyProvider: ${this.endpoint} returned HTTP ${res.status} ${res.statusText}. ` +
-          `Body (first 400 bytes): ${rawText.slice(0, 400)}`,
-      );
+    if (delay > 0) {
+      await new Promise((resolve) => setTimeout(resolve, delay));
     }
-    if (looksHtml) {
-      throw new Error(
-        `GivemeMyProvider: ${this.endpoint} returned HTML, not JSON — almost certainly a wrong endpoint. ` +
-          `Expected a path ending in /{network}/collateral/. ` +
-          `Body (first 200 bytes): ${rawText.slice(0, 200)}`,
-      );
-    }
-    let json: unknown;
-    try {
-      json = JSON.parse(rawText);
-    } catch (parseErr) {
-      throw new Error(
-        `GivemeMyProvider: ${this.endpoint} returned non-JSON. ` +
-          `Original parse error: ${parseErr instanceof Error ? parseErr.message : String(parseErr)}. ` +
-          `Body (first 400 bytes): ${rawText.slice(0, 400)}`,
-      );
-    }
-    return parseGivemeMyWitnessResponse(json, this.host.publicKeyHex);
   }
 
   /** The pkh that callers must list under `required_signers`. */
