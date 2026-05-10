@@ -5,28 +5,30 @@
     "max_fee_per_mix_lovelace": 2000000,
     "fee_shard_target": 10
   },
-  "referenceNftPolicy": "e901e8e91d11ec91e29090cede62c2474373ef6cd8b6edd26cc94f35",
+  "referenceNftPolicy": "8ca2cc1836ff9c001384cd5c3c77ef1dab063c8048e801e27eb3ad42",
   "referenceNftAssetName": "6c6f76656a6f696e",
-  "referenceUtxoRef": "98a623a697dbf4eedce82dab3065553b364bccc27304cc3fab89126b7045fbcd#0",
-  "referenceHolderScriptHash": "48a9800e5e9bca75f038cd64a75daed6a60d06c28c362b8c0733bee4",
-  "mixLogicScriptHash": "c8ab33a593a8bb3912b36d9696e9b73e4c57b341c72ecbe01fb6b361",
-  "mixBoxScriptHash": "13e29f06526fa1ad42e89f85f07febc239c293a4585b88f5c440a2bd",
-  "feeScriptHash": "1a97d573875487d46d1c8593529e607c21ac25165a87deccb7224e64",
+  "referenceUtxoRef": "c5ed058606efdde7f1419c2f4b9497a2f8f3bbe4d3bb906b97cbab6c2b161190#0",
+  "referenceHolderScriptHash": "288fea77a0f674c6080aadd8ed3ca42cd5a920bf1f00c0d3e63306e4",
+  "mixLogicScriptHash": "b7079c65f3b40b6da344bf68840eb0363af17787e8375004387348b8",
+  "mixBoxScriptHash": "67ffe4ed7f0ccd0a3e3069fddc26d9bccde3fe63d3d58c5e84f7ecc5",
+  "feeScriptHash": "64802866996e4712904ed21cfe36dd9b4c6672fe4051d5578086514a",
   "feeShardUtxos": [
-    "9f6a5920d84515b7f7cd83dd6af36d9577d2691a9406dee11bd86ff0fc5e52fd#0",
-    "9f6a5920d84515b7f7cd83dd6af36d9577d2691a9406dee11bd86ff0fc5e52fd#1",
-    "9f6a5920d84515b7f7cd83dd6af36d9577d2691a9406dee11bd86ff0fc5e52fd#2",
-    "9f6a5920d84515b7f7cd83dd6af36d9577d2691a9406dee11bd86ff0fc5e52fd#3",
-    "9f6a5920d84515b7f7cd83dd6af36d9577d2691a9406dee11bd86ff0fc5e52fd#4",
-    "9f6a5920d84515b7f7cd83dd6af36d9577d2691a9406dee11bd86ff0fc5e52fd#5",
-    "9f6a5920d84515b7f7cd83dd6af36d9577d2691a9406dee11bd86ff0fc5e52fd#6",
-    "9f6a5920d84515b7f7cd83dd6af36d9577d2691a9406dee11bd86ff0fc5e52fd#7",
-    "9f6a5920d84515b7f7cd83dd6af36d9577d2691a9406dee11bd86ff0fc5e52fd#8",
-    "9f6a5920d84515b7f7cd83dd6af36d9577d2691a9406dee11bd86ff0fc5e52fd#9"
+    "a36734fda76f2667c1b258d9c43238bdbbd1dac77dca5196c0b23d53c0a4cf64#0",
+    "a36734fda76f2667c1b258d9c43238bdbbd1dac77dca5196c0b23d53c0a4cf64#1",
+    "a36734fda76f2667c1b258d9c43238bdbbd1dac77dca5196c0b23d53c0a4cf64#2",
+    "a36734fda76f2667c1b258d9c43238bdbbd1dac77dca5196c0b23d53c0a4cf64#3",
+    "a36734fda76f2667c1b258d9c43238bdbbd1dac77dca5196c0b23d53c0a4cf64#4",
+    "a36734fda76f2667c1b258d9c43238bdbbd1dac77dca5196c0b23d53c0a4cf64#5",
+    "a36734fda76f2667c1b258d9c43238bdbbd1dac77dca5196c0b23d53c0a4cf64#6",
+    "a36734fda76f2667c1b258d9c43238bdbbd1dac77dca5196c0b23d53c0a4cf64#7",
+    "a36734fda76f2667c1b258d9c43238bdbbd1dac77dca5196c0b23d53c0a4cf64#8",
+    "a36734fda76f2667c1b258d9c43238bdbbd1dac77dca5196c0b23d53c0a4cf64#9"
   ],
   "referenceScriptUtxos": {
-    "mix_box": "c1c7759505ca9aecba12d5913b6cf9822d6d710ca982272607b5a56dc1216e14#0",
-    "mix_logic": "0222b84dbc53ce9fd069c12253968b3c2d16f3ae3c08857b13f65ee1499e595e#0",
-    "fee_contract": "015385452784bc043063be98ebd3d3a4e0ff5d16adab5588149ced5f7b386e0a#0"
-  }
+    "mix_box": "c19c0157e236a8b01af13d7731b89d2329331588cdec3a12c5b6c599e8817a96#0",
+    "mix_logic": "06045afa3f79b25eb89c523bf9d08ef8d6605ed9c2207140cbc672669b039364#0",
+    "fee_contract": "87f5a4c958f1b3c0e6c8e46a2875f383a49ab81031fcc6c3eeda22af3d8f4763#0"
+  },
+  "stage1ChangeUtxo": "87f5a4c958f1b3c0e6c8e46a2875f383a49ab81031fcc6c3eeda22af3d8f4763#1",
+  "mixLogicRegisterTx": "8c51aa3649c72e8f177a5a04e1fd4abc8ac87907b08087e2b8ff9ff54a16bba9"
 }
