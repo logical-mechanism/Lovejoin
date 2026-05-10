@@ -26,7 +26,10 @@
 #
 # Inputs (env or first positional):
 #   SEED                 — "<txid>#<idx>" of an unspent UTxO at BOOTSTRAP_ADDR.
-#   NETWORK              — "preprod" | "test" (default: preprod)
+#   NETWORK              — preprod | preview | mainnet | test (default: preprod).
+#                          mainnet requires LOVEJOIN_MAINNET_CONFIRM=yes; the
+#                          per-network cardano-cli flag is derived in
+#                          _lib/network.sh.
 #   REF_NFT_ASSET_NAME   — hex-encoded asset name for the reference NFT.
 #                          Default = "lovejoin" hex-encoded → 6c6f76656a6f696e.
 #                          Audit F-17 (next-redeploy bundle Q-2): the
@@ -57,10 +60,12 @@
 
 set -euo pipefail
 
-__ENV_FILE="$(cd "$(dirname "$0")" && pwd)/.env"
+__BOOTSTRAP_DIR="$(cd "$(dirname "$0")" && pwd)"
+__ENV_FILE="$__BOOTSTRAP_DIR/.env"
 [[ -f "$__ENV_FILE" ]] && { set -a; source "$__ENV_FILE"; set +a; }
+# shellcheck source=_lib/network.sh
+source "$__BOOTSTRAP_DIR/_lib/network.sh"
 
-NETWORK="${NETWORK:-preprod}"
 SEED="${SEED:-${1:-}}"
 if [[ -z "$SEED" ]]; then
   echo "00-build-reference: SEED is required (env var or first positional)." >&2
