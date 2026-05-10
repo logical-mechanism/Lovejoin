@@ -1,7 +1,7 @@
 {
   "name": "integration-tests",
   "private": true,
-  "version": "0.3.0",
+  "version": "0.4.0",
   "description": "Lovejoin integration tests on Preprod (M3 deposit+withdraw, M4 mix, …).",
   "type": "module",
   "scripts": {

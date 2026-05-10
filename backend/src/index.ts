@@ -20,7 +20,7 @@ import type { ChainTip } from "./indexer/types.js";
 import { buildServer } from "./api/server.js";
 import { buildLogger } from "./logger.js";
 
-export const BACKEND_VERSION = "0.3.0";
+export const BACKEND_VERSION = "0.4.0";
 
 export type LovejoinBackendConfig = {
   ogmiosUrl: string;
