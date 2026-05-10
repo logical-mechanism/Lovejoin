@@ -338,13 +338,19 @@ export const ROUTE_SCHEMAS = {
   evaluate: {
     summary: "Evaluate a tx (script ex-units)",
     description:
-      "Forwards the tx to ogmios `EvaluateTransaction`. Returns per-redeemer ex-units. Used by the SDK during Mix tx construction so the actual costs are folded into the fee.",
+      "Forwards the tx to ogmios `EvaluateTransaction`. Returns per-redeemer ex-units. Used by the SDK during Mix tx construction so the actual costs are folded into the fee. Optional `additionalUtxoSet` carries `[txin, txout]` pairs spliced into the evaluator's view of the chain (Ogmios v6 `additionalUtxo`) so callers can evaluate a tx that references the unconfirmed outputs of an in-flight parent.",
     tags: ["tx"],
     body: {
       type: "object",
       required: ["cbor"],
       properties: {
         cbor: { type: "string", pattern: "^[0-9a-fA-F]+$" },
+        additionalUtxoSet: {
+          type: "array",
+          description:
+            "Optional in-flight `[txin, txout]` pairs in Ogmios v6 shape; forwarded verbatim to ogmios as `evaluateTransaction.additionalUtxo`. Missing or empty is fine.",
+          items: { type: "array" },
+        },
       },
     },
     response: {

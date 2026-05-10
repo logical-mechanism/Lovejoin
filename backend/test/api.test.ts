@@ -588,10 +588,12 @@ describe("API: /submit + /evaluate", () => {
     const budgets = [
       { validator: { purpose: "spend", index: 0 }, budget: { memory: 1234, cpu: 56789 } },
     ];
+    let capturedAdditional: unknown = "not-called";
     const stub = {
       submitTransaction: async () => "00".repeat(32),
-      evaluateTransaction: async (cbor: string) => {
+      evaluateTransaction: async (cbor: string, additional?: unknown) => {
         expect(cbor).toBe("84a4");
+        capturedAdditional = additional;
         return budgets;
       },
       reconnecting: () => ({
@@ -617,6 +619,89 @@ describe("API: /submit + /evaluate", () => {
     });
     expect(res.statusCode).toBe(200);
     expect(res.json()).toEqual({ redeemers: budgets });
+    // When body has no additionalUtxoSet, the ogmios-tx client receives
+    // undefined and omits the field from the JSON-RPC params upstream.
+    expect(capturedAdditional).toBeUndefined();
+    await s.close();
+  });
+
+  it("/evaluate forwards a non-empty additionalUtxoSet to ogmios-tx (issue #127)", async () => {
+    // Issue #127: chained Mix evaluator path needs in-flight UTxOs spliced
+    // into the upstream Ogmios `evaluateTransaction.additionalUtxo` slot.
+    let capturedAdditional: unknown = null;
+    const stub = {
+      submitTransaction: async () => "00".repeat(32),
+      evaluateTransaction: async (_cbor: string, additional?: ReadonlyArray<unknown>) => {
+        capturedAdditional = additional;
+        return [];
+      },
+      reconnecting: () => ({
+        inProgress: false,
+        attempts: 0,
+        lastErrorAt: 0,
+        lastErrorMessage: "",
+        exhausted: false,
+      }),
+      close: () => {},
+    };
+    const s = await buildServer({
+      state,
+      runtime: null,
+      config: CONFIG,
+      dbsync: null,
+      ogmiosTx: stub as never,
+    });
+    const additionalUtxoSet = [
+      [
+        { transaction: { id: "ab".repeat(32) }, index: 0 },
+        { address: "addr_test1qparent", value: { ada: { lovelace: 7_500_000 } } },
+      ],
+    ];
+    const res = await s.inject({
+      method: "POST",
+      url: "/evaluate",
+      payload: { cbor: "84a4", additionalUtxoSet },
+    });
+    expect(res.statusCode).toBe(200);
+    expect(capturedAdditional).toEqual(additionalUtxoSet);
+    await s.close();
+  });
+
+  it("/evaluate rejects an oversized additionalUtxoSet with 400 bad_request", async () => {
+    // Defence-in-depth: cap upstream payload size; a chained Mix realistically
+    // touches ≤ N=4 parents, so 32 is well above any legitimate ceiling.
+    const stub = {
+      submitTransaction: async () => "00".repeat(32),
+      evaluateTransaction: async () => [],
+      reconnecting: () => ({
+        inProgress: false,
+        attempts: 0,
+        lastErrorAt: 0,
+        lastErrorMessage: "",
+        exhausted: false,
+      }),
+      close: () => {},
+    };
+    const s = await buildServer({
+      state,
+      runtime: null,
+      config: CONFIG,
+      dbsync: null,
+      ogmiosTx: stub as never,
+    });
+    // 33 entries — one over the cap.
+    const oversize = Array.from({ length: 33 }, (_, i) => [
+      { transaction: { id: "a".repeat(64) }, index: i },
+      { address: "addr_test1qbad", value: { ada: { lovelace: 1_000_000 } } },
+    ]);
+    const res = await s.inject({
+      method: "POST",
+      url: "/evaluate",
+      payload: { cbor: "84a4", additionalUtxoSet: oversize },
+    });
+    expect(res.statusCode).toBe(400);
+    expect(res.json().error).toBe("bad_request");
+    expect(res.json().message).toMatch(/cap is 32/);
     await s.close();
   });
 
