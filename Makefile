@@ -15,7 +15,7 @@ ENV_FILE ?= .env
 NODE_ENV_FLAG := --env-file-if-exists=$(ENV_FILE)
 
 .PHONY: help install build test lint format contracts ui-dev backend-dev clean \
-        cli deposit withdraw integration-test sdk-test sdk-build \
+        cli deposit withdraw integration-test integration-test-chain-mix sdk-test sdk-build \
         probe-evaluator diff-validators sync-ui-addresses \
         do-deploy do-update docker-build-backend docker-build-ui
 
@@ -43,6 +43,9 @@ help:
 	@echo "  make deposit ROUNDS=30  # builds + submits a deposit tx"
 	@echo "  make withdraw SECRET=... BOX_REF=... BOX_A=... BOX_B=... TO=..."
 	@echo "  make integration-test   # runs the Preprod deposit-withdraw round-trip"
+	@echo "  make integration-test-chain-mix"
+	@echo "                          # exercises chainFrom: deposit + Mix-on-unconfirmed-deposit at N=2"
+	@echo "                          # set LOVEJOIN_BACKEND_URL=http://... to route through the backend"
 	@echo ""
 	@echo "Diagnostics:"
 	@echo "  make probe-evaluator TX=<hex>  # POST <hex> to Blockfrost's evaluator three ways"
@@ -271,4 +274,17 @@ integration-test: sdk-build
 	else \
 		echo "WARN: $(ENV_FILE) not found — running test (will skip without env)"; \
 		$(PNPM) --filter integration-tests test -- deposit-withdraw; \
+	fi
+
+# Chained-Mix integration test (issue #127): deposit + Mix-on-unconfirmed-deposit
+# at N=2. Default chain provider is BlockfrostProvider; set LOVEJOIN_BACKEND_URL
+# in $(ENV_FILE) (or the shell env) to route through the backend's /evaluate
+# route — same test code, exercises both chain-provider implementations.
+integration-test-chain-mix: sdk-build
+	@if [ -f $(ENV_FILE) ]; then \
+		set -a; . ./$(ENV_FILE); set +a; \
+		$(PNPM) --filter integration-tests test -- mix-chain-deposit; \
+	else \
+		echo "WARN: $(ENV_FILE) not found — running test (will skip without env)"; \
+		$(PNPM) --filter integration-tests test -- mix-chain-deposit; \
 	fi
