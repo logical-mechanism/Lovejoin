@@ -16,20 +16,21 @@
 # stages, etc.) print without a label.
 #
 # Inputs (env):
-#   NETWORK            — preprod | preview (default: preprod)
-#   TESTNET_MAGIC      — default 1 (Preprod)
+#   NETWORK            — preprod | preview | mainnet | test (default: preprod).
+#                        mainnet requires LOVEJOIN_MAINNET_CONFIRM=yes. The
+#                        per-network cardano-cli flag is derived in
+#                        _lib/network.sh.
 #   CARDANO_NODE_SOCKET_PATH must point to a synced node.
 #   BOOTSTRAP_ADDR     — overrides the address file lookup.
 
 set -euo pipefail
 
-__ENV_FILE="$(cd "$(dirname "$0")" && pwd)/.env"
-[[ -f "$__ENV_FILE" ]] && { set -a; source "$__ENV_FILE"; set +a; }
-
-NETWORK="${NETWORK:-preprod}"
-TESTNET_MAGIC="${TESTNET_MAGIC:-1}"
-
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+__ENV_FILE="$SCRIPT_DIR/.env"
+[[ -f "$__ENV_FILE" ]] && { set -a; source "$__ENV_FILE"; set +a; }
+# shellcheck source=_lib/network.sh
+source "$SCRIPT_DIR/_lib/network.sh"
+
 WALLETS_DIR="$SCRIPT_DIR/wallets"
 REPO_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 ARTIFACTS_DIR="$REPO_ROOT/artifacts/$NETWORK"
@@ -58,20 +59,20 @@ UTXO_JSON=$(mktemp)
 trap 'rm -f "$UTXO_JSON"' EXIT
 
 cardano-cli conway query utxo \
-  --testnet-magic "$TESTNET_MAGIC" \
+  "${CARDANO_CLI_NETWORK_FLAGS[@]}" \
   --address "$BOOTSTRAP_ADDR" \
   --out-file "$UTXO_JSON"
 
 COUNT=$(jq 'length' "$UTXO_JSON")
 if [[ "$COUNT" -eq 0 ]]; then
-  echo "balance: no UTxOs at $BOOTSTRAP_ADDR (network=$NETWORK)"
+  echo "balance: no UTxOs at $BOOTSTRAP_ADDR (network=$NETWORK ${CARDANO_CLI_NETWORK_FLAGS[*]})"
   echo "         Fund this address from the faucet:"
   echo "         $BOOTSTRAP_ADDR"
   exit 0
 fi
 
 echo "wallet:  $BOOTSTRAP_ADDR"
-echo "network: $NETWORK (magic $TESTNET_MAGIC)"
+echo "network: $NETWORK (${CARDANO_CLI_NETWORK_FLAGS[*]})"
 echo "utxos:   $COUNT"
 if [[ -n "$PREP_TXID" ]]; then
   echo "prep:    $PREP_TXID  (outputs 0..3 labeled below)"

@@ -13,8 +13,11 @@
 # them as a coherent chain.
 #
 # Inputs (env, typically via .env + prep-utxos exports):
-#   NETWORK            — preprod | preview (default: preprod)
-#   TESTNET_MAGIC      — default 1 (Preprod)
+#   NETWORK            — preprod | preview | mainnet | test (default: preprod).
+#                        mainnet requires LOVEJOIN_MAINNET_CONFIRM=yes. The
+#                        per-network cardano-cli flag is derived in
+#                        _lib/network.sh and reused via
+#                        "${CARDANO_CLI_NETWORK_FLAGS[@]}".
 #   CARDANO_NODE_SOCKET_PATH must point to a synced node.
 #   BOOTSTRAP_ADDR     — wallet address (auto-defaulted from wallets/).
 #   PAYMENT_SKEY       — bootstrap signing key (auto-defaulted).
@@ -33,9 +36,9 @@ set -euo pipefail
 __BOOTSTRAP_DIR="$(cd "$(dirname "$0")" && pwd)"
 __ENV_FILE="$__BOOTSTRAP_DIR/.env"
 [[ -f "$__ENV_FILE" ]] && { set -a; source "$__ENV_FILE"; set +a; }
+# shellcheck source=_lib/network.sh
+source "$__BOOTSTRAP_DIR/_lib/network.sh"
 
-NETWORK="${NETWORK:-preprod}"
-TESTNET_MAGIC="${TESTNET_MAGIC:-1}"
 WALLETS_DIR="$__BOOTSTRAP_DIR/wallets"
 : "${BOOTSTRAP_ADDR:=$([[ -f "$WALLETS_DIR/payment.$NETWORK.addr" ]] && cat "$WALLETS_DIR/payment.$NETWORK.addr" || echo '')}"
 : "${PAYMENT_SKEY:=$WALLETS_DIR/payment.skey}"
@@ -59,11 +62,11 @@ fi
 # Pre-flight: protocol params + the FUNDING_STAGE1 lovelace amount.
 # ---------------------------------------------------------------------------
 cardano-cli conway query protocol-parameters \
-  --testnet-magic "$TESTNET_MAGIC" \
+  "${CARDANO_CLI_NETWORK_FLAGS[@]}" \
   --out-file "$TMP_DIR/protocol.json"
 
 cardano-cli conway query utxo \
-  --testnet-magic "$TESTNET_MAGIC" \
+  "${CARDANO_CLI_NETWORK_FLAGS[@]}" \
   --address "$BOOTSTRAP_ADDR" \
   --out-file "$TMP_DIR/wallet.utxo.json"
 
@@ -110,7 +113,7 @@ publish_step() {
   cardano-cli conway transaction sign \
     --tx-body-file "$ARTIFACTS_DIR/$stage.txraw" \
     --signing-key-file "$PAYMENT_SKEY" \
-    --testnet-magic "$TESTNET_MAGIC" \
+    "${CARDANO_CLI_NETWORK_FLAGS[@]}" \
     --out-file "$ARTIFACTS_DIR/$stage.tx"
 
   echo "$change_lovelace"
@@ -144,7 +147,7 @@ echo "==> Submitting chain"
 for stage in 01a-mix-box 01a-mix-logic 01a-fee-contract; do
   echo "    submitting $stage"
   cardano-cli conway transaction submit \
-    --testnet-magic "$TESTNET_MAGIC" \
+    "${CARDANO_CLI_NETWORK_FLAGS[@]}" \
     --tx-file "$ARTIFACTS_DIR/$stage.tx"
 done
 

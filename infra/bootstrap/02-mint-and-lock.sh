@@ -11,8 +11,10 @@
 # parameters live forever at the always-False reference_holder address.
 #
 # Inputs (env):
-#   NETWORK            — "preprod" | "test" (default: preprod)
-#   TESTNET_MAGIC      — default 1 (Preprod)
+#   NETWORK            — preprod | preview | mainnet | test (default: preprod).
+#                        mainnet requires LOVEJOIN_MAINNET_CONFIRM=yes. The
+#                        per-network cardano-cli flag is derived in
+#                        _lib/network.sh.
 #   CARDANO_NODE_SOCKET_PATH must point to a synced node.
 #   BOOTSTRAP_ADDR     — wallet address.
 #   SEED               — same value used in 00-build-reference.sh; consumed.
@@ -34,11 +36,12 @@
 
 set -euo pipefail
 
-__ENV_FILE="$(cd "$(dirname "$0")" && pwd)/.env"
+__BOOTSTRAP_DIR="$(cd "$(dirname "$0")" && pwd)"
+__ENV_FILE="$__BOOTSTRAP_DIR/.env"
 [[ -f "$__ENV_FILE" ]] && { set -a; source "$__ENV_FILE"; set +a; }
+# shellcheck source=_lib/network.sh
+source "$__BOOTSTRAP_DIR/_lib/network.sh"
 
-NETWORK="${NETWORK:-preprod}"
-TESTNET_MAGIC="${TESTNET_MAGIC:-1}"
 BOOTSTRAP_ADDR="${BOOTSTRAP_ADDR:?}"
 SEED="${SEED:?SEED required — must match the value used in 00-build-reference. Run ./balance.sh for the export lines.}"
 COLLATERAL="${COLLATERAL:?COLLATERAL required (run ./balance.sh)}"
@@ -50,7 +53,7 @@ if [[ "$SEED" == "$COLLATERAL" ]]; then
   exit 1
 fi
 
-REPO_ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
+REPO_ROOT="$(cd "$__BOOTSTRAP_DIR/../.." && pwd)"
 ARTIFACTS_DIR="$REPO_ROOT/artifacts/$NETWORK"
 
 REF_NFT_POLICY=$(jq -r '.referenceNftPolicy' "$ARTIFACTS_DIR/addresses.json")
@@ -68,7 +71,7 @@ fi
 
 REF_HOLDER_ADDR=$(cardano-cli address build \
   --payment-script-file "$ARTIFACTS_DIR/reference_holder.plutus" \
-  --testnet-magic "$TESTNET_MAGIC")
+  "${CARDANO_CLI_NETWORK_FLAGS[@]}")
 
 # Inline ReferenceDatum (flat) — Constr 0 with five fields:
 #   [denom, max_fee, mix_script_hash, mix_logic_hash, fee_script_hash]
@@ -97,7 +100,7 @@ echo '{"constructor":0,"fields":[]}' > "$EMPTY_REDEEMER_FILE"
 TX_RAW="$ARTIFACTS_DIR/02-mint-and-lock.txraw"
 
 cardano-cli conway transaction build \
-  --testnet-magic "$TESTNET_MAGIC" \
+  "${CARDANO_CLI_NETWORK_FLAGS[@]}" \
   --tx-in "$SEED" \
   --tx-in-collateral "$COLLATERAL" \
   --mint "1 $REF_NFT_POLICY.$REF_NFT_NAME" \
@@ -111,11 +114,11 @@ cardano-cli conway transaction build \
 cardano-cli conway transaction sign \
   --tx-body-file "$TX_RAW" \
   --signing-key-file "$PAYMENT_SKEY" \
-  --testnet-magic "$TESTNET_MAGIC" \
+  "${CARDANO_CLI_NETWORK_FLAGS[@]}" \
   --out-file "$ARTIFACTS_DIR/02-mint-and-lock.tx"
 
 cardano-cli conway transaction submit \
-  --testnet-magic "$TESTNET_MAGIC" \
+  "${CARDANO_CLI_NETWORK_FLAGS[@]}" \
   --tx-file "$ARTIFACTS_DIR/02-mint-and-lock.tx"
 
 TX_ID=$(cardano-cli conway transaction txid --tx-file "$ARTIFACTS_DIR/02-mint-and-lock.tx" \

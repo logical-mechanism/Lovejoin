@@ -3,6 +3,13 @@
 One-shot ceremony per network. Takes the protocol from compiled code to live,
 immutable on-chain state.
 
+Switching between preprod / preview / mainnet / private-testnet is a single
+`NETWORK=` line in `.env`. Every script sources `_lib/network.sh`, which
+derives the right `cardano-cli` flag (`--testnet-magic 1`, `--testnet-magic 2`,
+`--mainnet`, or `--testnet-magic $TESTNET_MAGIC`). For `mainnet` the helper
+also refuses to run unless `LOVEJOIN_MAINNET_CONFIRM=yes` is set as a tripwire
+against accidental real-money runs.
+
 After bootstrap finishes:
 
 - `mix_box`, `mix_logic`, and `fee_contract` are published as CIP-33 reference
@@ -108,7 +115,8 @@ NETWORK=preview ./infra/bootstrap/balance.sh
 
 ```sh
 cp infra/bootstrap/.env.example infra/bootstrap/.env
-$EDITOR infra/bootstrap/.env        # set NETWORK + TESTNET_MAGIC + CARDANO_NODE_SOCKET_PATH
+$EDITOR infra/bootstrap/.env        # set NETWORK + CARDANO_NODE_SOCKET_PATH
+                                    # (mainnet also needs LOVEJOIN_MAINNET_CONFIRM=yes)
 
 ./infra/bootstrap/init-wallet.sh    # one-time keypair + per-network addrs
 cat infra/bootstrap/wallets/payment.preprod.addr   # paste into the faucet
@@ -225,9 +233,12 @@ takes one block window (~20 s) end to end.
   the ~2 ADA cert deposit, you'd have to deregister the credential.
   `mix_logic.publish` rejects deregistration (Rule 2 hyperstructure stance),
   so you're not getting that ADA back.
-- **Mainnet.** None of these scripts default to mainnet. The bootstrap is
-  one-shot per network; mainnet bootstrap is gated behind the audit per
-  spec OQ-Y.
+- **Mainnet.** None of these scripts default to mainnet. `_lib/network.sh`
+  refuses to run with `NETWORK=mainnet` unless `LOVEJOIN_MAINNET_CONFIRM=yes`
+  is set, so a stale shell or typo can't burn a real seed UTxO. The actual
+  mainnet posture for this protocol — no third-party audit, no bug bounty,
+  same on-chain code as Preprod — is in [SECURITY.md](../../SECURITY.md);
+  this guard is a procedural safety net, not a release gate.
 
 ## Practice run
 
