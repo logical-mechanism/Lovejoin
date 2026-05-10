@@ -764,10 +764,22 @@ export interface BuildMixArgs {
   /**
    * Chain this Mix tx onto an in-flight parent (Deposit, Replenish, or
    * a prior Mix) that hasn't confirmed yet. The `utxos` are the parent's
-   * outputs that this child consumes — they are forwarded verbatim to
-   * giveme.my's `additional_utxos` field so the upstream Koios/Ogmios
-   * evaluator can see them. See giveme.my v1.2.0 OpenAPI and Ogmios'
-   * `evaluateTransaction.additionalUtxo`.
+   * outputs that this child consumes — they are spliced into the
+   * Ogmios chain state in three places so every evaluator on the path
+   * sees the same view:
+   *
+   *   1. **Local proof-of-evaluation** (during `tx.complete()`):
+   *      routed through the chain provider's
+   *      `evaluateTxWithAdditionalUtxos`. For BlockfrostProvider that
+   *      means `/utils/txs/evaluate/utxos?version=6` with
+   *      `additionalUtxoSet`; for BackendChainProvider, the backend's
+   *      `/evaluate` route forwards them as ogmios
+   *      `evaluateTransaction.additionalUtxo`.
+   *   2. **Shard-mode fee-discovery evaluator pass** (after the first
+   *      `complete()`): same path as above.
+   *   3. **Collateral host** (giveme.my): forwarded as
+   *      `additional_utxos` per v1.2.0's schema so the host's Koios /
+   *      Ogmios evaluator agrees with our local result.
    *
    * Caller responsibilities:
    *   * The in-flight outputs MUST also be referenced in `args.inputs`
@@ -786,15 +798,10 @@ export interface BuildMixArgs {
    *     single-tx retries, not chain rollbacks. Catch the submit-time
    *     failure and resubmit at the caller.
    *
-   * Known limitation: the local mesh evaluator path (Blockfrost ogmios
-   * v6 `/utils/txs/evaluate?version=6`) does NOT splice these UTxOs
-   * today — it reads UTxOs from chain only. End-to-end chained
-   * submission therefore requires a chain provider whose evaluator
-   * understands additionalUtxos (e.g. the backend's `/mempool/outputs`
-   * route, tracked as a separate follow-up). Until then, chainFrom is
-   * useful for the wire-format integration tests but the build will
-   * fail at the local evaluator pass when inputs reference unconfirmed
-   * outputs.
+   * Provider support: the chain provider's mesh sibling must implement
+   * `evaluateTxWithAdditionalUtxos`. BlockfrostProvider and the backend
+   * provider both do. Custom providers will throw at the first
+   * `tx.complete()` with a clear message naming the missing method.
    */
   chainFrom?: {
     utxos: ReadonlyArray<Utxo>;
@@ -925,6 +932,27 @@ export async function buildMixTx(args: BuildMixArgs): Promise<MixResult> {
     const meshProvider = await getMeshProvider(args.provider);
     const meshParams = await getMeshProtocolParams(args.provider);
 
+    // chainFrom resolution. If the caller is chaining onto an in-flight
+    // parent (Deposit / Replenish / prior Mix), convert the parent's
+    // outputs into Ogmios `additionalUtxo` shape ONCE here so the same
+    // payload feeds three places: the local mesh evaluator pass (during
+    // `tx.complete()`), the shard-mode fee-discovery evaluator call, and
+    // the collateral provider's `signTxBody`. Without all three wired,
+    // the chained Mix would fail at the first un-spliced evaluator that
+    // can't resolve the in-flight input.
+    const chainFromUtxos = args.chainFrom?.utxos ?? [];
+    const chainDepth = args.chainFrom?.chainDepth ?? 1;
+    const additionalUtxos =
+      chainFromUtxos.length > 0
+        ? chainFromUtxos.map((u) => lovejoinUtxoToOgmiosAdditional(u))
+        : undefined;
+    if (additionalUtxos && additionalUtxos.length > 0) {
+      console.log(
+        `[lovejoin/mix] chaining onto ${additionalUtxos.length} in-flight UTxO(s) ` +
+          `at chainDepth=${chainDepth}; splicing into evaluator + signTxBody`,
+      );
+    }
+
     // Evaluator wiring. The chain provider's `evaluateTx` populates real
     // exec-unit budgets into every redeemer during `complete()`. There is
     // no fallback: a missing or failing evaluator throws here so callers
@@ -932,9 +960,30 @@ export async function buildMixTx(args: BuildMixArgs): Promise<MixResult> {
     // outage, validator UPLC mismatch, etc.) instead of submitting a tx
     // whose claimed budgets are made up.
     //
+    // For chainFrom, route through `evaluateTxWithAdditionalUtxos` so
+    // the upstream evaluator sees the in-flight parent's outputs. Falls
+    // back to a clear error if the chain provider doesn't expose that
+    // method (the unit-test provider in chain-provider.test.ts is the
+    // only one in this repo that doesn't).
+    //
     // Do NOT swap to mesh's OfflineEvaluator (`@meshsdk/core-csl`). Its
     // bundled UPLC machine predates Conway's bitwise builtins and aborts
     // with "Default Function not found - 77".
+    const chainAwareEvaluator = {
+      evaluateTx: async (cborHex: string) => {
+        if (additionalUtxos && additionalUtxos.length > 0) {
+          if (!meshProvider.evaluateTxWithAdditionalUtxos) {
+            throw new Error(
+              "Mix tx: chainFrom is set but the chain provider's mesh sibling does " +
+                "not expose evaluateTxWithAdditionalUtxos. BlockfrostProvider and " +
+                "BackendChainProvider both implement it; custom providers must too.",
+            );
+          }
+          return meshProvider.evaluateTxWithAdditionalUtxos(cborHex, additionalUtxos);
+        }
+        return meshProvider.evaluateTx(cborHex);
+      },
+    };
 
     // Mesh requires a change address even when no change will ever be
     // emitted (shard mode runs `selectUtxosFrom([])`, so the builder won't
@@ -1100,7 +1149,10 @@ export async function buildMixTx(args: BuildMixArgs): Promise<MixResult> {
       const tx = new MeshTxBuilder({
         fetcher: meshProvider as never,
         submitter: meshProvider as never,
-        evaluator: meshProvider as never,
+        // chainAwareEvaluator routes through evaluateTxWithAdditionalUtxos
+        // when chainFrom is set; otherwise it delegates to meshProvider's
+        // default evaluator.
+        evaluator: chainAwareEvaluator as never,
         params: meshParams as never,
         verbose: false,
       });
@@ -1157,7 +1209,8 @@ export async function buildMixTx(args: BuildMixArgs): Promise<MixResult> {
       // check counts those expected witnesses against tx size; pass the
       // count through so our number lines up with mesh's check.
       const expectedVkeyWitnesses = 1;
-      const evalRaw = await meshProvider.evaluateTx(unsignedTxHex);
+      // Same evaluator the build-pass uses, so chainFrom is honoured here too.
+      const evalRaw = await chainAwareEvaluator.evaluateTx(unsignedTxHex);
       if (Array.isArray(evalRaw)) {
         const totalExUnits = sumEvaluatorExUnits(
           evalRaw as Array<{ budget?: { mem?: number; steps?: number } }>,
@@ -1221,21 +1274,9 @@ export async function buildMixTx(args: BuildMixArgs): Promise<MixResult> {
     // returns WalletProvider when args.wallet is set.
     let signedTx: string;
     if (preparedCollateral.externallySigned) {
-      // Splice in-flight parent outputs into the upstream evaluator via
-      // giveme.my's `additional_utxos`. Empty/missing -> field omitted on
-      // the wire. See BuildMixArgs.chainFrom.
-      const chainFromUtxos = args.chainFrom?.utxos ?? [];
-      const chainDepth = args.chainFrom?.chainDepth ?? 1;
-      const additionalUtxos =
-        chainFromUtxos.length > 0
-          ? chainFromUtxos.map((u) => lovejoinUtxoToOgmiosAdditional(u))
-          : undefined;
-      if (additionalUtxos && additionalUtxos.length > 0) {
-        console.log(
-          `[lovejoin/mix] chaining onto ${additionalUtxos.length} in-flight UTxO(s) ` +
-            `at chainDepth=${chainDepth}; forwarding to collateral host as additional_utxos`,
-        );
-      }
+      // Same additionalUtxos array used for the evaluator above is also
+      // forwarded to the collateral host so its evaluator sees the same
+      // chain state. See BuildMixArgs.chainFrom.
       const hostWitness = await collateralProvider.signTxBody(
         unsignedTxHex,
         additionalUtxos ? { additionalUtxos } : undefined,
