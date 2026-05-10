@@ -10,6 +10,10 @@
 // from artifacts/preprod/*.plutus. If this hand-rolled bech32 ever drifts
 // from cardano-cli, these tests fail loudly — and "diverges by one byte" is
 // the kind of bug that silently routes funds to the wrong address.
+//
+// Both helpers emit *enterprise* script addresses only — the protocol
+// perimeter (audit H-01) pins `stake_credential == None` on every
+// continuing protocol output, so this is the single canonical shape.
 
 import { describe, expect, it } from "vitest";
 
@@ -19,10 +23,8 @@ import { buildScriptAddress } from "../src/address.js";
 const FEE_CONTRACT = "5efd8fdd7e4d35b04de427337220dcb30352136d739055b305dd2d66";
 const MIX_BOX = "ba176a7604f3e062a7ed315780801495ed0ffb0191c6f8e7d88362e2";
 const REFERENCE_HOLDER = "b58b5869a956266f5a55265829963064cabfeac4dab3c28f46dbc1cc";
-// dApp stake key from config/network.preprod.json.
-const PREPROD_STAKE = "1e3105f23f2ac91b3fb4c35fa4fe301421028e356e114944e902005b";
 
-describe("address — buildScriptAddress: enterprise (no stake)", () => {
+describe("address — buildScriptAddress: enterprise", () => {
   it("encodes a preprod fee_contract enterprise address", () => {
     expect(buildScriptAddress(FEE_CONTRACT, 0)).toBe(
       "addr_test1wp00mr7a0exntvzdusnnxu3qmjesx5snd4eeq4dnqhwj6esn2pdrd",
@@ -41,13 +43,6 @@ describe("address — buildScriptAddress: enterprise (no stake)", () => {
     );
   });
 
-  it("treats null and undefined stake credential as 'no stake'", () => {
-    const enterprise = buildScriptAddress(FEE_CONTRACT, 0);
-    expect(buildScriptAddress(FEE_CONTRACT, 0, null)).toBe(enterprise);
-    expect(buildScriptAddress(FEE_CONTRACT, 0, undefined)).toBe(enterprise);
-    expect(buildScriptAddress(FEE_CONTRACT, 0, "")).toBe(enterprise);
-  });
-
   it("uses the mainnet HRP and header bit when networkId=1", () => {
     const out = buildScriptAddress(FEE_CONTRACT, 1);
     expect(out.startsWith("addr1")).toBe(true);
@@ -59,29 +54,6 @@ describe("address — buildScriptAddress: enterprise (no stake)", () => {
   it("tolerates 0x prefix (case-insensitive) on input", () => {
     expect(buildScriptAddress(`0x${FEE_CONTRACT}`, 0)).toBe(buildScriptAddress(FEE_CONTRACT, 0));
     expect(buildScriptAddress(`0X${FEE_CONTRACT}`, 0)).toBe(buildScriptAddress(FEE_CONTRACT, 0));
-  });
-});
-
-describe("address — buildScriptAddress: base (script + stake)", () => {
-  it("emits an addr_test1z… base address on testnet when stake hash is set", () => {
-    const out = buildScriptAddress(FEE_CONTRACT, 0, PREPROD_STAKE);
-    // Type 0001 + network 0 = header 0x10 → first 5-bit group is 0b00010 = 2 → 'z'.
-    expect(out.startsWith("addr_test1z")).toBe(true);
-    expect(out).not.toBe(buildScriptAddress(FEE_CONTRACT, 0));
-  });
-
-  it("emits an addr1z… base address on mainnet when stake hash is set", () => {
-    const mainnetStake = "07ac7dee6c82177096b70ccf21cfb8965c1fb08e079f9ca4af4b2b3e";
-    const out = buildScriptAddress(FEE_CONTRACT, 1, mainnetStake);
-    expect(out.startsWith("addr1z")).toBe(true);
-  });
-
-  it("changes the address when the stake hash changes", () => {
-    const stakeA = "1e3105f23f2ac91b3fb4c35fa4fe301421028e356e114944e902005b";
-    const stakeB = "07ac7dee6c82177096b70ccf21cfb8965c1fb08e079f9ca4af4b2b3e";
-    expect(buildScriptAddress(FEE_CONTRACT, 0, stakeA)).not.toBe(
-      buildScriptAddress(FEE_CONTRACT, 0, stakeB),
-    );
   });
 });
 
@@ -111,15 +83,6 @@ describe("address — buildScriptAddress: malformed input", () => {
     const bad = `gg${"ab".repeat(27)}`;
     expect(() => buildScriptAddress(bad, 0)).toThrow(/bad hex byte/);
   });
-
-  it("rejects stake hashes with the wrong byte length", () => {
-    expect(() => buildScriptAddress(FEE_CONTRACT, 0, "ab".repeat(20))).toThrow(
-      /stake-key hash must be 28 bytes/,
-    );
-    expect(() => buildScriptAddress(FEE_CONTRACT, 0, "ab".repeat(32))).toThrow(
-      /stake-key hash must be 28 bytes/,
-    );
-  });
 });
 
 describe("address — buildScriptAddress: round-trip and length", () => {
@@ -133,17 +96,6 @@ describe("address — buildScriptAddress: round-trip and length", () => {
     expect(bytesToHex(payload.slice(1))).toBe(FEE_CONTRACT);
   });
 
-  it("round-trips: decoded base payload yields original script + stake hashes", () => {
-    const out = buildScriptAddress(FEE_CONTRACT, 0, PREPROD_STAKE);
-    const { hrp, payload } = decodeBech32(out);
-    expect(hrp).toBe("addr_test");
-    expect(payload.length).toBe(57);
-    expect((payload[0]! & 0xf0) >>> 0).toBe(0x10); // base script+key header high nibble
-    expect((payload[0]! & 0x0f) >>> 0).toBe(0); // network 0
-    expect(bytesToHex(payload.slice(1, 29))).toBe(FEE_CONTRACT);
-    expect(bytesToHex(payload.slice(29))).toBe(PREPROD_STAKE);
-  });
-
   it("round-trips on mainnet too", () => {
     const out = buildScriptAddress(FEE_CONTRACT, 1);
     const { hrp, payload } = decodeBech32(out);
@@ -152,21 +104,18 @@ describe("address — buildScriptAddress: round-trip and length", () => {
     expect(bytesToHex(payload.slice(1))).toBe(FEE_CONTRACT);
   });
 
-  it("emits the canonical fixed lengths for enterprise and base on testnet", () => {
+  it("emits the canonical fixed length on testnet", () => {
     // Enterprise: HRP "addr_test" (9) + "1" (1) + 47 data chars + 6 checksum = 63 chars.
     expect(buildScriptAddress(FEE_CONTRACT, 0).length).toBe(63);
-    // Base: HRP "addr_test" (9) + "1" (1) + 92 data chars + 6 checksum = 108 chars.
-    expect(buildScriptAddress(FEE_CONTRACT, 0, PREPROD_STAKE).length).toBe(108);
   });
 
-  it("emits the canonical fixed lengths for enterprise and base on mainnet", () => {
-    // HRP "addr" is 5 chars shorter than "addr_test", so each shrinks by 5.
+  it("emits the canonical fixed length on mainnet", () => {
+    // HRP "addr" is 5 chars shorter than "addr_test", so the address shrinks by 5.
     expect(buildScriptAddress(FEE_CONTRACT, 1).length).toBe(58);
-    expect(buildScriptAddress(FEE_CONTRACT, 1, PREPROD_STAKE).length).toBe(103);
   });
 
   it("uses only the bech32 charset in the data + checksum portion", () => {
-    const out = buildScriptAddress(FEE_CONTRACT, 0, PREPROD_STAKE);
+    const out = buildScriptAddress(FEE_CONTRACT, 0);
     const sep = out.lastIndexOf("1");
     const dataPart = out.slice(sep + 1);
     // BIP-173 charset omits 'b','i','o' and digit '1' (the separator).

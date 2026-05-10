@@ -10,8 +10,10 @@
 # trivially `[<txid>#0, …, <txid>#(N-1)]`.
 #
 # Inputs (env or first positional):
-#   NETWORK            — "preprod" | "test" (default: preprod)
-#   TESTNET_MAGIC      — default 1 (Preprod)
+#   NETWORK            — preprod | preview | mainnet | test (default: preprod).
+#                        mainnet requires LOVEJOIN_MAINNET_CONFIRM=yes. The
+#                        per-network cardano-cli flag is derived in
+#                        _lib/network.sh.
 #   BOOTSTRAP_ADDR     — wallet supplying lovelace; receives the change
 #   PAYMENT_SKEY       — bootstrap wallet signing key
 #   FUNDING_STAGE3     — "<txid>#<idx>" funding UTxO; the rest goes to change.
@@ -30,11 +32,12 @@
 
 set -euo pipefail
 
-__ENV_FILE="$(cd "$(dirname "$0")" && pwd)/.env"
+__BOOTSTRAP_DIR="$(cd "$(dirname "$0")" && pwd)"
+__ENV_FILE="$__BOOTSTRAP_DIR/.env"
 [[ -f "$__ENV_FILE" ]] && { set -a; source "$__ENV_FILE"; set +a; }
+# shellcheck source=_lib/network.sh
+source "$__BOOTSTRAP_DIR/_lib/network.sh"
 
-NETWORK="${NETWORK:-preprod}"
-TESTNET_MAGIC="${TESTNET_MAGIC:-1}"
 BOOTSTRAP_ADDR="${BOOTSTRAP_ADDR:?}"
 PAYMENT_SKEY="${PAYMENT_SKEY:?}"
 FUNDING_STAGE3="${FUNDING_STAGE3:?FUNDING_STAGE3 required (run ./balance.sh to see the four export lines)}"
@@ -47,12 +50,12 @@ if ! [[ "$SHARD_COUNT" =~ ^[1-9][0-9]*$ ]]; then
   exit 1
 fi
 
-REPO_ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
+REPO_ROOT="$(cd "$__BOOTSTRAP_DIR/../.." && pwd)"
 ARTIFACTS_DIR="$REPO_ROOT/artifacts/$NETWORK"
 
 FEE_ADDR=$(cardano-cli address build \
   --payment-script-file "$ARTIFACTS_DIR/fee_contract.plutus" \
-  --testnet-magic "$TESTNET_MAGIC")
+  "${CARDANO_CLI_NETWORK_FLAGS[@]}")
 
 UNIT_DATUM_FILE="$ARTIFACTS_DIR/unit-datum.json"
 echo '{"constructor":0,"fields":[]}' > "$UNIT_DATUM_FILE"
@@ -67,7 +70,7 @@ done
 
 TX_RAW="$ARTIFACTS_DIR/03-fund-fee-contract.txraw"
 cardano-cli conway transaction build \
-  --testnet-magic "$TESTNET_MAGIC" \
+  "${CARDANO_CLI_NETWORK_FLAGS[@]}" \
   --tx-in "$FUNDING_STAGE3" \
   "${TX_OUT_ARGS[@]}" \
   --change-address "$BOOTSTRAP_ADDR" \
@@ -76,11 +79,11 @@ cardano-cli conway transaction build \
 cardano-cli conway transaction sign \
   --tx-body-file "$TX_RAW" \
   --signing-key-file "$PAYMENT_SKEY" \
-  --testnet-magic "$TESTNET_MAGIC" \
+  "${CARDANO_CLI_NETWORK_FLAGS[@]}" \
   --out-file "$ARTIFACTS_DIR/03-fund-fee-contract.tx"
 
 cardano-cli conway transaction submit \
-  --testnet-magic "$TESTNET_MAGIC" \
+  "${CARDANO_CLI_NETWORK_FLAGS[@]}" \
   --tx-file "$ARTIFACTS_DIR/03-fund-fee-contract.tx"
 
 TX_ID=$(cardano-cli conway transaction txid --tx-file "$ARTIFACTS_DIR/03-fund-fee-contract.tx" \

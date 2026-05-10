@@ -81,7 +81,11 @@ validator fee_contract(
 ///      txs that happen to bundle ≥ 2 mix-script inputs would otherwise
 ///      satisfy the structural check below and let an attacker rotate their
 ///      own boxes to drain the shard.
-///   2. ≥ 2 mix-script inputs.
+///   2. ≥ 3 mix-script inputs. Stricter than `mix_logic`'s general N >= 2
+///      floor: consuming a fee shard at N=2 would collapse the anonymity
+///      set to a single bit against an observer who already knows the
+///      shard input. Wallet-collateral N=2 mixes remain legal because they
+///      don't touch a shard.
 ///   3. Exactly one fee input (this) and one fee output, datum unchanged.
 ///   4. fee_in.lovelace − fee_out.lovelace == self.fee.
 ///   5. self.fee ≤ reference_datum.max_fee_per_mix_lovelace.
@@ -114,7 +118,7 @@ fn validate_pay_mix_fee(
   //   * the prior `list.find(own_input)` in the spend handler,
   //   * the `expect Script(own_hash) = own_input.output.address.payment_credential`
   //     defense-in-depth check,
-  //   * the mix-script input count (need >= 2),
+  //   * the mix-script input count (need >= 3),
   //   * the fee-script input count (need == 1, including own_input).
   // Saves one full traversal of `self.inputs` per Mix tx.
   let (mix_input_count, fee_input_count, maybe_own_lovelace) =
@@ -142,7 +146,12 @@ fn validate_pay_mix_fee(
       },
     )
   expect Some(fee_in_lovelace) = maybe_own_lovelace
-  expect mix_input_count >= 2
+  // Fee-paying mixes require N >= 3. `mix_logic.validate_mix` keeps the
+  // general N >= 2 floor so wallet-collateral N=2 mixes remain legal; the
+  // stricter floor lives here because consuming a fee shard at N=2 would
+  // collapse the anonymity set against an observer who knows the shard
+  // input.
+  expect mix_input_count >= 3
   expect fee_input_count == 1
 
   let fee_outputs =

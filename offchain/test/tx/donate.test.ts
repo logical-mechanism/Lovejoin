@@ -10,7 +10,7 @@ import { planDonateTx } from "../../src/tx/donate.js";
 import { REPLENISH_REDEEMER_CBOR_HEX, UNIT_DATUM_CBOR_HEX } from "../../src/tx/deposit.js";
 import type { LovejoinAddresses } from "../../src/tx/params.js";
 import type { Utxo } from "../../src/chain/provider.js";
-import { buildEnterpriseScriptAddress } from "../../src/tx/address.js";
+import { buildScriptAddress } from "../../src/tx/address.js";
 
 const ADDRESSES: LovejoinAddresses = {
   network: "preprod",
@@ -36,7 +36,7 @@ function feeShard(lovelace = 5_000_000n): Utxo {
       txId: "34a117d9699e8537529aa093943cdeda6f525fd167a74e6f1bd9229ef805a080",
       outputIndex: 0,
     },
-    address: buildEnterpriseScriptAddress(ADDRESSES.feeScriptHash, 0),
+    address: buildScriptAddress(ADDRESSES.feeScriptHash, 0),
     lovelace,
     assets: {},
     inlineDatum: UNIT_DATUM_CBOR_HEX,
@@ -67,9 +67,7 @@ describe("tx/donate planDonateTx", () => {
       addresses: ADDRESSES,
       networkId: 0,
     });
-    expect(plan.feeShardOutput.addressBech32).toBe(
-      buildEnterpriseScriptAddress(ADDRESSES.feeScriptHash, 0),
-    );
+    expect(plan.feeShardOutput.addressBech32).toBe(buildScriptAddress(ADDRESSES.feeScriptHash, 0));
   });
 
   it("threads through the reference UTxO and fee_contract reference script", () => {

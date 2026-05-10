@@ -27,8 +27,10 @@
 # left alone.
 #
 # Inputs (env):
-#   NETWORK            — preprod | preview (default: preprod)
-#   TESTNET_MAGIC      — default 1 (Preprod) — passed via --testnet-magic.
+#   NETWORK            — preprod | preview | mainnet | test (default: preprod).
+#                        mainnet requires LOVEJOIN_MAINNET_CONFIRM=yes. The
+#                        per-network cardano-cli flag is derived in
+#                        _lib/network.sh.
 #   CARDANO_NODE_SOCKET_PATH must point to a synced node.
 #   BOOTSTRAP_ADDR     — wallet address (from infra/bootstrap/wallets/).
 #   PAYMENT_SKEY       — path to payment.skey.
@@ -54,11 +56,12 @@ for arg in "$@"; do
   esac
 done
 
-__ENV_FILE="$(cd "$(dirname "$0")" && pwd)/.env"
+__BOOTSTRAP_DIR="$(cd "$(dirname "$0")" && pwd)"
+__ENV_FILE="$__BOOTSTRAP_DIR/.env"
 [[ -f "$__ENV_FILE" ]] && { set -a; source "$__ENV_FILE"; set +a; }
+# shellcheck source=_lib/network.sh
+source "$__BOOTSTRAP_DIR/_lib/network.sh"
 
-NETWORK="${NETWORK:-preprod}"
-TESTNET_MAGIC="${TESTNET_MAGIC:-1}"
 BOOTSTRAP_ADDR="${BOOTSTRAP_ADDR:?BOOTSTRAP_ADDR required}"
 PAYMENT_SKEY="${PAYMENT_SKEY:?PAYMENT_SKEY required}"
 
@@ -67,13 +70,13 @@ COLLATERAL_LOVELACE="${COLLATERAL_LOVELACE:-10000000}"
 SEED_LOVELACE="${SEED_LOVELACE:-7000000}"
 STAGE3_LOVELACE="${STAGE3_LOVELACE:-55000000}"
 
-REPO_ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
+REPO_ROOT="$(cd "$__BOOTSTRAP_DIR/../.." && pwd)"
 ARTIFACTS_DIR="$REPO_ROOT/artifacts/$NETWORK"
 mkdir -p "$ARTIFACTS_DIR"
 
 UTXO_JSON="$ARTIFACTS_DIR/prep-utxos.utxo.json"
 cardano-cli conway query utxo \
-  --testnet-magic "$TESTNET_MAGIC" \
+  "${CARDANO_CLI_NETWORK_FLAGS[@]}" \
   --address "$BOOTSTRAP_ADDR" \
   --out-file "$UTXO_JSON"
 
@@ -147,7 +150,7 @@ echo "  output 4: change"
 
 TX_RAW="$ARTIFACTS_DIR/prep-utxos.txraw"
 cardano-cli conway transaction build \
-  --testnet-magic "$TESTNET_MAGIC" \
+  "${CARDANO_CLI_NETWORK_FLAGS[@]}" \
   "${TX_IN_ARGS[@]}" \
   --tx-out "$BOOTSTRAP_ADDR + $STAGE1_LOVELACE lovelace" \
   --tx-out "$BOOTSTRAP_ADDR + $COLLATERAL_LOVELACE lovelace" \
@@ -159,11 +162,11 @@ cardano-cli conway transaction build \
 cardano-cli conway transaction sign \
   --tx-body-file "$TX_RAW" \
   --signing-key-file "$PAYMENT_SKEY" \
-  --testnet-magic "$TESTNET_MAGIC" \
+  "${CARDANO_CLI_NETWORK_FLAGS[@]}" \
   --out-file "$ARTIFACTS_DIR/prep-utxos.tx"
 
 cardano-cli conway transaction submit \
-  --testnet-magic "$TESTNET_MAGIC" \
+  "${CARDANO_CLI_NETWORK_FLAGS[@]}" \
   --tx-file "$ARTIFACTS_DIR/prep-utxos.tx"
 
 TX_ID=$(cardano-cli conway transaction txid --tx-file "$ARTIFACTS_DIR/prep-utxos.tx" \

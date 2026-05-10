@@ -130,20 +130,8 @@ export async function scanPool(args: {
   const maxIndex = args.maxIndex ?? MAX_INDEX_SCAN;
   const minProbe = args.minProbe ?? 8;
   const denomLovelace = BigInt(args.addresses.protocol.denom_lovelace);
-  // Mix-box outputs are tagged with the dApp stake key so the indexer can
-  // find every live box with a single address filter (CLAUDE.md: "Mix
-  // outputs are tagged with a per-network dApp stake key... so all live
-  // boxes share a stake credential"). Deposits write to the staked
-  // address; the vault must read from the same address. Dropping the
-  // stake key here used to silently return zero boxes against a populated
-  // pool — Pool.tsx's fetchPoolDirect already uses the stake key, so the
-  // Pool screen worked while Vault didn't.
   const networkId: 0 | 1 = args.addresses.network === "mainnet" ? 1 : 0;
-  const mixBoxAddress = buildScriptAddress(
-    args.addresses.mixBoxScriptHash,
-    networkId,
-    args.addresses.dappStakeKeyHashHex ?? null,
-  );
+  const mixBoxAddress = buildScriptAddress(args.addresses.mixBoxScriptHash, networkId);
   const pool = await fetchPool({
     provider: args.provider,
     mixBoxAddressBech32: mixBoxAddress,

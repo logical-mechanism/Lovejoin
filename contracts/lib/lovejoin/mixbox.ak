@@ -18,15 +18,50 @@ use lovejoin/types.{MixDatum}
 
 pub const mix_datum_field_length: Int = 48
 
-/// True iff the input's payment credential is a script with the given hash.
+/// True iff the input's payment credential is the mix script.
+///
+/// Stake credential and reference script on the input are NOT inspected:
+/// those perimeter constraints apply to OUTPUTS we create (`output_at_script`),
+/// not to inputs we may be asked to spend. An input that carries a stake
+/// credential or attached reference script can only have arrived if some
+/// out-of-band mechanism produced it; once it exists, the validator must
+/// still be able to identify it as a mix-script input so it can be filtered
+/// into the well-formed set (or routed to Rule-2 recovery).
 pub fn input_at_script(input: Input, mix_script_hash: ScriptHash) -> Bool {
-  output_at_script(input.output, mix_script_hash)
+  when input.output.address.payment_credential is {
+    Script(script_hash) -> script_hash == mix_script_hash
+    _ -> False
+  }
 }
 
-/// True iff the output's payment credential is a script with the given hash.
+/// True iff the output is a well-formed continuing protocol output at the
+/// mix script: payment credential is the mix script, no stake credential,
+/// no attached reference script.
+///
+/// Audit H-01 / M-01 (May 2026 internal review): the previous payment-only
+/// check let a Mix tx (a) hijack the staking part of every continuing output
+/// to an attacker's stake key, accruing rewards on the live pool until the
+/// next Mix contests it, and (b) attach an arbitrary reference script
+/// payload to the continuing output, using the pool as free reference-script
+/// storage.
+///
+/// We pin `stake_credential == None`. Choosing `None` (rather than baking a
+/// fixed dApp stake key into `ReferenceDatum` and matching it here) means
+/// no party — including the protocol operator — can ever profit from the
+/// pool's principal via staking rewards, and the pool can't be force-
+/// delegated to a dead pool through any other code path. The validator
+/// becomes the upper-bound enforcer of the hyperstructure's "no rents"
+/// property.
+///
+/// `reference_script == None` closes M-01: an attacker can no longer pay
+/// our pool's min-ADA inflation budget to host arbitrary script bytes.
 pub fn output_at_script(output: Output, mix_script_hash: ScriptHash) -> Bool {
   when output.address.payment_credential is {
-    Script(script_hash) -> script_hash == mix_script_hash
+    Script(script_hash) -> and {
+        script_hash == mix_script_hash,
+        output.address.stake_credential == None,
+        output.reference_script == None,
+      }
     _ -> False
   }
 }

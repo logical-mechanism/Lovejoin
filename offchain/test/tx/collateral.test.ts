@@ -257,12 +257,101 @@ describe("tx/collateral — GivemeMyProvider", () => {
     expect(captured!.headers?.["Content-Type"]).toBe("application/json");
   });
 
-  it("signTxBody throws on non-2xx HTTP responses", async () => {
+  it("signTxBody throws on non-2xx HTTP responses (retries disabled)", async () => {
     const provider = new GivemeMyProvider({
       network: "preprod",
       fetchFn: fakeFetch(() => ({ status: 503, body: "service down" })),
+      retry: { maxAttempts: 1, initialDelayMs: 0, backoffFactor: 1 },
     });
     await expect(provider.signTxBody("deadbeef")).rejects.toThrow(/503/);
+  });
+
+  it("signTxBody retries transient 5xx and returns the witness from a later attempt", async () => {
+    let calls = 0;
+    const provider = new GivemeMyProvider({
+      network: "preprod",
+      fetchFn: fakeFetch(() => {
+        calls += 1;
+        if (calls < 3) return { status: 504, body: "<!DOCTYPE html><body>Bad gateway</body>" };
+        return { status: 200, body: { witness: witnessCborHex(HOST_PUBKEY, "ab".repeat(64)) } };
+      }),
+      retry: { maxAttempts: 3, initialDelayMs: 0, backoffFactor: 1 },
+    });
+    const w = await provider.signTxBody("deadbeef");
+    expect(w).not.toBeNull();
+    expect(w!.vkeyHex).toBe(HOST_PUBKEY);
+    expect(calls).toBe(3);
+  });
+
+  it("signTxBody exhausts retries on persistent 5xx and surfaces the upstream body", async () => {
+    let calls = 0;
+    const provider = new GivemeMyProvider({
+      network: "preprod",
+      fetchFn: fakeFetch(() => {
+        calls += 1;
+        return { status: 504, body: "Bad gateway from upstream" };
+      }),
+      retry: { maxAttempts: 3, initialDelayMs: 0, backoffFactor: 1 },
+    });
+    await expect(provider.signTxBody("deadbeef")).rejects.toThrow(
+      /504.*Bad gateway from upstream/s,
+    );
+    expect(calls).toBe(3);
+  });
+
+  it("signTxBody does NOT retry on 4xx other than 408/429", async () => {
+    let calls = 0;
+    const provider = new GivemeMyProvider({
+      network: "preprod",
+      fetchFn: fakeFetch(() => {
+        calls += 1;
+        return { status: 400, body: { error: "bad tx" } };
+      }),
+      retry: { maxAttempts: 3, initialDelayMs: 0, backoffFactor: 1 },
+    });
+    await expect(provider.signTxBody("deadbeef")).rejects.toThrow(/400/);
+    expect(calls).toBe(1);
+  });
+
+  it("signTxBody retries 408 and 429 (transient client-side buckets)", async () => {
+    const sequence: number[] = [408, 429, 200];
+    let i = 0;
+    const provider = new GivemeMyProvider({
+      network: "preprod",
+      fetchFn: fakeFetch(() => {
+        const status = sequence[i++]!;
+        return status === 200
+          ? { status, body: { witness: witnessCborHex(HOST_PUBKEY, "ab".repeat(64)) } }
+          : { status, body: "transient" };
+      }),
+      retry: { maxAttempts: 3, initialDelayMs: 0, backoffFactor: 1 },
+    });
+    const w = await provider.signTxBody("deadbeef");
+    expect(w).not.toBeNull();
+    expect(i).toBe(3);
+  });
+
+  it("signTxBody retries when the underlying fetch throws (network failure)", async () => {
+    let calls = 0;
+    const provider = new GivemeMyProvider({
+      network: "preprod",
+      fetchFn: async () => {
+        calls += 1;
+        if (calls < 2) throw new TypeError("Failed to fetch");
+        return {
+          ok: true,
+          status: 200,
+          statusText: "",
+          text: async () =>
+            JSON.stringify({ witness: witnessCborHex(HOST_PUBKEY, "ab".repeat(64)) }),
+          json: async () => ({ witness: witnessCborHex(HOST_PUBKEY, "ab".repeat(64)) }),
+        };
+      },
+      retry: { maxAttempts: 3, initialDelayMs: 0, backoffFactor: 1 },
+    });
+    const w = await provider.signTxBody("deadbeef");
+    expect(w).not.toBeNull();
+    expect(calls).toBe(2);
   });
 
   it("signTxBody throws when the response is missing 'witness'", async () => {

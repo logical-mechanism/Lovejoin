@@ -2,6 +2,14 @@
 ////
 //// Spec: §"proveDHTuple".
 ////
+//// NOTE: Validators do not import this module. The Mix branch is implemented
+//// via the N-way sigma-OR verifier (`lovejoin/sigma_or.ak`), which inlines
+//// the DH-tuple equations rather than calling `dhtuple.verify`. This module
+//// stays as a parity anchor for the SDK's prover — the encoding-parity and
+//// dhtuple KAT tests pin the canonical FS-preimage layout against it, so a
+//// drift on either side trips CI before it can reach the chain. See
+//// `encoding_parity_kat.test.ak` and `dhtuple_kat.test.ak`. Audit I-05.
+////
 //// Statement: prover knows `x ∈ Z_r` such that `u = [x]·g` AND `v = [x]·h`.
 //// In Mix branch terms: g=a, h=b, u=a', v=b'. Verifier accepts iff
 ////   [z]·g == t0 + [c]·u  AND  [z]·h == t1 + [c]·v

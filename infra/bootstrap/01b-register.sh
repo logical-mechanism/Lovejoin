@@ -12,8 +12,10 @@
 # of `build-raw` (manual). Run AFTER 01a-publish.sh confirms.
 #
 # Inputs (env, typically via .env + prep-utxos exports):
-#   NETWORK            — preprod | preview (default: preprod)
-#   TESTNET_MAGIC      — default 1 (Preprod)
+#   NETWORK            — preprod | preview | mainnet | test (default: preprod).
+#                        mainnet requires LOVEJOIN_MAINNET_CONFIRM=yes. The
+#                        per-network cardano-cli flag is derived in
+#                        _lib/network.sh.
 #   CARDANO_NODE_SOCKET_PATH must point to a synced node.
 #   BOOTSTRAP_ADDR     — wallet address (auto-defaulted from wallets/).
 #   PAYMENT_SKEY       — bootstrap signing key (auto-defaulted).
@@ -37,9 +39,9 @@ set -euo pipefail
 __BOOTSTRAP_DIR="$(cd "$(dirname "$0")" && pwd)"
 __ENV_FILE="$__BOOTSTRAP_DIR/.env"
 [[ -f "$__ENV_FILE" ]] && { set -a; source "$__ENV_FILE"; set +a; }
+# shellcheck source=_lib/network.sh
+source "$__BOOTSTRAP_DIR/_lib/network.sh"
 
-NETWORK="${NETWORK:-preprod}"
-TESTNET_MAGIC="${TESTNET_MAGIC:-1}"
 WALLETS_DIR="$__BOOTSTRAP_DIR/wallets"
 : "${BOOTSTRAP_ADDR:=$([[ -f "$WALLETS_DIR/payment.$NETWORK.addr" ]] && cat "$WALLETS_DIR/payment.$NETWORK.addr" || echo '')}"
 : "${PAYMENT_SKEY:=$WALLETS_DIR/payment.skey}"
@@ -74,7 +76,7 @@ fi
 # Protocol params (for the stake-deposit amount + transaction build).
 # ---------------------------------------------------------------------------
 cardano-cli conway query protocol-parameters \
-  --testnet-magic "$TESTNET_MAGIC" \
+  "${CARDANO_CLI_NETWORK_FLAGS[@]}" \
   --out-file "$TMP_DIR/protocol.json"
 
 KEY_DEPOSIT=$(jq -r '.stakeAddressDeposit' "$TMP_DIR/protocol.json")
@@ -100,7 +102,7 @@ echo '{"constructor":0,"fields":[]}' > "$EMPTY_REDEEMER"
 TX_RAW="$ARTIFACTS_DIR/01b-register.txraw"
 
 cardano-cli conway transaction build \
-  --testnet-magic "$TESTNET_MAGIC" \
+  "${CARDANO_CLI_NETWORK_FLAGS[@]}" \
   --tx-in "$STAGE1_CHANGE" \
   --tx-in-collateral "$COLLATERAL" \
   --certificate-file "$STAKE_REG_CERT" \
@@ -113,11 +115,11 @@ cardano-cli conway transaction build \
 cardano-cli conway transaction sign \
   --tx-body-file "$TX_RAW" \
   --signing-key-file "$PAYMENT_SKEY" \
-  --testnet-magic "$TESTNET_MAGIC" \
+  "${CARDANO_CLI_NETWORK_FLAGS[@]}" \
   --out-file "$ARTIFACTS_DIR/01b-register.tx"
 
 cardano-cli conway transaction submit \
-  --testnet-magic "$TESTNET_MAGIC" \
+  "${CARDANO_CLI_NETWORK_FLAGS[@]}" \
   --tx-file "$ARTIFACTS_DIR/01b-register.tx"
 
 TX_ID=$(cardano-cli conway transaction txid --tx-file "$ARTIFACTS_DIR/01b-register.tx" \

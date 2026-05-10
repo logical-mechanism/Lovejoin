@@ -16,14 +16,19 @@
 
 set -euo pipefail
 
-NETWORK="${NETWORK:-preprod}"
+__BOOTSTRAP_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+__ENV_FILE="$__BOOTSTRAP_DIR/.env"
+[[ -f "$__ENV_FILE" ]] && { set -a; source "$__ENV_FILE"; set +a; }
+# shellcheck source=_lib/network.sh
+source "$__BOOTSTRAP_DIR/_lib/network.sh"
+
 PROJECT_ID="${BLOCKFROST_PROJECT_ID:-${BLOCKFROST_PROJECT_ID_PREPROD:-}}"
 
 case "$NETWORK" in
   mainnet)  BASE_URL="https://cardano-mainnet.blockfrost.io/api/v0" ;;
   preprod)  BASE_URL="https://cardano-preprod.blockfrost.io/api/v0" ;;
   preview)  BASE_URL="https://cardano-preview.blockfrost.io/api/v0" ;;
-  *) echo "stamp-start-point: unknown NETWORK=$NETWORK" >&2; exit 1 ;;
+  *) echo "stamp-start-point: NETWORK=$NETWORK has no Blockfrost endpoint" >&2; exit 1 ;;
 esac
 
 if [ -z "$PROJECT_ID" ]; then
@@ -31,7 +36,7 @@ if [ -z "$PROJECT_ID" ]; then
   exit 1
 fi
 
-ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+ROOT="$(cd "$__BOOTSTRAP_DIR/../.." && pwd)"
 ADDRESSES="$ROOT/artifacts/$NETWORK/addresses.json"
 
 if [ ! -f "$ADDRESSES" ]; then

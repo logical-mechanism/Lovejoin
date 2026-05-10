@@ -16,9 +16,11 @@
 #
 # Usage:
 #   ./init-wallet.sh                        # preprod + preview
-#   ./init-wallet.sh --include-mainnet      # also mainnet (opt-in; bootstrap
-#                                           # against mainnet remains gated by
-#                                           # spec OQ-Y until the audit)
+#   ./init-wallet.sh --include-mainnet      # also generate mainnet address
+#                                           # (the mainnet bootstrap itself
+#                                           #  is gated by LOVEJOIN_MAINNET_CONFIRM
+#                                           #  in _lib/network.sh; this just
+#                                           #  produces the address file)
 #
 # After running, fund payment.preprod.addr from the Preprod faucet
 # (https://docs.cardano.org/cardano-testnets/tools/faucet/).

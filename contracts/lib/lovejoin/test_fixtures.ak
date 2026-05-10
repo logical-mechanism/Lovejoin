@@ -6,9 +6,25 @@
 ////
 //// All construction is deterministic — every byte / address / value is named so
 //// that diffs between fixtures are obvious. No randomness.
+////
+//// Variant builders for the H-01 / M-01 perimeter tests:
+////   * `script_address_with_stake_vk` / `script_address_with_stake_script` /
+////     `script_address_with_stake_pointer` — script-payment addresses whose
+////     `stake_credential` is the three non-None shapes (inline VK, inline
+////     script, pointer). Pair with the standard `*_output_with_address` /
+////     `*_with_ref_script` helpers to assemble outputs that should be
+////     rejected by the new strict `output_at_script` / `output_at_fee`.
+////   * `mix_box_output_with_address` / `mix_box_output_with_ref_script` —
+////     mix-box outputs where the address or attached reference-script is
+////     overridden, holding everything else (denom, datum) at the canonical
+////     values so the perimeter check is the only differing variable.
+////   * `fee_shard_output_with_address` / `fee_shard_output_with_ref_script` —
+////     same idea for fee shards.
 
 use aiken/primitive/bytearray as aiken_bytearray
-use cardano/address.{Address, Credential, Script, VerificationKey}
+use cardano/address.{
+  Address, Credential, Inline, Pointer, Script, VerificationKey,
+}
 use cardano/assets.{Value}
 use cardano/transaction.{InlineDatum, Input, NoDatum, Output, OutputReference}
 use lovejoin/types.{MixDatum, ReferenceDatum}
@@ -106,6 +122,53 @@ pub fn script_credential(hash: ByteArray) -> Credential {
 }
 
 // ---------------------------------------------------------------------------
+// Script addresses with non-None stake credentials.
+//
+// The strict `output_at_script` / `output_at_fee` (audit H-01) rejects any
+// continuing protocol output whose `stake_credential` is anything other than
+// `None`. There are three non-None shapes per CIP-19 / aiken-stdlib:
+//
+//   * `Some(Inline(VerificationKey(vk)))`  — the most common attack: the
+//      attacker delegates the pool's principal to their own stake key and
+//      pockets the rewards.
+//   * `Some(Inline(Script(script)))`       — same attack but with a script
+//      stake credential (e.g. an attacker-controlled withdraw-zero contract
+//      that auto-routes rewards).
+//   * `Some(Pointer { ... })`              — pre-Conway pointer address
+//      shape; rare on chain today but the validator should still reject it
+//      for completeness.
+// ---------------------------------------------------------------------------
+
+pub fn script_address_with_stake_vk(
+  payment_hash: ByteArray,
+  stake_vk_hash: ByteArray,
+) -> Address {
+  Address {
+    payment_credential: Script(payment_hash),
+    stake_credential: Some(Inline(VerificationKey(stake_vk_hash))),
+  }
+}
+
+pub fn script_address_with_stake_script(
+  payment_hash: ByteArray,
+  stake_script_hash: ByteArray,
+) -> Address {
+  Address {
+    payment_credential: Script(payment_hash),
+    stake_credential: Some(Inline(Script(stake_script_hash))),
+  }
+}
+
+pub fn script_address_with_stake_pointer(payment_hash: ByteArray) -> Address {
+  Address {
+    payment_credential: Script(payment_hash),
+    stake_credential: Some(
+      Pointer { slot_number: 1, transaction_index: 0, certificate_index: 0 },
+    ),
+  }
+}
+
+// ---------------------------------------------------------------------------
 // Reference-input fixture
 // ---------------------------------------------------------------------------
 
@@ -182,6 +245,42 @@ pub fn mix_box_output_with_value(
   }
 }
 
+/// Mix-box output where the address is supplied by the caller — used to
+/// build the H-01 perimeter negatives (mix-script payment credential paired
+/// with an attacker-supplied stake credential).
+pub fn mix_box_output_with_address(
+  address: Address,
+  a: ByteArray,
+  b: ByteArray,
+  lovelace: Int,
+) -> Output {
+  let datum: Data = MixDatum { a, b }
+  Output {
+    address,
+    value: assets.from_lovelace(lovelace),
+    datum: InlineDatum(datum),
+    reference_script: None,
+  }
+}
+
+/// Mix-box output with an attached `reference_script` — the M-01 negative.
+/// The script payload itself is just the mix-script hash; the validator
+/// rejects on `Some(_)`, not on the bytes.
+pub fn mix_box_output_with_ref_script(
+  a: ByteArray,
+  b: ByteArray,
+  lovelace: Int,
+  ref_script_hash: ByteArray,
+) -> Output {
+  let datum: Data = MixDatum { a, b }
+  Output {
+    address: script_address(mix_script_hash),
+    value: assets.from_lovelace(lovelace),
+    datum: InlineDatum(datum),
+    reference_script: Some(ref_script_hash),
+  }
+}
+
 pub fn mix_box_input_bad_datum(
   ref_byte: Int,
   ref_idx: Int,
@@ -231,6 +330,34 @@ pub fn fee_shard_output_no_datum(lovelace: Int) -> Output {
     value: assets.from_lovelace(lovelace),
     datum: NoDatum,
     reference_script: None,
+  }
+}
+
+/// Fee shard output where the address is supplied by the caller — used to
+/// build the H-01 perimeter negatives for `output_at_fee` (fee-script payment
+/// credential paired with an attacker-supplied stake credential).
+pub fn fee_shard_output_with_address(address: Address, lovelace: Int) -> Output {
+  let unit: Data = Void
+  Output {
+    address,
+    value: assets.from_lovelace(lovelace),
+    datum: InlineDatum(unit),
+    reference_script: None,
+  }
+}
+
+/// Fee shard output with an attached `reference_script` — the M-01 negative
+/// for `output_at_fee`.
+pub fn fee_shard_output_with_ref_script(
+  lovelace: Int,
+  ref_script_hash: ByteArray,
+) -> Output {
+  let unit: Data = Void
+  Output {
+    address: script_address(fee_script_hash),
+    value: assets.from_lovelace(lovelace),
+    datum: InlineDatum(unit),
+    reference_script: Some(ref_script_hash),
   }
 }
 

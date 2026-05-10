@@ -10,6 +10,37 @@ Lovejoin follows [SemVer](https://semver.org/) starting at 0.3.0. Day-to-day wor
 
 ## [Unreleased]
 
+## [0.4.0] - YYYY-MM-DD
+
+Preprod re-bootstrap that ships three on-chain audit follow-ups. Validator bytecode changes for `mix_logic`, `fee_contract`, and `one_shot_mint`; `mix_box` is unchanged. The off-chain SDK + backend + UI continue to ship against the live deployment, now pointing at the post-redeploy addresses. Mainnet deployment of the same on-chain code remains in preparation; the disclosure posture (no third-party audit, no bug bounty) is unchanged.
+
+> Pre-0.4.0 Preprod state at the previous protocol addresses is abandoned by this redeploy. Existing fee shards and any depositor mix-boxes at the old addresses are orphaned; the new reference UTxO publishes a fresh `ProtocolParams` pinning the new `mix_logic` and `fee_contract` script hashes. Depositors who still hold owner secrets against the pre-0.4.0 mix-box address can owner-withdraw on the old contracts, but new deposits, mixes, and fee-shard top-ups all flow through the 0.4.0 perimeter.
+
+### Changed (validator bytecode)
+
+- **Address-perimeter hardening (audit H-01 / M-01).** `mix_logic` and `fee_contract` now require every continuing protocol output to set `stake_credential = None` and `reference_script = None`. The same constraint extends to `one_shot_mint`'s reference-UTxO target. Off-chain dApp-stake-key plumbing was removed in lockstep so addresses are CIP-19 enterprise-only; the protocol pool can no longer accrue staking rewards from its own principal or be force-delegated to a dead pool (#129 / PR #131).
+- **Reference UTxO destination + datum sanity (audit L-01 / L-02).** `one_shot_mint` now asserts at mint time that the protocol NFT lands at the `reference_holder` script with an inline `ReferenceDatum` whose `denom_lovelace` and `max_fee_per_mix_lovelace` are positive. Bootstrap rebuilds parameterize `one_shot_mint` with the `reference_holder` script hash so this binding is exact, not documentary (#130 / PR #133).
+- **Anonymity-set floor on fee-paying mixes.** `fee_contract.PayMixFee` now requires `N ≥ 3`. The previous `N ≥ 2` floor enforced by `mix_logic` is unchanged for wallet-collateral mixes; the new constraint applies only when a mix consumes a fee shard. The N=2 anonymity set was too small for the fee-shard path's threat model. Documentation, perf notes, and integration tests are aligned (audit-fixes / PR #134).
+
+### Added
+
+- Internal pre-bootstrap audit report at `docs/audit_report.md` capturing the H-01 / M-01 / L-01 / L-02 / anonymity-set-floor analysis and the bytecode-fix decisions for this redeploy.
+- 15 baseline `aiken bench` cases covering the hot-path redeemers (`mix_logic` Mix at N=2/3/4 with both bench fixtures, `fee_contract` PayMixFee + Replenish, `mix_box` spend, `one_shot_mint`). Replenish fixture rewritten to exercise the realistic 3-input shape.
+
+### Fixed
+
+- SDK collateral wire field renamed from `tx_body` to `tx` to match giveme.my's current request shape (PR #126).
+- Backend `/pool` load test deflaked; intermittent p99 spike no longer trips the threshold (PR #125).
+
+### Changed
+
+- pnpm pinned to the 10.x line in `engines.pnpm` and `packageManager`. Documents the snap-shim node trap and the pnpm self-update trap that occasionally bricks the workspace lockfile.
+- `dhtuple.ak` annotated as a parity anchor for the cross-language KAT vectors, not a validator dependency. No call sites changed.
+
+### Deployed
+
+- Preprod re-bootstrap of the new bytecode. Fresh script hashes for `reference_holder`, `one_shot_mint`, `mix_logic`, `fee_contract`; `mix_box` is bytecode-unchanged but its `mix_logic_script_hash` parameter is rebound, so its address moves with the others. New reference UTxO with refreshed `ProtocolParams`. New 10-shard fee pool. `config/network.preprod.json`, `artifacts/preprod/addresses.json`, and `ui/public/addresses.preprod.json` updated to the new addresses.
+
 ## [0.3.0] - 2026-05-06
 
 Public-readiness release. The codebase is post-build-phase: validators deployed and immutable on Preprod, off-chain SDK + backend + UI shipped against the live deployment, hardening pass closed, internal review pass complete, disclosure narrative reconciled across README, SECURITY, CLAUDE, and the UI to match the actual posture (no third-party audit, no bug bounty, mainnet deployment of the same contracts in preparation).
