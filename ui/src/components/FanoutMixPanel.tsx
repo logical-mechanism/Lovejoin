@@ -118,16 +118,21 @@ export function FanoutMixPanel(props: FanoutMixPanelProps) {
     return { totalMixes, boxesTouched, freshNeeded, linkage, totalFeeLovelace };
   }, [depth, maxFeePerMixLovelace]);
 
-  // Pool size after subtracting any boxes the user already owns (they
-  // can't double-spend their root as a fresh).
-  const ownedRefKeys = useMemo(
-    () => new Set(props.ownedBoxes.map((b) => refKey(b.entry.ref))),
+  // Eligible pool = every entry except the root the planner is going to
+  // pin to wave 0. `planFanout` auto-excludes the root from its
+  // sampler, so we trust that here and just subtract 1 for the
+  // pre-flight count. Other owned boxes ARE eligible as fresh inputs;
+  // re-mixing them through the tree still amplifies anonymity (the
+  // user keeps the secret since `b' = [y]·b = [x]·a'`), and excluding
+  // them would block solo testing on a pool the user dominates.
+  const rootRefKey = useMemo(
+    () => (props.ownedBoxes[0] ? refKey(props.ownedBoxes[0].entry.ref) : null),
     [props.ownedBoxes],
   );
-  const eligiblePoolCount = useMemo(
-    () => props.poolEntries.filter((e) => !ownedRefKeys.has(refKey(e.ref))).length,
-    [props.poolEntries, ownedRefKeys],
-  );
+  const eligiblePoolCount = useMemo(() => {
+    if (!rootRefKey) return props.poolEntries.length;
+    return props.poolEntries.filter((e) => refKey(e.ref) !== rootRefKey).length;
+  }, [props.poolEntries, rootRefKey]);
 
   const hasOwned = props.ownedBoxes.length > 0;
   const poolBigEnough = eligiblePoolCount >= stats.freshNeeded;
@@ -149,14 +154,15 @@ export function FanoutMixPanel(props: FanoutMixPanelProps) {
     });
     try {
       const root = props.ownedBoxes[0]!.entry;
-      const pool: PoolEntry[] = props.poolEntries
-        .filter((e) => !ownedRefKeys.has(refKey(e.ref)))
-        .map((e) => ({
-          ref: e.ref,
-          a: e.a,
-          b: e.b,
-          utxo: synthPoolUtxo(e.ref, denomLovelace),
-        }));
+      // Pass the full pool (minus the root, which planFanout
+      // auto-excludes) — including other owned boxes. The planner's
+      // exclude-set ensures no box is reused inside the plan.
+      const pool: PoolEntry[] = props.poolEntries.map((e) => ({
+        ref: e.ref,
+        a: e.a,
+        b: e.b,
+        utxo: synthPoolUtxo(e.ref, denomLovelace),
+      }));
       const plan: FanoutPlan = planFanout({ rootBox: root, pool, depth });
       const events = submitFanout({
         plan,
