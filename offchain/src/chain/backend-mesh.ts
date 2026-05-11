@@ -347,6 +347,15 @@ export class BackendMeshProvider implements MeshFetcherSubmitter {
         }
         return fb.evaluateTx(cborHex) as Promise<MeshAction[]>;
       },
+      // 4xx from the backend's `/evaluate` is always deterministic —
+      // the upstream ogmios rejected as malformed (wrong shape,
+      // unknown input, etc.) and Blockfrost's evaluator would reject
+      // the same payload the same way. Skip the fallback so the user
+      // sees the actual root cause instead of two stacked errors, and
+      // so a self-hosting user doesn't leak their tx to Blockfrost
+      // every time their request needs a fix. Transient failures
+      // (5xx, network throw) still fall through.
+      shouldFallbackOnError,
     );
   }
 
@@ -356,18 +365,51 @@ export class BackendMeshProvider implements MeshFetcherSubmitter {
     method: string,
     primary: () => Promise<T>,
     fallback: (fb: MeshFetcherSubmitter) => Promise<T>,
+    shouldFallback?: (err: Error) => boolean,
   ): Promise<T> {
     try {
       return await primary();
     } catch (err) {
       if (!this.fallback) throw err;
+      const error = err as Error;
+      if (shouldFallback && !shouldFallback(error)) {
+        console.warn(
+          `[BackendMeshProvider] ${method} failed with non-transient error; ` +
+            `skipping fallback (user-hosted backend is the source of truth here): ${error.message}`,
+        );
+        throw error;
+      }
 
-      console.warn(
-        `[BackendMeshProvider] ${method} fell back to Blockfrost: ${(err as Error).message}`,
-      );
+      console.warn(`[BackendMeshProvider] ${method} fell back to Blockfrost: ${error.message}`);
       return await fallback(this.fallback);
     }
   }
+}
+
+/**
+ * Predicate: should we attempt the Blockfrost fallback after the backend
+ * threw?
+ *
+ * Yes for transient failures (5xx, network/parse exceptions where no HTTP
+ * status is attached — meaning the request never reached a backend
+ * endpoint or got a malformed response). The user's backend is degraded
+ * and Blockfrost might still be healthy.
+ *
+ * No for 4xx — the request itself was rejected as malformed by the
+ * upstream. Blockfrost would reject the same payload the same way; the
+ * fallback just hides the actual root cause and (worse, for a
+ * self-hosting user) leaks the request off their stack.
+ *
+ * Error messages from this module include the HTTP status in the form
+ * `(<status>):` — we parse that. Errors without a status code parsed
+ * (network throws, JSON parse failures before reading status) default
+ * to "yes, fall back".
+ */
+function shouldFallbackOnError(err: Error): boolean {
+  const match = err.message.match(/\((\d{3})\):/);
+  if (!match) return true;
+  const status = Number(match[1]);
+  return status >= 500 || status === 408 || status === 429;
 }
 
 // ---------------------------------------------------------------------
