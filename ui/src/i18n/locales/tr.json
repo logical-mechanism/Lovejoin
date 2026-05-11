@@ -601,6 +601,7 @@
     "progress_dropped": "{{count}} karışım, üst tx başarısız olduğu için düşürüldü",
     "toast_success": "Yelpaze tamamlandı — {{count}} karışım gönderildi",
     "toast_partial": "Yelpaze hatalarla tamamlandı — {{submitted}} gönderildi, {{failed}} düşürüldü",
-    "toast_failed": "Yelpaze başarısız"
+    "toast_failed": "Yelpaze başarısız",
+    "gate_owned_in_flight": "Sahip olduğun her box hâlâ önceki bir tx'ten uçuyor. Bir sonraki bloğu bekle ve tekrar dene."
   }
 }

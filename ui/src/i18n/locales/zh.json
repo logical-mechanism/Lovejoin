@@ -601,6 +601,7 @@
     "progress_dropped": "{{count}} 个混合因父交易失败而丢弃",
     "toast_success": "扇出完成 — 已提交 {{count}} 个混合",
     "toast_partial": "扇出有错误地完成 — 已提交 {{submitted}}，丢弃 {{failed}}",
-    "toast_failed": "扇出失败"
+    "toast_failed": "扇出失败",
+    "gate_owned_in_flight": "你所有的 box 都还在前一笔交易的途中。等下一个区块后再试。"
   }
 }

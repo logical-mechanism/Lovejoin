@@ -601,6 +601,7 @@
     "progress_dropped": "{{count}} mezcla(s) descartada(s) porque su tx padre falló",
     "toast_success": "Abanico completo — {{count}} mezcla(s) enviada(s)",
     "toast_partial": "Abanico terminado con errores — {{submitted}} enviadas, {{failed}} descartadas",
-    "toast_failed": "Abanico fallido"
+    "toast_failed": "Abanico fallido",
+    "gate_owned_in_flight": "Todas las cajas propias siguen en vuelo de una tx anterior. Espera al próximo bloque e inténtalo de nuevo."
   }
 }

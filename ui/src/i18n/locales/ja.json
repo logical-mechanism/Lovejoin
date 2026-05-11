@@ -601,6 +601,7 @@
     "progress_dropped": "{{count}} 個のミックスが親 tx の失敗により破棄されました",
     "toast_success": "ファンアウト完了 — {{count}} 個のミックスを送信しました",
     "toast_partial": "ファンアウトはエラーで終了しました — 送信 {{submitted}} 件、破棄 {{failed}} 件",
-    "toast_failed": "ファンアウトに失敗しました"
+    "toast_failed": "ファンアウトに失敗しました",
+    "gate_owned_in_flight": "所有するすべての box が前回の tx でまだ移動中です。次のブロックを待ってから再試行してください。"
   }
 }

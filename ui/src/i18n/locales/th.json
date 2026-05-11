@@ -601,6 +601,7 @@
     "progress_dropped": "{{count}} mix ตกไปเพราะ tx แม่ล้มเหลว",
     "toast_success": "Fan-out เสร็จ — ส่ง mix แล้ว {{count}} รายการ",
     "toast_partial": "Fan-out จบพร้อมข้อผิดพลาด — ส่งแล้ว {{submitted}} ตก {{failed}}",
-    "toast_failed": "Fan-out ล้มเหลว"
+    "toast_failed": "Fan-out ล้มเหลว",
+    "gate_owned_in_flight": "Box ทุกใบของคุณยังอยู่ระหว่างทางจาก tx ก่อนหน้า รอบล็อกถัดไปแล้วลองอีกครั้ง"
   }
 }

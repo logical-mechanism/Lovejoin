@@ -601,6 +601,7 @@
     "progress_dropped": "{{count}} mix(ów) odrzuconych, bo ich tx nadrzędna nie powiodła się",
     "toast_success": "Rozgałęzienie zakończone — wysłano {{count}} mix(ów)",
     "toast_partial": "Rozgałęzienie zakończone z błędami — wysłano {{submitted}}, odrzucono {{failed}}",
-    "toast_failed": "Rozgałęzienie nieudane"
+    "toast_failed": "Rozgałęzienie nieudane",
+    "gate_owned_in_flight": "Wszystkie twoje boxy są jeszcze w locie z poprzedniej tx. Poczekaj na następny blok i spróbuj ponownie."
   }
 }

@@ -66,6 +66,8 @@ const FANOUT = {
     toast_success: "Abanico completo — {{count}} mezcla(s) enviada(s)",
     toast_partial: "Abanico terminado con errores — {{submitted}} enviadas, {{failed}} descartadas",
     toast_failed: "Abanico fallido",
+    gate_owned_in_flight:
+      "Todas las cajas propias siguen en vuelo de una tx anterior. Espera al próximo bloque e inténtalo de nuevo.",
   },
   fr: {
     eyebrow: "Renforcement de confidentialité",
@@ -108,6 +110,8 @@ const FANOUT = {
     toast_partial:
       "Éventail terminé avec des erreurs — {{submitted}} envoyés, {{failed}} abandonnés",
     toast_failed: "Éventail échoué",
+    gate_owned_in_flight:
+      "Toutes vos boxes sont encore en vol depuis une tx précédente. Attendez le prochain bloc et réessayez.",
   },
   de: {
     eyebrow: "Privatsphären-Boost",
@@ -149,6 +153,8 @@ const FANOUT = {
     toast_success: "Fan-out abgeschlossen — {{count}} Mix(e) gesendet",
     toast_partial: "Fan-out mit Fehlern beendet — {{submitted}} gesendet, {{failed}} verworfen",
     toast_failed: "Fan-out fehlgeschlagen",
+    gate_owned_in_flight:
+      "Jede eigene Box ist noch von einer vorherigen Tx im Umlauf. Warte auf den nächsten Block und versuch's erneut.",
   },
   pt: {
     eyebrow: "Reforço de privacidade",
@@ -190,6 +196,8 @@ const FANOUT = {
     toast_success: "Leque completo — {{count}} mix(es) enviado(s)",
     toast_partial: "Leque terminou com erros — {{submitted}} enviados, {{failed}} descartados",
     toast_failed: "Leque falhou",
+    gate_owned_in_flight:
+      "Todas as suas boxes ainda estão em trânsito de uma tx anterior. Aguarde o próximo bloco e tente de novo.",
   },
   it: {
     eyebrow: "Boost di privacy",
@@ -231,6 +239,8 @@ const FANOUT = {
     toast_success: "Ventaglio completato — {{count}} mix inviati",
     toast_partial: "Ventaglio terminato con errori — {{submitted}} inviati, {{failed}} scartati",
     toast_failed: "Ventaglio fallito",
+    gate_owned_in_flight:
+      "Ogni box è ancora in volo da una tx precedente. Attendi il prossimo blocco e riprova.",
   },
   pl: {
     eyebrow: "Wzmocnienie prywatności",
@@ -273,6 +283,8 @@ const FANOUT = {
     toast_partial:
       "Rozgałęzienie zakończone z błędami — wysłano {{submitted}}, odrzucono {{failed}}",
     toast_failed: "Rozgałęzienie nieudane",
+    gate_owned_in_flight:
+      "Wszystkie twoje boxy są jeszcze w locie z poprzedniej tx. Poczekaj na następny blok i spróbuj ponownie.",
   },
   tr: {
     eyebrow: "Gizlilik takviyesi",
@@ -314,6 +326,8 @@ const FANOUT = {
     toast_success: "Yelpaze tamamlandı — {{count}} karışım gönderildi",
     toast_partial: "Yelpaze hatalarla tamamlandı — {{submitted}} gönderildi, {{failed}} düşürüldü",
     toast_failed: "Yelpaze başarısız",
+    gate_owned_in_flight:
+      "Sahip olduğun her box hâlâ önceki bir tx'ten uçuyor. Bir sonraki bloğu bekle ve tekrar dene.",
   },
   vi: {
     eyebrow: "Tăng cường riêng tư",
@@ -354,6 +368,8 @@ const FANOUT = {
     toast_success: "Trộn cây hoàn tất — {{count}} trộn đã gửi",
     toast_partial: "Trộn cây kết thúc với lỗi — {{submitted}} đã gửi, {{failed}} bị hủy",
     toast_failed: "Trộn cây thất bại",
+    gate_owned_in_flight:
+      "Mọi box bạn sở hữu vẫn đang bay từ tx trước. Hãy đợi khối tiếp theo và thử lại.",
   },
   id: {
     eyebrow: "Penguat privasi",
@@ -395,6 +411,8 @@ const FANOUT = {
     toast_success: "Kipas selesai — {{count}} mix terkirim",
     toast_partial: "Kipas selesai dengan kesalahan — {{submitted}} terkirim, {{failed}} digugurkan",
     toast_failed: "Kipas gagal",
+    gate_owned_in_flight:
+      "Semua box kepunyaanmu masih dalam penerbangan dari tx sebelumnya. Tunggu blok berikutnya, lalu coba lagi.",
   },
   ru: {
     eyebrow: "Усиление приватности",
@@ -436,6 +454,8 @@ const FANOUT = {
     toast_success: "Веер завершён — отправлено {{count}} смешивание(й)",
     toast_partial: "Веер завершён с ошибками — отправлено {{submitted}}, отброшено {{failed}}",
     toast_failed: "Веер не удался",
+    gate_owned_in_flight:
+      "Все ваши box ещё в полёте после предыдущей tx. Подождите следующего блока и попробуйте снова.",
   },
   zh: {
     eyebrow: "隐私增强",
@@ -473,6 +493,7 @@ const FANOUT = {
     toast_success: "扇出完成 — 已提交 {{count}} 个混合",
     toast_partial: "扇出有错误地完成 — 已提交 {{submitted}}，丢弃 {{failed}}",
     toast_failed: "扇出失败",
+    gate_owned_in_flight: "你所有的 box 都还在前一笔交易的途中。等下一个区块后再试。",
   },
   ja: {
     eyebrow: "プライバシー強化",
@@ -514,6 +535,8 @@ const FANOUT = {
     toast_success: "ファンアウト完了 — {{count}} 個のミックスを送信しました",
     toast_partial: "ファンアウトはエラーで終了しました — 送信 {{submitted}} 件、破棄 {{failed}} 件",
     toast_failed: "ファンアウトに失敗しました",
+    gate_owned_in_flight:
+      "所有するすべての box が前回の tx でまだ移動中です。次のブロックを待ってから再試行してください。",
   },
   ko: {
     eyebrow: "프라이버시 부스트",
@@ -555,6 +578,8 @@ const FANOUT = {
     toast_success: "팬아웃 완료 — {{count}}개 믹스 제출됨",
     toast_partial: "오류와 함께 팬아웃 종료 — {{submitted}}개 제출, {{failed}}개 폐기",
     toast_failed: "팬아웃 실패",
+    gate_owned_in_flight:
+      "소유한 모든 box가 이전 tx에서 아직 전송 중입니다. 다음 블록을 기다린 후 다시 시도하세요.",
   },
   hi: {
     eyebrow: "गोपनीयता बूस्ट",
@@ -596,6 +621,8 @@ const FANOUT = {
     toast_success: "फैन-आउट पूर्ण — {{count}} मिक्स सबमिट",
     toast_partial: "फैन-आउट त्रुटियों के साथ समाप्त — {{submitted}} सबमिट, {{failed}} छोड़ी गई",
     toast_failed: "फैन-आउट विफल",
+    gate_owned_in_flight:
+      "आपकी सभी box पिछली tx से अभी भी उड़ान में हैं। अगले ब्लॉक की प्रतीक्षा करें, फिर पुनः प्रयास करें।",
   },
   bn: {
     eyebrow: "গোপনীয়তা বুস্ট",
@@ -637,6 +664,8 @@ const FANOUT = {
     toast_success: "ফ্যান-আউট সম্পন্ন — {{count}} টি মিক্স জমা",
     toast_partial: "ফ্যান-আউট ত্রুটি সহ শেষ — {{submitted}} জমা, {{failed}} বাদ",
     toast_failed: "ফ্যান-আউট ব্যর্থ",
+    gate_owned_in_flight:
+      "আপনার সমস্ত box এখনও আগের tx থেকে উড়ন্ত অবস্থায় আছে। পরবর্তী ব্লকের জন্য অপেক্ষা করুন, তারপর আবার চেষ্টা করুন।",
   },
   th: {
     eyebrow: "เพิ่มความเป็นส่วนตัว",
@@ -677,6 +706,8 @@ const FANOUT = {
     toast_success: "Fan-out เสร็จ — ส่ง mix แล้ว {{count}} รายการ",
     toast_partial: "Fan-out จบพร้อมข้อผิดพลาด — ส่งแล้ว {{submitted}} ตก {{failed}}",
     toast_failed: "Fan-out ล้มเหลว",
+    gate_owned_in_flight:
+      "Box ทุกใบของคุณยังอยู่ระหว่างทางจาก tx ก่อนหน้า รอบล็อกถัดไปแล้วลองอีกครั้ง",
   },
   ar: {
     eyebrow: "تعزيز الخصوصية",
@@ -717,6 +748,8 @@ const FANOUT = {
     toast_success: "اكتملت المروحة — أُرسلت {{count}} خلطة",
     toast_partial: "انتهت المروحة بأخطاء — أُرسلت {{submitted}}، أُسقطت {{failed}}",
     toast_failed: "فشلت المروحة",
+    gate_owned_in_flight:
+      "كل صناديقك لا تزال في الطيران من معاملة سابقة. انتظر الكتلة التالية ثم حاول من جديد.",
   },
   ur: {
     eyebrow: "پرائیویسی بوسٹ",
@@ -758,6 +791,8 @@ const FANOUT = {
     toast_success: "پنکھا مکمل — {{count}} مکس جمع",
     toast_partial: "پنکھا غلطیوں کے ساتھ ختم — {{submitted}} جمع، {{failed}} گرائے گئے",
     toast_failed: "پنکھا ناکام",
+    gate_owned_in_flight:
+      "آپ کے تمام box پچھلی tx سے ابھی تک پرواز میں ہیں۔ اگلے بلاک کا انتظار کریں، پھر دوبارہ کوشش کریں۔",
   },
   fa: {
     eyebrow: "تقویت حریم خصوصی",
@@ -799,6 +834,8 @@ const FANOUT = {
     toast_success: "پروانه کامل شد — {{count}} ترکیب ارسال شد",
     toast_partial: "پروانه با خطاها به پایان رسید — {{submitted}} ارسال، {{failed}} رهاشده",
     toast_failed: "پروانه شکست خورد",
+    gate_owned_in_flight:
+      "تمام جعبه‌های شما هنوز از یک تراکنش قبلی در پرواز هستند. منتظر بلاک بعدی بمانید و دوباره تلاش کنید.",
   },
 };
 

@@ -601,6 +601,7 @@
     "progress_dropped": "{{count}} mix(es) descartado(s) porque sua tx pai falhou",
     "toast_success": "Leque completo — {{count}} mix(es) enviado(s)",
     "toast_partial": "Leque terminou com erros — {{submitted}} enviados, {{failed}} descartados",
-    "toast_failed": "Leque falhou"
+    "toast_failed": "Leque falhou",
+    "gate_owned_in_flight": "Todas as suas boxes ainda estão em trânsito de uma tx anterior. Aguarde o próximo bloco e tente de novo."
   }
 }

@@ -601,6 +601,7 @@
     "progress_dropped": "{{count}} mix digugurkan karena tx induknya gagal",
     "toast_success": "Kipas selesai — {{count}} mix terkirim",
     "toast_partial": "Kipas selesai dengan kesalahan — {{submitted}} terkirim, {{failed}} digugurkan",
-    "toast_failed": "Kipas gagal"
+    "toast_failed": "Kipas gagal",
+    "gate_owned_in_flight": "Semua box kepunyaanmu masih dalam penerbangan dari tx sebelumnya. Tunggu blok berikutnya, lalu coba lagi."
   }
 }

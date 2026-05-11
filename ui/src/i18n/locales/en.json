@@ -245,6 +245,7 @@
     "disclosure_title": "You are paying for everyone in this tree",
     "disclosure_body": "Re-mixing only your own box would let an observer follow your chain trivially. The fan-out re-mixes every box your prior wave touched, including boxes you do not own. That is what makes your branch indistinguishable from the rest. You pay the fees + proof-construction cost for the whole tree.",
     "gate_no_owned_boxes": "Unlock your vault and deposit at least one box to run a fan-out from a box you own.",
+    "gate_owned_in_flight": "Every owned box is still in flight from a previous tx. Wait for the next block, then try again.",
     "gate_pool_too_small": "Pool too small: {{have}} fresh boxes available, fan-out at this depth needs {{need}}.",
     "run_button": "Run depth-{{d}} fan-out",
     "running": "Running depth-{{d}} fan-out…",

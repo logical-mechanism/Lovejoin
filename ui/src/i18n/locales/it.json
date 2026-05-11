@@ -601,6 +601,7 @@
     "progress_dropped": "{{count}} mix scartati perché la tx padre è fallita",
     "toast_success": "Ventaglio completato — {{count}} mix inviati",
     "toast_partial": "Ventaglio terminato con errori — {{submitted}} inviati, {{failed}} scartati",
-    "toast_failed": "Ventaglio fallito"
+    "toast_failed": "Ventaglio fallito",
+    "gate_owned_in_flight": "Ogni box è ancora in volo da una tx precedente. Attendi il prossimo blocco e riprova."
   }
 }

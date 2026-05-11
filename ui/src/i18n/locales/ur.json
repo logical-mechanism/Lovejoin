@@ -601,6 +601,7 @@
     "progress_dropped": "{{count}} مکس گرائے گئے کیونکہ ان کا والد tx ناکام ہوا",
     "toast_success": "پنکھا مکمل — {{count}} مکس جمع",
     "toast_partial": "پنکھا غلطیوں کے ساتھ ختم — {{submitted}} جمع، {{failed}} گرائے گئے",
-    "toast_failed": "پنکھا ناکام"
+    "toast_failed": "پنکھا ناکام",
+    "gate_owned_in_flight": "آپ کے تمام box پچھلی tx سے ابھی تک پرواز میں ہیں۔ اگلے بلاک کا انتظار کریں، پھر دوبارہ کوشش کریں۔"
   }
 }

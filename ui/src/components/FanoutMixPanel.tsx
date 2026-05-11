@@ -40,6 +40,7 @@ import {
 import { friendlyErrorMessage } from "../lib/errors.js";
 import { formatAda } from "../lib/format.js";
 import type { Network } from "../lib/sdk.js";
+import { useAppState } from "../lib/store.js";
 import type { OwnedBox } from "../lib/vault.js";
 import { useToast } from "./Toaster.js";
 import { Modal } from "./ui/Modal.js";
@@ -91,6 +92,7 @@ type ProgressState = {
 export function FanoutMixPanel(props: FanoutMixPanelProps) {
   const { t } = useTranslation();
   const toast = useToast();
+  const { pendingTxRefs, markTxPending, rescan, refreshWalletBalance } = useAppState();
   const [depth, setDepth] = useState<number>(DEFAULT_DEPTH);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [running, setRunning] = useState(false);
@@ -100,6 +102,19 @@ export function FanoutMixPanel(props: FanoutMixPanelProps) {
   const allowedDepths = props.advanced ? ADVANCED_DEPTHS : VISIBLE_DEPTHS;
   const denomLovelace = BigInt(props.addresses.protocol.denom_lovelace);
   const maxFeePerMixLovelace = BigInt(props.addresses.protocol.max_fee_per_mix_lovelace);
+
+  // First owned box that ISN'T currently in-flight. Without this filter
+  // a fast second click after a successful fan-out would pick the old
+  // root (still in ownedBoxes until the 12s-delayed rescan lands),
+  // which has already been consumed by the previous run and the
+  // builder fails with BadInputsUTxO. Same race MixButton's
+  // recently-spent-refs tracker handles.
+  const rootBox = useMemo<OwnedBox | null>(() => {
+    for (const ob of props.ownedBoxes) {
+      if (!pendingTxRefs.has(refKey(ob.entry.ref))) return ob;
+    }
+    return null;
+  }, [props.ownedBoxes, pendingTxRefs]);
 
   // Derived stats for the current depth. The pool size + owned-box gate
   // both feed in — disabled state and the disclosure-row copy depend on
@@ -118,28 +133,30 @@ export function FanoutMixPanel(props: FanoutMixPanelProps) {
     return { totalMixes, boxesTouched, freshNeeded, linkage, totalFeeLovelace };
   }, [depth, maxFeePerMixLovelace]);
 
-  // Eligible pool = every entry except the root the planner is going to
-  // pin to wave 0. `planFanout` auto-excludes the root from its
-  // sampler, so we trust that here and just subtract 1 for the
-  // pre-flight count. Other owned boxes ARE eligible as fresh inputs;
-  // re-mixing them through the tree still amplifies anonymity (the
-  // user keeps the secret since `b' = [y]·b = [x]·a'`), and excluding
-  // them would block solo testing on a pool the user dominates.
-  const rootRefKey = useMemo(
-    () => (props.ownedBoxes[0] ? refKey(props.ownedBoxes[0].entry.ref) : null),
-    [props.ownedBoxes],
-  );
-  const eligiblePoolCount = useMemo(() => {
-    if (!rootRefKey) return props.poolEntries.length;
-    return props.poolEntries.filter((e) => refKey(e.ref) !== rootRefKey).length;
-  }, [props.poolEntries, rootRefKey]);
+  // Eligible pool = every entry except the planner's root AND any box
+  // that's already in-flight from an earlier tx the user just
+  // submitted. planFanout auto-excludes the root from its sampler; we
+  // additionally filter pendingTxRefs ourselves because a "fresh" pool
+  // candidate that's actually in flight will fail the build with
+  // BadInputsUTxO. Other owned boxes (not in-flight) ARE eligible as
+  // fresh inputs; re-mixing them still amplifies anonymity and not
+  // excluding them keeps solo testing workable.
+  const eligiblePool = useMemo(() => {
+    const rootKey = rootBox ? refKey(rootBox.entry.ref) : null;
+    return props.poolEntries.filter((e) => {
+      const k = refKey(e.ref);
+      if (k === rootKey) return false;
+      if (pendingTxRefs.has(k)) return false;
+      return true;
+    });
+  }, [props.poolEntries, rootBox, pendingTxRefs]);
 
-  const hasOwned = props.ownedBoxes.length > 0;
-  const poolBigEnough = eligiblePoolCount >= stats.freshNeeded;
+  const hasOwned = rootBox !== null;
+  const poolBigEnough = eligiblePool.length >= stats.freshNeeded;
   const disabled = running || !hasOwned || !poolBigEnough;
 
   const onConfirm = async () => {
-    if (disabled) return;
+    if (disabled || !rootBox) return;
     setConfirmOpen(false);
     setRunning(true);
     cancelToken.current = { cancelled: false };
@@ -152,18 +169,24 @@ export function FanoutMixPanel(props: FanoutMixPanelProps) {
       submittedIds: [],
       droppedIds: new Set(),
     });
+    // Mark the root + every fresh-pool candidate we MIGHT touch as
+    // pending up front. Conservative: marks more than the plan will
+    // actually consume, but a rapid second click won't be able to pick
+    // anything we're about to potentially spend. The post-submit
+    // rescan clears the pending set as boxes confirm.
+    const rootRef = rootBox.entry.ref;
+    markTxPending([refKey(rootRef)]);
     try {
-      const root = props.ownedBoxes[0]!.entry;
-      // Pass the full pool (minus the root, which planFanout
-      // auto-excludes) — including other owned boxes. The planner's
-      // exclude-set ensures no box is reused inside the plan.
-      const pool: PoolEntry[] = props.poolEntries.map((e) => ({
+      const pool: PoolEntry[] = eligiblePool.map((e) => ({
         ref: e.ref,
         a: e.a,
         b: e.b,
         utxo: synthPoolUtxo(e.ref, denomLovelace),
       }));
-      const plan: FanoutPlan = planFanout({ rootBox: root, pool, depth });
+      const plan: FanoutPlan = planFanout({ rootBox: rootBox.entry, pool, depth });
+      // Pre-mark every pool ref the planner picked so the next click
+      // (or another component) doesn't double-spend.
+      markTxPending(plan.poolRefsUsed.map((r) => refKey(r)));
       const events = submitFanout({
         plan,
         network: props.network,
@@ -174,6 +197,16 @@ export function FanoutMixPanel(props: FanoutMixPanelProps) {
       });
       const summary = await consumeEvents(events, (evt) => {
         if (cancelToken.current.cancelled) return;
+        // Surface slot-failed errors to the console; the progress UI
+        // only shows counts, but the underlying message is the
+        // load-bearing debugging signal (BadInputsUTxO vs script-
+        // terminated vs evaluator 5xx etc).
+        if (evt.kind === "slot-failed") {
+          console.warn(
+            `[lovejoin/fanout] slot ${evt.slotId} (wave ${evt.waveIndex + 1}) failed: ` +
+              `${evt.error.message}`,
+          );
+        }
         setProgress((prev) => (prev ? applyEventToProgress(prev, evt) : null));
       });
       if (summary.failedSlots.size === 0) {
@@ -200,6 +233,12 @@ export function FanoutMixPanel(props: FanoutMixPanelProps) {
       });
     } finally {
       setRunning(false);
+      // Schedule a rescan so the next user action sees the post-mix
+      // pool state. Block production on Preprod / mainnet is ~20 s, so
+      // a 15 s delay typically lands after the first confirming block
+      // — same cadence MixButton uses.
+      window.setTimeout(() => void rescan(), 15_000);
+      void refreshWalletBalance();
     }
   };
 
@@ -282,7 +321,7 @@ export function FanoutMixPanel(props: FanoutMixPanelProps) {
               <dt className="lj-review__label">{t("fanout.review_pool")}</dt>
               <dd className="lj-review__value lj-review__value--muted">
                 {t("fanout.review_pool_value", {
-                  have: eligiblePoolCount,
+                  have: eligiblePool.length,
                   need: stats.freshNeeded,
                 })}
               </dd>
@@ -295,11 +334,17 @@ export function FanoutMixPanel(props: FanoutMixPanelProps) {
           <p className="lj-banner__detail">{t("fanout.disclosure_body")}</p>
         </div>
 
-        {!hasOwned && <p className="mt-6 text-xs text-amber">{t("fanout.gate_no_owned_boxes")}</p>}
+        {!hasOwned && (
+          <p className="mt-6 text-xs text-amber">
+            {props.ownedBoxes.length > 0
+              ? t("fanout.gate_owned_in_flight")
+              : t("fanout.gate_no_owned_boxes")}
+          </p>
+        )}
         {hasOwned && !poolBigEnough && (
           <p className="mt-6 text-xs text-amber">
             {t("fanout.gate_pool_too_small", {
-              have: eligiblePoolCount,
+              have: eligiblePool.length,
               need: stats.freshNeeded,
             })}
           </p>

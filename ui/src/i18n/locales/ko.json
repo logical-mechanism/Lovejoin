@@ -601,6 +601,7 @@
     "progress_dropped": "{{count}}개의 믹스가 부모 tx 실패로 폐기됨",
     "toast_success": "팬아웃 완료 — {{count}}개 믹스 제출됨",
     "toast_partial": "오류와 함께 팬아웃 종료 — {{submitted}}개 제출, {{failed}}개 폐기",
-    "toast_failed": "팬아웃 실패"
+    "toast_failed": "팬아웃 실패",
+    "gate_owned_in_flight": "소유한 모든 box가 이전 tx에서 아직 전송 중입니다. 다음 블록을 기다린 후 다시 시도하세요."
   }
 }

@@ -601,6 +601,7 @@
     "progress_dropped": "{{count}} trộn bị hủy vì tx cha thất bại",
     "toast_success": "Trộn cây hoàn tất — {{count}} trộn đã gửi",
     "toast_partial": "Trộn cây kết thúc với lỗi — {{submitted}} đã gửi, {{failed}} bị hủy",
-    "toast_failed": "Trộn cây thất bại"
+    "toast_failed": "Trộn cây thất bại",
+    "gate_owned_in_flight": "Mọi box bạn sở hữu vẫn đang bay từ tx trước. Hãy đợi khối tiếp theo và thử lại."
   }
 }
