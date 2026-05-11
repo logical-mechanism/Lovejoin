@@ -651,11 +651,15 @@ describe("API: /submit + /evaluate", () => {
       dbsync: null,
       ogmiosTx: stub as never,
     });
+    // Ogmios v6 wire format: flat object per entry, not a 2-tuple. The
+    // fastify schema enforces this with `items: { type: "object" }`.
     const additionalUtxoSet = [
-      [
-        { transaction: { id: "ab".repeat(32) }, index: 0 },
-        { address: "addr_test1qparent", value: { ada: { lovelace: 7_500_000 } } },
-      ],
+      {
+        transaction: { id: "ab".repeat(32) },
+        index: 0,
+        address: "addr_test1qparent",
+        value: { ada: { lovelace: 7_500_000 } },
+      },
     ];
     const res = await s.inject({
       method: "POST",
@@ -689,11 +693,13 @@ describe("API: /submit + /evaluate", () => {
       dbsync: null,
       ogmiosTx: stub as never,
     });
-    // 33 entries — one over the cap.
-    const oversize = Array.from({ length: 33 }, (_, i) => [
-      { transaction: { id: "a".repeat(64) }, index: i },
-      { address: "addr_test1qbad", value: { ada: { lovelace: 1_000_000 } } },
-    ]);
+    // 33 flat-object entries — one over the cap.
+    const oversize = Array.from({ length: 33 }, (_, i) => ({
+      transaction: { id: "a".repeat(64) },
+      index: i,
+      address: "addr_test1qbad",
+      value: { ada: { lovelace: 1_000_000 } },
+    }));
     const res = await s.inject({
       method: "POST",
       url: "/evaluate",
