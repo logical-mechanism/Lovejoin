@@ -29,6 +29,7 @@ import { useTranslation } from "react-i18next";
 import { Link } from "react-router-dom";
 import { isInputCollisionError, type MixFeePayer } from "@lovejoin/sdk";
 
+import { FanoutMixPanel } from "../components/FanoutMixPanel.js";
 import { MixButton } from "../components/MixButton.js";
 import { useBackendStatus } from "../components/BackendStatus.js";
 import {
@@ -50,7 +51,11 @@ import { useVisibleRefresh } from "../lib/use-visible-refresh.js";
 export function Pool() {
   const { t } = useTranslation();
   const toast = useToast();
-  const { config, provider, addresses, wallet } = useAppState();
+  const { config, provider, addresses, wallet, ownedBoxes } = useAppState();
+  // `?advanced=1` unlocks depth-4 fan-out — power-user override that
+  // skips the empirically-validated cap. See CLAUDE.md ("?advanced=1
+  // unlocks an overrides panel for local debugging").
+  const advanced = typeof window !== "undefined" && window.location.search.includes("advanced=1");
   const collateral = useCollateralStatus();
   const backend = useBackendStatus();
   const [poolEntries, setPoolEntries] = useState<DirectPoolEntry[]>([]);
@@ -343,6 +348,21 @@ export function Pool() {
           />
         </div>
       </section>
+
+      {/* Privacy-boost CTA: only rendered when the prerequisites (pool +
+       *  provider + addresses) are present. Empty / loading states above
+       *  already short-circuit this branch so we don't have to gate again. */}
+      {showReady && provider && addresses && (
+        <FanoutMixPanel
+          network={config.network}
+          provider={provider}
+          addresses={addresses}
+          wallet={wallet}
+          ownedBoxes={ownedBoxes}
+          poolEntries={poolEntries}
+          advanced={advanced}
+        />
+      )}
     </>
   );
 }
