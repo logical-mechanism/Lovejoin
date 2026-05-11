@@ -838,6 +838,24 @@ export interface MixResult {
   /** The plan the tx was built from — useful for callers that want to
    *  inspect the chosen permutation / output (a', b') for tracking. */
   plan: MixPlan;
+  /**
+   * Fee that landed on the submitted tx after shard-mode discovery
+   * refined the pessimistic placeholder. Distinct from
+   * `plan.txFeeLovelace` (the cap-based plan-time value) — discovery
+   * typically lands well under the cap (~900k lovelace on preprod).
+   *
+   * Used by chained-Mix callers to compute the correct post-state
+   * fee-shard value (`plan.feeShardInput.lovelace - actualFeeLovelace`)
+   * instead of the overly-pessimistic plan-time value, so the next
+   * pick's minLovelace filter doesn't reject a shard that's actually
+   * healthy.
+   *
+   * `null` when the wallet-fee mode lets mesh auto-compute the fee
+   * without a setFee override (the actual fee then lives in the tx
+   * body but isn't surfaced here; wallet-mode callers can extract from
+   * `signedTxHex` if they need it).
+   */
+  actualFeeLovelace: Lovelace | null;
 }
 
 /**
@@ -888,12 +906,23 @@ export async function buildMixTx(args: BuildMixArgs): Promise<MixResult> {
   // would build the same tx and fail again, exhausting maxAttempts.
   return withInputCollisionRetry(async (attempt) => {
     // Resolve the fee shard. Shard mode picks one if not supplied; wallet
-    // mode skips this entirely (no shard input on the tx). The 3-ADA floor
-    // skips depleted shards. Mix recreates the shard output minus tx.fee,
-    // and going below min-utxo on the new shard is an unrecoverable submit
-    // failure. Donate / Deposit don't pass this floor on purpose: they top
-    // shards up and MUST be allowed to target depleted ones.
-    const MIN_FEE_SHARD_LOVELACE = 3_000_000n;
+    // mode skips this entirely (no shard input on the tx). The floor
+    // skips depleted shards: Mix recreates the shard output as
+    // `shard_in - tx.fee`, and on the FIRST build pass tx.fee is set to
+    // `params.maxFeePerMixLovelace` (the cap, since the evaluator
+    // hasn't run yet to refine it). If `shard_in - cap` lands below
+    // min-utxo for an inline-datum UTxO (~960k–1.1M lovelace on
+    // Conway), mesh-csl fails the build with "Insufficient input"
+    // before the discovery pass can rerun with the smaller actual fee.
+    //
+    // Floor is therefore `cap + headroom` rather than the legacy 3 ADA
+    // constant. Headroom = 1.5 ADA covers min-utxo plus a buffer for
+    // the auto-balancer; works for preprod (cap 2 → floor 3.5) and
+    // mainnet (cap 0.8 → floor 2.3). Donate / Deposit don't apply this
+    // floor on purpose: they top shards up and MUST be allowed to
+    // target depleted ones.
+    const MIN_FEE_SHARD_HEADROOM_LOVELACE = 1_500_000n;
+    const minFeeShardLovelace = params.maxFeePerMixLovelace + MIN_FEE_SHARD_HEADROOM_LOVELACE;
     let feeShard: Utxo | undefined;
     if (feePayer === "shard") {
       feeShard =
@@ -902,7 +931,7 @@ export async function buildMixTx(args: BuildMixArgs): Promise<MixResult> {
           : await pickRandomFeeShard({
               provider: args.provider,
               feeScriptAddressBech32: buildScriptAddress(args.addresses.feeScriptHash, networkId),
-              minLovelace: MIN_FEE_SHARD_LOVELACE,
+              minLovelace: minFeeShardLovelace,
               ...(args.excludeFeeShardRefs && args.excludeFeeShardRefs.length > 0
                 ? { excludeRefs: args.excludeFeeShardRefs }
                 : {}),
@@ -1275,6 +1304,17 @@ export async function buildMixTx(args: BuildMixArgs): Promise<MixResult> {
       );
     }
 
+    // Track the fee that actually lands on the submitted tx, separate
+    // from the plan-time placeholder. Surfaced via MixResult so chained
+    // callers can compute the correct post-state fee-shard value rather
+    // than the overly-pessimistic plan-time figure.
+    //   * shard mode: starts at the cap; discovery may refine to a
+    //     smaller `capped` fee below.
+    //   * wallet mode: stays null until the ref-script correction picks
+    //     a concrete fee further down.
+    let actualFeeLovelace: Lovelace | null =
+      feePayer === "shard" && plan.txFeeLovelace !== null ? plan.txFeeLovelace : null;
+
     const refScriptSize = computeMixRefScriptBytes(args.addresses, feePayer);
     const refScriptCostPerByte = Number(meshParams.minFeeRefScriptCostPerByte ?? 15);
 
@@ -1326,6 +1366,7 @@ export async function buildMixTx(args: BuildMixArgs): Promise<MixResult> {
         if (capped !== plan.txFeeLovelace) {
           unsignedTxHex = await buildWithFeeBumpRetry(buildOnce, capped, plan.txFeeLovelace);
         }
+        actualFeeLovelace = capped;
       } else {
         console.warn(
           `[lovejoin/mix] shard-mode fee discovery: evaluator returned non-array ` +
@@ -1346,6 +1387,10 @@ export async function buildMixTx(args: BuildMixArgs): Promise<MixResult> {
       );
       if (refScriptFee > 0n) {
         unsignedTxHex = await buildOnce(correctedFee);
+        actualFeeLovelace = correctedFee;
+      } else {
+        // mesh's auto-fee was acceptable as-is.
+        actualFeeLovelace = meshFee;
       }
     }
 
@@ -1384,10 +1429,10 @@ export async function buildMixTx(args: BuildMixArgs): Promise<MixResult> {
     }
 
     if (args.signOnly) {
-      return { signedTxHex: signedTx, txId: "", plan };
+      return { signedTxHex: signedTx, txId: "", plan, actualFeeLovelace };
     }
     const txId = await args.provider.submitTx(signedTx);
-    return { signedTxHex: signedTx, txId, plan };
+    return { signedTxHex: signedTx, txId, plan, actualFeeLovelace };
   }, args.retry);
 }
 
