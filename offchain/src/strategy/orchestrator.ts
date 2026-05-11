@@ -206,9 +206,16 @@ export async function* submitFanout(args: SubmitFanoutArgs): AsyncIterable<Fanou
   const inFlightShardRefs = new Set<string>();
   for (const r of args.excludeFeeShardRefs ?? []) inFlightShardRefs.add(refKey(r));
   const inFlightShardExtras: Utxo[] = [...(args.feeShardExtras ?? [])];
-  // Mix-output UTxOs from THIS run's slots, plus caller-seeded extras
-  // (typically the in-flight Deposit that created the root box).
-  const inFlightChainFromUtxos: Utxo[] = [...(args.chainFromUtxos ?? [])];
+  // External chainFrom utxos the caller seeded (e.g. an in-flight
+  // Deposit that created the root box). Forwarded on every slot's
+  // build; doesn't grow as the run progresses.
+  const externalChainFromUtxos: Utxo[] = [...(args.chainFromUtxos ?? [])];
+  // Slot-id → that slot's 3 mix outputs + 1 fee shard, ready to splice
+  // into a CHILD slot's chainFrom. Indexed by parent slot id so a
+  // child only forwards its DIRECT parent's outputs instead of the
+  // whole accumulated tree (which blows past the backend's 32-entry
+  // additionalUtxoSet cap at depth >= 3).
+  const parentOutputsBySlot = new Map<FanoutSlotId, Utxo[]>();
 
   let submittedCount = 0;
   let failedCount = 0;
@@ -259,6 +266,27 @@ export async function* submitFanout(args: SubmitFanoutArgs): AsyncIterable<Fanou
       const ySecrets = args.ySecretsBySlot?.get(slot.id);
       const permutation = args.permutationsBySlot?.get(slot.id);
 
+      // Per-slot chainFrom = external caller seeds + this slot's direct
+      // parent's full output set + every in-flight post-state fee shard
+      // (so the picker can use feeShardExtras and the evaluator can
+      // resolve whichever shard it picks). We intentionally do NOT
+      // include sibling or grand-parent mix outputs — only the direct
+      // parent's mix outputs are referenceable by this slot, and the
+      // backend's /evaluate caps additionalUtxoSet at 32 entries.
+      //
+      // Bound: 4 (parent outputs) + ≤13 (total fan-out fee shards) +
+      // |external| ≤ ~20 even at depth 4 — comfortably under 32.
+      const parentSlotId = slot.inputs.find((i) => i.kind === "parent");
+      const parentChainFrom: Utxo[] =
+        parentSlotId && parentSlotId.kind === "parent"
+          ? (parentOutputsBySlot.get(parentSlotId.parentSlotId) ?? [])
+          : [];
+      const slotChainFromUtxos = [
+        ...externalChainFromUtxos,
+        ...parentChainFrom,
+        ...inFlightShardExtras,
+      ];
+
       const buildArgs: BuildMixArgs = {
         network: args.network,
         inputs,
@@ -270,10 +298,10 @@ export async function* submitFanout(args: SubmitFanoutArgs): AsyncIterable<Fanou
         ...(inFlightShardExtras.length > 0 ? { feeShardExtras: inFlightShardExtras } : {}),
         ...(args.collateralProvider ? { collateralProvider: args.collateralProvider } : {}),
         ...(args.retry ? { retry: args.retry } : {}),
-        ...(inFlightChainFromUtxos.length > 0
+        ...(slotChainFromUtxos.length > 0
           ? {
               chainFrom: {
-                utxos: inFlightChainFromUtxos,
+                utxos: slotChainFromUtxos,
                 chainDepth: k + 1,
               },
             }
@@ -305,17 +333,19 @@ export async function* submitFanout(args: SubmitFanoutArgs): AsyncIterable<Fanou
       submittedThisWave.push(slot.id);
 
       // Update in-flight tracker:
-      //   * Mix-output UTxOs go onto chainFromUtxos so the NEXT wave's
-      //     evaluator + collateral host can resolve them.
-      //   * Fee-shard input goes onto the in-flight ref set so the
-      //     picker doesn't pick the same shard for another slot in this
-      //     wave / future waves.
-      //   * Fee-shard POST-STATE goes onto feeShardExtras so a future
-      //     slot can re-spend it.
+      //   * Mix outputs go into parentOutputsBySlot, keyed by THIS
+      //     slot's id, so only this slot's direct child slots inherit
+      //     them via chainFrom — not unrelated cousins or descendants.
+      //   * Fee-shard input ref goes into inFlightShardRefs (exclude
+      //     set) so no later slot picks the same shard.
+      //   * Fee-shard POST-STATE goes into inFlightShardExtras (picker
+      //     candidates), and is folded into every slot's chainFrom
+      //     since the picker may select it from any wave.
       const txIdLower = result.txId.toLowerCase();
+      const thisSlotOutputs: Utxo[] = [];
       for (let i = 0; i < result.plan.outputs.length; i++) {
         const out = result.plan.outputs[i]!;
-        inFlightChainFromUtxos.push({
+        thisSlotOutputs.push({
           ref: { txId: txIdLower, outputIndex: i },
           address: result.plan.mixBoxAddressBech32,
           lovelace: denomLovelace,
@@ -341,12 +371,15 @@ export async function* submitFanout(args: SubmitFanoutArgs): AsyncIterable<Fanou
           inlineDatum: postShardOutput.inlineDatumHex,
           referenceScript: null,
         };
-        // Forward in both registers so a future slot CAN pick this
-        // shard (extras) AND the evaluator can resolve it once picked
-        // (chainFrom).
+        // Pickable by future slots + resolvable by their evaluator.
+        // Folded into chainFrom for every slot (small set; ≤13 at
+        // depth 4). Intentionally NOT pushed into parentOutputsBySlot
+        // — the shard already shows up in inFlightShardExtras, which
+        // every slot's chainFrom merges in, so adding it here would
+        // duplicate the entry in the additionalUtxoSet payload.
         inFlightShardExtras.push(postShardUtxo);
-        inFlightChainFromUtxos.push(postShardUtxo);
       }
+      parentOutputsBySlot.set(slot.id, thisSlotOutputs);
 
       yield {
         kind: "slot-submitted",

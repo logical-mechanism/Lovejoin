@@ -1398,9 +1398,18 @@ export async function buildMixTx(args: BuildMixArgs): Promise<MixResult> {
             `feeOut=${plan.feeShardInput.lovelace - capped}`,
         );
         if (capped !== plan.txFeeLovelace) {
-          unsignedTxHex = await buildWithFeeBumpRetry(buildOnce, capped, plan.txFeeLovelace);
+          const bumped = await buildWithFeeBumpRetry(buildOnce, capped, plan.txFeeLovelace);
+          unsignedTxHex = bumped.txHex;
+          // Use the FINAL fee the rebuild settled on, not the initial
+          // `capped` value. mesh-csl can ratchet the fee a few hundred
+          // lovelace higher when its own min-fee check disagrees with
+          // ours; recording the pre-bump value here mis-predicts the
+          // post-state fee-shard's on-chain lovelace and breaks
+          // chained Mix txs that picks that shard via feeShardExtras.
+          actualFeeLovelace = bumped.finalFee;
+        } else {
+          actualFeeLovelace = capped;
         }
-        actualFeeLovelace = capped;
       } else {
         console.warn(
           `[lovejoin/mix] shard-mode fee discovery: evaluator returned non-array ` +
@@ -1529,12 +1538,13 @@ async function buildWithFeeBumpRetry(
   initialFee: bigint,
   feeCeiling: bigint,
   attempts = 3,
-): Promise<string> {
+): Promise<{ txHex: string; finalFee: bigint }> {
   let fee = initialFee;
   let lastErr: unknown;
   for (let i = 0; i < attempts; i++) {
     try {
-      return await buildOnce(fee);
+      const txHex = await buildOnce(fee);
+      return { txHex, finalFee: fee };
     } catch (e) {
       lastErr = e;
       const msg = e instanceof Error ? e.message : String(e);

@@ -283,9 +283,49 @@ describe("submitFanout", () => {
     }
     // First wave gets no in-flight chain-from input.
     expect(chainFromBySlot[0]).toBe(0);
-    // Wave 1's first slot sees the 3 mix outputs + 1 fee-shard post-state
-    // from wave 0 → 4 chain-from entries.
+    // Wave 1's first slot sees its direct parent's 3 mix outputs +
+    // 1 fee-shard post-state from wave 0 → 4 chain-from entries.
     expect(chainFromBySlot[1]).toBeGreaterThanOrEqual(4);
+  });
+
+  it("chainFrom stays bounded by direct parent + fee-shard extras (not accumulated tree)", async () => {
+    // Without per-slot pruning, a depth-3 run would grow chainFrom by 4
+    // entries per submitted slot — wave-2 leaves would see 4 (wave-0) +
+    // 12 (wave-1) + 8..32 (earlier wave-2 siblings) = 24..48 entries,
+    // blowing past the backend's 32-entry additionalUtxoSet cap.
+    //
+    // With pruning, every slot sees only its direct parent's 4 outputs
+    // + the current in-flight fee-shard set (≤13 at depth 3). Worst
+    // case = 4 + 13 = 17 entries.
+    const root = makeEntry(0);
+    const pool = Array.from({ length: 100 }, (_, i) => makeEntry(i + 1));
+    const plan = planFanout({ rootBox: root, pool, depth: 3, rng: zeroRng });
+
+    const chainFromBySlot: number[] = [];
+    let n = 0;
+    const buildMix = async (args: BuildMixArgs): Promise<MixResult> => {
+      chainFromBySlot.push(args.chainFrom?.utxos?.length ?? 0);
+      const label = `s${n++}`;
+      return stubMixResult(label, args.inputs.length, feeShardUtxo(`${label}_fee`));
+    };
+
+    for await (const _evt of submitFanout({
+      plan,
+      network: "preprod",
+      provider: NULL_PROVIDER,
+      addresses: ADDRESSES,
+      buildMix,
+    })) {
+      // drain
+    }
+    // 1 + 3 + 9 = 13 slot builds.
+    expect(chainFromBySlot).toHaveLength(13);
+    // No slot's chainFrom exceeds the backend's 32-entry cap. Tight
+    // assertion: 20 leaves comfortable headroom and would catch any
+    // regression where chainFrom starts accumulating again.
+    for (const count of chainFromBySlot) {
+      expect(count).toBeLessThanOrEqual(20);
+    }
   });
 
   it("excludes consumed fee shards from future picks via excludeFeeShardRefs", async () => {
