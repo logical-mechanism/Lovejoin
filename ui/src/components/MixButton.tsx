@@ -75,6 +75,17 @@ const COOLDOWN_MS = 5000;
  */
 const LOCAL_INFLIGHT_TTL_MS = 90_000;
 
+/**
+ * Hard cap on chained-Mix depth. After this many unconfirmed Mix
+ * ancestors are stacked, the next click falls back to selecting only
+ * confirmed pool entries — no chainFrom. Issue #127 calls this out:
+ * "Don't chain more than 2 deep without a measured throughput
+ * justification. Long chains have cumulative orphan probability." Each
+ * additional Mix in the chain multiplies the rollback probability by
+ * the parent's orphan rate, so the worst-case loss grows non-linearly.
+ */
+const MAX_CHAIN_DEPTH = 2;
+
 export interface MixButtonProps {
   network: Network;
   provider: ChainProvider;
@@ -139,6 +150,36 @@ export function MixButton({
   // `BadInputsUTxO`. Entries are pruned past `LOCAL_INFLIGHT_TTL_MS` so
   // the set doesn't grow without bound across a long session.
   const recentlySpentRefs = useRef<Map<string, number>>(new Map());
+
+  // Locally-tracked outputs from Mix txs submitted via THIS component
+  // that haven't confirmed yet — these become eligible inputs to the
+  // NEXT chained Mix. Each entry carries:
+  //   * PoolEntry: lets pickMixInputs treat the unconfirmed mix-box
+  //     as a normal pool candidate.
+  //   * Utxo: forwarded to SDK as chainFrom.utxos so every evaluator
+  //     on the path (local mesh, giveme.my upstream) sees the in-flight
+  //     output. Without this the SDK builds a tx that references a
+  //     UTxO no evaluator can find, and aborts at `tx.complete()`.
+  // Cleared after LOCAL_INFLIGHT_TTL_MS or when a refresh confirms the
+  // parent (whichever comes first). The "submitted at" timestamp is
+  // used for TTL pruning.
+  const recentMixOutputs = useRef<
+    Map<
+      string,
+      {
+        poolEntry: { ref: { txId: string; outputIndex: number }; a: Uint8Array; b: Uint8Array };
+        utxo: Utxo;
+        submittedAt: number;
+      }
+    >
+  >(new Map());
+
+  // Locally-tracked post-state fee shards from in-flight Mix txs. The
+  // next chained Mix can consume one of these via `feeShardExtras`
+  // instead of waiting for confirmation. Tracked separately from
+  // recentMixOutputs because the SDK's fee-shard picker has its own
+  // include-polarity slot. Same TTL.
+  const recentFeeShardOutputs = useRef<Map<string, { utxo: Utxo; submittedAt: number }>>(new Map());
 
   // Set of owned box refs for the wallet-mode bias strategy. Empty when
   // the vault is locked, when the user has no boxes, or when nothing
@@ -240,14 +281,72 @@ export function MixButton({
           inFlightRefs.add(refStr);
         }
       }
+      // Prune the in-flight Mix-output trackers in lockstep. Also drop
+      // any output whose ref already shows in `poolEntries` — that
+      // means the parent Mix has confirmed and the output is a normal
+      // pool candidate now, not "in-flight". This is how chain depth
+      // naturally decreases as parents land.
+      const poolRefSet = new Set(poolEntries.map((e) => refKey(e.ref)));
+      for (const [refStr, entry] of recentMixOutputs.current.entries()) {
+        if (nowMs - entry.submittedAt > LOCAL_INFLIGHT_TTL_MS || poolRefSet.has(refStr)) {
+          recentMixOutputs.current.delete(refStr);
+        }
+      }
+      for (const [refStr, entry] of recentFeeShardOutputs.current.entries()) {
+        if (nowMs - entry.submittedAt > LOCAL_INFLIGHT_TTL_MS) {
+          recentFeeShardOutputs.current.delete(refStr);
+        }
+      }
+
+      // Chain depth check: count distinct parent txids carrying
+      // unconfirmed Mix outputs. If we're at or past the cap, skip
+      // chaining — pickMixInputs falls back to confirmed-only.
+      const chainParents = new Set(
+        [...recentMixOutputs.current.values()].map((e) => e.poolEntry.ref.txId),
+      );
+      const chainDepth = chainParents.size;
+      const canChain = chainDepth < MAX_CHAIN_DEPTH;
+      const inFlightMixOutputs = canChain
+        ? [...recentMixOutputs.current.values()]
+        : ([] as Array<{
+            poolEntry: { ref: { txId: string; outputIndex: number }; a: Uint8Array; b: Uint8Array };
+            utxo: Utxo;
+            submittedAt: number;
+          }>);
+      const inFlightFeeShards = canChain
+        ? [...recentFeeShardOutputs.current.values()]
+        : ([] as Array<{ utxo: Utxo; submittedAt: number }>);
+      if (chainDepth > 0) {
+        console.log(
+          `[lovejoin/ui] in-flight chain detected: depth=${chainDepth}/${MAX_CHAIN_DEPTH}, ` +
+            `${inFlightMixOutputs.length} mix-box(es) + ${inFlightFeeShards.length} fee shard(s) ` +
+            `available as chainFrom inputs${canChain ? "" : " — skipped (depth cap)"}`,
+        );
+      }
+
       const poolForPicking =
         inFlightRefs.size > 0
           ? poolEntries.filter((e) => !inFlightRefs.has(refKey(e.ref)))
           : poolEntries;
+      // Splice in-flight Mix outputs into the picker pool so they are
+      // eligible candidates (capped at MAX_CHAIN_DEPTH). Dedupe by ref
+      // — if the parent confirmed between fetch and submit, the entry
+      // is already in poolEntries.
+      const pickPoolWithChain =
+        inFlightMixOutputs.length > 0
+          ? [
+              ...poolForPicking,
+              ...inFlightMixOutputs
+                .filter(
+                  (e) => !poolForPicking.some((p) => refKey(p.ref) === refKey(e.poolEntry.ref)),
+                )
+                .map((e) => e.poolEntry),
+            ]
+          : poolForPicking;
       // If filtering left too few boxes for the chosen N, fall back to
       // the full pool. The retry path will catch the resulting collision
       // if it happens; better than refusing to mix at all.
-      const effectivePool = poolForPicking.length >= n ? poolForPicking : poolEntries;
+      const effectivePool = pickPoolWithChain.length >= n ? pickPoolWithChain : poolEntries;
       const picked = pickMixInputs({
         pool: effectivePool,
         n,
@@ -265,8 +364,22 @@ export function MixButton({
                 : [];
             })
           : undefined;
+      // Build MixInputs. When a picked entry corresponds to a tracked
+      // in-flight Mix output, use the recorded Utxo (correct address +
+      // inline-datum); for confirmed pool entries we substitute the
+      // standard placeholder (the SDK only needs ref+a+b+lovelace for
+      // confirmed inputs because mesh's evaluator can resolve them
+      // from chain).
+      const pickedRefSet = new Set(picked.map((e) => refKey(e.ref)));
+      const inFlightInputsUtxos: Utxo[] = inFlightMixOutputs
+        .filter((e) => pickedRefSet.has(refKey(e.poolEntry.ref)))
+        .map((e) => e.utxo);
+      const inFlightInputUtxoByRef = new Map(
+        inFlightInputsUtxos.map((u) => [refKey(u.ref), u] as const),
+      );
       const inputs = picked.map<MixInput>((e) => {
-        const utxo: Utxo = {
+        const recorded = inFlightInputUtxoByRef.get(refKey(e.ref));
+        const utxo: Utxo = recorded ?? {
           ref: e.ref,
           address: "",
           lovelace: BigInt(addresses.protocol.denom_lovelace),
@@ -276,6 +389,12 @@ export function MixButton({
         };
         return { ref: e.ref, a: e.a, b: e.b, utxo };
       });
+
+      // chainFrom carries ALL surviving in-flight Mix outputs — not
+      // just the ones we picked — because the upstream evaluator may
+      // want to resolve neighbouring outputs (e.g. the fee shard) as
+      // well. Empty array means "no chaining".
+      const chainFromUtxos = [...inFlightInputsUtxos, ...inFlightFeeShards.map((e) => e.utxo)];
       const result = await buildMixTx({
         network: network as "preprod" | "preview" | "mainnet",
         inputs,
@@ -289,6 +408,12 @@ export function MixButton({
         addresses,
         feePayer,
         ...(excludeFeeShardRefs ? { excludeFeeShardRefs } : {}),
+        ...(inFlightFeeShards.length > 0
+          ? { feeShardExtras: inFlightFeeShards.map((e) => e.utxo) }
+          : {}),
+        ...(chainFromUtxos.length > 0
+          ? { chainFrom: { utxos: chainFromUtxos, chainDepth: chainDepth + 1 } }
+          : {}),
         retry: {
           maxAttempts: 3,
           delayBetweenAttemptsMs: 2_000,
@@ -318,6 +443,61 @@ export function MixButton({
       const submittedFeeShard = result.plan.feeShardInput;
       if (submittedFeeShard) {
         recentlySpentRefs.current.set(refKey(submittedFeeShard.ref), submittedAt);
+      }
+      // If any of the picked inputs were themselves in-flight Mix
+      // outputs from a previous click, drop them from the tracker —
+      // they've now been consumed by THIS tx and won't be available
+      // for further chaining.
+      for (const inp of picked) {
+        recentMixOutputs.current.delete(refKey(inp.ref));
+      }
+      // Same for the in-flight fee shard, if we consumed one.
+      if (submittedFeeShard) {
+        recentFeeShardOutputs.current.delete(refKey(submittedFeeShard.ref));
+      }
+
+      // Capture THIS Mix's OUTPUTS as candidates for the next chained
+      // click. Mix outputs live at positions 0..N-1 of result.txId;
+      // the fee-shard output (shard mode only) lives at position N.
+      // Both inherit the protocol's denom_lovelace + canonical mix-box
+      // address; the inline datums come straight from the SDK plan.
+      const newTxId = result.txId.toLowerCase();
+      const denomLovelace = BigInt(addresses.protocol.denom_lovelace);
+      for (let i = 0; i < result.plan.outputs.length; i++) {
+        const planOutput = result.plan.outputs[i]!;
+        const outRef = { txId: newTxId, outputIndex: i };
+        const outKey = refKey(outRef);
+        const childUtxo: Utxo = {
+          ref: outRef,
+          address: result.plan.mixBoxAddressBech32,
+          lovelace: denomLovelace,
+          assets: {},
+          inlineDatum: planOutput.inlineDatumHex,
+          referenceScript: null,
+        };
+        recentMixOutputs.current.set(outKey, {
+          poolEntry: { ref: outRef, a: planOutput.a, b: planOutput.b },
+          utxo: childUtxo,
+          submittedAt,
+        });
+      }
+      // Post-state fee shard output (shard mode only). Mesh emits it
+      // immediately after the mix-boxes — index N. The SDK plan tells
+      // us its bech32 + datum + lovelace.
+      const newShardOutput = result.plan.feeShardOutput;
+      if (newShardOutput && result.plan.feePayer === "shard") {
+        const shardRef = { txId: newTxId, outputIndex: result.plan.n };
+        recentFeeShardOutputs.current.set(refKey(shardRef), {
+          utxo: {
+            ref: shardRef,
+            address: newShardOutput.addressBech32,
+            lovelace: newShardOutput.lovelace,
+            assets: {},
+            inlineDatum: newShardOutput.inlineDatumHex,
+            referenceScript: null,
+          },
+          submittedAt,
+        });
       }
       onSubmitted(result.txId);
       startCooldown();
