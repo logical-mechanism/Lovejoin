@@ -85,7 +85,11 @@ import {
   sumEvaluatorExUnits,
 } from "./fee-helpers.js";
 import { pickRandomFeeShard } from "./fee.js";
-import { type RetryOptions, withInputCollisionRetry } from "./retry.js";
+import {
+  looksLikeFeeShardBuildError,
+  type RetryOptions,
+  withInputCollisionRetry,
+} from "./retry.js";
 import { getMeshProtocolParams, getMeshProvider } from "./mesh-bridge.js";
 import {
   fetchProtocolParams,
@@ -899,11 +903,23 @@ export async function buildMixTx(args: BuildMixArgs): Promise<MixResult> {
     );
   }
 
-  // Build + sign + submit, with retry on fee-shard collision. Attempts
-  // 2+ ignore `args.feeShard` and pick a fresh shard from chain (reusing
-  // the caller's pre-pick on retry would just re-trigger the same
-  // BadInputsUTxO). Pool-box collisions aren't auto-fixed; the retry
-  // would build the same tx and fail again, exhausting maxAttempts.
+  // Per-call tracker of fee shards we've tried that ended up failing
+  // the build pass (mesh-csl "Insufficient input" or ledger
+  // ValueNotConservedUTxO). Closed over by the retry closure so each
+  // retry excludes every previous attempt's shard, not just the most
+  // recent one. Lets the picker walk the pool until it finds a shard
+  // with enough headroom above the cap-fee to satisfy min-utxo on the
+  // post-state output; in practice that's the first attempt for a
+  // healthy pool and ≤ 2 attempts even with mostly-depleted shards.
+  const failedFeeShardRefs: UtxoRef[] = [];
+
+  // Build + sign + submit, with retry on fee-shard collision OR
+  // build-time imbalance. Attempts 2+ ignore `args.feeShard`, exclude
+  // any previously-failed shards via `failedFeeShardRefs`, and pick a
+  // fresh one from the pool. Reusing the caller's pre-pick on retry
+  // would re-trigger the same BadInputsUTxO. Pool-box collisions
+  // aren't auto-fixed; the retry would build the same tx and fail
+  // again, exhausting maxAttempts.
   return withInputCollisionRetry(async (attempt) => {
     // Resolve the fee shard. Shard mode picks one if not supplied; wallet
     // mode skips this entirely (no shard input on the tx). The floor
@@ -925,6 +941,12 @@ export async function buildMixTx(args: BuildMixArgs): Promise<MixResult> {
     const minFeeShardLovelace = params.maxFeePerMixLovelace + MIN_FEE_SHARD_HEADROOM_LOVELACE;
     let feeShard: Utxo | undefined;
     if (feePayer === "shard") {
+      // Compose the exclude-list for the picker. Callers contribute
+      // their own in-flight refs (mempool-aware shard avoidance);
+      // this builder accumulates failed-build shards across retries so
+      // we don't keep re-picking the one that just blew up.
+      const callerExcludes = args.excludeFeeShardRefs ?? [];
+      const excludeRefs = [...callerExcludes, ...failedFeeShardRefs];
       feeShard =
         attempt === 1 && args.feeShard
           ? args.feeShard
@@ -932,9 +954,7 @@ export async function buildMixTx(args: BuildMixArgs): Promise<MixResult> {
               provider: args.provider,
               feeScriptAddressBech32: buildScriptAddress(args.addresses.feeScriptHash, networkId),
               minLovelace: minFeeShardLovelace,
-              ...(args.excludeFeeShardRefs && args.excludeFeeShardRefs.length > 0
-                ? { excludeRefs: args.excludeFeeShardRefs }
-                : {}),
+              ...(excludeRefs.length > 0 ? { excludeRefs } : {}),
               ...(args.feeShardExtras && args.feeShardExtras.length > 0
                 ? { extraShards: args.feeShardExtras }
                 : {}),
@@ -1296,6 +1316,20 @@ export async function buildMixTx(args: BuildMixArgs): Promise<MixResult> {
     try {
       unsignedTxHex = await buildOnce();
     } catch (evalErr) {
+      // mesh-csl "Insufficient input" or similar fee-shard imbalance
+      // means the picked shard didn't have enough headroom above the
+      // cap-fee. Record it so the retry excludes it, then re-throw
+      // unchanged — withInputCollisionRetry picks up the pattern and
+      // calls us again with a clean slate.
+      if (feeShard && looksLikeFeeShardBuildError(evalErr)) {
+        failedFeeShardRefs.push(feeShard.ref);
+        console.warn(
+          `[lovejoin/mix] fee shard ${feeShard.ref.txId}#${feeShard.ref.outputIndex} ` +
+            `(lovelace=${feeShard.lovelace}) failed build with "Insufficient input"; ` +
+            `excluding from retry and re-picking from pool`,
+        );
+        throw evalErr;
+      }
       const errMsg = evalErr instanceof Error ? evalErr.message : String(evalErr);
       throw new Error(
         `Mix tx: evaluator failed and there is no fallback. The chain provider's ` +
