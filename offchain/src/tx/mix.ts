@@ -98,6 +98,7 @@ import { buildScriptRewardAddress } from "./withdraw.js";
 import {
   type LovejoinNetworkId,
   type LovejoinWallet,
+  lovejoinUtxoToMesh,
   networkIdFor,
   normalizeWalletUtxos,
 } from "../wallet/cip30.js";
@@ -1004,6 +1005,53 @@ export async function buildMixTx(args: BuildMixArgs): Promise<MixResult> {
       },
     };
 
+    // Mesh's `tx.complete()` also calls `fetcher.fetchUTxOs(parentTxId)`
+    // internally to resolve the input set's address + value before
+    // running the evaluator. For an in-flight parent the chain
+    // provider's lookup returns 404 (the tx hasn't confirmed; neither
+    // db-sync nor Blockfrost knows about it yet) and the build aborts
+    // with "Couldn't find value information for <parentTx>#<idx>".
+    //
+    // Wrap the fetcher so it intercepts lookups against the chainFrom
+    // refs and returns the locally-known MeshUtxo before falling
+    // through to chain. Mesh accepts either the full list or a
+    // single-index filter — we honour both.
+    const chainFromMeshByRefKey = new Map<string, ReturnType<typeof lovejoinUtxoToMesh>>();
+    for (const u of chainFromUtxos) {
+      chainFromMeshByRefKey.set(
+        `${u.ref.txId.toLowerCase()}#${u.ref.outputIndex}`,
+        lovejoinUtxoToMesh(u),
+      );
+    }
+    const chainAwareFetcher = {
+      fetchUTxOs: async (
+        txHash: string,
+        index?: number,
+      ): Promise<ReturnType<typeof lovejoinUtxoToMesh>[]> => {
+        const lowerHash = txHash.toLowerCase();
+        if (chainFromMeshByRefKey.size > 0) {
+          const matches: ReturnType<typeof lovejoinUtxoToMesh>[] = [];
+          for (const [key, meshUtxo] of chainFromMeshByRefKey.entries()) {
+            const [keyHash, keyIdxStr] = key.split("#");
+            if (keyHash !== lowerHash) continue;
+            const keyIdx = Number(keyIdxStr);
+            if (typeof index === "number" && keyIdx !== index) continue;
+            matches.push(meshUtxo);
+          }
+          if (matches.length > 0) {
+            console.log(
+              `[lovejoin/mix] fetcher served ${matches.length} in-flight UTxO(s) ` +
+                `for ${lowerHash}${index !== undefined ? `#${index}` : ""} from chainFrom`,
+            );
+            return matches;
+          }
+        }
+        return (await meshProvider.fetchUTxOs(txHash, index)) as ReturnType<
+          typeof lovejoinUtxoToMesh
+        >[];
+      },
+    };
+
     // Mesh requires a change address even when no change will ever be
     // emitted (shard mode runs `selectUtxosFrom([])`, so the builder won't
     // touch any UTxO that could produce change). When a wallet is present
@@ -1164,9 +1212,25 @@ export async function buildMixTx(args: BuildMixArgs): Promise<MixResult> {
       }
     };
 
+    // When chainFrom is set, hand mesh a fetcher proxy that knows how
+    // to resolve in-flight refs locally. Otherwise pass the underlying
+    // provider through unchanged so the standard chain-lookup path
+    // stays the default (no per-call overhead, no surprises for the
+    // non-chained case).
+    const fetcherForBuild =
+      chainFromMeshByRefKey.size > 0
+        ? new Proxy(meshProvider, {
+            get(target, prop, receiver) {
+              if (prop === "fetchUTxOs") {
+                return chainAwareFetcher.fetchUTxOs;
+              }
+              return Reflect.get(target, prop, receiver);
+            },
+          })
+        : meshProvider;
     const buildOnce = async (feeOverride?: bigint): Promise<string> => {
       const tx = new MeshTxBuilder({
-        fetcher: meshProvider as never,
+        fetcher: fetcherForBuild as never,
         submitter: meshProvider as never,
         // chainAwareEvaluator routes through evaluateTxWithAdditionalUtxos
         // when chainFrom is set; otherwise it delegates to meshProvider's
