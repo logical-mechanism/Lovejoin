@@ -730,6 +730,19 @@ export interface BuildMixArgs {
    */
   excludeFeeShardRefs?: ReadonlyArray<UtxoRef>;
   /**
+   * Optional in-flight fee shards the caller wants the SDK to consider
+   * alongside the chain-confirmed set. Include-polarity companion to
+   * `excludeFeeShardRefs`: when chaining off an in-flight Replenish or
+   * prior Mix, pass the parent's post-state fee-shard output here so
+   * the picker can re-spend it without waiting for confirmation.
+   *
+   * Forwarded to `pickRandomFeeShard.extraShards`; entries that aren't
+   * legitimate fee shards (wrong datum, native assets) are filtered out
+   * defensively. Ignored in wallet mode (no shard picked) and when
+   * `feeShard` is supplied.
+   */
+  feeShardExtras?: ReadonlyArray<Utxo>;
+  /**
    * Collateral provider. Defaults to a `GivemeMyProvider` wired against the
    * pinned host for `args.network` — Mix txs MUST be wallet-anonymous, and
    * a wallet-supplied collateral leaks the submitter's identity onto the
@@ -888,6 +901,9 @@ export async function buildMixTx(args: BuildMixArgs): Promise<MixResult> {
               minLovelace: MIN_FEE_SHARD_LOVELACE,
               ...(args.excludeFeeShardRefs && args.excludeFeeShardRefs.length > 0
                 ? { excludeRefs: args.excludeFeeShardRefs }
+                : {}),
+              ...(args.feeShardExtras && args.feeShardExtras.length > 0
+                ? { extraShards: args.feeShardExtras }
                 : {}),
             });
     }
