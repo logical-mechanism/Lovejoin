@@ -110,22 +110,30 @@ beforeAll(async () => {
     slot: 100,
     blockHash: txHash("blk-100"),
     height: 1,
-    consumed: [],
-    produced: [
-      mixBoxOutput(txHash("d1"), 0, 1, 2),
-      mixBoxOutput(txHash("d2"), 0, 3, 4),
-      mixBoxOutput(txHash("d3"), 0, 5, 6),
-      feeOutput(txHash("f1"), 0, 5_000_000n),
-      feeOutput(txHash("f2"), 0, 3_000_000n),
-      referenceOutput(txHash("ref1")),
+    txs: [
+      {
+        consumed: [],
+        produced: [
+          mixBoxOutput(txHash("d1"), 0, 1, 2),
+          mixBoxOutput(txHash("d2"), 0, 3, 4),
+          mixBoxOutput(txHash("d3"), 0, 5, 6),
+          feeOutput(txHash("f1"), 0, 5_000_000n),
+          feeOutput(txHash("f2"), 0, 3_000_000n),
+          referenceOutput(txHash("ref1")),
+        ],
+      },
     ],
   });
   state.applyForward({
     slot: 110,
     blockHash: txHash("blk-110"),
     height: 2,
-    consumed: [],
-    produced: [mixBoxOutput(txHash("d4"), 0, 7, 8), mixBoxOutput(txHash("d5"), 0, 9, 10)],
+    txs: [
+      {
+        consumed: [],
+        produced: [mixBoxOutput(txHash("d4"), 0, 7, 8), mixBoxOutput(txHash("d5"), 0, 9, 10)],
+      },
+    ],
   });
 
   server = await buildServer({
@@ -264,8 +272,7 @@ describe("API: /params", () => {
       slot: 120,
       blockHash: txHash("blk-120"),
       height: 3,
-      consumed: [{ txId: txHash("ref1"), outputIndex: 0 }],
-      produced: [],
+      txs: [{ consumed: [{ txId: txHash("ref1"), outputIndex: 0 }], produced: [] }],
     });
     const res = await server.inject({ method: "GET", url: "/params" });
     expect(res.statusCode).toBe(503);
@@ -276,8 +283,7 @@ describe("API: /params", () => {
       slot: 130,
       blockHash: txHash("blk-130"),
       height: 4,
-      consumed: [],
-      produced: [referenceOutput(txHash("ref2"))],
+      txs: [{ consumed: [], produced: [referenceOutput(txHash("ref2"))] }],
     });
   });
 });

@@ -116,11 +116,12 @@ describe("OgmiosClient", () => {
     if (event.kind !== "forward") throw new Error();
     expect(event.block.slot).toBe(101);
     expect(event.block.height).toBe(49);
-    expect(event.block.consumed).toEqual([{ txId: "22".repeat(32), outputIndex: 0 }]);
+    expect(event.block.txs).toHaveLength(1);
+    expect(event.block.txs[0]!.consumed).toEqual([{ txId: "22".repeat(32), outputIndex: 0 }]);
     // Output is at mix-box address but datum won't decode → produced array still includes
     // it (filtering by address happens here, datum decoding happens later in state.ts).
-    expect(event.block.produced).toHaveLength(1);
-    expect(event.block.produced[0]?.address).toBe("addr_test1mix");
+    expect(event.block.txs[0]!.produced).toHaveLength(1);
+    expect(event.block.txs[0]!.produced[0]?.address).toBe("addr_test1mix");
     client.close();
   });
 
@@ -186,12 +187,13 @@ describe("blockToDiff", () => {
       } as Parameters<typeof blockToDiff>[0],
       FILTER,
     );
-    expect(diff.produced.map((p) => p.address)).toEqual([
+    expect(diff.txs).toHaveLength(1);
+    expect(diff.txs[0]!.produced.map((p) => p.address)).toEqual([
       "addr_test1mix",
       "addr_test1fee",
       "addr_test1ref",
     ]);
-    expect(diff.produced[2]?.assets[FILTER.referenceNftUnit]).toBe(1n);
+    expect(diff.txs[0]!.produced[2]?.assets[FILTER.referenceNftUnit]).toBe(1n);
   });
 
   it("collects every input as consumed, regardless of where it was at", () => {
@@ -213,9 +215,56 @@ describe("blockToDiff", () => {
       } as Parameters<typeof blockToDiff>[0],
       FILTER,
     );
-    expect(diff.consumed).toEqual([
+    expect(diff.txs).toHaveLength(1);
+    expect(diff.txs[0]!.consumed).toEqual([
       { txId: "cc".repeat(32), outputIndex: 0 },
       { txId: "dd".repeat(32), outputIndex: 1 },
     ]);
+  });
+
+  it("emits one TxDiff per transaction (preserves order for chained txs)", () => {
+    // Two chained Mix txs in the same block: tx[1] consumes an output
+    // produced by tx[0]. blockToDiff must emit per-tx structure so the
+    // indexer can apply them in order; a block-level flatten would
+    // collapse the dependency and orphan the intermediate output.
+    const TX0 = "bb".repeat(32);
+    const TX1 = "ee".repeat(32);
+    const diff = blockToDiff(
+      {
+        slot: 7,
+        id: "aa".repeat(32),
+        height: 7,
+        transactions: [
+          {
+            id: TX0,
+            inputs: [{ transaction: { id: "cc".repeat(32) }, index: 0 }],
+            outputs: [
+              {
+                address: "addr_test1mix",
+                value: { ada: { lovelace: 10_000_000 } },
+                datum: "d87980",
+              },
+            ],
+          },
+          {
+            id: TX1,
+            inputs: [{ transaction: { id: TX0 }, index: 0 }],
+            outputs: [
+              {
+                address: "addr_test1mix",
+                value: { ada: { lovelace: 10_000_000 } },
+                datum: "d87980",
+              },
+            ],
+          },
+        ],
+      } as Parameters<typeof blockToDiff>[0],
+      FILTER,
+    );
+    expect(diff.txs).toHaveLength(2);
+    expect(diff.txs[0]!.consumed).toEqual([{ txId: "cc".repeat(32), outputIndex: 0 }]);
+    expect(diff.txs[0]!.produced).toHaveLength(1);
+    expect(diff.txs[1]!.consumed).toEqual([{ txId: TX0, outputIndex: 0 }]);
+    expect(diff.txs[1]!.produced).toHaveLength(1);
   });
 });

@@ -72,7 +72,17 @@ export interface FeeStateSnapshot {
   estimatedMixesAvailable: number;
 }
 
-/** What the ChainSync produced for a single block — both removed + added UTxOs. */
+/**
+ * What the ChainSync produced for a single block.
+ *
+ * Per-tx structure (rather than block-level flattened consumed/produced) is
+ * required for correctness when chained txs land in the same block: tx[1]
+ * may consume an output that tx[0] just produced, and the indexer must
+ * apply each tx as a unit so the intermediate output is added then
+ * removed in order. A block-level flatten loses that ordering and leaves
+ * phantom pool entries that were created and immediately spent within
+ * the block.
+ */
 export interface BlockDiff {
   /** Slot at which this block was applied. */
   slot: number;
@@ -80,9 +90,15 @@ export interface BlockDiff {
   blockHash: Hex32;
   /** Block height (number) — used to bound the rollback buffer. */
   height: number;
-  /** UTxOs at relevant addresses spent by this block. */
+  /** Per-transaction diffs, in block order. */
+  txs: TxDiff[];
+}
+
+/** One transaction's contribution to a block diff. */
+export interface TxDiff {
+  /** UTxOs at relevant addresses spent by this tx. */
   consumed: UtxoRef[];
-  /** UTxOs at relevant addresses produced by this block. */
+  /** UTxOs at relevant addresses produced by this tx. */
   produced: ProducedUtxo[];
 }
 
