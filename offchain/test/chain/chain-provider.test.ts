@@ -338,14 +338,13 @@ describe("BlockfrostProvider.evaluateTxWithAdditionalUtxos", () => {
     ]);
     const { provider: p, calls } = provider(responses);
     const additional = [
-      [
-        { transaction: { id: "ab".repeat(32) }, index: 0 },
-        {
-          address: "addr_test1qparent",
-          value: { ada: { lovelace: 7_500_000n } },
-          datum: "d87980",
-        },
-      ],
+      {
+        transaction: { id: "ab".repeat(32) },
+        index: 0,
+        address: "addr_test1qparent",
+        value: { ada: { lovelace: 7_500_000n } },
+        datum: "d87980",
+      },
     ] as const;
     const actions = await (p as BlockfrostProvider).evaluateTxWithAdditionalUtxos(
       "84aa00deadbeef",
@@ -362,18 +361,21 @@ describe("BlockfrostProvider.evaluateTxWithAdditionalUtxos", () => {
     expect(call!.headers["Content-Type"]).toBe("application/json");
     expect(call!.headers["project_id"]).toBe("preprod_TEST");
     // Body is the JSON body the upstream Blockfrost endpoint expects.
+    // Each entry is a FLAT object — not a 2-tuple. Ogmios v6 rejects
+    // the tuple form with "parsing TxIn failed, expected Object,
+    // encountered Array".
     const parsed = JSON.parse(call!.body as string);
     expect(parsed.cbor).toBe("84aa00deadbeef");
     expect(parsed.additionalUtxoSet).toEqual([
-      [
-        { transaction: { id: "ab".repeat(32) }, index: 0 },
-        {
-          address: "addr_test1qparent",
-          value: { ada: { lovelace: 7_500_000 } }, // bigint serialised to number
-          datum: "d87980",
-        },
-      ],
+      {
+        transaction: { id: "ab".repeat(32) },
+        index: 0,
+        address: "addr_test1qparent",
+        value: { ada: { lovelace: 7_500_000 } }, // bigint serialised to number
+        datum: "d87980",
+      },
     ]);
+    expect(Array.isArray(parsed.additionalUtxoSet[0])).toBe(false);
   });
 
   it("surfaces upstream evaluator errors verbatim", async () => {
@@ -407,13 +409,12 @@ describe("BlockfrostProvider.evaluateTxWithAdditionalUtxos", () => {
     const { provider: p } = provider(responses);
     await expect(
       (p as BlockfrostProvider).evaluateTxWithAdditionalUtxos("deadbeef", [
-        [
-          { transaction: { id: "ab".repeat(32) }, index: 0 },
-          {
-            address: "addr_test1qparent",
-            value: { ada: { lovelace: 2n ** 60n } },
-          },
-        ],
+        {
+          transaction: { id: "ab".repeat(32) },
+          index: 0,
+          address: "addr_test1qparent",
+          value: { ada: { lovelace: 2n ** 60n } },
+        },
       ]),
     ).rejects.toThrow(/MAX_SAFE_INTEGER/);
   });

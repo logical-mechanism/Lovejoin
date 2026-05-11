@@ -281,8 +281,9 @@ describe("tx/collateral — GivemeMyProvider", () => {
 
   it("signTxBody forwards a non-empty additional_utxos array in the JSON body", async () => {
     // Issue #127: this is the in-flight tx chaining wire-format check.
-    // Schema: `additional_utxos: [[txin, txout], ...]` with `txin =
-    // { transaction: { id }, index }` and `txout = { address, value, ... }`.
+    // Schema: flat objects per Ogmios v6 — the first cut used a
+    // `[txin, txout]` 2-tuple but Ogmios rejected with "parsing TxIn
+    // failed, expected Object, but encountered Array".
     let captured: string | null = null;
     const provider = new GivemeMyProvider({
       network: "preprod",
@@ -292,29 +293,29 @@ describe("tx/collateral — GivemeMyProvider", () => {
       }),
     });
     const additionalUtxos: AdditionalUtxo[] = [
-      [
-        { transaction: { id: "ab".repeat(32) }, index: 0 },
-        {
-          address: "addr_test1qparent",
-          // bigints get coerced to numbers by the custom replacer.
-          value: { ada: { lovelace: 7_500_000n } },
-          datum: "d87980",
-        },
-      ],
+      {
+        transaction: { id: "ab".repeat(32) },
+        index: 0,
+        address: "addr_test1qparent",
+        // bigints get coerced to numbers by the custom replacer.
+        value: { ada: { lovelace: 7_500_000n } },
+        datum: "d87980",
+      },
     ];
     await provider.signTxBody("84aa00", { additionalUtxos });
     const parsed = JSON.parse(captured!);
     expect(parsed.tx).toBe("84aa00");
     expect(parsed.additional_utxos).toEqual([
-      [
-        { transaction: { id: "ab".repeat(32) }, index: 0 },
-        {
-          address: "addr_test1qparent",
-          value: { ada: { lovelace: 7_500_000 } },
-          datum: "d87980",
-        },
-      ],
+      {
+        transaction: { id: "ab".repeat(32) },
+        index: 0,
+        address: "addr_test1qparent",
+        value: { ada: { lovelace: 7_500_000 } },
+        datum: "d87980",
+      },
     ]);
+    // Regression guard: entries MUST NOT be arrays.
+    expect(Array.isArray(parsed.additional_utxos[0])).toBe(false);
   });
 
   it("signTxBody throws when an additional_utxos value exceeds Number.MAX_SAFE_INTEGER", async () => {
@@ -331,13 +332,12 @@ describe("tx/collateral — GivemeMyProvider", () => {
     await expect(
       provider.signTxBody("84aa00", {
         additionalUtxos: [
-          [
-            { transaction: { id: "ab".repeat(32) }, index: 0 },
-            {
-              address: "addr_test1qparent",
-              value: { ada: { lovelace: 2n ** 60n } },
-            },
-          ],
+          {
+            transaction: { id: "ab".repeat(32) },
+            index: 0,
+            address: "addr_test1qparent",
+            value: { ada: { lovelace: 2n ** 60n } },
+          },
         ],
       }),
     ).rejects.toThrow(/MAX_SAFE_INTEGER/);

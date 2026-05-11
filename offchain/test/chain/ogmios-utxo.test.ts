@@ -1,10 +1,14 @@
 // Unit tests for chain/ogmios-utxo.ts.
 //
-// The Ogmios `additionalUtxo` shape is fed verbatim into giveme.my's
-// upstream evaluator (see issue #127). Any off-by-one in how we split
-// `policyId<assetName>` into the nested-map form would make the upstream
-// reject the Mix tx with "unknown asset", silently breaking in-flight
-// chaining without ever leaving the build pass.
+// The Ogmios `additionalUtxo` shape is fed verbatim into the upstream
+// evaluator (giveme.my via additional_utxos, Blockfrost via
+// additionalUtxoSet, the self-hosted backend via additionalUtxo on the
+// ogmios JSON-RPC). Any off-by-one would fail the chained-Mix
+// evaluation before submit. The first cut of this module emitted a
+// `[txin, txout]` 2-tuple per the issue spec but Ogmios v6 rejected
+// with "parsing TxIn failed, expected Object, but encountered Array"
+// — the schema actually wants a flat object combining ref + output
+// fields. These tests pin the corrected shape.
 
 import { describe, expect, it } from "vitest";
 
@@ -15,32 +19,33 @@ import {
 } from "../../src/chain/ogmios-utxo.js";
 
 describe("chain/ogmios-utxo — meshUtxoToOgmiosAdditional", () => {
-  it("emits the [ref, output] pair with ada.lovelace", () => {
-    const out = meshUtxoToOgmiosAdditional({
+  it("emits a flat object with ref + output fields and ada.lovelace", () => {
+    const entry = meshUtxoToOgmiosAdditional({
       input: { txHash: "ABCD".repeat(16), outputIndex: 3 },
       output: {
         address: "addr_test1qsomething",
         amount: [{ unit: "lovelace", quantity: "5000000" }],
       },
     });
-    const [ref, output] = out;
     // Tx id lowercased; Ogmios is case-insensitive but most upstream
     // tooling canonicalises to lower so we match.
-    expect(ref).toEqual({
-      transaction: { id: "abcd".repeat(16) },
-      index: 3,
-    });
-    expect(output.address).toBe("addr_test1qsomething");
-    expect(output.value.ada.lovelace).toBe(5_000_000n);
+    expect(entry.transaction).toEqual({ id: "abcd".repeat(16) });
+    expect(entry.index).toBe(3);
+    expect(entry.address).toBe("addr_test1qsomething");
+    expect(entry.value.ada.lovelace).toBe(5_000_000n);
     // Inline-datum / script not present → fields omitted.
-    expect(output.datum).toBeUndefined();
-    expect(output.script).toBeUndefined();
+    expect(entry.datum).toBeUndefined();
+    expect(entry.script).toBeUndefined();
+    // Regression guard: the entry MUST NOT be a 2-tuple array — Ogmios
+    // rejects that with "parsing TxIn failed, expected Object,
+    // encountered Array".
+    expect(Array.isArray(entry)).toBe(false);
   });
 
   it("groups native assets by policyId in the nested-map shape", () => {
     const policyA = "11".repeat(28); // 56 hex chars
     const policyB = "22".repeat(28);
-    const out = meshUtxoToOgmiosAdditional({
+    const entry = meshUtxoToOgmiosAdditional({
       input: { txHash: "a".repeat(64), outputIndex: 0 },
       output: {
         address: "addr_test1q...",
@@ -53,17 +58,16 @@ describe("chain/ogmios-utxo — meshUtxoToOgmiosAdditional", () => {
         ],
       },
     });
-    const [, output] = out;
-    expect(output.value.ada.lovelace).toBe(2_000_000n);
-    expect(output.value[policyA]).toEqual({
+    expect(entry.value.ada.lovelace).toBe(2_000_000n);
+    expect(entry.value[policyA]).toEqual({
       "414243": 3n,
       "313233": 5n,
     });
-    expect(output.value[policyB]).toEqual({ "": 7n });
+    expect(entry.value[policyB]).toEqual({ "": 7n });
   });
 
   it("forwards inline datum + reference script when present", () => {
-    const [, output] = meshUtxoToOgmiosAdditional({
+    const entry = meshUtxoToOgmiosAdditional({
       input: { txHash: "b".repeat(64), outputIndex: 1 },
       output: {
         address: "addr_test1q...",
@@ -72,22 +76,22 @@ describe("chain/ogmios-utxo — meshUtxoToOgmiosAdditional", () => {
         scriptRef: "abcdef",
       },
     });
-    expect(output.datum).toBe("d87980");
-    expect(output.script).toBe("abcdef");
+    expect(entry.datum).toBe("d87980");
+    expect(entry.script).toBe("abcdef");
   });
 
   it("forces ada.lovelace to exist even when the UTxO has no lovelace", () => {
     // Ogmios requires `value.ada.lovelace` to exist; otherwise the
     // upstream evaluator throws "invalid value, missing ada". Zero is
     // the legal floor.
-    const [, output] = meshUtxoToOgmiosAdditional({
+    const entry = meshUtxoToOgmiosAdditional({
       input: { txHash: "c".repeat(64), outputIndex: 0 },
       output: {
         address: "addr_test1q...",
         amount: [{ unit: "11".repeat(28) + "00", quantity: "1" }],
       },
     });
-    expect(output.value.ada).toEqual({ lovelace: 0n });
+    expect(entry.value.ada).toEqual({ lovelace: 0n });
   });
 
   it("throws on a malformed asset unit (under 56 hex chars)", () => {
@@ -130,15 +134,14 @@ describe("chain/ogmios-utxo — lovejoinUtxoToOgmiosAdditional", () => {
     expect(JSON.stringify(fromMesh, bigintReplacer)).toBe(
       JSON.stringify(fromLovejoin, bigintReplacer),
     );
-    // Cross-check the hand-built fixture for the ada-only case.
-    const expected = [
-      { transaction: { id: "f".repeat(64) }, index: 0 },
-      {
-        address: "addr_test1qfoobar",
-        value: { ada: { lovelace: 10000000 } },
-        datum: "d87980",
-      },
-    ];
+    // Cross-check the hand-built fixture (flat object — NOT a 2-tuple).
+    const expected = {
+      transaction: { id: "f".repeat(64) },
+      index: 0,
+      address: "addr_test1qfoobar",
+      value: { ada: { lovelace: 10000000 } },
+      datum: "d87980",
+    };
     expect(JSON.parse(JSON.stringify(fromMesh, bigintReplacer))).toEqual(expected);
   });
 
@@ -153,9 +156,9 @@ describe("chain/ogmios-utxo — lovejoinUtxoToOgmiosAdditional", () => {
       inlineDatum: null,
       referenceScript: null,
     };
-    const [, output] = lovejoinUtxoToOgmiosAdditional(lovejoinUtxo);
-    expect(output.value.ada.lovelace).toBe(1_500_000n);
-    expect(output.value[policy]).toEqual({ [asset]: 42n });
+    const entry = lovejoinUtxoToOgmiosAdditional(lovejoinUtxo);
+    expect(entry.value.ada.lovelace).toBe(1_500_000n);
+    expect(entry.value[policy]).toEqual({ [asset]: 42n });
   });
 });
 

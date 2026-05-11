@@ -2,26 +2,30 @@
 //
 // Why this exists: giveme.my v1.2.0's `additional_utxos` field is forwarded
 // verbatim to Ogmios' `evaluateTransaction.additionalUtxo` mechanism, which
-// splices extra `[txin, txout]` pairs into the chain state for evaluation
-// only. To chain a Mix tx onto an in-flight parent (Deposit, Replenish, or
+// splices extra UTxO entries into the chain state for evaluation only.
+// To chain a Mix tx onto an in-flight parent (Deposit, Replenish, or
 // prior Mix), the SDK has to ship the parent's outputs in Ogmios' exact
 // shape — pre-confirmation, those UTxOs don't exist on chain yet, so the
 // evaluator would otherwise abort.
 //
-// Schema reference (Ogmios v6):
+// Schema reference (Ogmios v6): each entry is a FLAT object combining
+// the TxIn fields (transaction, index) with the TxOut fields (address,
+// value, optional datum/script). The first cut of this module emitted
+// a `[txin, txout]` 2-tuple per the issue spec, but Ogmios v6 rejected
+// that with "parsing TxIn failed, expected Object, but encountered
+// Array". The shape below matches ogmios's actual schema:
 //
-//   [
-//     { "transaction": { "id": "<txid>" }, "index": <int> },
-//     {
-//       "address": "<bech32>",
-//       "value":   { "ada": { "lovelace": <int> },
-//                    "<policyId>": { "<assetName>": <int>, ... },
-//                    ... },
-//       "datum"?:    "<cbor hex>",                // inline datum
-//       "datumHash"?: "<32-byte hex>",            // datum-hash output
-//       "script"?:   <script object>              // optional reference script
-//     }
-//   ]
+//   {
+//     "transaction": { "id": "<txid>" },
+//     "index":       <int>,
+//     "address":     "<bech32>",
+//     "value":       { "ada": { "lovelace": <int> },
+//                      "<policyId>": { "<assetName>": <int>, ... },
+//                      ... },
+//     "datum"?:      "<cbor hex>",          // inline datum
+//     "datumHash"?:  "<32-byte hex>",       // hash-only datum
+//     "script"?:     <script object>        // optional reference script
+//   }
 //
 // Lovejoin's internal `Utxo` (chain/provider.ts) and mesh's `UTxO` carry
 // the same information; this module's converters peel them into Ogmios'
@@ -68,10 +72,16 @@ export interface OgmiosOutput {
 }
 
 /**
- * One `[txin, txout]` pair as Ogmios expects under `additionalUtxo`.
- * The first element is the UTxO reference; the second is the full output.
+ * One UTxO entry as Ogmios v6 expects under `additionalUtxo`: a flat
+ * object combining the TxIn fields (`transaction.id`, `index`) with
+ * the TxOut fields (`address`, `value`, optional `datum` / `datumHash`
+ * / `script`). NOT a 2-tuple — Ogmios rejects the 2-tuple form with
+ * "parsing TxIn failed, expected Object, but encountered Array".
  */
-export type AdditionalUtxo = [{ transaction: { id: string }; index: number }, OgmiosOutput];
+export interface AdditionalUtxo extends OgmiosOutput {
+  transaction: { id: string };
+  index: number;
+}
 
 /**
  * Convert mesh's `UTxO` shape into the Ogmios `additionalUtxo` 2-tuple.
@@ -117,16 +127,14 @@ export function meshUtxoToOgmiosAdditional(u: MeshUtxo): AdditionalUtxo {
     const inner = bucket as { [assetName: string]: bigint };
     inner[assetName] = (inner[assetName] ?? 0n) + BigInt(a.quantity);
   }
-  const output: OgmiosOutput = {
+  return {
+    transaction: { id: u.input.txHash.toLowerCase() },
+    index: u.input.outputIndex,
     address: u.output.address,
     value,
     ...(u.output.plutusData ? { datum: u.output.plutusData } : {}),
     ...(u.output.scriptRef ? { script: u.output.scriptRef } : {}),
   };
-  return [
-    { transaction: { id: u.input.txHash.toLowerCase() }, index: u.input.outputIndex },
-    output,
-  ];
 }
 
 /**
@@ -157,11 +165,12 @@ export function lovejoinUtxoToOgmiosAdditional(u: Utxo): AdditionalUtxo {
     const inner = bucket as { [assetName: string]: bigint };
     inner[assetName] = qty;
   }
-  const output: OgmiosOutput = {
+  return {
+    transaction: { id: u.ref.txId.toLowerCase() },
+    index: u.ref.outputIndex,
     address: u.address,
     value,
     ...(u.inlineDatum ? { datum: u.inlineDatum } : {}),
     ...(u.referenceScript ? { script: u.referenceScript } : {}),
   };
-  return [{ transaction: { id: u.ref.txId.toLowerCase() }, index: u.ref.outputIndex }, output];
 }
