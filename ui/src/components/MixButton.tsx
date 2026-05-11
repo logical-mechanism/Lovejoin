@@ -64,6 +64,17 @@ const POOL_BIAS_THRESHOLD = 8;
 
 const COOLDOWN_MS = 5000;
 
+/**
+ * How long a locally-submitted Mix's inputs stay in the in-flight set.
+ * Mainnet/preprod block times are ~20 s, so 90 s comfortably covers a
+ * tx that lands in the next 3–4 blocks. Beyond that the tx is either
+ * confirmed (the indexer rebuilds the pool without it) or has been
+ * dropped from the node mempool (in which case the user can retry
+ * fresh). Tuned for the Blockfrost-only path where we can't read the
+ * node's mempool directly.
+ */
+const LOCAL_INFLIGHT_TTL_MS = 90_000;
+
 export interface MixButtonProps {
   network: Network;
   provider: ChainProvider;
@@ -116,6 +127,18 @@ export function MixButton({
   const cooldownTimer = useRef<number | null>(null);
   const collateral = useCollateralStatus();
   const refreshCollateral = useRefreshCollateralStatus();
+
+  // Locally-tracked refs the user has just spent in a Mix tx submitted
+  // from THIS component. The backend mempool feed is the authoritative
+  // source for in-flight inputs, but on Blockfrost-only deploys it
+  // isn't available and Blockfrost's address-UTxO endpoint lags the
+  // node's mempool by seconds-to-minutes. Without a local tracker a
+  // rapid-fire click sequence picks the same in-flight mix-boxes
+  // (`pickMixInputs` sees them in `poolEntries` because Blockfrost still
+  // lists them as live) and the chain rejects the second tx with
+  // `BadInputsUTxO`. Entries are pruned past `LOCAL_INFLIGHT_TTL_MS` so
+  // the set doesn't grow without bound across a long session.
+  const recentlySpentRefs = useRef<Map<string, number>>(new Map());
 
   // Set of owned box refs for the wallet-mode bias strategy. Empty when
   // the vault is locked, when the user has no boxes, or when nothing
@@ -202,6 +225,21 @@ export function MixButton({
           /* mempool fetch failed; fall through to retry-only */
         }
       }
+      // Splice in this session's locally-tracked spent refs. Prunes
+      // anything older than LOCAL_INFLIGHT_TTL_MS so the set doesn't
+      // accumulate across a long session — past that window either the
+      // tx has confirmed (and Blockfrost's pool view caught up) or it
+      // was dropped from the node mempool (in which case re-picking is
+      // safe). Belt-and-braces against the rapid-click race when
+      // backend mempool isn't available.
+      const nowMs = Date.now();
+      for (const [refStr, spentAt] of recentlySpentRefs.current.entries()) {
+        if (nowMs - spentAt > LOCAL_INFLIGHT_TTL_MS) {
+          recentlySpentRefs.current.delete(refStr);
+        } else {
+          inFlightRefs.add(refStr);
+        }
+      }
       const poolForPicking =
         inFlightRefs.size > 0
           ? poolEntries.filter((e) => !inFlightRefs.has(refKey(e.ref)))
@@ -265,6 +303,21 @@ export function MixButton({
       const ownedInputs = picked.map((e) => refKey(e.ref)).filter((key) => ownedRefSet.has(key));
       if (ownedInputs.length > 0) {
         markTxPending(ownedInputs);
+      }
+      // Record EVERY picked ref (mix-boxes + fee shard) so a rapid
+      // re-click can't re-pick the same UTxOs while this tx is still
+      // propagating. This is the unconditional companion to
+      // markTxPending (which only fires for owned boxes for Vault UX).
+      // Without this the chain rejects the second click with
+      // `BadInputsUTxO` on Blockfrost-only deploys where the mempool
+      // feed isn't available.
+      const submittedAt = Date.now();
+      for (const inp of picked) {
+        recentlySpentRefs.current.set(refKey(inp.ref), submittedAt);
+      }
+      const submittedFeeShard = result.plan.feeShardInput;
+      if (submittedFeeShard) {
+        recentlySpentRefs.current.set(refKey(submittedFeeShard.ref), submittedAt);
       }
       onSubmitted(result.txId);
       startCooldown();
