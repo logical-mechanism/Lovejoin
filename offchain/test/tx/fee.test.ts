@@ -11,6 +11,7 @@ import {
   cryptoRandomInt,
   isFeeShardCandidate,
   listFeeShards,
+  pickRandomFeeShard,
   pickRandomShard,
   replenishOutputLovelace,
   shardCountSanity,
@@ -174,6 +175,95 @@ describe("tx/fee — pickRandomShard", () => {
       expect(c).toBeGreaterThan(9_000);
       expect(c).toBeLessThan(11_000);
     }
+  });
+});
+
+describe("tx/fee — pickRandomFeeShard extraShards (in-flight chaining)", () => {
+  // Issue #127 pool-selection polarity: callers should be able to opt in to
+  // selecting a shard that exists only as the unconfirmed output of an
+  // in-flight parent Replenish (or prior Mix). `excludeRefs` already handles
+  // the "skip an in-flight input" direction; `extraShards` is the include
+  // companion.
+
+  it("includes an in-flight shard alongside chain-confirmed shards", async () => {
+    const onChain: Utxo[] = [utxo({ txId: "1".repeat(64), idx: 0 })];
+    const inFlight: Utxo = utxo({ txId: "2".repeat(64), idx: 0, lovelace: 7_000_000n });
+    const provider = makeProvider(FEE_ADDR, onChain);
+    // Deterministic RNG that always picks index 1 (the extra). Confirms the
+    // extra shard is reachable through the picker, not silently dropped.
+    const picked = await pickRandomFeeShard({
+      provider,
+      feeScriptAddressBech32: FEE_ADDR,
+      extraShards: [inFlight],
+      rng: () => 1,
+    });
+    expect(picked.ref.txId).toBe("2".repeat(64));
+    expect(picked.lovelace).toBe(7_000_000n);
+  });
+
+  it("filters out extra shards that don't look like fee shards", async () => {
+    // Defence-in-depth: the picker should never return a "shard" that
+    // wouldn't pass the on-chain `validate_pay_mix_fee` rules. Native
+    // assets disqualify.
+    const onChain: Utxo[] = [utxo({ txId: "1".repeat(64), idx: 0 })];
+    const bogus: Utxo = utxo({
+      txId: "2".repeat(64),
+      idx: 0,
+      assets: { [`abcd1234${"0".repeat(56)}`]: 1n },
+    });
+    const provider = makeProvider(FEE_ADDR, onChain);
+    // RNG would return index 1 if the bogus shard were admitted — index 0
+    // is the only valid option, so picker collapses to it regardless.
+    const picked = await pickRandomFeeShard({
+      provider,
+      feeScriptAddressBech32: FEE_ADDR,
+      extraShards: [bogus],
+      rng: () => 0,
+    });
+    expect(picked.ref.txId).toBe("1".repeat(64));
+  });
+
+  it("dedupes when an extra shard has already landed on chain", async () => {
+    const shared = "3".repeat(64);
+    const onChain: Utxo[] = [utxo({ txId: shared, idx: 0, lovelace: 9_000_000n })];
+    // Same (txId, idx) as a chain entry — the extras path must not produce
+    // a duplicate candidate (would otherwise bias the random pick toward
+    // it). The on-chain copy wins because its lovelace is authoritative.
+    const inFlightDupe: Utxo = utxo({ txId: shared, idx: 0, lovelace: 1n });
+    const provider = makeProvider(FEE_ADDR, onChain);
+    const picked = await pickRandomFeeShard({
+      provider,
+      feeScriptAddressBech32: FEE_ADDR,
+      extraShards: [inFlightDupe],
+      rng: () => 0,
+    });
+    expect(picked.lovelace).toBe(9_000_000n);
+  });
+
+  it("combines excludeRefs + extraShards for the parent's input → child's output case", async () => {
+    // Canonical case from the issue: the in-flight Replenish consumes
+    // parent#0 and produces child#0 (the post-state shard). Caller wants
+    // to skip parent#0 (in-flight input, will be invalid once parent
+    // confirms) AND include child#0 (the post-state shard the child Mix
+    // should consume instead).
+    const parentRef = { txId: "a".repeat(64), outputIndex: 0 };
+    const onChain: Utxo[] = [
+      utxo({ txId: parentRef.txId, idx: parentRef.outputIndex }),
+      utxo({ txId: "b".repeat(64), idx: 0 }),
+    ];
+    const postState: Utxo = utxo({ txId: "c".repeat(64), idx: 0, lovelace: 12_345_678n });
+    const provider = makeProvider(FEE_ADDR, onChain);
+    // After exclude + extras, eligible = [chain#b, extras#c]. RNG=1 picks
+    // the post-state shard.
+    const picked = await pickRandomFeeShard({
+      provider,
+      feeScriptAddressBech32: FEE_ADDR,
+      excludeRefs: [parentRef],
+      extraShards: [postState],
+      rng: () => 1,
+    });
+    expect(picked.ref.txId).toBe("c".repeat(64));
+    expect(picked.lovelace).toBe(12_345_678n);
   });
 });
 

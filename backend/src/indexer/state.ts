@@ -157,85 +157,128 @@ export class IndexerState {
       alarmBefore: this.referenceAlarm,
     };
 
-    // First pass: figure out the generation each new mix-box should get,
-    // by looking at the consumed mix-boxes the same block.
-    let inputGenMax = -1;
-    for (const consumed of diff.consumed) {
-      const k = utxoKey(consumed);
-      const existing = this.pool.get(k);
-      if (existing && existing.generation > inputGenMax) {
-        inputGenMax = existing.generation;
-      }
-    }
-    const childGeneration = inputGenMax >= 0 ? inputGenMax + 1 : 0;
+    // Track UTxOs added earlier in this same block so we can skip them
+    // from reverse tracking when they're consumed before block end. A
+    // chained Mix pair that creates m0 in tx0 and spends it in tx1 has
+    // zero net effect on the pre-block pool — recording m0 in either
+    // `addedPool` or `removedPool` would corrupt rollback (m0 would
+    // resurrect on unwind).
+    const poolAddedThisBlock = new Map<UtxoKey, number>();
+    const feeAddedThisBlock = new Map<UtxoKey, number>();
 
-    // Apply removals first (so a tx that consumes + produces at the
-    // same address doesn't accidentally clobber the new entry).
-    for (const consumed of diff.consumed) {
-      const k = utxoKey(consumed);
-      const poolEntry = this.pool.get(k);
-      if (poolEntry) {
-        reverse.removedPool.push(poolEntry);
-        this.pool.delete(k);
-      }
-      const feeEntry = this.feeShards.get(k);
-      if (feeEntry) {
-        reverse.removedFee.push(feeEntry);
-        this.feeShards.delete(k);
-      }
-      // Reference UTxO consumed → alarm (validator is False; this should
-      // never happen unless the chain is corrupt or the ref hash drifted).
-      if (
-        this.referenceRef &&
-        this.referenceRef.txId === consumed.txId &&
-        this.referenceRef.outputIndex === consumed.outputIndex
-      ) {
-        reverse.referenceBefore = this.referenceRef;
-        this.referenceRef = null;
-        this.referenceAlarm = `reference UTxO ${k} consumed at slot ${diff.slot}`;
-      }
-    }
-
-    // Apply additions.
-    for (const produced of diff.produced) {
-      const k = utxoKey(produced.ref);
-      if (produced.address === this.filter.mixBoxAddress) {
-        if (this.pool.has(k)) {
-          throw new Error(
-            `pool: duplicate produced mix-box ${k} — chainsync should not emit twice`,
-          );
+    // Apply each tx as a unit, in block order. This is the load-bearing
+    // ordering invariant: when tx[1] consumes an output that tx[0] just
+    // produced (chained Mix in the same block), the intermediate output
+    // must be present in `this.pool` at the moment tx[1]'s removal pass
+    // runs. A block-level flatten would consume the intermediate before
+    // it's added and then leave it as a phantom entry forever.
+    for (const tx of diff.txs) {
+      // Per-tx generation: scan only this tx's consumed for the parent
+      // generation. Works for chained Mix in the same block because the
+      // parent's PoolEntry — added by the previous tx in this loop — is
+      // already in `this.pool`.
+      let inputGenMax = -1;
+      for (const consumed of tx.consumed) {
+        const k = utxoKey(consumed);
+        const existing = this.pool.get(k);
+        if (existing && existing.generation > inputGenMax) {
+          inputGenMax = existing.generation;
         }
-        const poolEntry = parsePoolEntry(produced, diff.slot, childGeneration);
+      }
+      const childGeneration = inputGenMax >= 0 ? inputGenMax + 1 : 0;
+
+      // Removals first within this tx, so a tx that consumes + produces
+      // at the same address doesn't clobber its own new entry.
+      for (const consumed of tx.consumed) {
+        const k = utxoKey(consumed);
+        const poolEntry = this.pool.get(k);
         if (poolEntry) {
-          this.pool.set(k, poolEntry);
-          reverse.addedPool.push(k);
+          this.pool.delete(k);
+          const addedAt = poolAddedThisBlock.get(k);
+          if (addedAt !== undefined) {
+            // Transient: created earlier in this block. Drop it from
+            // `addedPool` so rollback doesn't try to delete a key that
+            // was already net-zero against the pre-block state.
+            reverse.addedPool.splice(addedAt, 1);
+            poolAddedThisBlock.delete(k);
+            // Reindex any later additions whose recorded position just
+            // shifted left by one.
+            for (const [key, idx] of poolAddedThisBlock) {
+              if (idx > addedAt) poolAddedThisBlock.set(key, idx - 1);
+            }
+          } else {
+            reverse.removedPool.push(poolEntry);
+          }
         }
-      } else if (produced.address === this.filter.feeContractAddress) {
-        if (this.feeShards.has(k)) {
-          throw new Error(
-            `fee: duplicate produced fee shard ${k} — chainsync should not emit twice`,
-          );
+        const feeEntry = this.feeShards.get(k);
+        if (feeEntry) {
+          this.feeShards.delete(k);
+          const addedAt = feeAddedThisBlock.get(k);
+          if (addedAt !== undefined) {
+            reverse.addedFee.splice(addedAt, 1);
+            feeAddedThisBlock.delete(k);
+            for (const [key, idx] of feeAddedThisBlock) {
+              if (idx > addedAt) feeAddedThisBlock.set(key, idx - 1);
+            }
+          } else {
+            reverse.removedFee.push(feeEntry);
+          }
         }
-        this.feeShards.set(k, {
-          txHash: produced.ref.txId,
-          outputIndex: produced.ref.outputIndex,
-          lovelace: produced.lovelace,
-          slot: diff.slot,
-          inlineDatumHex: produced.inlineDatumHex,
-        });
-        reverse.addedFee.push(k);
-      } else if (produced.assets[this.filter.referenceNftUnit] === 1n) {
-        // The reference UTxO is parked at the reference_holder address;
-        // its identity is "the unique UTxO carrying the NFT". We don't
-        // require the address to match because the reference_holder
-        // address can be a mainnet/testnet variant we haven't
-        // pre-computed if NETWORK is misconfigured — the NFT-carrying
-        // UTxO is still the one we want.
-        this.referenceRef = produced.ref;
-        if (this.referenceAlarm !== null) {
-          // Alarm clears once we observe the NFT again (e.g. after a
-          // rollback that re-inserts the reference UTxO).
-          this.referenceAlarm = null;
+        // Reference UTxO consumed → alarm (validator is False; this should
+        // never happen unless the chain is corrupt or the ref hash drifted).
+        if (
+          this.referenceRef &&
+          this.referenceRef.txId === consumed.txId &&
+          this.referenceRef.outputIndex === consumed.outputIndex
+        ) {
+          reverse.referenceBefore = this.referenceRef;
+          this.referenceRef = null;
+          this.referenceAlarm = `reference UTxO ${k} consumed at slot ${diff.slot}`;
+        }
+      }
+
+      for (const produced of tx.produced) {
+        const k = utxoKey(produced.ref);
+        if (produced.address === this.filter.mixBoxAddress) {
+          if (this.pool.has(k)) {
+            throw new Error(
+              `pool: duplicate produced mix-box ${k} — chainsync should not emit twice`,
+            );
+          }
+          const poolEntry = parsePoolEntry(produced, diff.slot, childGeneration);
+          if (poolEntry) {
+            this.pool.set(k, poolEntry);
+            poolAddedThisBlock.set(k, reverse.addedPool.length);
+            reverse.addedPool.push(k);
+          }
+        } else if (produced.address === this.filter.feeContractAddress) {
+          if (this.feeShards.has(k)) {
+            throw new Error(
+              `fee: duplicate produced fee shard ${k} — chainsync should not emit twice`,
+            );
+          }
+          this.feeShards.set(k, {
+            txHash: produced.ref.txId,
+            outputIndex: produced.ref.outputIndex,
+            lovelace: produced.lovelace,
+            slot: diff.slot,
+            inlineDatumHex: produced.inlineDatumHex,
+          });
+          feeAddedThisBlock.set(k, reverse.addedFee.length);
+          reverse.addedFee.push(k);
+        } else if (produced.assets[this.filter.referenceNftUnit] === 1n) {
+          // The reference UTxO is parked at the reference_holder address;
+          // its identity is "the unique UTxO carrying the NFT". We don't
+          // require the address to match because the reference_holder
+          // address can be a mainnet/testnet variant we haven't
+          // pre-computed if NETWORK is misconfigured — the NFT-carrying
+          // UTxO is still the one we want.
+          this.referenceRef = produced.ref;
+          if (this.referenceAlarm !== null) {
+            // Alarm clears once we observe the NFT again (e.g. after a
+            // rollback that re-inserts the reference UTxO).
+            this.referenceAlarm = null;
+          }
         }
       }
     }

@@ -217,11 +217,26 @@ export class OgmiosTxClient {
    * Evaluate ex-units for a CBOR-encoded transaction. Returns the
    * verbatim redeemer-budget array from ogmios so the SDK's existing
    * mesh-bridge translation logic keeps working unchanged.
+   *
+   * `additionalUtxo` (optional) is forwarded verbatim to ogmios' v6
+   * `evaluateTransaction.additionalUtxo` mechanism: a list of
+   * `[txin, txout]` pairs spliced into the chain state for the
+   * evaluation. Use this when the tx references the unconfirmed outputs
+   * of an in-flight parent (chained Mix, Deposit → Mix, Replenish → Mix).
+   * Omitted from the wire request when empty/undefined, matching ogmios'
+   * "missing means no extras" default.
    */
-  async evaluateTransaction(cborHex: string): Promise<RedeemerBudget[]> {
-    const result = await this.request("evaluateTransaction", {
+  async evaluateTransaction(
+    cborHex: string,
+    additionalUtxo?: ReadonlyArray<unknown>,
+  ): Promise<RedeemerBudget[]> {
+    const params: Record<string, unknown> = {
       transaction: { cbor: cborHex },
-    });
+    };
+    if (additionalUtxo && additionalUtxo.length > 0) {
+      params.additionalUtxo = additionalUtxo;
+    }
+    const result = await this.request("evaluateTransaction", params);
     if (!Array.isArray(result)) {
       throw new Error(`ogmios-tx: evaluateTransaction returned ${typeof result}, expected array`);
     }

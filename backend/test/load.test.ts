@@ -118,8 +118,7 @@ beforeAll(async () => {
       slot: block * 20,
       blockHash: txHashFor(block * 1000 + 99),
       height: block + 1,
-      consumed: [],
-      produced,
+      txs: [{ consumed: [], produced }],
     });
   }
   expect(state.poolSize()).toBe(POOL_SIZE);

@@ -19,6 +19,7 @@ import {
   parseGivemeMyWitnessResponse,
   type CollateralFetchFn,
 } from "../../src/tx/collateral.js";
+import type { AdditionalUtxo } from "../../src/chain/ogmios-utxo.js";
 import type { ChainProvider, Utxo } from "../../src/chain/provider.js";
 import type { LovejoinWallet } from "../../src/wallet/cip30.js";
 
@@ -254,7 +255,92 @@ describe("tx/collateral — GivemeMyProvider", () => {
     expect(captured!.url).toBe("https://www.giveme.my/preprod/collateral/");
     const parsed = JSON.parse(captured!.body);
     expect(parsed).toEqual({ tx: "84aa00deadbeef" });
+    // additional_utxos is omitted entirely when no chained UTxOs are
+    // supplied — matches the upstream schema's "missing or empty is
+    // fine, the field is skipped" rule.
+    expect(parsed).not.toHaveProperty("additional_utxos");
     expect(captured!.headers?.["Content-Type"]).toBe("application/json");
+  });
+
+  it("signTxBody omits additional_utxos when opts.additionalUtxos is empty/undefined", async () => {
+    let captured: string | null = null;
+    const provider = new GivemeMyProvider({
+      network: "preprod",
+      fetchFn: fakeFetch((_url, init) => {
+        captured = init?.body ?? "";
+        return { status: 200, body: { witness: witnessCborHex(HOST_PUBKEY, "ab".repeat(64)) } };
+      }),
+    });
+    await provider.signTxBody("84aa00", { additionalUtxos: [] });
+    expect(JSON.parse(captured!)).toEqual({ tx: "84aa00" });
+    expect(JSON.parse(captured!)).not.toHaveProperty("additional_utxos");
+    await provider.signTxBody("84aa00", {});
+    expect(JSON.parse(captured!)).toEqual({ tx: "84aa00" });
+    expect(JSON.parse(captured!)).not.toHaveProperty("additional_utxos");
+  });
+
+  it("signTxBody forwards a non-empty additional_utxos array in the JSON body", async () => {
+    // Issue #127: this is the in-flight tx chaining wire-format check.
+    // Schema: flat objects per Ogmios v6 — the first cut used a
+    // `[txin, txout]` 2-tuple but Ogmios rejected with "parsing TxIn
+    // failed, expected Object, but encountered Array".
+    let captured: string | null = null;
+    const provider = new GivemeMyProvider({
+      network: "preprod",
+      fetchFn: fakeFetch((_url, init) => {
+        captured = init?.body ?? "";
+        return { status: 200, body: { witness: witnessCborHex(HOST_PUBKEY, "ab".repeat(64)) } };
+      }),
+    });
+    const additionalUtxos: AdditionalUtxo[] = [
+      {
+        transaction: { id: "ab".repeat(32) },
+        index: 0,
+        address: "addr_test1qparent",
+        // bigints get coerced to numbers by the custom replacer.
+        value: { ada: { lovelace: 7_500_000n } },
+        datum: "d87980",
+      },
+    ];
+    await provider.signTxBody("84aa00", { additionalUtxos });
+    const parsed = JSON.parse(captured!);
+    expect(parsed.tx).toBe("84aa00");
+    expect(parsed.additional_utxos).toEqual([
+      {
+        transaction: { id: "ab".repeat(32) },
+        index: 0,
+        address: "addr_test1qparent",
+        value: { ada: { lovelace: 7_500_000 } },
+        datum: "d87980",
+      },
+    ]);
+    // Regression guard: entries MUST NOT be arrays.
+    expect(Array.isArray(parsed.additional_utxos[0])).toBe(false);
+  });
+
+  it("signTxBody throws when an additional_utxos value exceeds Number.MAX_SAFE_INTEGER", async () => {
+    // Ogmios serialises huge integers via a bigint encoding the JSON
+    // stringifier here doesn't support; surface a clear error rather
+    // than silently truncating to a wrong number.
+    const provider = new GivemeMyProvider({
+      network: "preprod",
+      fetchFn: fakeFetch(() => ({
+        status: 200,
+        body: { witness: witnessCborHex(HOST_PUBKEY, "ab".repeat(64)) },
+      })),
+    });
+    await expect(
+      provider.signTxBody("84aa00", {
+        additionalUtxos: [
+          {
+            transaction: { id: "ab".repeat(32) },
+            index: 0,
+            address: "addr_test1qparent",
+            value: { ada: { lovelace: 2n ** 60n } },
+          },
+        ],
+      }),
+    ).rejects.toThrow(/MAX_SAFE_INTEGER/);
   });
 
   it("signTxBody throws on non-2xx HTTP responses (retries disabled)", async () => {
@@ -297,6 +383,32 @@ describe("tx/collateral — GivemeMyProvider", () => {
       /504.*Bad gateway from upstream/s,
     );
     expect(calls).toBe(3);
+  });
+
+  it("signTxBody substitutes a clean message when 5xx returns an HTML maintenance page", async () => {
+    // Cloudflare in front of giveme.my returns a full HTML page on 504.
+    // The raw body is noise in a UI toast; the SDK swaps in a one-line
+    // user-facing message and logs the raw body for operators.
+    const provider = new GivemeMyProvider({
+      network: "preprod",
+      fetchFn: fakeFetch(() => ({
+        status: 504,
+        body:
+          `<!DOCTYPE html><html><head><title>Error</title></head>` +
+          `<body><h1>Bad Gateway</h1><p>cloudflared was unreachable.</p></body></html>`,
+      })),
+      retry: { maxAttempts: 1, initialDelayMs: 0, backoffFactor: 1 },
+    });
+    const err = await provider.signTxBody("deadbeef").then(
+      () => null,
+      (e: Error) => e,
+    );
+    expect(err).toBeInstanceOf(Error);
+    expect(err!.message).toMatch(/temporarily unavailable/);
+    expect(err!.message).toMatch(/HTTP 504/);
+    // The HTML body is NOT in the surfaced error (it'd be noise in a toast).
+    expect(err!.message).not.toMatch(/<!DOCTYPE/);
+    expect(err!.message).not.toMatch(/<html/);
   });
 
   it("signTxBody does NOT retry on 4xx other than 408/429", async () => {

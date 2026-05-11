@@ -38,6 +38,17 @@ interface SubmitBody {
   cbor?: string;
 }
 
+interface EvaluateBody {
+  cbor?: string;
+  /**
+   * Optional in-flight `[txin, txout]` pairs (Ogmios v6 shape) the
+   * caller wants spliced into the evaluator's view of the chain.
+   * Forwarded verbatim to ogmios as `evaluateTransaction.additionalUtxo`.
+   * Missing / empty → field omitted upstream.
+   */
+  additionalUtxoSet?: unknown[];
+}
+
 interface TxHashParams {
   txhash: string;
 }
@@ -111,7 +122,7 @@ const txMutationRoutes: FastifyPluginAsync<RouteOptions> = async (app, opts) => 
       config: { rateLimit: TX_ROUTE_RATE_LIMIT },
       schema: ROUTE_SCHEMAS.evaluate,
     },
-    async (req: FastifyRequest<{ Body: SubmitBody }>, reply: FastifyReply) => {
+    async (req: FastifyRequest<{ Body: EvaluateBody }>, reply: FastifyReply) => {
       if (!deps.ogmiosTx) {
         reply.code(503);
         return { error: "evaluate_unavailable", message: "ogmios tx client not configured" };
@@ -131,8 +142,25 @@ const txMutationRoutes: FastifyPluginAsync<RouteOptions> = async (app, opts) => 
           message: "body.cbor must be a non-empty even-length hex string within size cap",
         };
       }
+      // additionalUtxoSet is shape-validated by the fastify schema (array of
+      // arrays); the route is content-agnostic and forwards the payload
+      // verbatim to ogmios, which is the authoritative validator. We do cap
+      // the number of entries to keep the websocket payload bounded — a tx
+      // realistically chains off ≤ N=4 parents at most, plus the parent's
+      // fee-shard / change outputs, so 32 is well above the ceiling and
+      // still small enough to bound the upstream's per-request work.
+      const additionalUtxoSet = Array.isArray(req.body?.additionalUtxoSet)
+        ? req.body!.additionalUtxoSet!
+        : undefined;
+      if (additionalUtxoSet && additionalUtxoSet.length > 32) {
+        reply.code(400);
+        return {
+          error: "bad_request",
+          message: `additionalUtxoSet has ${additionalUtxoSet.length} entries; cap is 32`,
+        };
+      }
       try {
-        const budgets = await deps.ogmiosTx.evaluateTransaction(cbor);
+        const budgets = await deps.ogmiosTx.evaluateTransaction(cbor, additionalUtxoSet);
         return { redeemers: budgets };
       } catch (err) {
         const raw = (err as Error).message ?? "evaluate failed";

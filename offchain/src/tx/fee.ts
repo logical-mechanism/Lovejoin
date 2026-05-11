@@ -142,6 +142,15 @@ export function pickRandomShard(args: {
 /**
  * Convenience wrapper combining listFeeShards + pickRandomShard. Most call
  * sites in the tx builders just want "give me a shard."
+ *
+ * `extraShards` lets callers splice in synthetic shards that aren't on
+ * chain yet — typically the post-state output of an in-flight Replenish.
+ * They're considered alongside the chain-confirmed shards for selection,
+ * after the `minLovelace` floor and `excludeRefs` filter. This is the
+ * include-polarity companion to `excludeRefs`: `excludeRefs` skips an
+ * in-flight shard *input*; `extraShards` admits an in-flight shard
+ * *output*. Callers chaining off a parent tx supply both — exclude the
+ * parent's input shard, include the parent's output shard.
  */
 export async function pickRandomFeeShard(args: {
   provider: ChainProvider;
@@ -149,15 +158,32 @@ export async function pickRandomFeeShard(args: {
   excludeRefs?: ReadonlyArray<{ txId: string; outputIndex: number }>;
   minLovelace?: Lovelace;
   rng?: RandomInt;
+  /** In-flight shard outputs to consider alongside the chain-confirmed set. */
+  extraShards?: ReadonlyArray<Utxo>;
 }): Promise<Utxo> {
-  const shards = await listFeeShards({
+  const onChain = await listFeeShards({
     provider: args.provider,
     feeScriptAddressBech32: args.feeScriptAddressBech32,
   });
+  const extras = (args.extraShards ?? []).filter((u) =>
+    isFeeShardCandidate(u, args.feeScriptAddressBech32),
+  );
+  // Dedupe by `<txid>#<idx>` in case an extra shard has somehow already
+  // landed on chain between fetch and call; on-chain wins (its lovelace
+  // value is authoritative).
+  const seen = new Set(onChain.map((u) => `${u.ref.txId}#${u.ref.outputIndex}`));
+  const merged = [...onChain];
+  for (const u of extras) {
+    const key = `${u.ref.txId}#${u.ref.outputIndex}`;
+    if (!seen.has(key)) {
+      merged.push(u);
+      seen.add(key);
+    }
+  }
   // Pass through `excludeRefs`, `minLovelace`, and `rng` only when defined;
   // with exactOptionalPropertyTypes a literal `undefined` would fail to type.
   return pickRandomShard({
-    shards,
+    shards: merged,
     ...(args.excludeRefs !== undefined ? { excludeRefs: args.excludeRefs } : {}),
     ...(args.minLovelace !== undefined ? { minLovelace: args.minLovelace } : {}),
     ...(args.rng !== undefined ? { rng: args.rng } : {}),

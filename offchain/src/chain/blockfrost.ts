@@ -27,6 +27,7 @@ import type {
   Utxo,
   UtxoRef,
 } from "./provider.js";
+import type { AdditionalUtxo } from "./ogmios-utxo.js";
 
 /** Subset of `fetch` we depend on. Lets tests inject a mock cleanly. */
 export type FetchFn = (
@@ -76,6 +77,23 @@ export interface MeshFetcherSubmitter {
    * that inflate the fee 10x or worse.
    */
   evaluateTx(cbor: string): Promise<unknown>;
+  /**
+   * Optional: evaluate a tx with extra `[txin, txout]` pairs spliced into
+   * the Ogmios chain state so the evaluator can resolve inputs that
+   * reference an in-flight parent's outputs. Returns the mesh
+   * `MeshAction[]` shape (same as `evaluateTx`) so callers can swap one
+   * for the other inside a `MeshTxBuilder({ evaluator })` slot.
+   *
+   * Present on both `BlockfrostProvider.meshProvider()` (routes through
+   * `/utils/txs/evaluate/utxos?version=6`) and `BackendMeshProvider`
+   * (routes through the backend's `/evaluate` with `additionalUtxoSet`).
+   * Absent on providers that don't yet implement the JSON endpoint —
+   * callers should feature-detect.
+   */
+  evaluateTxWithAdditionalUtxos?(
+    cbor: string,
+    additionalUtxos: ReadonlyArray<AdditionalUtxo>,
+  ): Promise<MeshAction[]>;
 }
 
 /**
@@ -87,6 +105,109 @@ export interface MeshFetcherSubmitter {
 export type MeshProtocolParameters = Record<string, unknown> & {
   minFeeRefScriptCostPerByte?: number;
 };
+
+/**
+ * One redeemer budget in mesh's `Action` shape — what `MeshTxBuilder`
+ * consumes back from `evaluator.evaluateTx`. Mesh's full type has more
+ * optional fields, but tx-builders only ever read these three.
+ */
+export interface MeshAction {
+  tag: string;
+  index: number;
+  budget: { mem: number; steps: number };
+}
+
+/**
+ * Ogmios v6 evaluateTransaction redeemer purpose → mesh Action.tag.
+ * Shared between the CBOR and JSON Blockfrost endpoints because the
+ * upstream protocol is identical; only the request encoding differs.
+ */
+const OGMIOS_PURPOSE_TO_TAG: Record<string, string> = {
+  spend: "SPEND",
+  mint: "MINT",
+  publish: "CERT",
+  withdraw: "REWARD",
+  vote: "VOTE",
+  propose: "PROPOSE",
+};
+
+/**
+ * Translate a Blockfrost ogmios v6 evaluator response (JSON-RPC 2.0
+ * shape) into the mesh `Action[]` shape MeshTxBuilder expects.
+ *
+ * Throws on `error`-bearing responses and on missing/malformed results
+ * so the caller sees the upstream's reason in the failure message
+ * rather than a silent populate-time-exUnits ride into the final tx.
+ *
+ * Exported only for unit tests; production code should go through
+ * `BlockfrostProvider.evaluateTxWithAdditionalUtxos` or the
+ * `meshProvider().evaluateTx` override.
+ */
+export function translateBlockfrostEvaluatorResponse(
+  body: {
+    result?: Array<{
+      validator: { index: number; purpose: string };
+      budget: { memory: number; cpu: number };
+    }>;
+    error?: { code: number; message: string; data?: unknown };
+  },
+  endpoint: string,
+): MeshAction[] {
+  if (body.error) {
+    console.error(
+      `[lovejoin/evaluator] BLOCKFROST RETURNED ERROR — populate-time exUnits will ride into the final tx:`,
+      body.error,
+    );
+    throw new Error(
+      `Blockfrost ogmios v6 evaluator (${endpoint}) rejected the tx: ` +
+        `${body.error.message} ` +
+        `(code ${body.error.code})\n${JSON.stringify(body.error.data, null, 2)}`,
+    );
+  }
+  if (!body.result) {
+    console.error(
+      `[lovejoin/evaluator] BLOCKFROST RETURNED NO RESULT — populate-time exUnits will ride:`,
+      body,
+    );
+    throw new Error(
+      `Blockfrost ogmios v6 evaluator (${endpoint}) returned no result: ${JSON.stringify(body).slice(0, 300)}`,
+    );
+  }
+
+  console.log(
+    `[lovejoin/evaluator] BLOCKFROST RETURNED ${body.result.length} redeemer budget(s):`,
+    body.result.map((e) => ({
+      purpose: e.validator.purpose,
+      index: e.validator.index,
+      mem: e.budget.memory,
+      cpu: e.budget.cpu,
+    })),
+  );
+  return body.result.map((entry) => ({
+    tag: OGMIOS_PURPOSE_TO_TAG[entry.validator.purpose] ?? entry.validator.purpose,
+    index: entry.validator.index,
+    budget: { mem: entry.budget.memory, steps: entry.budget.cpu },
+  }));
+}
+
+/**
+ * JSON.stringify replacer that turns bigints into numbers. Ogmios `value`
+ * payloads carry quantities as bigints in TS but the wire format expects
+ * JSON numbers; quantities above MAX_SAFE_INTEGER are not representable
+ * and we throw rather than silently truncate.
+ */
+function ogmiosBigintReplacer(_key: string, value: unknown): unknown {
+  if (typeof value === "bigint") {
+    if (value > Number.MAX_SAFE_INTEGER) {
+      throw new Error(
+        `Blockfrost evaluator: additionalUtxos contains bigint ` +
+          `${value} > Number.MAX_SAFE_INTEGER; Ogmios JSON cannot represent it`,
+      );
+    }
+    return Number(value);
+  }
+  return value;
+}
 
 export class BlockfrostProvider implements ChainProvider {
   private readonly baseUrl: string;
@@ -206,18 +327,12 @@ export class BlockfrostProvider implements ChainProvider {
     const projectId = this.projectId;
     const fetchFn = this.fetchFn;
     meshBf.evaluateTx = async (tx: string) => {
-      console.log(
-        `[lovejoin/evaluator] POST ${baseUrl}/utils/txs/evaluate?version=6 (txHex ${tx.length / 2} bytes)`,
-      );
-      let body: {
-        result?: Array<{
-          validator: { index: number; purpose: string };
-          budget: { memory: number; cpu: number };
-        }>;
-        error?: { code: number; message: string; data?: unknown };
-      };
+      const endpoint = `${baseUrl}/utils/txs/evaluate?version=6`;
+
+      console.log(`[lovejoin/evaluator] POST ${endpoint} (txHex ${tx.length / 2} bytes)`);
+      let body: Parameters<typeof translateBlockfrostEvaluatorResponse>[0];
       try {
-        const res = await fetchFn(`${baseUrl}/utils/txs/evaluate?version=6`, {
+        const res = await fetchFn(endpoint, {
           method: "POST",
           headers: {
             "Content-Type": "application/cbor",
@@ -232,54 +347,63 @@ export class BlockfrostProvider implements ChainProvider {
         console.error(`[lovejoin/evaluator] network error:`, networkErr);
         throw networkErr;
       }
-      if (body.error) {
-        console.error(
-          `[lovejoin/evaluator] BLOCKFROST RETURNED ERROR — populate-time exUnits will ride into the final tx:`,
-          body.error,
-        );
-        throw new Error(
-          `Blockfrost ogmios v6 evaluator rejected the tx: ` +
-            `${body.error.message} ` +
-            `(code ${body.error.code})\n${JSON.stringify(body.error.data, null, 2)}`,
-        );
-      }
-      if (!body.result) {
-        console.error(
-          `[lovejoin/evaluator] BLOCKFROST RETURNED NO RESULT — populate-time exUnits will ride:`,
-          body,
-        );
-        throw new Error(
-          `Blockfrost ogmios v6 evaluator returned no result: ${JSON.stringify(body).slice(0, 300)}`,
-        );
-      }
-
-      console.log(
-        `[lovejoin/evaluator] BLOCKFROST RETURNED ${body.result.length} redeemer budget(s):`,
-        body.result.map((e) => ({
-          purpose: e.validator.purpose,
-          index: e.validator.index,
-          mem: e.budget.memory,
-          cpu: e.budget.cpu,
-        })),
-      );
-      // v6 purposes:    spend | mint | publish | withdraw | vote | propose
-      // mesh's Action.tag: SPEND | MINT | CERT  | REWARD   | VOTE | PROPOSE
-      const purposeMap: Record<string, string> = {
-        spend: "SPEND",
-        mint: "MINT",
-        publish: "CERT",
-        withdraw: "REWARD",
-        vote: "VOTE",
-        propose: "PROPOSE",
-      };
-      return body.result.map((entry) => ({
-        tag: purposeMap[entry.validator.purpose] ?? entry.validator.purpose,
-        index: entry.validator.index,
-        budget: { mem: entry.budget.memory, steps: entry.budget.cpu },
-      }));
+      return translateBlockfrostEvaluatorResponse(body, endpoint);
     };
+    // Expose the additional-utxos evaluator on the mesh sibling too so
+    // callers that hold only the mesh handle can use it. Delegates to the
+    // top-level provider method (which closes over baseUrl + projectId +
+    // fetchFn) — no duplicate fetch wiring.
+    (meshBf as MeshFetcherSubmitter).evaluateTxWithAdditionalUtxos = (cbor, additional) =>
+      this.evaluateTxWithAdditionalUtxos(cbor, additional);
     this._mesh = meshBf;
     return this._mesh;
+  }
+
+  /**
+   * Evaluate a tx with extra `[txin, txout]` pairs spliced into the
+   * Ogmios chain state. Routes through Blockfrost's
+   * `/utils/txs/evaluate/utxos?version=6` endpoint (JSON body
+   * `{ cbor, additionalUtxoSet }`) instead of the standard
+   * `/utils/txs/evaluate?version=6` (raw CBOR body) so the evaluator
+   * can resolve inputs that reference an in-flight parent's outputs.
+   *
+   * Used by the Mix tx-builder's chained-Mix path; see
+   * `BuildMixArgs.chainFrom`.
+   *
+   * Returns the mesh `MeshAction[]` shape so callers can drop the result
+   * straight into `MeshTxBuilder`'s evaluator slot.
+   */
+  async evaluateTxWithAdditionalUtxos(
+    cborHex: string,
+    additionalUtxos: ReadonlyArray<AdditionalUtxo>,
+  ): Promise<MeshAction[]> {
+    const endpoint = `${this.baseUrl}/utils/txs/evaluate/utxos?version=6`;
+
+    console.log(
+      `[lovejoin/evaluator] POST ${endpoint} ` +
+        `(txHex ${cborHex.length / 2} bytes, additionalUtxoSet=${additionalUtxos.length})`,
+    );
+    let body: Parameters<typeof translateBlockfrostEvaluatorResponse>[0];
+    try {
+      const res = await this.fetchFn(endpoint, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          project_id: this.projectId,
+        },
+        body: JSON.stringify(
+          { cbor: cborHex, additionalUtxoSet: additionalUtxos },
+          ogmiosBigintReplacer,
+        ),
+      });
+
+      console.log(`[lovejoin/evaluator] HTTP ${res.status} ${res.statusText}`);
+      body = (await res.json()) as typeof body;
+    } catch (networkErr) {
+      console.error(`[lovejoin/evaluator] network error:`, networkErr);
+      throw networkErr;
+    }
+    return translateBlockfrostEvaluatorResponse(body, endpoint);
   }
 
   async submitTx(signedTxCborHex: string): Promise<Hex32> {

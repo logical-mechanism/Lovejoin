@@ -97,8 +97,19 @@ function block(
     slot: height * 20,
     blockHash: txHash(`block-${height}`),
     height,
-    consumed,
-    produced,
+    txs: [{ consumed, produced }],
+  };
+}
+
+function blockWithTxs(
+  height: number,
+  txs: { consumed: { txId: string; outputIndex: number }[]; produced: ProducedUtxo[] }[],
+): BlockDiff {
+  return {
+    slot: height * 20,
+    blockHash: txHash(`block-${height}`),
+    height,
+    txs,
   };
 }
 
@@ -167,6 +178,98 @@ describe("IndexerState forward apply", () => {
     expect(s.poolSize()).toBe(2);
     const out0 = s.poolGet({ txId: txHash("m1"), outputIndex: 0 });
     expect(out0?.generation).toBe(1); // max(0,0) + 1
+  });
+
+  it("collapses chained Mix txs in the same block (intermediate output never leaks into pool)", () => {
+    // Setup: three confirmed deposits that the chained Mixes will consume.
+    const s = makeState();
+    s.applyForward(
+      block(
+        1,
+        [],
+        [
+          mixBoxOutput(txHash("d1"), 0, 1, 2),
+          mixBoxOutput(txHash("d2"), 0, 3, 4),
+          mixBoxOutput(txHash("d3"), 0, 5, 6),
+        ],
+      ),
+    );
+    expect(s.poolSize()).toBe(3);
+
+    // Two chained Mix txs in the same block:
+    //   Tx0: consume d1, d2  → produce m0
+    //   Tx1: consume m0, d3  → produce m1
+    // m0 must not survive in the pool. A block-level flattened apply
+    // (the old behaviour) saw consumed = [d1, d2, m0, d3] / produced =
+    // [m0, m1] and tried to remove m0 before m0 was added — leaving
+    // m0 in the pool as a phantom box.
+    s.applyForward(
+      blockWithTxs(2, [
+        {
+          consumed: [
+            { txId: txHash("d1"), outputIndex: 0 },
+            { txId: txHash("d2"), outputIndex: 0 },
+          ],
+          produced: [mixBoxOutput(txHash("m0"), 0, 7, 8)],
+        },
+        {
+          consumed: [
+            { txId: txHash("m0"), outputIndex: 0 },
+            { txId: txHash("d3"), outputIndex: 0 },
+          ],
+          produced: [mixBoxOutput(txHash("m1"), 0, 9, 10)],
+        },
+      ]),
+    );
+
+    expect(s.poolSize()).toBe(1);
+    expect(s.poolGet({ txId: txHash("m0"), outputIndex: 0 })).toBeNull();
+    const survivor = s.poolGet({ txId: txHash("m1"), outputIndex: 0 });
+    expect(survivor).not.toBeNull();
+    // Generation chains: d3 was gen 0, m0 was gen 1, so m1 is gen 2.
+    expect(survivor?.generation).toBe(2);
+  });
+
+  it("rolls back chained Mix txs in the same block to the pre-block state", () => {
+    const s = makeState();
+    s.applyForward(
+      block(
+        1,
+        [],
+        [
+          mixBoxOutput(txHash("d1"), 0, 1, 2),
+          mixBoxOutput(txHash("d2"), 0, 3, 4),
+          mixBoxOutput(txHash("d3"), 0, 5, 6),
+        ],
+      ),
+    );
+    const tipBefore = s.tip!;
+    s.applyForward(
+      blockWithTxs(2, [
+        {
+          consumed: [
+            { txId: txHash("d1"), outputIndex: 0 },
+            { txId: txHash("d2"), outputIndex: 0 },
+          ],
+          produced: [mixBoxOutput(txHash("m0"), 0, 7, 8)],
+        },
+        {
+          consumed: [
+            { txId: txHash("m0"), outputIndex: 0 },
+            { txId: txHash("d3"), outputIndex: 0 },
+          ],
+          produced: [mixBoxOutput(txHash("m1"), 0, 9, 10)],
+        },
+      ]),
+    );
+
+    s.applyRollback(tipBefore);
+    expect(s.poolSize()).toBe(3);
+    expect(s.poolGet({ txId: txHash("d1"), outputIndex: 0 })).not.toBeNull();
+    expect(s.poolGet({ txId: txHash("d2"), outputIndex: 0 })).not.toBeNull();
+    expect(s.poolGet({ txId: txHash("d3"), outputIndex: 0 })).not.toBeNull();
+    expect(s.poolGet({ txId: txHash("m0"), outputIndex: 0 })).toBeNull();
+    expect(s.poolGet({ txId: txHash("m1"), outputIndex: 0 })).toBeNull();
   });
 
   it("tracks fee shards: add, decrement, add new", () => {

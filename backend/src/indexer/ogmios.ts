@@ -26,7 +26,7 @@ import WebSocket from "ws";
 
 import type { Hex32 } from "../config.js";
 import type { AddressFilter } from "./state.js";
-import type { BlockDiff, ChainTip, ProducedUtxo, UtxoRef } from "./types.js";
+import type { BlockDiff, ChainTip, ProducedUtxo, TxDiff, UtxoRef } from "./types.js";
 
 /** Ogmios "Point" — chain identity at a slot. */
 export interface OgmiosPoint {
@@ -305,21 +305,16 @@ interface OgmiosNextBlockResult {
  * indexer state never sees them.
  */
 export function blockToDiff(block: OgmiosBlock, filter: AddressFilter): BlockDiff {
-  const diff: BlockDiff = {
-    slot: block.slot,
-    blockHash: block.id,
-    height: block.height,
-    consumed: [],
-    produced: [],
-  };
-  const txs = block.transactions ?? [];
-  for (const tx of txs) {
+  const txs: TxDiff[] = [];
+  const blockTxs = block.transactions ?? [];
+  for (const tx of blockTxs) {
+    const txDiff: TxDiff = { consumed: [], produced: [] };
     for (const input of tx.inputs ?? []) {
       const ref: UtxoRef = {
         txId: input.transaction.id.toLowerCase(),
         outputIndex: input.index,
       };
-      diff.consumed.push(ref);
+      txDiff.consumed.push(ref);
     }
     const outputs = tx.outputs ?? [];
     for (let i = 0; i < outputs.length; i++) {
@@ -330,10 +325,16 @@ export function blockToDiff(block: OgmiosBlock, filter: AddressFilter): BlockDif
       const isFee = produced.address === filter.feeContractAddress;
       const isReference = produced.assets[filter.referenceNftUnit] === 1n;
       if (!isMixBox && !isFee && !isReference) continue;
-      diff.produced.push(produced);
+      txDiff.produced.push(produced);
     }
+    txs.push(txDiff);
   }
-  return diff;
+  return {
+    slot: block.slot,
+    blockHash: block.id,
+    height: block.height,
+    txs,
+  };
 }
 
 /**

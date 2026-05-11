@@ -74,6 +74,7 @@ import {
   verifySigmaOr,
 } from "../crypto/index.js";
 import type { ChainProvider, Hex32, Lovelace, Utxo, UtxoRef } from "../chain/provider.js";
+import { lovejoinUtxoToOgmiosAdditional } from "../chain/ogmios-utxo.js";
 import { type CollateralProvider, GivemeMyProvider, WalletProvider } from "./collateral.js";
 import { appendVkeyWitness } from "./witness-merge.js";
 import { encodeMixDatum, generateOwnerSecret as drawScalar } from "./deposit.js";
@@ -84,7 +85,11 @@ import {
   sumEvaluatorExUnits,
 } from "./fee-helpers.js";
 import { pickRandomFeeShard } from "./fee.js";
-import { type RetryOptions, withInputCollisionRetry } from "./retry.js";
+import {
+  looksLikeFeeShardBuildError,
+  type RetryOptions,
+  withInputCollisionRetry,
+} from "./retry.js";
 import { getMeshProtocolParams, getMeshProvider } from "./mesh-bridge.js";
 import {
   fetchProtocolParams,
@@ -97,6 +102,7 @@ import { buildScriptRewardAddress } from "./withdraw.js";
 import {
   type LovejoinNetworkId,
   type LovejoinWallet,
+  lovejoinUtxoToMesh,
   networkIdFor,
   normalizeWalletUtxos,
 } from "../wallet/cip30.js";
@@ -729,6 +735,19 @@ export interface BuildMixArgs {
    */
   excludeFeeShardRefs?: ReadonlyArray<UtxoRef>;
   /**
+   * Optional in-flight fee shards the caller wants the SDK to consider
+   * alongside the chain-confirmed set. Include-polarity companion to
+   * `excludeFeeShardRefs`: when chaining off an in-flight Replenish or
+   * prior Mix, pass the parent's post-state fee-shard output here so
+   * the picker can re-spend it without waiting for confirmation.
+   *
+   * Forwarded to `pickRandomFeeShard.extraShards`; entries that aren't
+   * legitimate fee shards (wrong datum, native assets) are filtered out
+   * defensively. Ignored in wallet mode (no shard picked) and when
+   * `feeShard` is supplied.
+   */
+  feeShardExtras?: ReadonlyArray<Utxo>;
+  /**
    * Collateral provider. Defaults to a `GivemeMyProvider` wired against the
    * pinned host for `args.network` — Mix txs MUST be wallet-anonymous, and
    * a wallet-supplied collateral leaks the submitter's identity onto the
@@ -761,6 +780,55 @@ export interface BuildMixArgs {
    */
   retry?: RetryOptions;
   /**
+   * Chain this Mix tx onto an in-flight parent (Deposit, Replenish, or
+   * a prior Mix) that hasn't confirmed yet. The `utxos` are the parent's
+   * outputs that this child consumes — they are spliced into the
+   * Ogmios chain state in three places so every evaluator on the path
+   * sees the same view:
+   *
+   *   1. **Local proof-of-evaluation** (during `tx.complete()`):
+   *      routed through the chain provider's
+   *      `evaluateTxWithAdditionalUtxos`. For BlockfrostProvider that
+   *      means `/utils/txs/evaluate/utxos?version=6` with
+   *      `additionalUtxoSet`; for BackendChainProvider, the backend's
+   *      `/evaluate` route forwards them as ogmios
+   *      `evaluateTransaction.additionalUtxo`.
+   *   2. **Shard-mode fee-discovery evaluator pass** (after the first
+   *      `complete()`): same path as above.
+   *   3. **Collateral host** (giveme.my): forwarded as
+   *      `additional_utxos` per v1.2.0's schema so the host's Koios /
+   *      Ogmios evaluator agrees with our local result.
+   *
+   * Caller responsibilities:
+   *   * The in-flight outputs MUST also be referenced in `args.inputs`
+   *     (and/or `args.feeShard` for a chained Replenish→Mix). chainFrom
+   *     is purely the evaluator-side splice — input selection is the
+   *     caller's job.
+   *   * `chainDepth` is an opt-in annotation that travels into log
+   *     messages so operators can spot runaway chaining in transcripts.
+   *     The SDK does NOT enforce a cap. The actual upper bounds are
+   *     (a) fee-shard depletion (the picker's `minLovelace` filter drops
+   *     a shard below the protocol's 3-ADA floor), (b) Cardano's
+   *     mempool tx-graph capacity, and (c) the self-hosted backend's
+   *     32-entry `additionalUtxoSet` cap on `/evaluate`. Rolled-back
+   *     chains mean "no progress", not "lost funds" — orphaned Mix
+   *     txs never confirm and never charge the user. Defaults to 1.
+   *   * Rollback handling: if the parent tx is dropped from the mempool
+   *     (rollback, fee race, replacement), the chained child becomes
+   *     invalid. The SDK does NOT auto-resubmit — `tx/retry.ts` handles
+   *     single-tx retries, not chain rollbacks. Catch the submit-time
+   *     failure and resubmit at the caller.
+   *
+   * Provider support: the chain provider's mesh sibling must implement
+   * `evaluateTxWithAdditionalUtxos`. BlockfrostProvider and the backend
+   * provider both do. Custom providers will throw at the first
+   * `tx.complete()` with a clear message naming the missing method.
+   */
+  chainFrom?: {
+    utxos: ReadonlyArray<Utxo>;
+    chainDepth?: number;
+  };
+  /**
    * Optional reproducibility hooks for tests. None of these affect the
    * plan structure — they just pin the random choices.
    */
@@ -774,6 +842,24 @@ export interface MixResult {
   /** The plan the tx was built from — useful for callers that want to
    *  inspect the chosen permutation / output (a', b') for tracking. */
   plan: MixPlan;
+  /**
+   * Fee that landed on the submitted tx after shard-mode discovery
+   * refined the pessimistic placeholder. Distinct from
+   * `plan.txFeeLovelace` (the cap-based plan-time value) — discovery
+   * typically lands well under the cap (~900k lovelace on preprod).
+   *
+   * Used by chained-Mix callers to compute the correct post-state
+   * fee-shard value (`plan.feeShardInput.lovelace - actualFeeLovelace`)
+   * instead of the overly-pessimistic plan-time value, so the next
+   * pick's minLovelace filter doesn't reject a shard that's actually
+   * healthy.
+   *
+   * `null` when the wallet-fee mode lets mesh auto-compute the fee
+   * without a setFee override (the actual fee then lives in the tx
+   * body but isn't surfaced here; wallet-mode callers can extract from
+   * `signedTxHex` if they need it).
+   */
+  actualFeeLovelace: Lovelace | null;
 }
 
 /**
@@ -817,30 +903,60 @@ export async function buildMixTx(args: BuildMixArgs): Promise<MixResult> {
     );
   }
 
-  // Build + sign + submit, with retry on fee-shard collision. Attempts
-  // 2+ ignore `args.feeShard` and pick a fresh shard from chain (reusing
-  // the caller's pre-pick on retry would just re-trigger the same
-  // BadInputsUTxO). Pool-box collisions aren't auto-fixed; the retry
-  // would build the same tx and fail again, exhausting maxAttempts.
+  // Per-call tracker of fee shards we've tried that ended up failing
+  // the build pass (mesh-csl "Insufficient input" or ledger
+  // ValueNotConservedUTxO). Closed over by the retry closure so each
+  // retry excludes every previous attempt's shard, not just the most
+  // recent one. Lets the picker walk the pool until it finds a shard
+  // with enough headroom above the cap-fee to satisfy min-utxo on the
+  // post-state output; in practice that's the first attempt for a
+  // healthy pool and ≤ 2 attempts even with mostly-depleted shards.
+  const failedFeeShardRefs: UtxoRef[] = [];
+
+  // Build + sign + submit, with retry on fee-shard collision OR
+  // build-time imbalance. Attempts 2+ ignore `args.feeShard`, exclude
+  // any previously-failed shards via `failedFeeShardRefs`, and pick a
+  // fresh one from the pool. Reusing the caller's pre-pick on retry
+  // would re-trigger the same BadInputsUTxO. Pool-box collisions
+  // aren't auto-fixed; the retry would build the same tx and fail
+  // again, exhausting maxAttempts.
   return withInputCollisionRetry(async (attempt) => {
     // Resolve the fee shard. Shard mode picks one if not supplied; wallet
-    // mode skips this entirely (no shard input on the tx). The 3-ADA floor
-    // skips depleted shards. Mix recreates the shard output minus tx.fee,
-    // and going below min-utxo on the new shard is an unrecoverable submit
-    // failure. Donate / Deposit don't pass this floor on purpose: they top
-    // shards up and MUST be allowed to target depleted ones.
-    const MIN_FEE_SHARD_LOVELACE = 3_000_000n;
+    // mode skips this entirely (no shard input on the tx). The floor
+    // skips depleted shards: Mix recreates the shard output as
+    // `shard_in - tx.fee`, and on the FIRST build pass tx.fee is set to
+    // `params.maxFeePerMixLovelace` (the cap, since the evaluator
+    // hasn't run yet to refine it). If `shard_in - cap` lands below
+    // min-utxo for an inline-datum UTxO (~960k–1.1M lovelace on
+    // Conway), mesh-csl fails the build with "Insufficient input"
+    // before the discovery pass can rerun with the smaller actual fee.
+    //
+    // Floor is therefore `cap + headroom` rather than the legacy 3 ADA
+    // constant. Headroom = 1.5 ADA covers min-utxo plus a buffer for
+    // the auto-balancer; works for preprod (cap 2 → floor 3.5) and
+    // mainnet (cap 0.8 → floor 2.3). Donate / Deposit don't apply this
+    // floor on purpose: they top shards up and MUST be allowed to
+    // target depleted ones.
+    const MIN_FEE_SHARD_HEADROOM_LOVELACE = 1_500_000n;
+    const minFeeShardLovelace = params.maxFeePerMixLovelace + MIN_FEE_SHARD_HEADROOM_LOVELACE;
     let feeShard: Utxo | undefined;
     if (feePayer === "shard") {
+      // Compose the exclude-list for the picker. Callers contribute
+      // their own in-flight refs (mempool-aware shard avoidance);
+      // this builder accumulates failed-build shards across retries so
+      // we don't keep re-picking the one that just blew up.
+      const callerExcludes = args.excludeFeeShardRefs ?? [];
+      const excludeRefs = [...callerExcludes, ...failedFeeShardRefs];
       feeShard =
         attempt === 1 && args.feeShard
           ? args.feeShard
           : await pickRandomFeeShard({
               provider: args.provider,
               feeScriptAddressBech32: buildScriptAddress(args.addresses.feeScriptHash, networkId),
-              minLovelace: MIN_FEE_SHARD_LOVELACE,
-              ...(args.excludeFeeShardRefs && args.excludeFeeShardRefs.length > 0
-                ? { excludeRefs: args.excludeFeeShardRefs }
+              minLovelace: minFeeShardLovelace,
+              ...(excludeRefs.length > 0 ? { excludeRefs } : {}),
+              ...(args.feeShardExtras && args.feeShardExtras.length > 0
+                ? { extraShards: args.feeShardExtras }
                 : {}),
             });
     }
@@ -885,6 +1001,27 @@ export async function buildMixTx(args: BuildMixArgs): Promise<MixResult> {
     const meshProvider = await getMeshProvider(args.provider);
     const meshParams = await getMeshProtocolParams(args.provider);
 
+    // chainFrom resolution. If the caller is chaining onto an in-flight
+    // parent (Deposit / Replenish / prior Mix), convert the parent's
+    // outputs into Ogmios `additionalUtxo` shape ONCE here so the same
+    // payload feeds three places: the local mesh evaluator pass (during
+    // `tx.complete()`), the shard-mode fee-discovery evaluator call, and
+    // the collateral provider's `signTxBody`. Without all three wired,
+    // the chained Mix would fail at the first un-spliced evaluator that
+    // can't resolve the in-flight input.
+    const chainFromUtxos = args.chainFrom?.utxos ?? [];
+    const chainDepth = args.chainFrom?.chainDepth ?? 1;
+    const additionalUtxos =
+      chainFromUtxos.length > 0
+        ? chainFromUtxos.map((u) => lovejoinUtxoToOgmiosAdditional(u))
+        : undefined;
+    if (additionalUtxos && additionalUtxos.length > 0) {
+      console.log(
+        `[lovejoin/mix] chaining onto ${additionalUtxos.length} in-flight UTxO(s) ` +
+          `at chainDepth=${chainDepth}; splicing into evaluator + signTxBody`,
+      );
+    }
+
     // Evaluator wiring. The chain provider's `evaluateTx` populates real
     // exec-unit budgets into every redeemer during `complete()`. There is
     // no fallback: a missing or failing evaluator throws here so callers
@@ -892,9 +1029,77 @@ export async function buildMixTx(args: BuildMixArgs): Promise<MixResult> {
     // outage, validator UPLC mismatch, etc.) instead of submitting a tx
     // whose claimed budgets are made up.
     //
+    // For chainFrom, route through `evaluateTxWithAdditionalUtxos` so
+    // the upstream evaluator sees the in-flight parent's outputs. Falls
+    // back to a clear error if the chain provider doesn't expose that
+    // method (the unit-test provider in chain-provider.test.ts is the
+    // only one in this repo that doesn't).
+    //
     // Do NOT swap to mesh's OfflineEvaluator (`@meshsdk/core-csl`). Its
     // bundled UPLC machine predates Conway's bitwise builtins and aborts
     // with "Default Function not found - 77".
+    const chainAwareEvaluator = {
+      evaluateTx: async (cborHex: string) => {
+        if (additionalUtxos && additionalUtxos.length > 0) {
+          if (!meshProvider.evaluateTxWithAdditionalUtxos) {
+            throw new Error(
+              "Mix tx: chainFrom is set but the chain provider's mesh sibling does " +
+                "not expose evaluateTxWithAdditionalUtxos. BlockfrostProvider and " +
+                "BackendChainProvider both implement it; custom providers must too.",
+            );
+          }
+          return meshProvider.evaluateTxWithAdditionalUtxos(cborHex, additionalUtxos);
+        }
+        return meshProvider.evaluateTx(cborHex);
+      },
+    };
+
+    // Mesh's `tx.complete()` also calls `fetcher.fetchUTxOs(parentTxId)`
+    // internally to resolve the input set's address + value before
+    // running the evaluator. For an in-flight parent the chain
+    // provider's lookup returns 404 (the tx hasn't confirmed; neither
+    // db-sync nor Blockfrost knows about it yet) and the build aborts
+    // with "Couldn't find value information for <parentTx>#<idx>".
+    //
+    // Wrap the fetcher so it intercepts lookups against the chainFrom
+    // refs and returns the locally-known MeshUtxo before falling
+    // through to chain. Mesh accepts either the full list or a
+    // single-index filter — we honour both.
+    const chainFromMeshByRefKey = new Map<string, ReturnType<typeof lovejoinUtxoToMesh>>();
+    for (const u of chainFromUtxos) {
+      chainFromMeshByRefKey.set(
+        `${u.ref.txId.toLowerCase()}#${u.ref.outputIndex}`,
+        lovejoinUtxoToMesh(u),
+      );
+    }
+    const chainAwareFetcher = {
+      fetchUTxOs: async (
+        txHash: string,
+        index?: number,
+      ): Promise<ReturnType<typeof lovejoinUtxoToMesh>[]> => {
+        const lowerHash = txHash.toLowerCase();
+        if (chainFromMeshByRefKey.size > 0) {
+          const matches: ReturnType<typeof lovejoinUtxoToMesh>[] = [];
+          for (const [key, meshUtxo] of chainFromMeshByRefKey.entries()) {
+            const [keyHash, keyIdxStr] = key.split("#");
+            if (keyHash !== lowerHash) continue;
+            const keyIdx = Number(keyIdxStr);
+            if (typeof index === "number" && keyIdx !== index) continue;
+            matches.push(meshUtxo);
+          }
+          if (matches.length > 0) {
+            console.log(
+              `[lovejoin/mix] fetcher served ${matches.length} in-flight UTxO(s) ` +
+                `for ${lowerHash}${index !== undefined ? `#${index}` : ""} from chainFrom`,
+            );
+            return matches;
+          }
+        }
+        return (await meshProvider.fetchUTxOs(txHash, index)) as ReturnType<
+          typeof lovejoinUtxoToMesh
+        >[];
+      },
+    };
 
     // Mesh requires a change address even when no change will ever be
     // emitted (shard mode runs `selectUtxosFrom([])`, so the builder won't
@@ -1056,11 +1261,30 @@ export async function buildMixTx(args: BuildMixArgs): Promise<MixResult> {
       }
     };
 
+    // When chainFrom is set, hand mesh a fetcher proxy that knows how
+    // to resolve in-flight refs locally. Otherwise pass the underlying
+    // provider through unchanged so the standard chain-lookup path
+    // stays the default (no per-call overhead, no surprises for the
+    // non-chained case).
+    const fetcherForBuild =
+      chainFromMeshByRefKey.size > 0
+        ? new Proxy(meshProvider, {
+            get(target, prop, receiver) {
+              if (prop === "fetchUTxOs") {
+                return chainAwareFetcher.fetchUTxOs;
+              }
+              return Reflect.get(target, prop, receiver);
+            },
+          })
+        : meshProvider;
     const buildOnce = async (feeOverride?: bigint): Promise<string> => {
       const tx = new MeshTxBuilder({
-        fetcher: meshProvider as never,
+        fetcher: fetcherForBuild as never,
         submitter: meshProvider as never,
-        evaluator: meshProvider as never,
+        // chainAwareEvaluator routes through evaluateTxWithAdditionalUtxos
+        // when chainFrom is set; otherwise it delegates to meshProvider's
+        // default evaluator.
+        evaluator: chainAwareEvaluator as never,
         params: meshParams as never,
         verbose: false,
       });
@@ -1092,6 +1316,20 @@ export async function buildMixTx(args: BuildMixArgs): Promise<MixResult> {
     try {
       unsignedTxHex = await buildOnce();
     } catch (evalErr) {
+      // mesh-csl "Insufficient input" or similar fee-shard imbalance
+      // means the picked shard didn't have enough headroom above the
+      // cap-fee. Record it so the retry excludes it, then re-throw
+      // unchanged — withInputCollisionRetry picks up the pattern and
+      // calls us again with a clean slate.
+      if (feeShard && looksLikeFeeShardBuildError(evalErr)) {
+        failedFeeShardRefs.push(feeShard.ref);
+        console.warn(
+          `[lovejoin/mix] fee shard ${feeShard.ref.txId}#${feeShard.ref.outputIndex} ` +
+            `(lovelace=${feeShard.lovelace}) failed build with "Insufficient input"; ` +
+            `excluding from retry and re-picking from pool`,
+        );
+        throw evalErr;
+      }
       const errMsg = evalErr instanceof Error ? evalErr.message : String(evalErr);
       throw new Error(
         `Mix tx: evaluator failed and there is no fallback. The chain provider's ` +
@@ -1099,6 +1337,17 @@ export async function buildMixTx(args: BuildMixArgs): Promise<MixResult> {
           `Original error: ${errMsg}`,
       );
     }
+
+    // Track the fee that actually lands on the submitted tx, separate
+    // from the plan-time placeholder. Surfaced via MixResult so chained
+    // callers can compute the correct post-state fee-shard value rather
+    // than the overly-pessimistic plan-time figure.
+    //   * shard mode: starts at the cap; discovery may refine to a
+    //     smaller `capped` fee below.
+    //   * wallet mode: stays null until the ref-script correction picks
+    //     a concrete fee further down.
+    let actualFeeLovelace: Lovelace | null =
+      feePayer === "shard" && plan.txFeeLovelace !== null ? plan.txFeeLovelace : null;
 
     const refScriptSize = computeMixRefScriptBytes(args.addresses, feePayer);
     const refScriptCostPerByte = Number(meshParams.minFeeRefScriptCostPerByte ?? 15);
@@ -1117,7 +1366,8 @@ export async function buildMixTx(args: BuildMixArgs): Promise<MixResult> {
       // check counts those expected witnesses against tx size; pass the
       // count through so our number lines up with mesh's check.
       const expectedVkeyWitnesses = 1;
-      const evalRaw = await meshProvider.evaluateTx(unsignedTxHex);
+      // Same evaluator the build-pass uses, so chainFrom is honoured here too.
+      const evalRaw = await chainAwareEvaluator.evaluateTx(unsignedTxHex);
       if (Array.isArray(evalRaw)) {
         const totalExUnits = sumEvaluatorExUnits(
           evalRaw as Array<{ budget?: { mem?: number; steps?: number } }>,
@@ -1150,6 +1400,7 @@ export async function buildMixTx(args: BuildMixArgs): Promise<MixResult> {
         if (capped !== plan.txFeeLovelace) {
           unsignedTxHex = await buildWithFeeBumpRetry(buildOnce, capped, plan.txFeeLovelace);
         }
+        actualFeeLovelace = capped;
       } else {
         console.warn(
           `[lovejoin/mix] shard-mode fee discovery: evaluator returned non-array ` +
@@ -1170,6 +1421,10 @@ export async function buildMixTx(args: BuildMixArgs): Promise<MixResult> {
       );
       if (refScriptFee > 0n) {
         unsignedTxHex = await buildOnce(correctedFee);
+        actualFeeLovelace = correctedFee;
+      } else {
+        // mesh's auto-fee was acceptable as-is.
+        actualFeeLovelace = meshFee;
       }
     }
 
@@ -1181,7 +1436,13 @@ export async function buildMixTx(args: BuildMixArgs): Promise<MixResult> {
     // returns WalletProvider when args.wallet is set.
     let signedTx: string;
     if (preparedCollateral.externallySigned) {
-      const hostWitness = await collateralProvider.signTxBody(unsignedTxHex);
+      // Same additionalUtxos array used for the evaluator above is also
+      // forwarded to the collateral host so its evaluator sees the same
+      // chain state. See BuildMixArgs.chainFrom.
+      const hostWitness = await collateralProvider.signTxBody(
+        unsignedTxHex,
+        additionalUtxos ? { additionalUtxos } : undefined,
+      );
       if (!hostWitness) {
         throw new Error(
           "Mix tx: collateral provider claimed externallySigned but signTxBody() returned null",
@@ -1202,10 +1463,10 @@ export async function buildMixTx(args: BuildMixArgs): Promise<MixResult> {
     }
 
     if (args.signOnly) {
-      return { signedTxHex: signedTx, txId: "", plan };
+      return { signedTxHex: signedTx, txId: "", plan, actualFeeLovelace };
     }
     const txId = await args.provider.submitTx(signedTx);
-    return { signedTxHex: signedTx, txId, plan };
+    return { signedTxHex: signedTx, txId, plan, actualFeeLovelace };
   }, args.retry);
 }
 

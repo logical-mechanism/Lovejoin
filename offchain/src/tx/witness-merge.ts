@@ -13,7 +13,11 @@
 // the witness set has 11 different fields, and miswriting any of them
 // produces a tx that the ledger silently rejects with no useful error.
 
-import type { CollateralProvider, VkeyWitness as ExternalVkeyWitness } from "./collateral.js";
+import type {
+  CollateralProvider,
+  SignTxBodyOptions,
+  VkeyWitness as ExternalVkeyWitness,
+} from "./collateral.js";
 
 /**
  * Lazy import of `@meshsdk/core-cst` — same pattern as `tx/withdraw.ts`,
@@ -80,14 +84,18 @@ export function appendVkeyWitnessSync(
 
 /**
  * Convenience wrapper used by deposit / withdraw / bulk-withdraw / mix:
- * call `provider.signTxBody(tx)`, then merge the returned witness. Throws
- * if the provider claims to be externally-signed but returns null.
+ * call `provider.signTxBody(tx, opts)`, then merge the returned witness.
+ * Throws if the provider claims to be externally-signed but returns null.
+ *
+ * `opts.additionalUtxos` is forwarded into the provider call for in-flight
+ * tx chaining — see {@link SignTxBodyOptions}.
  */
 export async function mergeExternalCollateralWitness(
   provider: CollateralProvider,
   txCborHex: string,
+  opts?: SignTxBodyOptions,
 ): Promise<string> {
-  const witness = await provider.signTxBody(txCborHex);
+  const witness = await provider.signTxBody(txCborHex, opts);
   if (!witness) {
     throw new Error(
       "mergeExternalCollateralWitness: provider returned null for an externally-signed " +
