@@ -799,12 +799,15 @@ export interface BuildMixArgs {
    *     (and/or `args.feeShard` for a chained Replenish→Mix). chainFrom
    *     is purely the evaluator-side splice — input selection is the
    *     caller's job.
-   *   * `chainDepth` is an opt-in annotation: callers acknowledge how
-   *     deep the chain runs (1 = directly off an unconfirmed parent,
-   *     2 = grandparent in flight too, ...). The SDK logs the depth but
-   *     does NOT enforce a hard cap; cumulative orphan probability rises
-   *     non-linearly with depth, so going past 2 should come with a
-   *     measured throughput justification. Defaults to 1.
+   *   * `chainDepth` is an opt-in annotation that travels into log
+   *     messages so operators can spot runaway chaining in transcripts.
+   *     The SDK does NOT enforce a cap. The actual upper bounds are
+   *     (a) fee-shard depletion (the picker's `minLovelace` filter drops
+   *     a shard below the protocol's 3-ADA floor), (b) Cardano's
+   *     mempool tx-graph capacity, and (c) the self-hosted backend's
+   *     32-entry `additionalUtxoSet` cap on `/evaluate`. Rolled-back
+   *     chains mean "no progress", not "lost funds" — orphaned Mix
+   *     txs never confirm and never charge the user. Defaults to 1.
    *   * Rollback handling: if the parent tx is dropped from the mempool
    *     (rollback, fee race, replacement), the chained child becomes
    *     invalid. The SDK does NOT auto-resubmit — `tx/retry.ts` handles

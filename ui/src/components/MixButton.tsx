@@ -76,15 +76,17 @@ const COOLDOWN_MS = 5000;
 const LOCAL_INFLIGHT_TTL_MS = 90_000;
 
 /**
- * Hard cap on chained-Mix depth. After this many unconfirmed Mix
- * ancestors are stacked, the next click falls back to selecting only
- * confirmed pool entries — no chainFrom. Issue #127 calls this out:
- * "Don't chain more than 2 deep without a measured throughput
- * justification. Long chains have cumulative orphan probability." Each
- * additional Mix in the chain multiplies the rollback probability by
- * the parent's orphan rate, so the worst-case loss grows non-linearly.
+ * Threshold above which we log a depth warning to the browser console.
+ * NOT a hard cap — the natural stopping conditions are (a) fee-shard
+ * depletion, which the SDK's `minLovelace` filter handles automatically,
+ * (b) Cardano's mempool tx-graph limits, and (c) the backend's
+ * 32-entry `additionalUtxoSet` cap on `/evaluate`. Orphan cascade is
+ * not a "lost money" scenario for Mix txs (a rolled-back chain is just
+ * "no progress"; no collateral is burned, no fees are paid for txs
+ * that never confirmed), so a longer chain is fine in practice. The
+ * warning helps spot runaway clicking in dev tools.
  */
-const MAX_CHAIN_DEPTH = 2;
+const CHAIN_DEPTH_WARN_THRESHOLD = 5;
 
 export interface MixButtonProps {
   network: Network;
@@ -298,29 +300,25 @@ export function MixButton({
         }
       }
 
-      // Chain depth check: count distinct parent txids carrying
-      // unconfirmed Mix outputs. If we're at or past the cap, skip
-      // chaining — pickMixInputs falls back to confirmed-only.
+      // Count distinct parent txids carrying unconfirmed Mix outputs.
+      // This is the chain depth — purely informational. The natural
+      // upper bounds are fee-shard depletion (SDK's `minLovelace` filter
+      // drops a shard below the 3-ADA floor), Cardano's mempool
+      // tx-graph limit, and the backend's 32-entry additionalUtxoSet
+      // cap. No hard UI cap: a rolled-back chain just means "no
+      // progress", not "lost funds".
       const chainParents = new Set(
         [...recentMixOutputs.current.values()].map((e) => e.poolEntry.ref.txId),
       );
       const chainDepth = chainParents.size;
-      const canChain = chainDepth < MAX_CHAIN_DEPTH;
-      const inFlightMixOutputs = canChain
-        ? [...recentMixOutputs.current.values()]
-        : ([] as Array<{
-            poolEntry: { ref: { txId: string; outputIndex: number }; a: Uint8Array; b: Uint8Array };
-            utxo: Utxo;
-            submittedAt: number;
-          }>);
-      const inFlightFeeShards = canChain
-        ? [...recentFeeShardOutputs.current.values()]
-        : ([] as Array<{ utxo: Utxo; submittedAt: number }>);
+      const inFlightMixOutputs = [...recentMixOutputs.current.values()];
+      const inFlightFeeShards = [...recentFeeShardOutputs.current.values()];
       if (chainDepth > 0) {
+        const warn = chainDepth >= CHAIN_DEPTH_WARN_THRESHOLD ? " (heads up: long chain)" : "";
         console.log(
-          `[lovejoin/ui] in-flight chain detected: depth=${chainDepth}/${MAX_CHAIN_DEPTH}, ` +
+          `[lovejoin/ui] in-flight chain detected: depth=${chainDepth}, ` +
             `${inFlightMixOutputs.length} mix-box(es) + ${inFlightFeeShards.length} fee shard(s) ` +
-            `available as chainFrom inputs${canChain ? "" : " — skipped (depth cap)"}`,
+            `available as chainFrom inputs${warn}`,
         );
       }
 
