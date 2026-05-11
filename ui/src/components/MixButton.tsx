@@ -481,15 +481,24 @@ export function MixButton({
       }
       // Post-state fee shard output (shard mode only). Mesh emits it
       // immediately after the mix-boxes — index N. The SDK plan tells
-      // us its bech32 + datum + lovelace.
+      // us its bech32 + datum, but the LOVELACE field on
+      // plan.feeShardOutput is the plan-time pessimistic value
+      // (= shard_in - cap_fee). Discovery refines the fee well below
+      // the cap, so the on-chain output is actually higher than the
+      // plan claims. Use the SDK's `actualFeeLovelace` to compute the
+      // realistic value; otherwise the next pick's minLovelace filter
+      // would reject this post-state shard as "depleted" when it isn't.
       const newShardOutput = result.plan.feeShardOutput;
-      if (newShardOutput && result.plan.feePayer === "shard") {
+      if (newShardOutput && result.plan.feePayer === "shard" && result.plan.feeShardInput) {
         const shardRef = { txId: newTxId, outputIndex: result.plan.n };
+        const realFee =
+          result.actualFeeLovelace ?? result.plan.txFeeLovelace ?? newShardOutput.lovelace;
+        const realisticLovelace = result.plan.feeShardInput.lovelace - realFee;
         recentFeeShardOutputs.current.set(refKey(shardRef), {
           utxo: {
             ref: shardRef,
             address: newShardOutput.addressBech32,
-            lovelace: newShardOutput.lovelace,
+            lovelace: realisticLovelace,
             assets: {},
             inlineDatum: newShardOutput.inlineDatumHex,
             referenceScript: null,
