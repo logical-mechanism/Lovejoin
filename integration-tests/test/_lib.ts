@@ -12,10 +12,12 @@ import { readFileSync } from "node:fs";
 import { resolve as resolvePath } from "node:path";
 
 import {
+  BackendChainProvider,
   BlockfrostProvider,
   buildDepositTx,
   buildMixTx,
   buildWithdrawTx,
+  type ChainProvider,
   createCliMeshWallet,
   createMnemonicMeshWallet,
   fetchPool,
@@ -39,6 +41,14 @@ export const STAKE_SKEY = process.env.LOVEJOIN_STAKE_SKEY;
 export const MNEMONIC = process.env.LOVEJOIN_MNEMONIC;
 export const ADDRESSES_PATH =
   process.env.LOVEJOIN_ADDRESSES ?? `./artifacts/${NETWORK}/addresses.json`;
+/**
+ * When set, integration tests construct a BackendChainProvider against
+ * this URL with the Blockfrost provider as the fallback. Use it to
+ * exercise the self-hosted backend's `/evaluate` (and other) routes
+ * end-to-end on the same test suite — e.g.
+ * `LOVEJOIN_BACKEND_URL=http://localhost:3001 pnpm test`.
+ */
+export const BACKEND_URL = process.env.LOVEJOIN_BACKEND_URL;
 
 export const HAS_PROJECT_ID = !!PROJECT_ID;
 export const HAS_WALLET = !!(PAYMENT_SKEY || MNEMONIC);
@@ -55,10 +65,27 @@ export function blockfrostBaseUrl(): string {
   return "https://cardano-preprod.blockfrost.io/api/v0";
 }
 
-export function makeProvider(): BlockfrostProvider {
-  return new BlockfrostProvider({
+/**
+ * Construct the chain provider the integration tests use.
+ *
+ * Default: BlockfrostProvider directly.
+ *
+ * When `LOVEJOIN_BACKEND_URL` is set: BackendChainProvider against that
+ * URL, with the Blockfrost provider as the fallback. The same test
+ * suite then exercises the backend's `/submit` + `/evaluate` (including
+ * `additionalUtxoSet` forwarding for chainFrom) without changing test
+ * code. Drop the env var to revert to a Blockfrost-only run.
+ */
+export function makeProvider(): ChainProvider {
+  const blockfrost = new BlockfrostProvider({
     baseUrl: blockfrostBaseUrl(),
     projectId: PROJECT_ID!,
+  });
+  if (!BACKEND_URL) return blockfrost;
+  console.log(`[integration-tests] using BackendChainProvider at ${BACKEND_URL}`);
+  return new BackendChainProvider({
+    baseUrl: BACKEND_URL,
+    fallback: blockfrost,
   });
 }
 
@@ -92,7 +119,7 @@ export async function depositSeries(args: {
   count: number;
   rounds: number;
   wallet: LovejoinWallet;
-  provider: BlockfrostProvider;
+  provider: ChainProvider;
   addresses: LovejoinAddresses;
 }): Promise<
   Array<{

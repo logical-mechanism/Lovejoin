@@ -102,8 +102,15 @@ function generateScenario(seedOffset: number): BlockDiff[] {
     slot: seedOffset,
     blockHash: txHashFor(10_000 + seedOffset),
     height: seedOffset + 1,
-    consumed: [],
-    produced: [feeOutput(20_000 + seedOffset, 50_000_000n), referenceOutput(30_000 + seedOffset)],
+    txs: [
+      {
+        consumed: [],
+        produced: [
+          feeOutput(20_000 + seedOffset, 50_000_000n),
+          referenceOutput(30_000 + seedOffset),
+        ],
+      },
+    ],
   });
   let lastFeeSeed = 20_000 + seedOffset;
   let feeBalance = 50_000_000n;
@@ -124,8 +131,7 @@ function generateScenario(seedOffset: number): BlockDiff[] {
         slot,
         blockHash,
         height,
-        consumed: [],
-        produced: [mixBoxOutput(seed, txIdSeed, 0)],
+        txs: [{ consumed: [], produced: [mixBoxOutput(seed, txIdSeed, 0)] }],
       });
       liveBoxes.push({ txIdSeed, idx: 0 });
       depositCount += 1;
@@ -140,11 +146,15 @@ function generateScenario(seedOffset: number): BlockDiff[] {
         slot,
         blockHash,
         height,
-        consumed: [
-          { txId: txHashFor(a.txIdSeed), outputIndex: a.idx },
-          { txId: txHashFor(b.txIdSeed), outputIndex: b.idx },
+        txs: [
+          {
+            consumed: [
+              { txId: txHashFor(a.txIdSeed), outputIndex: a.idx },
+              { txId: txHashFor(b.txIdSeed), outputIndex: b.idx },
+            ],
+            produced: [mixBoxOutput(seedA, txIdSeed, 0), mixBoxOutput(seedB, txIdSeed, 1)],
+          },
         ],
-        produced: [mixBoxOutput(seedA, txIdSeed, 0), mixBoxOutput(seedB, txIdSeed, 1)],
       });
       liveBoxes.push({ txIdSeed, idx: 0 }, { txIdSeed, idx: 1 });
     } else if (op === 3) {
@@ -155,8 +165,12 @@ function generateScenario(seedOffset: number): BlockDiff[] {
         slot,
         blockHash,
         height,
-        consumed: [{ txId: txHashFor(lastFeeSeed), outputIndex: 0 }],
-        produced: [feeOutput(newSeed, feeBalance)],
+        txs: [
+          {
+            consumed: [{ txId: txHashFor(lastFeeSeed), outputIndex: 0 }],
+            produced: [feeOutput(newSeed, feeBalance)],
+          },
+        ],
       });
       lastFeeSeed = newSeed;
     } else {
@@ -168,8 +182,12 @@ function generateScenario(seedOffset: number): BlockDiff[] {
         slot,
         blockHash,
         height,
-        consumed: [{ txId: txHashFor(lastFeeSeed), outputIndex: 0 }],
-        produced: [feeOutput(newSeed, feeBalance)],
+        txs: [
+          {
+            consumed: [{ txId: txHashFor(lastFeeSeed), outputIndex: 0 }],
+            produced: [feeOutput(newSeed, feeBalance)],
+          },
+        ],
       });
       lastFeeSeed = newSeed;
     }
@@ -246,8 +264,7 @@ describe("reorg: 500-block rollback recovery", () => {
         slot: h * 20,
         blockHash: txHashFor(h),
         height: h + 1,
-        consumed: [],
-        produced: [],
+        txs: [],
       });
     }
     const ancient = { slot: 0, blockHash: txHashFor(0), height: 1 };

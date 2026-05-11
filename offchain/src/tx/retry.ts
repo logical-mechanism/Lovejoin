@@ -19,12 +19,12 @@
 // access through the self-hosted backend.
 
 /**
- * Heuristic: does this error look like an input-collision error from the
- * Cardano ledger? We match on substrings rather than structured fields
- * because the error body shape differs across providers (Blockfrost,
- * Ogmios via the backend, mesh's submit endpoint).
+ * Heuristic: does this error look like a retryable input-collision OR
+ * fee-shard depletion error? We match on substrings rather than
+ * structured fields because the error body shape differs across
+ * providers (Blockfrost, Ogmios via the backend, mesh-csl's build).
  *
- * Patterns we treat as collisions:
+ * Patterns we treat as collisions / retryable:
  *   * `BadInputsUTxO` - the ledger's canonical "input not in current UTxO
  *     set" error. Most reliable signal.
  *   * `ValueNotConservedUTxO` - sometimes follows BadInputsUTxO when a
@@ -35,8 +35,15 @@
  *   * Ogmios JSON-RPC code 3117 - "The transaction contains unknown
  *     UTxO references as inputs". Same root cause: the input was spent
  *     between build and submit.
+ *   * `Insufficient input in transaction` - mesh-csl build-time error
+ *     when the picked fee shard's `shard_in - cap_fee` would land
+ *     below min-utxo, OR mesh's auto-balancer can't reconcile after
+ *     the SDK pinned the fee. A re-pick with a different shard (one
+ *     with more headroom above the cap) typically clears it. Recorded
+ *     in retry-tracking so the failed shard is excluded on subsequent
+ *     attempts — see `mix.ts` `failedFeeShardRefs`.
  *
- * Anything else (script eval, fee too low, datum mismatch, etc.) is a
+ * Anything else (script eval, datum mismatch, signature, etc.) is a
  * non-retryable failure and surfaces to the caller.
  */
 export function isInputCollisionError(err: unknown): boolean {
@@ -58,11 +65,32 @@ export function isInputCollisionError(err: unknown): boolean {
     msg.includes("BadInputsUTxO") ||
     msg.includes("ValueNotConservedUTxO") ||
     msg.includes("unknownOutputReferences") ||
+    msg.includes("Insufficient input in transaction") ||
     /\binput not found\b/i.test(msg) ||
     /\bunknown input\b/i.test(msg) ||
     /\bunknown utxo reference/i.test(msg) ||
     /ogmios[^]*\berror\s*3117\b/i.test(msg)
   );
+}
+
+/**
+ * Tighter heuristic: was this specifically a fee-shard-related build
+ * failure (mesh-csl "Insufficient input" at build time, or a
+ * balance-conservation error from the ledger)? Used by the Mix builder
+ * to decide whether to add the just-tried fee shard to its
+ * exclude-list before the next attempt.
+ *
+ * `BadInputsUTxO` alone isn't sufficient signal — it can fire for a
+ * mix-box collision, in which case re-picking the fee shard wouldn't
+ * help. We err on the side of excluding the fee shard for these
+ * value-balance errors; if the actual culprit was a mix-box, the
+ * exclude is harmless and the retry still has the same mix-box
+ * problem (which exhausts maxAttempts).
+ */
+export function looksLikeFeeShardBuildError(err: unknown): boolean {
+  if (!err) return false;
+  const msg = err instanceof Error ? err.message : String(err);
+  return msg.includes("Insufficient input in transaction") || msg.includes("ValueNotConservedUTxO");
 }
 
 export interface RetryInfo {

@@ -2,7 +2,11 @@
 
 import { describe, expect, it, vi } from "vitest";
 
-import { isInputCollisionError, withInputCollisionRetry } from "../../src/tx/retry.js";
+import {
+  isInputCollisionError,
+  looksLikeFeeShardBuildError,
+  withInputCollisionRetry,
+} from "../../src/tx/retry.js";
 
 describe("tx/retry isInputCollisionError", () => {
   it("matches BadInputsUTxO in a Blockfrost-shaped error body", () => {
@@ -47,6 +51,43 @@ describe("tx/retry isInputCollisionError", () => {
       false,
     );
     expect(isInputCollisionError(new Error("network unreachable"))).toBe(false);
+  });
+
+  it("matches mesh-csl's Insufficient input build-time error", () => {
+    // Issue #127: when a chained Mix picks a fee shard whose
+    // `shard_in - cap_fee` lands below min-utxo, mesh-csl bails the
+    // build pass with this message. Re-picking with the shard
+    // excluded is the right move.
+    const err = new Error(
+      'txBuildResult error: JsValue("Insufficient input in transaction. ' +
+        'shortage: {ada in inputs: 32106659, ada in outputs: 31212908, fee 2000000}")',
+    );
+    expect(isInputCollisionError(err)).toBe(true);
+  });
+});
+
+describe("tx/retry looksLikeFeeShardBuildError", () => {
+  it("matches the mesh-csl Insufficient-input build error", () => {
+    expect(
+      looksLikeFeeShardBuildError(new Error("Insufficient input in transaction. shortage: {...}")),
+    ).toBe(true);
+  });
+
+  it("matches ValueNotConservedUTxO (ledger-side imbalance)", () => {
+    expect(looksLikeFeeShardBuildError(new Error("ValueNotConservedUTxO ..."))).toBe(true);
+  });
+
+  it("does NOT match BadInputsUTxO (different root cause — input collision, not depleted shard)", () => {
+    // BadInputsUTxO alone could be a mix-box collision; we don't want
+    // to wrongly attribute it to the fee shard and burn a retry slot
+    // by excluding a healthy shard.
+    expect(looksLikeFeeShardBuildError(new Error("BadInputsUTxO ..."))).toBe(false);
+  });
+
+  it("does NOT match unrelated errors", () => {
+    expect(looksLikeFeeShardBuildError(new Error("ScriptEvaluationFailure"))).toBe(false);
+    expect(looksLikeFeeShardBuildError(null)).toBe(false);
+    expect(looksLikeFeeShardBuildError(undefined)).toBe(false);
   });
 
   it("handles non-Error thrown values", () => {

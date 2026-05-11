@@ -110,22 +110,30 @@ beforeAll(async () => {
     slot: 100,
     blockHash: txHash("blk-100"),
     height: 1,
-    consumed: [],
-    produced: [
-      mixBoxOutput(txHash("d1"), 0, 1, 2),
-      mixBoxOutput(txHash("d2"), 0, 3, 4),
-      mixBoxOutput(txHash("d3"), 0, 5, 6),
-      feeOutput(txHash("f1"), 0, 5_000_000n),
-      feeOutput(txHash("f2"), 0, 3_000_000n),
-      referenceOutput(txHash("ref1")),
+    txs: [
+      {
+        consumed: [],
+        produced: [
+          mixBoxOutput(txHash("d1"), 0, 1, 2),
+          mixBoxOutput(txHash("d2"), 0, 3, 4),
+          mixBoxOutput(txHash("d3"), 0, 5, 6),
+          feeOutput(txHash("f1"), 0, 5_000_000n),
+          feeOutput(txHash("f2"), 0, 3_000_000n),
+          referenceOutput(txHash("ref1")),
+        ],
+      },
     ],
   });
   state.applyForward({
     slot: 110,
     blockHash: txHash("blk-110"),
     height: 2,
-    consumed: [],
-    produced: [mixBoxOutput(txHash("d4"), 0, 7, 8), mixBoxOutput(txHash("d5"), 0, 9, 10)],
+    txs: [
+      {
+        consumed: [],
+        produced: [mixBoxOutput(txHash("d4"), 0, 7, 8), mixBoxOutput(txHash("d5"), 0, 9, 10)],
+      },
+    ],
   });
 
   server = await buildServer({
@@ -264,8 +272,7 @@ describe("API: /params", () => {
       slot: 120,
       blockHash: txHash("blk-120"),
       height: 3,
-      consumed: [{ txId: txHash("ref1"), outputIndex: 0 }],
-      produced: [],
+      txs: [{ consumed: [{ txId: txHash("ref1"), outputIndex: 0 }], produced: [] }],
     });
     const res = await server.inject({ method: "GET", url: "/params" });
     expect(res.statusCode).toBe(503);
@@ -276,8 +283,7 @@ describe("API: /params", () => {
       slot: 130,
       blockHash: txHash("blk-130"),
       height: 4,
-      consumed: [],
-      produced: [referenceOutput(txHash("ref2"))],
+      txs: [{ consumed: [], produced: [referenceOutput(txHash("ref2"))] }],
     });
   });
 });
@@ -588,10 +594,12 @@ describe("API: /submit + /evaluate", () => {
     const budgets = [
       { validator: { purpose: "spend", index: 0 }, budget: { memory: 1234, cpu: 56789 } },
     ];
+    let capturedAdditional: unknown = "not-called";
     const stub = {
       submitTransaction: async () => "00".repeat(32),
-      evaluateTransaction: async (cbor: string) => {
+      evaluateTransaction: async (cbor: string, additional?: unknown) => {
         expect(cbor).toBe("84a4");
+        capturedAdditional = additional;
         return budgets;
       },
       reconnecting: () => ({
@@ -617,6 +625,95 @@ describe("API: /submit + /evaluate", () => {
     });
     expect(res.statusCode).toBe(200);
     expect(res.json()).toEqual({ redeemers: budgets });
+    // When body has no additionalUtxoSet, the ogmios-tx client receives
+    // undefined and omits the field from the JSON-RPC params upstream.
+    expect(capturedAdditional).toBeUndefined();
+    await s.close();
+  });
+
+  it("/evaluate forwards a non-empty additionalUtxoSet to ogmios-tx (issue #127)", async () => {
+    // Issue #127: chained Mix evaluator path needs in-flight UTxOs spliced
+    // into the upstream Ogmios `evaluateTransaction.additionalUtxo` slot.
+    let capturedAdditional: unknown = null;
+    const stub = {
+      submitTransaction: async () => "00".repeat(32),
+      evaluateTransaction: async (_cbor: string, additional?: ReadonlyArray<unknown>) => {
+        capturedAdditional = additional;
+        return [];
+      },
+      reconnecting: () => ({
+        inProgress: false,
+        attempts: 0,
+        lastErrorAt: 0,
+        lastErrorMessage: "",
+        exhausted: false,
+      }),
+      close: () => {},
+    };
+    const s = await buildServer({
+      state,
+      runtime: null,
+      config: CONFIG,
+      dbsync: null,
+      ogmiosTx: stub as never,
+    });
+    // Ogmios v6 wire format: flat object per entry, not a 2-tuple. The
+    // fastify schema enforces this with `items: { type: "object" }`.
+    const additionalUtxoSet = [
+      {
+        transaction: { id: "ab".repeat(32) },
+        index: 0,
+        address: "addr_test1qparent",
+        value: { ada: { lovelace: 7_500_000 } },
+      },
+    ];
+    const res = await s.inject({
+      method: "POST",
+      url: "/evaluate",
+      payload: { cbor: "84a4", additionalUtxoSet },
+    });
+    expect(res.statusCode).toBe(200);
+    expect(capturedAdditional).toEqual(additionalUtxoSet);
+    await s.close();
+  });
+
+  it("/evaluate rejects an oversized additionalUtxoSet with 400 bad_request", async () => {
+    // Defence-in-depth: cap upstream payload size; a chained Mix realistically
+    // touches ≤ N=4 parents, so 32 is well above any legitimate ceiling.
+    const stub = {
+      submitTransaction: async () => "00".repeat(32),
+      evaluateTransaction: async () => [],
+      reconnecting: () => ({
+        inProgress: false,
+        attempts: 0,
+        lastErrorAt: 0,
+        lastErrorMessage: "",
+        exhausted: false,
+      }),
+      close: () => {},
+    };
+    const s = await buildServer({
+      state,
+      runtime: null,
+      config: CONFIG,
+      dbsync: null,
+      ogmiosTx: stub as never,
+    });
+    // 33 flat-object entries — one over the cap.
+    const oversize = Array.from({ length: 33 }, (_, i) => ({
+      transaction: { id: "a".repeat(64) },
+      index: i,
+      address: "addr_test1qbad",
+      value: { ada: { lovelace: 1_000_000 } },
+    }));
+    const res = await s.inject({
+      method: "POST",
+      url: "/evaluate",
+      payload: { cbor: "84a4", additionalUtxoSet: oversize },
+    });
+    expect(res.statusCode).toBe(400);
+    expect(res.json().error).toBe("bad_request");
+    expect(res.json().message).toMatch(/cap is 32/);
     await s.close();
   });
 

@@ -36,6 +36,7 @@
 // in the upstream repo actually do.
 
 import type { ChainProvider, Lovelace, Utxo } from "../chain/provider.js";
+import type { AdditionalUtxo } from "../chain/ogmios-utxo.js";
 import {
   getKnownCollateralHost,
   lovejoinNetworkToCollateralNetwork,
@@ -94,6 +95,30 @@ export interface PreparedCollateral {
   externallySigned: boolean;
 }
 
+/**
+ * Optional second arg to {@link CollateralProvider.signTxBody}. Carried
+ * as an `opts` object rather than positional args so additional fields
+ * (rate-limit overrides, future Koios v1.3+ extensions) can be added
+ * without breaking callers.
+ */
+export interface SignTxBodyOptions {
+  /**
+   * Extra `[txin, txout]` pairs spliced into Ogmios' chain state for the
+   * evaluator's view of this tx — see giveme.my v1.2.0 `additional_utxos`
+   * and Ogmios' `evaluateTransaction.additionalUtxo`. Use this to chain
+   * a child tx onto an in-flight parent (Mix → Mix, Deposit → Mix,
+   * Replenish → Mix) before the parent confirms.
+   *
+   * Missing or empty is fine — the field is skipped, matching the upstream
+   * schema's "Missing or empty is fine — the field is skipped" rule.
+   *
+   * Trade-off: if the parent tx is dropped from the mempool (rollback,
+   * fee race, replacement), the child becomes invalid. Caller is
+   * responsible for resubmit-on-rollback; the SDK doesn't auto-rebuild.
+   */
+  additionalUtxos?: ReadonlyArray<AdditionalUtxo>;
+}
+
 export interface CollateralProvider {
   prepareCollateral(args: PrepareCollateralArgs): Promise<PreparedCollateral>;
   /**
@@ -104,8 +129,12 @@ export interface CollateralProvider {
    *
    * For an external host this performs the network call and returns the
    * unpacked vkey+sig. Callers attach it via `witness-merge.appendVkeyWitness`.
+   *
+   * Pass `opts.additionalUtxos` to chain onto an in-flight parent tx — the
+   * extra UTxOs are forwarded verbatim into the upstream Koios/Ogmios
+   * evaluator. See {@link SignTxBodyOptions}.
    */
-  signTxBody(txCborHex: string): Promise<VkeyWitness | null>;
+  signTxBody(txCborHex: string, opts?: SignTxBodyOptions): Promise<VkeyWitness | null>;
 }
 
 export interface PrepareCollateralArgs {
@@ -171,7 +200,7 @@ export class WalletProvider implements CollateralProvider {
     };
   }
 
-  async signTxBody(_txCborHex: string): Promise<VkeyWitness | null> {
+  async signTxBody(_txCborHex: string, _opts?: SignTxBodyOptions): Promise<VkeyWitness | null> {
     return null;
   }
 }
@@ -230,18 +259,26 @@ export type CollateralFetchFn = (
  * does not risk double-spend or duplicate submission.
  */
 export interface CollateralRetryPolicy {
-  /** Total attempts including the first. Must be `>= 1`. Default 3. */
+  /** Total attempts including the first. Must be `>= 1`. Default 5. */
   maxAttempts: number;
-  /** Delay before attempt 2 in ms. Default 250. */
+  /** Delay before attempt 2 in ms. Default 1000. */
   initialDelayMs: number;
-  /** Multiplier applied to the delay each retry. Default 2 (250ms, 500ms). */
+  /** Multiplier applied to the delay each retry. Default 2. */
   backoffFactor: number;
 }
 
-/** Sensible defaults; see {@link CollateralRetryPolicy}. */
+/**
+ * Sensible defaults; see {@link CollateralRetryPolicy}.
+ *
+ * Total back-off window with these defaults: 0, 1s, 2s, 4s, 8s ≈ 15 s
+ * between attempt 1 and attempt 5, which covers a typical cloudflared
+ * 504 blip in front of giveme.my without surfacing a toast to the user.
+ * A persistent 504 still surfaces — five attempts spaced like this is
+ * the longest we want a user click to hang before reporting failure.
+ */
 export const DEFAULT_COLLATERAL_RETRY: Readonly<CollateralRetryPolicy> = {
-  maxAttempts: 3,
-  initialDelayMs: 250,
+  maxAttempts: 5,
+  initialDelayMs: 1000,
   backoffFactor: 2,
 };
 
@@ -412,19 +449,49 @@ export class GivemeMyProvider implements CollateralProvider {
     };
   }
 
-  async signTxBody(txCborHex: string): Promise<VkeyWitness | null> {
+  async signTxBody(txCborHex: string, opts?: SignTxBodyOptions): Promise<VkeyWitness | null> {
     if (!/^[0-9a-fA-F]+$/.test(txCborHex) || txCborHex.length < 2) {
       throw new Error("GivemeMyProvider.signTxBody: txCborHex must be non-empty hex");
     }
-    const body = JSON.stringify({ tx: txCborHex });
+    // Build the JSON body. The `additional_utxos` field is OMITTED when
+    // missing or empty — matches the upstream schema's "skipped when
+    // empty" rule and keeps the wire identical to v1.1.x clients for the
+    // confirmed-inputs case.
+    const additional = opts?.additionalUtxos;
+    const payload: { tx: string; additional_utxos?: ReadonlyArray<AdditionalUtxo> } = {
+      tx: txCborHex,
+    };
+    if (additional && additional.length > 0) {
+      payload.additional_utxos = additional;
+    }
+    // bigint values inside Ogmios `value` need a custom replacer — JSON.stringify
+    // throws on bigints by default. Ogmios accepts JSON numbers for lovelace
+    // values up to 2^53; that bound is well above the max-supply ceiling, so
+    // serialising as numbers is fine in practice. We surface a clear error
+    // rather than silently truncate if a caller chains a fictional UTxO with
+    // out-of-range lovelace.
+    const body = JSON.stringify(payload, (_key, value) => {
+      if (typeof value === "bigint") {
+        if (value > Number.MAX_SAFE_INTEGER) {
+          throw new Error(
+            `GivemeMyProvider.signTxBody: additional_utxos contains bigint ` +
+              `${value} > Number.MAX_SAFE_INTEGER; Ogmios JSON cannot represent it`,
+          );
+        }
+        return Number(value);
+      }
+      return value;
+    });
     const { maxAttempts } = this.retryPolicy;
     const txBytes = txCborHex.length / 2;
 
+    const additionalCount = additional && additional.length > 0 ? additional.length : 0;
     let lastErr: Error | null = null;
     for (let attempt = 1; attempt <= maxAttempts; attempt++) {
       console.log(
         `[lovejoin/collateral] POST ${this.endpoint} ` +
-          `(host=${this.host.name}, txCbor=${txBytes} bytes, attempt ${attempt}/${maxAttempts})`,
+          `(host=${this.host.name}, txCbor=${txBytes} bytes, ` +
+          `additional_utxos=${additionalCount}, attempt ${attempt}/${maxAttempts})`,
       );
 
       // Network-level failure: fetch threw before producing a Response.
@@ -450,16 +517,30 @@ export class GivemeMyProvider implements CollateralProvider {
       console.log(`[lovejoin/collateral] HTTP ${res.status} ${res.statusText}`);
 
       // HTTP-level failure. Retry on the transient buckets (5xx / 408 / 429);
-      // bail immediately on the deterministic ones (other 4xx). On bail, drop
-      // the (first 400 bytes of) body into the message so the user sees
-      // exactly what the upstream said.
+      // bail immediately on the deterministic ones (other 4xx). On bail, the
+      // user-facing message stays compact: a Cloudflare 504 returns a full
+      // HTML maintenance page that's noise in a toast, so for HTML responses
+      // on a 5xx (the typical upstream-reverse-proxy shape) we substitute a
+      // generic "upstream is temporarily down" message. The full body is
+      // still logged so operators can dig.
       if (!res.ok) {
         const rawText = await res.text();
-        const httpErr = new Error(
-          `GivemeMyProvider: ${this.endpoint} returned HTTP ${res.status} ${res.statusText}. ` +
-            `Body (first 400 bytes): ${rawText.slice(0, 400)}`,
-        );
+        const isHtml = /^\s*<(?:!doctype|html|head|body)/i.test(rawText);
         const retryable = res.status >= 500 || res.status === 408 || res.status === 429;
+        const userMessage =
+          isHtml && res.status >= 500
+            ? `the collateral host (${this.host.name}) returned an HTTP ${res.status} ` +
+              `maintenance page. The upstream is temporarily unavailable — wait a moment and ` +
+              `retry, or pick a different collateral host.`
+            : `GivemeMyProvider: ${this.endpoint} returned HTTP ${res.status} ${res.statusText}. ` +
+              `Body (first 400 bytes): ${rawText.slice(0, 400)}`;
+        if (isHtml && res.status >= 500) {
+          console.warn(
+            `[lovejoin/collateral] upstream HTML body (logged, hidden from user-facing error): ` +
+              rawText.slice(0, 400),
+          );
+        }
+        const httpErr = new Error(userMessage);
         lastErr = httpErr;
         if (retryable && attempt < maxAttempts) {
           await this.sleepBeforeRetry(attempt, `HTTP ${res.status}`);
