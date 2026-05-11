@@ -385,6 +385,32 @@ describe("tx/collateral — GivemeMyProvider", () => {
     expect(calls).toBe(3);
   });
 
+  it("signTxBody substitutes a clean message when 5xx returns an HTML maintenance page", async () => {
+    // Cloudflare in front of giveme.my returns a full HTML page on 504.
+    // The raw body is noise in a UI toast; the SDK swaps in a one-line
+    // user-facing message and logs the raw body for operators.
+    const provider = new GivemeMyProvider({
+      network: "preprod",
+      fetchFn: fakeFetch(() => ({
+        status: 504,
+        body:
+          `<!DOCTYPE html><html><head><title>Error</title></head>` +
+          `<body><h1>Bad Gateway</h1><p>cloudflared was unreachable.</p></body></html>`,
+      })),
+      retry: { maxAttempts: 1, initialDelayMs: 0, backoffFactor: 1 },
+    });
+    const err = await provider.signTxBody("deadbeef").then(
+      () => null,
+      (e: Error) => e,
+    );
+    expect(err).toBeInstanceOf(Error);
+    expect(err!.message).toMatch(/temporarily unavailable/);
+    expect(err!.message).toMatch(/HTTP 504/);
+    // The HTML body is NOT in the surfaced error (it'd be noise in a toast).
+    expect(err!.message).not.toMatch(/<!DOCTYPE/);
+    expect(err!.message).not.toMatch(/<html/);
+  });
+
   it("signTxBody does NOT retry on 4xx other than 408/429", async () => {
     let calls = 0;
     const provider = new GivemeMyProvider({

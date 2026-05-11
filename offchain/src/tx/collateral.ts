@@ -259,18 +259,26 @@ export type CollateralFetchFn = (
  * does not risk double-spend or duplicate submission.
  */
 export interface CollateralRetryPolicy {
-  /** Total attempts including the first. Must be `>= 1`. Default 3. */
+  /** Total attempts including the first. Must be `>= 1`. Default 5. */
   maxAttempts: number;
-  /** Delay before attempt 2 in ms. Default 250. */
+  /** Delay before attempt 2 in ms. Default 1000. */
   initialDelayMs: number;
-  /** Multiplier applied to the delay each retry. Default 2 (250ms, 500ms). */
+  /** Multiplier applied to the delay each retry. Default 2. */
   backoffFactor: number;
 }
 
-/** Sensible defaults; see {@link CollateralRetryPolicy}. */
+/**
+ * Sensible defaults; see {@link CollateralRetryPolicy}.
+ *
+ * Total back-off window with these defaults: 0, 1s, 2s, 4s, 8s ≈ 15 s
+ * between attempt 1 and attempt 5, which covers a typical cloudflared
+ * 504 blip in front of giveme.my without surfacing a toast to the user.
+ * A persistent 504 still surfaces — five attempts spaced like this is
+ * the longest we want a user click to hang before reporting failure.
+ */
 export const DEFAULT_COLLATERAL_RETRY: Readonly<CollateralRetryPolicy> = {
-  maxAttempts: 3,
-  initialDelayMs: 250,
+  maxAttempts: 5,
+  initialDelayMs: 1000,
   backoffFactor: 2,
 };
 
@@ -509,16 +517,30 @@ export class GivemeMyProvider implements CollateralProvider {
       console.log(`[lovejoin/collateral] HTTP ${res.status} ${res.statusText}`);
 
       // HTTP-level failure. Retry on the transient buckets (5xx / 408 / 429);
-      // bail immediately on the deterministic ones (other 4xx). On bail, drop
-      // the (first 400 bytes of) body into the message so the user sees
-      // exactly what the upstream said.
+      // bail immediately on the deterministic ones (other 4xx). On bail, the
+      // user-facing message stays compact: a Cloudflare 504 returns a full
+      // HTML maintenance page that's noise in a toast, so for HTML responses
+      // on a 5xx (the typical upstream-reverse-proxy shape) we substitute a
+      // generic "upstream is temporarily down" message. The full body is
+      // still logged so operators can dig.
       if (!res.ok) {
         const rawText = await res.text();
-        const httpErr = new Error(
-          `GivemeMyProvider: ${this.endpoint} returned HTTP ${res.status} ${res.statusText}. ` +
-            `Body (first 400 bytes): ${rawText.slice(0, 400)}`,
-        );
+        const isHtml = /^\s*<(?:!doctype|html|head|body)/i.test(rawText);
         const retryable = res.status >= 500 || res.status === 408 || res.status === 429;
+        const userMessage =
+          isHtml && res.status >= 500
+            ? `the collateral host (${this.host.name}) returned an HTTP ${res.status} ` +
+              `maintenance page. The upstream is temporarily unavailable — wait a moment and ` +
+              `retry, or pick a different collateral host.`
+            : `GivemeMyProvider: ${this.endpoint} returned HTTP ${res.status} ${res.statusText}. ` +
+              `Body (first 400 bytes): ${rawText.slice(0, 400)}`;
+        if (isHtml && res.status >= 500) {
+          console.warn(
+            `[lovejoin/collateral] upstream HTML body (logged, hidden from user-facing error): ` +
+              rawText.slice(0, 400),
+          );
+        }
+        const httpErr = new Error(userMessage);
         lastErr = httpErr;
         if (retryable && attempt < maxAttempts) {
           await this.sleepBeforeRetry(attempt, `HTTP ${res.status}`);
