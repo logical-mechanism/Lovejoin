@@ -602,6 +602,7 @@
     "toast_success": "扇出完成 — 已提交 {{count}} 个混合",
     "toast_partial": "扇出有错误地完成 — 已提交 {{submitted}}，丢弃 {{failed}}",
     "toast_failed": "扇出失败",
-    "gate_owned_in_flight": "你所有的 box 都还在前一笔交易的途中。等下一个区块后再试。"
+    "gate_owned_in_flight": "你所有的 box 都还在前一笔交易的途中。等下一个区块后再试。",
+    "progress_slow_hint": "此步骤耗时比平常长。抵押服务可能正在因短暂故障重试 — 每次会增加几秒。"
   }
 }

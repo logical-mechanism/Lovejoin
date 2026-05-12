@@ -18,7 +18,7 @@
 //   "You are paying fees to mix boxes you don't own. This is what makes
 //    your branch indistinguishable from theirs."
 
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { BrowserWallet } from "@meshsdk/core";
 import {
@@ -97,7 +97,29 @@ export function FanoutMixPanel(props: FanoutMixPanelProps) {
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [running, setRunning] = useState(false);
   const [progress, setProgress] = useState<ProgressState | null>(null);
+  // Tracks the wall-clock of the last progress mutation. If the run
+  // stays put for >5s, surface a hint — usually means the collateral
+  // host is in its retry-backoff window and the UI is otherwise just
+  // sitting there waiting.
+  const [lastProgressAt, setLastProgressAt] = useState<number | null>(null);
+  const [showSlowHint, setShowSlowHint] = useState(false);
   const cancelToken = useRef<{ cancelled: boolean }>({ cancelled: false });
+
+  useEffect(() => {
+    if (!running || lastProgressAt === null) {
+      setShowSlowHint(false);
+      return;
+    }
+    const id = window.setInterval(() => {
+      // 5s threshold catches a single 504 retry cycle (500ms first
+      // attempt → ~1s total before the next attempt sneaks past the
+      // threshold). Tighter would false-alarm on healthy slow slots
+      // (proof generation + 3 RPCs can hit 3-4s on a slow link).
+      const elapsed = Date.now() - lastProgressAt;
+      setShowSlowHint(elapsed > 5000);
+    }, 1000);
+    return () => window.clearInterval(id);
+  }, [running, lastProgressAt]);
 
   const allowedDepths = props.advanced ? ADVANCED_DEPTHS : VISIBLE_DEPTHS;
   const denomLovelace = BigInt(props.addresses.protocol.denom_lovelace);
@@ -195,6 +217,7 @@ export function FanoutMixPanel(props: FanoutMixPanelProps) {
         ...(props.wallet ? { wallet: props.wallet } : {}),
         retry: { maxAttempts: 3, delayBetweenAttemptsMs: 2_000 },
       });
+      setLastProgressAt(Date.now());
       const summary = await consumeEvents(events, (evt) => {
         if (cancelToken.current.cancelled) return;
         // Surface slot-failed errors to the console; the progress UI
@@ -207,6 +230,11 @@ export function FanoutMixPanel(props: FanoutMixPanelProps) {
               `${evt.error.message}`,
           );
         }
+        // Reset the stall timer on every event the orchestrator yields.
+        // wave-started / slot-submitted / slot-failed all count as
+        // "the run is still moving"; only sustained silence between
+        // events crosses the slow-hint threshold.
+        setLastProgressAt(Date.now());
         setProgress((prev) => (prev ? applyEventToProgress(prev, evt) : null));
       });
       if (summary.failedSlots.size === 0) {
@@ -367,7 +395,7 @@ export function FanoutMixPanel(props: FanoutMixPanelProps) {
           )}
         </div>
 
-        {progress && <FanoutProgressDisplay progress={progress} />}
+        {progress && <FanoutProgressDisplay progress={progress} slowHint={showSlowHint} />}
       </section>
 
       <Modal
@@ -429,7 +457,13 @@ export function FanoutMixPanel(props: FanoutMixPanelProps) {
 // Progress display
 // ---------------------------------------------------------------------------
 
-function FanoutProgressDisplay({ progress }: { progress: ProgressState }) {
+function FanoutProgressDisplay({
+  progress,
+  slowHint,
+}: {
+  progress: ProgressState;
+  slowHint: boolean;
+}) {
   const { t } = useTranslation();
   const done = progress.submitted + progress.failed;
   const pct = progress.total > 0 ? Math.round((done / progress.total) * 100) : 0;
@@ -457,6 +491,11 @@ function FanoutProgressDisplay({ progress }: { progress: ProgressState }) {
       {progress.currentWave !== null && (
         <p className="text-xs text-whisper">
           {t("fanout.progress_current_wave", { wave: progress.currentWave + 1 })}
+        </p>
+      )}
+      {slowHint && (
+        <p className="text-xs text-amber" role="status" aria-live="polite">
+          {t("fanout.progress_slow_hint")}
         </p>
       )}
       {progress.droppedIds.size > 0 && (

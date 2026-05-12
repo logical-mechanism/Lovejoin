@@ -602,6 +602,7 @@
     "toast_success": "Leque completo — {{count}} mix(es) enviado(s)",
     "toast_partial": "Leque terminou com erros — {{submitted}} enviados, {{failed}} descartados",
     "toast_failed": "Leque falhou",
-    "gate_owned_in_flight": "Todas as suas boxes ainda estão em trânsito de uma tx anterior. Aguarde o próximo bloco e tente de novo."
+    "gate_owned_in_flight": "Todas as suas boxes ainda estão em trânsito de uma tx anterior. Aguarde o próximo bloco e tente de novo.",
+    "progress_slow_hint": "Esta etapa está demorando mais que o normal. O serviço de colateral pode estar tentando de novo após uma falha transitória — isso adiciona alguns segundos por ocorrência."
   }
 }

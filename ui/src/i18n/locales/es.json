@@ -602,6 +602,7 @@
     "toast_success": "Abanico completo — {{count}} mezcla(s) enviada(s)",
     "toast_partial": "Abanico terminado con errores — {{submitted}} enviadas, {{failed}} descartadas",
     "toast_failed": "Abanico fallido",
-    "gate_owned_in_flight": "Todas las cajas propias siguen en vuelo de una tx anterior. Espera al próximo bloque e inténtalo de nuevo."
+    "gate_owned_in_flight": "Todas las cajas propias siguen en vuelo de una tx anterior. Espera al próximo bloque e inténtalo de nuevo.",
+    "progress_slow_hint": "Este paso está tardando más de lo normal. El servicio de colateral puede estar reintentando por una interrupción transitoria; esto añade unos segundos por ocurrencia."
   }
 }

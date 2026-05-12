@@ -602,6 +602,7 @@
     "toast_success": "Fan-out abgeschlossen — {{count}} Mix(e) gesendet",
     "toast_partial": "Fan-out mit Fehlern beendet — {{submitted}} gesendet, {{failed}} verworfen",
     "toast_failed": "Fan-out fehlgeschlagen",
-    "gate_owned_in_flight": "Jede eigene Box ist noch von einer vorherigen Tx im Umlauf. Warte auf den nächsten Block und versuch's erneut."
+    "gate_owned_in_flight": "Jede eigene Box ist noch von einer vorherigen Tx im Umlauf. Warte auf den nächsten Block und versuch's erneut.",
+    "progress_slow_hint": "Dieser Schritt dauert länger als üblich. Der Collateral-Dienst versucht möglicherweise nach einem kurzen Ausfall erneut — pro Vorfall können einige Sekunden hinzukommen."
   }
 }

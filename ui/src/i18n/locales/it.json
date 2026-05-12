@@ -602,6 +602,7 @@
     "toast_success": "Ventaglio completato — {{count}} mix inviati",
     "toast_partial": "Ventaglio terminato con errori — {{submitted}} inviati, {{failed}} scartati",
     "toast_failed": "Ventaglio fallito",
-    "gate_owned_in_flight": "Ogni box è ancora in volo da una tx precedente. Attendi il prossimo blocco e riprova."
+    "gate_owned_in_flight": "Ogni box è ancora in volo da una tx precedente. Attendi il prossimo blocco e riprova.",
+    "progress_slow_hint": "Questo passaggio sta richiedendo più del solito. Il servizio di collaterale potrebbe star ritentando dopo una breve interruzione — qualche secondo in più per occorrenza."
   }
 }
