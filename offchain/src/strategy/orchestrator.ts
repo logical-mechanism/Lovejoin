@@ -311,9 +311,25 @@ export async function* submitFanout(args: SubmitFanoutArgs): AsyncIterable<Fanou
       };
 
       let result: MixResult;
+      const slotStartMs = Date.now();
       try {
         result = await build(buildArgs);
+        const elapsedMs = Date.now() - slotStartMs;
+        // Per-slot wall-clock so users can spot where a fan-out hangs.
+        // mix.ts and collateral.ts already log their internal stages
+        // (`shard-mode fee discovery`, `POST /collateral/`, etc.); the
+        // total here lets you cross-reference. A slot taking >5 s on
+        // a healthy network points at either a backend `/evaluate`
+        // stall or a collateral-host retry backoff (1s, 2s, 4s, 8s).
+        console.log(
+          `[lovejoin/fanout] slot ${slot.id} (wave ${k + 1}, chainFrom=${slotChainFromUtxos.length}) ` +
+            `submitted in ${elapsedMs}ms — tx ${result.txId.slice(0, 12)}…`,
+        );
       } catch (err) {
+        const elapsedMs = Date.now() - slotStartMs;
+        console.warn(
+          `[lovejoin/fanout] slot ${slot.id} (wave ${k + 1}) failed after ${elapsedMs}ms`,
+        );
         const droppedList = fanoutDescendants(args.plan, slot.id);
         for (const id of droppedList) dropped.add(id);
         failedCount += droppedList.length;
