@@ -221,7 +221,13 @@
     "review_collateral_value_wallet": "Fourni par votre portefeuille connecté",
     "review_linkage_value": "1/{{n}} par tour",
     "confirm_lede_shard": "Lovejoin choisira N boxes au hasard, demandera du collatéral au service configuré et soumettra la tx de Mix. En mode shard, vous ne signez rien ; le portefeuille reste hors de la tx.",
-    "confirm_lede_wallet": "Lovejoin choisira N boxes au hasard et soumettra la tx de Mix. Votre portefeuille paiera les frais, fournira le collatéral et signera."
+    "confirm_lede_wallet": "Lovejoin choisira N boxes au hasard et soumettra la tx de Mix. Votre portefeuille paiera les frais, fournira le collatéral et signera.",
+    "intensity_eyebrow": "Intensité",
+    "intensity_option_single": "Simple",
+    "intensity_option_fanout": "Profondeur {{k}}",
+    "intensity_hint_single": "Une tx de Mix vers le pool partagé. Probabilité de liaison 1/3 par tour ; la tx reste anonyme côté wallet en mode fee shard.",
+    "intensity_hint_fanout": "Éventail de profondeur {{k}} : {{mixes}} txs de Mix au total, à partir d'une de vos boxes. Probabilité de liaison (1/3)^{{k}} ≈ {{percent}} %.",
+    "vault_locked_at_depth": "Le coffre est verrouillé. La profondeur ≥ 2 a besoin d'une box que vous possédez pour enraciner l'arbre ; déverrouillez d'abord le coffre."
   },
   "deposit": {
     "section_title": "Dépôt",
@@ -425,7 +431,11 @@
     "mix_row_confirm_lede": "Soumet une tx de mix à frais de shard qui inclut cette boîte plus {{n}} - 1 autres boîtes choisies au hasard dans la pool active. La wallet reste hors de la tx ; les frais sont payés par un fee shard. Le compteur de tours de cette boîte augmente d'un une fois la tx confirmée.",
     "mix_row_confirm_submit": "Mixer cette boîte",
     "mix_disabled_collateral": "Fournisseur de collatéral injoignable. La soumission de mix est désactivée.",
-    "mix_disabled_pool": "Pool trop petite pour mixer cette boîte. Il faut {{need}} boîtes actives ; il y en a {{have}}."
+    "mix_disabled_pool": "Pool trop petite pour mixer cette boîte. Il faut {{need}} boîtes actives ; il y en a {{have}}.",
+    "fanout_entry_eyebrow": "Renforcement de confidentialité",
+    "fanout_entry_title": "Lancer un mix en éventail",
+    "fanout_entry_lede": "Enchaînez plusieurs txs de Mix en un arbre à partir d'une de vos boxes. Votre branche devient indistinguable parmi 9 autres ou plus.",
+    "fanout_entry_cta": "Lancer l'éventail"
   },
   "secret_card": {
     "title": "Sauvegardez ce secret maintenant",

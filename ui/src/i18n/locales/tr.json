@@ -221,7 +221,13 @@
     "review_collateral_value_wallet": "Bağlı cüzdanın tarafından sağlanır",
     "review_linkage_value": "Tur başına 1/{{n}}",
     "confirm_lede_shard": "Lovejoin rastgele N kutu seçer, yapılandırılmış servisten kolateral ister ve Mix tx'ini gönderir. Shard modunda hiçbir şey imzalamazsın; cüzdan tx'in dışında kalır.",
-    "confirm_lede_wallet": "Lovejoin rastgele N kutu seçer ve Mix tx'ini gönderir. Cüzdanın ücreti öder, kolateralı sağlar ve imzalar."
+    "confirm_lede_wallet": "Lovejoin rastgele N kutu seçer ve Mix tx'ini gönderir. Cüzdanın ücreti öder, kolateralı sağlar ve imzalar.",
+    "intensity_eyebrow": "Yoğunluk",
+    "intensity_option_single": "Tekli",
+    "intensity_option_fanout": "Derinlik {{k}}",
+    "intensity_hint_single": "Paylaşılan havuza tek bir Mix tx'i. Tur başına bağlanma olasılığı 1/3; fee shard modunda tx cüzdan kimliği taşımaz.",
+    "intensity_hint_fanout": "{{k}} derinliğinde yelpaze: toplam {{mixes}} Mix tx, kendi box'larından biriyle başlar. Bağlanma olasılığı (1/3)^{{k}} ≈ %{{percent}}.",
+    "vault_locked_at_depth": "Vault kilitli. ≥ 2 derinlik için ağacın kökü olarak senin olan bir box gerekir; önce vault'u aç."
   },
   "deposit": {
     "section_title": "Yatırım",
@@ -425,7 +431,11 @@
     "mix_row_confirm_lede": "Bu kutuyu ve aktif pool'dan rastgele seçilmiş {{n}} - 1 başka kutuyu içeren bir shard ücretli mix tx'i gönderir. Cüzdan tx'in dışında kalır; ücreti bir fee shard öder. Tx onaylandığında bu kutunun tur sayacı bir artar.",
     "mix_row_confirm_submit": "Bu kutuyu karıştır",
     "mix_disabled_collateral": "Teminat sağlayıcısına ulaşılamıyor. Mix gönderimi devre dışı.",
-    "mix_disabled_pool": "Bu kutuyu karıştırmak için pool çok küçük. {{need}} aktif kutu gerekli; {{have}} mevcut."
+    "mix_disabled_pool": "Bu kutuyu karıştırmak için pool çok küçük. {{need}} aktif kutu gerekli; {{have}} mevcut.",
+    "fanout_entry_eyebrow": "Gizlilik takviyesi",
+    "fanout_entry_title": "Yelpaze karışım başlat",
+    "fanout_entry_lede": "Kendi box'larından birinden başlayan bir ağaçta birkaç Mix tx'ini zincirler. Kolun 9 veya daha fazlasından ayırt edilemez hale gelir.",
+    "fanout_entry_cta": "Yelpaze çalıştır"
   },
   "secret_card": {
     "title": "Bu sırrı şimdi kaydedin",

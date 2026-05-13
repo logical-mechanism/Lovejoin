@@ -221,7 +221,13 @@
     "review_collateral_value_wallet": "จัดเตรียมโดยกระเป๋าที่เชื่อมต่ออยู่",
     "review_linkage_value": "1/{{n}} ต่อรอบ",
     "confirm_lede_shard": "Lovejoin จะสุ่มเลือกกล่อง N กล่อง ขอหลักประกันจากบริการที่กำหนดไว้ แล้วส่ง Mix tx ในโหมด shard คุณไม่ต้องเซ็นอะไรเลย กระเป๋าอยู่นอก tx",
-    "confirm_lede_wallet": "Lovejoin จะสุ่มเลือกกล่อง N กล่อง แล้วส่ง Mix tx กระเป๋าของคุณจะจ่ายค่าธรรมเนียม จัดเตรียมหลักประกัน และเซ็น"
+    "confirm_lede_wallet": "Lovejoin จะสุ่มเลือกกล่อง N กล่อง แล้วส่ง Mix tx กระเป๋าของคุณจะจ่ายค่าธรรมเนียม จัดเตรียมหลักประกัน และเซ็น",
+    "intensity_eyebrow": "ความเข้ม",
+    "intensity_option_single": "ครั้งเดียว",
+    "intensity_option_fanout": "ความลึก {{k}}",
+    "intensity_hint_single": "Mix tx เดียวเข้าสู่ pool รวม. ความน่าจะเป็นการเชื่อมโยง 1/3 ต่อรอบ; ในโหมด fee shard tx ยังคงไม่ระบุ wallet.",
+    "intensity_hint_fanout": "Fan-out ความลึก {{k}}: ทั้งหมด {{mixes}} Mix tx เริ่มจาก box หนึ่งของคุณ. ความน่าจะเป็นการเชื่อมโยง (1/3)^{{k}} ≈ {{percent}}%.",
+    "vault_locked_at_depth": "vault ถูกล็อก. ความลึก ≥ 2 ต้องใช้ box ของคุณเป็นรากของต้นไม้; กรุณาปลดล็อก vault ก่อน."
   },
   "deposit": {
     "section_title": "ฝาก",
@@ -425,7 +431,11 @@
     "mix_row_confirm_lede": "ส่ง tx มิกซ์แบบค่าธรรมเนียมชาร์ดที่รวมกล่องนี้กับกล่องอื่นอีก {{n}} - 1 ใบที่สุ่มเลือกจาก pool ที่ใช้งานอยู่ กระเป๋าเงินอยู่นอก tx ค่าธรรมเนียมชำระโดย fee shard ตัวนับรอบของกล่องนี้จะเพิ่มขึ้นหนึ่งเมื่อ tx ยืนยัน",
     "mix_row_confirm_submit": "มิกซ์กล่องนี้",
     "mix_disabled_collateral": "ผู้ให้บริการ collateral เข้าถึงไม่ได้ การส่งมิกซ์ถูกปิดใช้งาน",
-    "mix_disabled_pool": "Pool เล็กเกินไปสำหรับมิกซ์กล่องนี้ ต้องการ {{need}} กล่องที่ใช้งานอยู่; มี {{have}}"
+    "mix_disabled_pool": "Pool เล็กเกินไปสำหรับมิกซ์กล่องนี้ ต้องการ {{need}} กล่องที่ใช้งานอยู่; มี {{have}}",
+    "fanout_entry_eyebrow": "เพิ่มความเป็นส่วนตัว",
+    "fanout_entry_title": "เริ่ม Mix แบบกระจาย",
+    "fanout_entry_lede": "เชื่อม Mix tx หลายรายการเป็นต้นไม้โดยเริ่มจาก box ของคุณ. สาขาของคุณจะกลายเป็นที่ไม่สามารถแยกออกจากอีก 9 สาขาขึ้นไป.",
+    "fanout_entry_cta": "เริ่มแบบกระจาย"
   },
   "secret_card": {
     "title": "บันทึก secret นี้ตอนนี้",

@@ -221,7 +221,13 @@
     "review_collateral_value_wallet": "Dostarczany przez twój podłączony portfel",
     "review_linkage_value": "1/{{n}} na rundę",
     "confirm_lede_shard": "Lovejoin wybierze N losowych boxów, poprosi o kolateral ze skonfigurowanej usługi i wyśle tx Mix. W trybie shard niczego nie podpisujesz; portfel pozostaje poza tx.",
-    "confirm_lede_wallet": "Lovejoin wybierze N losowych boxów i wyśle tx Mix. Twój portfel zapłaci opłatę, dostarczy kolateral i podpisze."
+    "confirm_lede_wallet": "Lovejoin wybierze N losowych boxów i wyśle tx Mix. Twój portfel zapłaci opłatę, dostarczy kolateral i podpisze.",
+    "intensity_eyebrow": "Intensywność",
+    "intensity_option_single": "Pojedynczy",
+    "intensity_option_fanout": "Głębokość {{k}}",
+    "intensity_hint_single": "Pojedyncza tx Mix do wspólnej puli. Prawdopodobieństwo powiązania 1/3 na rundę; tx pozostaje anonimowa względem portfela w trybie fee shard.",
+    "intensity_hint_fanout": "Rozgałęzienie głębokości {{k}}: łącznie {{mixes}} tx Mix, startując od jednej z twoich box. Prawdopodobieństwo powiązania (1/3)^{{k}} ≈ {{percent}}%.",
+    "vault_locked_at_depth": "Skarbiec jest zablokowany. Głębokość ≥ 2 wymaga własnej box jako korzenia drzewa; najpierw odblokuj skarbiec."
   },
   "deposit": {
     "section_title": "Wpłata",
@@ -425,7 +431,11 @@
     "mix_row_confirm_lede": "Wysyła tx mixu z opłatą shard, która zawiera ten box plus {{n}} - 1 innych boxów wybranych losowo z aktywnego poola. Wallet pozostaje poza tx; opłatę pokrywa fee shard. Licznik rund tego boxa rośnie o jeden po potwierdzeniu tx.",
     "mix_row_confirm_submit": "Zmiksuj ten box",
     "mix_disabled_collateral": "Dostawca collateralu nieosiągalny. Wysyłanie mixu jest wyłączone.",
-    "mix_disabled_pool": "Pool jest za mały, aby zmiksować ten box. Potrzeba {{need}} aktywnych boxów; jest {{have}}."
+    "mix_disabled_pool": "Pool jest za mały, aby zmiksować ten box. Potrzeba {{need}} aktywnych boxów; jest {{have}}.",
+    "fanout_entry_eyebrow": "Wzmocnienie prywatności",
+    "fanout_entry_title": "Uruchom mix rozgałęziony",
+    "fanout_entry_lede": "Łączy kilka tx Mix w drzewo startujące od jednej z twoich box. Twoja gałąź staje się nierozróżnialna spośród 9 lub więcej.",
+    "fanout_entry_cta": "Uruchom rozgałęzienie"
   },
   "secret_card": {
     "title": "Zapisz teraz ten sekret",

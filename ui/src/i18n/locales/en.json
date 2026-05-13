@@ -178,6 +178,11 @@
     "lede": "Anyone can mix the pool; there's no operator. Each Mix tx re-randomizes N pool boxes in one go, and you can pay for it two ways. Pay from the shared fee shard and your wallet stays off the tx entirely (wallet-anonymous). Or pay from your wallet and the tx is faster, but it carries your wallet identity.",
     "size": "Pool size",
     "estimated_mixes_available": "Mixes available",
+    "intensity_eyebrow": "Intensity",
+    "intensity_option_single": "Single",
+    "intensity_option_fanout": "Depth {{k}}",
+    "intensity_hint_single": "One Mix tx into the shared pool. Linkage 1/3 per round; the tx stays wallet-anonymous in fee-shard mode.",
+    "intensity_hint_fanout": "Depth-{{k}} fan-out: {{mixes}} Mix txs total, starting from one of your boxes. Linkage (1/3)^{{k}} ≈ {{percent}}%.",
     "mix_n_random_boxes": "Mix {{n}} random boxes",
     "mix_width": "Mix width N",
     "mix_width_min": "min 2",
@@ -224,7 +229,8 @@
     "confirm_title": "Confirm Mix tx",
     "confirm_lede_shard": "Lovejoin will pick N random boxes, request collateral from the configured service, and submit the Mix tx. In shard mode you don't sign anything; the wallet stays off the tx.",
     "confirm_lede_wallet": "Lovejoin will pick N random boxes and submit the Mix tx. Your wallet will pay the fee, supply the collateral, and sign.",
-    "confirm_submit": "Confirm and submit"
+    "confirm_submit": "Confirm and submit",
+    "vault_locked_at_depth": "Vault is locked. Depth ≥ 2 needs an owned box to root the tree; unlock the vault first."
   },
   "fanout": {
     "eyebrow": "Privacy boost",
@@ -423,6 +429,10 @@
     "eyebrow": "Step III · leave the pool",
     "eyebrow_recovery": "Step III · leave the pool (recovery)",
     "lede": "Sign a single message with your wallet. Lovejoin derives every owner secret deterministically from that signature. Recovery on a fresh browser is one click. No phrase to write down by default.",
+    "fanout_entry_eyebrow": "Privacy boost",
+    "fanout_entry_title": "Run a fan-out mix",
+    "fanout_entry_lede": "Chain several Mix txs into a tree starting from one of your boxes. Your branch ends up indistinguishable from 9+ others.",
+    "fanout_entry_cta": "Run fan-out",
     "lock": "Lock",
     "locked_title": "Vault locked",
     "locked_lede": "Lovejoin derives your owner key from a wallet signature. The signature stays in this browser tab. It's never sent to a server, and locking the vault wipes it from memory. Only your wallet can produce this signature.",

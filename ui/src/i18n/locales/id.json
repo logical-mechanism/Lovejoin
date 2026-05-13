@@ -221,7 +221,13 @@
     "review_collateral_value_wallet": "Disediakan oleh dompet yang terhubung",
     "review_linkage_value": "1/{{n}} per ronde",
     "confirm_lede_shard": "Lovejoin akan memilih N box secara acak, meminta jaminan dari layanan yang dikonfigurasi, lalu mengirim tx Mix. Dalam mode shard kamu tidak menandatangani apa pun; dompet tetap di luar tx.",
-    "confirm_lede_wallet": "Lovejoin akan memilih N box secara acak dan mengirim tx Mix. Dompetmu akan membayar biaya, menyediakan jaminan, dan menandatangani."
+    "confirm_lede_wallet": "Lovejoin akan memilih N box secara acak dan mengirim tx Mix. Dompetmu akan membayar biaya, menyediakan jaminan, dan menandatangani.",
+    "intensity_eyebrow": "Intensitas",
+    "intensity_option_single": "Tunggal",
+    "intensity_option_fanout": "Kedalaman {{k}}",
+    "intensity_hint_single": "Satu tx Mix ke pool bersama. Probabilitas keterhubungan 1/3 per ronde; di mode fee shard tx tetap anonim terhadap wallet.",
+    "intensity_hint_fanout": "Fan-out kedalaman {{k}}: total {{mixes}} tx Mix, dimulai dari salah satu box milikmu. Probabilitas keterhubungan (1/3)^{{k}} ≈ {{percent}}%.",
+    "vault_locked_at_depth": "Vault terkunci. Kedalaman ≥ 2 perlu satu box milikmu untuk menjadi akar pohon; buka vault terlebih dahulu."
   },
   "deposit": {
     "section_title": "Setor",
@@ -425,7 +431,11 @@
     "mix_row_confirm_lede": "Mengirimkan tx mix berbiaya shard yang menyertakan kotak ini ditambah {{n}} - 1 kotak lain yang dipilih secara acak dari pool aktif. Wallet tetap di luar tx; biayanya dibayar oleh fee shard. Penghitung ronde kotak ini bertambah satu setelah tx terkonfirmasi.",
     "mix_row_confirm_submit": "Mix kotak ini",
     "mix_disabled_collateral": "Penyedia collateral tidak terjangkau. Pengiriman mix dinonaktifkan.",
-    "mix_disabled_pool": "Pool terlalu kecil untuk mix kotak ini. Butuh {{need}} kotak aktif; tersedia {{have}}."
+    "mix_disabled_pool": "Pool terlalu kecil untuk mix kotak ini. Butuh {{need}} kotak aktif; tersedia {{have}}.",
+    "fanout_entry_eyebrow": "Penguat privasi",
+    "fanout_entry_title": "Jalankan mix berbentuk kipas",
+    "fanout_entry_lede": "Merangkai beberapa tx Mix menjadi pohon yang dimulai dari salah satu box milikmu. Cabangmu menjadi tidak terbedakan di antara 9+ cabang lain.",
+    "fanout_entry_cta": "Jalankan kipas"
   },
   "secret_card": {
     "title": "Simpan secret ini sekarang",

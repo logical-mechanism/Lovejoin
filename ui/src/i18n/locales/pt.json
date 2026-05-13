@@ -221,7 +221,13 @@
     "review_collateral_value_wallet": "Fornecido pela sua carteira conectada",
     "review_linkage_value": "1/{{n}} por rodada",
     "confirm_lede_shard": "Lovejoin vai escolher N boxes ao acaso, pedir colateral ao serviço configurado e enviar a tx de Mix. No modo shard você não assina nada; a carteira fica fora da tx.",
-    "confirm_lede_wallet": "Lovejoin vai escolher N boxes ao acaso e enviar a tx de Mix. Sua carteira vai pagar a taxa, fornecer o colateral e assinar."
+    "confirm_lede_wallet": "Lovejoin vai escolher N boxes ao acaso e enviar a tx de Mix. Sua carteira vai pagar a taxa, fornecer o colateral e assinar.",
+    "intensity_eyebrow": "Intensidade",
+    "intensity_option_single": "Único",
+    "intensity_option_fanout": "Profundidade {{k}}",
+    "intensity_hint_single": "Uma tx de Mix no pool partilhado. Probabilidade de ligação 1/3 por ronda; a tx mantém anonimato da carteira no modo fee shard.",
+    "intensity_hint_fanout": "Leque de profundidade {{k}}: {{mixes}} txs de Mix no total, a partir de uma das tuas caixas. Probabilidade de ligação (1/3)^{{k}} ≈ {{percent}}%.",
+    "vault_locked_at_depth": "O cofre está bloqueado. A profundidade ≥ 2 precisa de uma caixa tua para raiz da árvore; desbloqueia primeiro o cofre."
   },
   "deposit": {
     "section_title": "Depósito",
@@ -425,7 +431,11 @@
     "mix_row_confirm_lede": "Envia uma tx de mix com taxa por shard que inclui esta caixa mais outras {{n}} - 1 caixas escolhidas ao acaso da pool ativa. A wallet fica fora da tx; a taxa é paga por um fee shard. O contador de rodadas desta caixa aumenta em um quando a tx é confirmada.",
     "mix_row_confirm_submit": "Misturar esta caixa",
     "mix_disabled_collateral": "Provedor de colateral inacessível. O envio do mix está desativado.",
-    "mix_disabled_pool": "Pool pequeno demais para misturar esta caixa. São necessárias {{need}} caixas ativas; há {{have}}."
+    "mix_disabled_pool": "Pool pequeno demais para misturar esta caixa. São necessárias {{need}} caixas ativas; há {{have}}.",
+    "fanout_entry_eyebrow": "Reforço de privacidade",
+    "fanout_entry_title": "Executar mix em leque",
+    "fanout_entry_lede": "Encadeia várias txs de Mix numa árvore a partir de uma das tuas caixas. O teu ramo fica indistinguível entre 9 ou mais.",
+    "fanout_entry_cta": "Executar leque"
   },
   "secret_card": {
     "title": "Salve este secret agora",

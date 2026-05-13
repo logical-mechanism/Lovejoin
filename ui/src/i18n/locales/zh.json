@@ -221,7 +221,13 @@
     "review_collateral_value_wallet": "由你已连接的钱包提供",
     "review_linkage_value": "每轮 1/{{n}}",
     "confirm_lede_shard": "Lovejoin 会随机挑选 N 个盒子，向所配置的服务请求抵押，然后提交 Mix 交易。在 shard 模式下你不签名任何东西；钱包不出现在交易中。",
-    "confirm_lede_wallet": "Lovejoin 会随机挑选 N 个盒子并提交 Mix 交易。你的钱包将支付手续费、提供抵押并签名。"
+    "confirm_lede_wallet": "Lovejoin 会随机挑选 N 个盒子并提交 Mix 交易。你的钱包将支付手续费、提供抵押并签名。",
+    "intensity_eyebrow": "强度",
+    "intensity_option_single": "单次",
+    "intensity_option_fanout": "深度 {{k}}",
+    "intensity_hint_single": "向共享池发送一笔 Mix tx。每轮的关联概率为 1/3；在 fee shard 模式下 tx 不带钱包身份。",
+    "intensity_hint_fanout": "深度 {{k}} 扇出：共 {{mixes}} 笔 Mix tx，从你的一个 box 出发。完成后的关联概率为 (1/3)^{{k}} ≈ {{percent}}%。",
+    "vault_locked_at_depth": "vault 已锁定。深度 ≥ 2 需要你拥有的 box 作为树的根；请先解锁 vault。"
   },
   "deposit": {
     "section_title": "存入",
@@ -425,7 +431,11 @@
     "mix_row_confirm_lede": "提交一笔分片手续费混币交易，其中包含此盒子以及从活跃资金池中随机选取的另外 {{n}} - 1 个盒子。钱包不参与该交易；手续费由一个 fee shard 支付。交易确认后，此盒子的轮次计数器增加一。",
     "mix_row_confirm_submit": "混币此盒子",
     "mix_disabled_collateral": "抵押品提供方无法访问。混币提交已禁用。",
-    "mix_disabled_pool": "资金池太小，无法混币此盒子。需要 {{need}} 个活跃盒子；当前 {{have}} 个。"
+    "mix_disabled_pool": "资金池太小，无法混币此盒子。需要 {{need}} 个活跃盒子；当前 {{have}} 个。",
+    "fanout_entry_eyebrow": "隐私增强",
+    "fanout_entry_title": "启动扇出混合",
+    "fanout_entry_lede": "把多笔 Mix tx 串成一棵从你拥有的 box 出发的树。你的分支最终在 9 个及以上分支中不可区分。",
+    "fanout_entry_cta": "启动扇出"
   },
   "secret_card": {
     "title": "现在保存这个密钥",
