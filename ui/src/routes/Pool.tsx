@@ -167,12 +167,14 @@ export function Pool() {
         </div>
       )}
 
-      {/* MixPanel renders during loading too. The intensity dial, fee-payer
-       *  toggle, and review block are useful for orientation even before
-       *  data lands; the hooks gracefully report disabled when provider /
-       *  addresses are null, and the CTA reflects that. Only error +
-       *  empty states replace the panel. */}
-      {!showError && !showEmpty && (
+      {/* MixPanel renders during loading and error states too. The intensity
+       *  dial, fee-payer toggle, and review block are useful for orientation
+       *  even before data lands or when the pool scan transiently fails;
+       *  the hooks gracefully disable themselves when provider / addresses
+       *  / poolEntries are absent, and the CTA reflects that. Only the
+       *  empty state replaces the panel outright (there, the depositive
+       *  "Make a deposit" CTA is the only useful action). */}
+      {!showEmpty && (
         <>
           <MixPanel
             network={config.network}
