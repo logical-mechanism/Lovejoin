@@ -29,6 +29,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { Link } from "react-router-dom";
 
 import { useAppState } from "../lib/store.js";
 import { Eyebrow } from "../components/ui/Eyebrow.js";
@@ -241,6 +242,24 @@ function UnlockedVault() {
       {scanError && (
         <div className="lj-banner lj-banner--coral mt-4">
           <span className="lj-banner__title">{t("vault.scan_failed", { message: scanError })}</span>
+        </div>
+      )}
+
+      {ownedBoxes.length > 0 && (
+        <div className="lj-banner lj-banner--signal mt-6 flex-col items-stretch gap-3">
+          <span className="lj-eyebrow">{t("vault.fanout_entry_eyebrow")}</span>
+          <p className="lj-banner__title">{t("vault.fanout_entry_title")}</p>
+          <p className="lj-banner__detail">{t("vault.fanout_entry_lede")}</p>
+          <div className="mt-1">
+            <Link
+              to="/pool?intensity=2"
+              className="lj-btn lj-btn--primary"
+              aria-label={t("vault.fanout_entry_title")}
+            >
+              {t("vault.fanout_entry_cta")}
+              <span aria-hidden="true">→</span>
+            </Link>
+          </div>
         </div>
       )}
 
