@@ -224,7 +224,7 @@
     "confirm_lede_wallet": "Lovejoin elegirá N cajas al azar y enviará la tx de Mix. Tu billetera pagará la comisión, aportará el colateral y firmará.",
     "intensity_eyebrow": "Intensidad",
     "intensity_option_fanout": "Profundidad {{k}}",
-    "intensity_hint_fanout": "Abanico de profundidad {{k}}: {{mixes}} txs de Mix en total, partiendo de una de tus cajas. Probabilidad de enlace (1/3)^{{k}}.",
+    "intensity_hint_fanout": "Abanico de profundidad {{k}}: {{mixes}} txs de Mix en total, partiendo de una de tus cajas.",
     "vault_locked_at_depth": "La bóveda está bloqueada. La profundidad ≥ 2 necesita una caja propia para enraizar el árbol; desbloquea la bóveda primero.",
     "intensity_option_random": "Aleatorio",
     "intensity_hint_random": "Una tx de Mix al pool compartido. Probabilidad de enlace 1/3 por ronda; la tx mantiene anonimato de billetera en modo fee shard.",

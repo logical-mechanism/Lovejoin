@@ -224,7 +224,7 @@
     "confirm_lede_wallet": "Lovejoin rastgele N kutu seçer ve Mix tx'ini gönderir. Cüzdanın ücreti öder, kolateralı sağlar ve imzalar.",
     "intensity_eyebrow": "Yoğunluk",
     "intensity_option_fanout": "Derinlik {{k}}",
-    "intensity_hint_fanout": "{{k}} derinliğinde yelpaze: toplam {{mixes}} Mix tx, kendi box'larından biriyle başlar. Bağlanma olasılığı (1/3)^{{k}}.",
+    "intensity_hint_fanout": "{{k}} derinliğinde yelpaze: toplam {{mixes}} Mix tx, kendi box'larından biriyle başlar.",
     "vault_locked_at_depth": "Vault kilitli. ≥ 2 derinlik için ağacın kökü olarak senin olan bir box gerekir; önce vault'u aç.",
     "intensity_option_random": "Rastgele",
     "intensity_hint_random": "Paylaşılan havuza tek bir Mix tx'i. Tur başına bağlanma olasılığı 1/3; fee shard modunda tx cüzdan kimliği taşımaz.",

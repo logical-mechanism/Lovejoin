@@ -180,7 +180,7 @@
     "estimated_mixes_available": "Mixes available",
     "intensity_eyebrow": "Intensity",
     "intensity_option_fanout": "Depth {{k}}",
-    "intensity_hint_fanout": "Depth-{{k}} fan-out: {{mixes}} Mix txs total, starting from one of your boxes. Linkage (1/3)^{{k}}.",
+    "intensity_hint_fanout": "Depth-{{k}} fan-out: {{mixes}} Mix txs total, starting from one of your boxes.",
     "mix_n_random_boxes": "Mix {{n}} random boxes",
     "mix_width": "Mix width N",
     "mix_width_min": "min 2",

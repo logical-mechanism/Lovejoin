@@ -224,7 +224,7 @@
     "confirm_lede_wallet": "Lovejoin sẽ chọn ngẫu nhiên N box và gửi tx Mix. Ví của bạn sẽ trả phí, cung cấp collateral và ký.",
     "intensity_eyebrow": "Cường độ",
     "intensity_option_fanout": "Độ sâu {{k}}",
-    "intensity_hint_fanout": "Trộn theo cây độ sâu {{k}}: tổng {{mixes}} tx Mix, bắt đầu từ một box của bạn. Xác suất liên kết (1/3)^{{k}}.",
+    "intensity_hint_fanout": "Trộn theo cây độ sâu {{k}}: tổng {{mixes}} tx Mix, bắt đầu từ một box của bạn.",
     "vault_locked_at_depth": "Vault đang khoá. Độ sâu ≥ 2 cần một box của bạn để làm gốc cây; hãy mở khoá vault trước.",
     "intensity_option_random": "Ngẫu nhiên",
     "intensity_hint_random": "Một tx Mix vào pool dùng chung. Xác suất liên kết 1/3 mỗi vòng; ở chế độ fee shard, tx giữ ẩn danh ví.",

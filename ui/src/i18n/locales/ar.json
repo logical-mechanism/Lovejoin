@@ -224,7 +224,7 @@
     "confirm_lede_wallet": "سيختار Lovejoin N صناديق عشوائياً ويُرسل معاملة Mix. ستدفع محفظتك الرسوم، وتقدّم الضمان، وتوقّع.",
     "intensity_eyebrow": "الشدة",
     "intensity_option_fanout": "العمق {{k}}",
-    "intensity_hint_fanout": "تشعب بعمق {{k}}: ما مجموعه {{mixes}} معاملة Mix، تبدأ من إحدى box الخاصة بك. احتمال الربط (1/3)^{{k}}.",
+    "intensity_hint_fanout": "تشعب بعمق {{k}}: ما مجموعه {{mixes}} معاملة Mix، تبدأ من إحدى box الخاصة بك.",
     "vault_locked_at_depth": "الخزنة (vault) مقفلة. يحتاج العمق ≥ 2 إلى box تملكها لجذر الشجرة؛ افتح الخزنة أولاً.",
     "intensity_option_random": "عشوائي",
     "intensity_hint_random": "معاملة Mix واحدة إلى pool المشترك. احتمال الربط 1/3 في كل جولة؛ في وضع fee shard تبقى المعاملة مجهولة بالنسبة للمحفظة.",

@@ -224,7 +224,7 @@
     "confirm_lede_wallet": "Lovejoin بے ترتیب N بکس چنے گا اور Mix tx جمع کرائے گا۔ آپ کا بٹوہ فیس دے گا، کولیٹرل فراہم کرے گا، اور دستخط کرے گا۔",
     "intensity_eyebrow": "شدت",
     "intensity_option_fanout": "گہرائی {{k}}",
-    "intensity_hint_fanout": "گہرائی {{k}} کا fan-out: کل {{mixes}} Mix tx، آپ کے کسی box سے شروع۔ مکمل ہونے پر ربط کا امکان (1/3)^{{k}} ≈ {{percent}}%۔",
+    "intensity_hint_fanout": "گہرائی {{k}} کا fan-out: کل {{mixes}} Mix tx، آپ کے کسی box سے شروع۔",
     "vault_locked_at_depth": "vault لاک ہے۔ گہرائی ≥ 2 کو درخت کی جڑ کے لیے آپ کا اپنا box درکار ہے؛ پہلے vault کھولیں۔",
     "intensity_option_random": "تصادفی",
     "intensity_hint_random": "مشترکہ pool میں ایک Mix tx۔ ہر راؤنڈ میں ربط کا امکان 1/3؛ fee shard موڈ میں tx wallet کے لحاظ سے گمنام رہتی ہے۔",

@@ -224,7 +224,7 @@
     "confirm_lede_wallet": "Lovejoin wybierze N losowych boxów i wyśle tx Mix. Twój portfel zapłaci opłatę, dostarczy kolateral i podpisze.",
     "intensity_eyebrow": "Intensywność",
     "intensity_option_fanout": "Głębokość {{k}}",
-    "intensity_hint_fanout": "Rozgałęzienie głębokości {{k}}: łącznie {{mixes}} tx Mix, startując od jednej z twoich box. Prawdopodobieństwo powiązania (1/3)^{{k}}.",
+    "intensity_hint_fanout": "Rozgałęzienie głębokości {{k}}: łącznie {{mixes}} tx Mix, startując od jednej z twoich box.",
     "vault_locked_at_depth": "Skarbiec jest zablokowany. Głębokość ≥ 2 wymaga własnej box jako korzenia drzewa; najpierw odblokuj skarbiec.",
     "intensity_option_random": "Losowe",
     "intensity_hint_random": "Pojedyncza tx Mix do wspólnej puli. Prawdopodobieństwo powiązania 1/3 na rundę; tx pozostaje anonimowa względem portfela w trybie fee shard.",

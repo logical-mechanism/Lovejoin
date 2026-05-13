@@ -224,7 +224,7 @@
     "confirm_lede_wallet": "Lovejoin 会随机挑选 N 个盒子并提交 Mix 交易。你的钱包将支付手续费、提供抵押并签名。",
     "intensity_eyebrow": "强度",
     "intensity_option_fanout": "深度 {{k}}",
-    "intensity_hint_fanout": "深度 {{k}} 扇出：共 {{mixes}} 笔 Mix tx，从你的一个 box 出发。完成后的关联概率为 (1/3)^{{k}} ≈ {{percent}}%。",
+    "intensity_hint_fanout": "深度 {{k}} 扇出：共 {{mixes}} 笔 Mix tx，从你的一个 box 出发。",
     "vault_locked_at_depth": "vault 已锁定。深度 ≥ 2 需要你拥有的 box 作为树的根；请先解锁 vault。",
     "intensity_option_random": "随机",
     "intensity_hint_random": "向共享池发送一笔 Mix tx。每轮的关联概率为 1/3；在 fee shard 模式下 tx 不带钱包身份。",

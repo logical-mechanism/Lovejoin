@@ -224,7 +224,7 @@
     "confirm_lede_wallet": "Lovejoin এলোমেলোভাবে N-টি বক্স বেছে নেবে এবং Mix tx পাঠাবে। আপনার ওয়ালেট ফি দেবে, কোলেটারাল সরবরাহ করবে এবং স্বাক্ষর করবে।",
     "intensity_eyebrow": "তীব্রতা",
     "intensity_option_fanout": "গভীরতা {{k}}",
-    "intensity_hint_fanout": "গভীরতা {{k}} ফ্যান-আউট: মোট {{mixes}} Mix tx, আপনার একটি box থেকে শুরু। চলার পর লিঙ্কেজ সম্ভাবনা (1/3)^{{k}} ≈ {{percent}}%।",
+    "intensity_hint_fanout": "গভীরতা {{k}} ফ্যান-আউট: মোট {{mixes}} Mix tx, আপনার একটি box থেকে শুরু।",
     "vault_locked_at_depth": "vault লকড। গভীরতা ≥ 2-এর জন্য গাছের মূল হিসাবে আপনার নিজস্ব একটি box লাগবে; আগে vault আনলক করুন।",
     "intensity_option_random": "এলোমেলো",
     "intensity_hint_random": "শেয়ার করা pool-এ একটি Mix tx। প্রতি রাউন্ডে লিঙ্কেজ সম্ভাবনা 1/3; fee shard mode-এ tx wallet-anonymous থাকে।",

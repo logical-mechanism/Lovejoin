@@ -224,7 +224,7 @@
     "confirm_lede_wallet": "Lovejoin sceglierà N box casuali e invierà la tx di Mix. Il tuo wallet pagherà la commissione, fornirà il collaterale e firmerà.",
     "intensity_eyebrow": "Intensità",
     "intensity_option_fanout": "Profondità {{k}}",
-    "intensity_hint_fanout": "Ventaglio di profondità {{k}}: {{mixes}} tx di Mix in totale, partendo da una delle tue box. Probabilità di collegamento (1/3)^{{k}}.",
+    "intensity_hint_fanout": "Ventaglio di profondità {{k}}: {{mixes}} tx di Mix in totale, partendo da una delle tue box.",
     "vault_locked_at_depth": "Il vault è bloccato. La profondità ≥ 2 richiede una box di tua proprietà per radicare l'albero; sblocca prima il vault.",
     "intensity_option_random": "Casuale",
     "intensity_hint_random": "Una tx di Mix nel pool condiviso. Probabilità di collegamento 1/3 per round; in modalità fee shard la tx resta anonima rispetto al wallet.",

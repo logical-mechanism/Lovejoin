@@ -148,9 +148,10 @@ export function Pool() {
       </header>
       <p className="text-sm text-muted leading-relaxed max-w-prose">{t("pool.lede")}</p>
 
-      {showLoading && (
-        <div className="mt-8 lj-loading" role="status" aria-live="polite">
-          {t("pool.scanning")}
+      {showError && (
+        <div className="mt-8 lj-banner lj-banner--coral" role="alert">
+          <span className="lj-banner__title">{t("pool.scan_failed_title")}</span>
+          <span className="lj-banner__detail">{friendlyErrorMessage(poolError, t)}</span>
         </div>
       )}
 
@@ -166,14 +167,12 @@ export function Pool() {
         </div>
       )}
 
-      {showError && (
-        <div className="mt-8 lj-banner lj-banner--coral" role="alert">
-          <span className="lj-banner__title">{t("pool.scan_failed_title")}</span>
-          <span className="lj-banner__detail">{friendlyErrorMessage(poolError, t)}</span>
-        </div>
-      )}
-
-      {showReady && provider && addresses && (
+      {/* MixPanel renders during loading too. The intensity dial, fee-payer
+       *  toggle, and review block are useful for orientation even before
+       *  data lands; the hooks gracefully report disabled when provider /
+       *  addresses are null, and the CTA reflects that. Only error +
+       *  empty states replace the panel. */}
+      {!showError && !showEmpty && (
         <>
           <MixPanel
             network={config.network}
@@ -201,9 +200,16 @@ export function Pool() {
               });
             }}
           />
-          <p className="mt-6 text-xs text-whisper">
-            {t("pool.pool_loaded", { count: poolEntries.length })}
-          </p>
+          {showLoading && (
+            <p className="mt-6 text-xs text-whisper" role="status" aria-live="polite">
+              {t("pool.scanning")}
+            </p>
+          )}
+          {showReady && (
+            <p className="mt-6 text-xs text-whisper">
+              {t("pool.pool_loaded", { count: poolEntries.length })}
+            </p>
+          )}
         </>
       )}
 

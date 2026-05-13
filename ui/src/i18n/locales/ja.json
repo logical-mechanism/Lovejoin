@@ -224,7 +224,7 @@
     "confirm_lede_wallet": "Lovejoin はランダムに N 個のボックスを選び、Mix トランザクションを送信します。ウォレットが手数料を支払い、担保を提供し、署名します。",
     "intensity_eyebrow": "強度",
     "intensity_option_fanout": "深さ {{k}}",
-    "intensity_hint_fanout": "深さ {{k}} のファンアウト：合計 {{mixes}} 件の Mix tx、あなたの box の 1 つから出発します。リンク確率 (1/3)^{{k}} ≈ {{percent}}%。",
+    "intensity_hint_fanout": "深さ {{k}} のファンアウト：合計 {{mixes}} 件の Mix tx、あなたの box の 1 つから出発します。",
     "vault_locked_at_depth": "vault がロックされています。深さ ≥ 2 はあなたの box をツリーの根として必要とします。まず vault をアンロックしてください。",
     "intensity_option_random": "ランダム",
     "intensity_hint_random": "共有プールへの単一の Mix tx。ラウンドあたりのリンク確率は 1/3。fee shard モードでは tx はウォレット匿名のままです。",

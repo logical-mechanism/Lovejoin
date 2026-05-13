@@ -181,7 +181,7 @@ export function MixPanel(props: MixPanelProps) {
               : t("pool.intensity_hint_random")}
           </p>
           {isFanout && (!wallet || !vaultUnlocked) && (
-            <div className="basis-full mt-2 flex flex-wrap items-center gap-3">
+            <div className="basis-full mt-2 flex flex-col items-start gap-2">
               <p className="text-xs text-amber leading-relaxed" role="status">
                 {!wallet ? t("pool.depth_needs_wallet") : t("pool.vault_locked_at_depth")}
               </p>
