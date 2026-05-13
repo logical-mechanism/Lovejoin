@@ -223,11 +223,12 @@
     "confirm_lede_shard": "Lovejoin vai escolher N boxes ao acaso, pedir colateral ao serviço configurado e enviar a tx de Mix. No modo shard você não assina nada; a carteira fica fora da tx.",
     "confirm_lede_wallet": "Lovejoin vai escolher N boxes ao acaso e enviar a tx de Mix. Sua carteira vai pagar a taxa, fornecer o colateral e assinar.",
     "intensity_eyebrow": "Intensidade",
-    "intensity_option_single": "Único",
     "intensity_option_fanout": "Profundidade {{k}}",
-    "intensity_hint_single": "Uma tx de Mix no pool partilhado. Probabilidade de ligação 1/3 por ronda; a tx mantém anonimato da carteira no modo fee shard.",
-    "intensity_hint_fanout": "Leque de profundidade {{k}}: {{mixes}} txs de Mix no total, a partir de uma das tuas caixas. Probabilidade de ligação (1/3)^{{k}} ≈ {{percent}}%.",
-    "vault_locked_at_depth": "O cofre está bloqueado. A profundidade ≥ 2 precisa de uma caixa tua para raiz da árvore; desbloqueia primeiro o cofre."
+    "intensity_hint_fanout": "Leque de profundidade {{k}}: {{mixes}} txs de Mix no total, a partir de uma das tuas caixas. Probabilidade de ligação (1/3)^{{k}}.",
+    "vault_locked_at_depth": "O cofre está bloqueado. A profundidade ≥ 2 precisa de uma caixa tua para raiz da árvore; desbloqueia primeiro o cofre.",
+    "intensity_option_random": "Aleatório",
+    "intensity_hint_random": "Uma tx de Mix no pool partilhado. Probabilidade de ligação 1/3 por ronda; a tx mantém anonimato da carteira no modo fee shard.",
+    "depth_needs_wallet": "A profundidade ≥ 2 deriva a árvore a partir de uma das tuas caixas. Liga uma carteira para desbloquear o cofre."
   },
   "deposit": {
     "section_title": "Depósito",

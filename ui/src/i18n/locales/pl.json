@@ -223,11 +223,12 @@
     "confirm_lede_shard": "Lovejoin wybierze N losowych boxów, poprosi o kolateral ze skonfigurowanej usługi i wyśle tx Mix. W trybie shard niczego nie podpisujesz; portfel pozostaje poza tx.",
     "confirm_lede_wallet": "Lovejoin wybierze N losowych boxów i wyśle tx Mix. Twój portfel zapłaci opłatę, dostarczy kolateral i podpisze.",
     "intensity_eyebrow": "Intensywność",
-    "intensity_option_single": "Pojedynczy",
     "intensity_option_fanout": "Głębokość {{k}}",
-    "intensity_hint_single": "Pojedyncza tx Mix do wspólnej puli. Prawdopodobieństwo powiązania 1/3 na rundę; tx pozostaje anonimowa względem portfela w trybie fee shard.",
-    "intensity_hint_fanout": "Rozgałęzienie głębokości {{k}}: łącznie {{mixes}} tx Mix, startując od jednej z twoich box. Prawdopodobieństwo powiązania (1/3)^{{k}} ≈ {{percent}}%.",
-    "vault_locked_at_depth": "Skarbiec jest zablokowany. Głębokość ≥ 2 wymaga własnej box jako korzenia drzewa; najpierw odblokuj skarbiec."
+    "intensity_hint_fanout": "Rozgałęzienie głębokości {{k}}: łącznie {{mixes}} tx Mix, startując od jednej z twoich box. Prawdopodobieństwo powiązania (1/3)^{{k}}.",
+    "vault_locked_at_depth": "Skarbiec jest zablokowany. Głębokość ≥ 2 wymaga własnej box jako korzenia drzewa; najpierw odblokuj skarbiec.",
+    "intensity_option_random": "Losowe",
+    "intensity_hint_random": "Pojedyncza tx Mix do wspólnej puli. Prawdopodobieństwo powiązania 1/3 na rundę; tx pozostaje anonimowa względem portfela w trybie fee shard.",
+    "depth_needs_wallet": "Głębokość ≥ 2 wyprowadza drzewo z jednej z twoich box. Podłącz portfel, aby odblokować skarbiec."
   },
   "deposit": {
     "section_title": "Wpłata",

@@ -34,6 +34,7 @@ import { useFanoutSubmit } from "../lib/use-fanout-mix.js";
 import { useSingleMix } from "../lib/use-single-mix.js";
 import { Eyebrow } from "./ui/Eyebrow.js";
 import { Modal } from "./ui/Modal.js";
+import { WalletModal } from "./WalletModal.js";
 
 const FANOUT_VISIBLE_DEPTHS = [2, 3] as const;
 const FANOUT_ADVANCED_DEPTHS = [2, 3, 4] as const;
@@ -82,7 +83,8 @@ export function MixPanel(props: MixPanelProps) {
     onSingleMixError,
     initialIntensity,
   } = props;
-  const { vault, ownedBoxes } = useAppState();
+  const { vault, ownedBoxes, unlockWithWallet, vaultBusy, vaultError, setWallet } = useAppState();
+  const [walletModalOpen, setWalletModalOpen] = useState(false);
 
   const protocol = addresses?.protocol;
   const legacyMaxN = protocol?.max_n ?? 2;
@@ -165,7 +167,7 @@ export function MixPanel(props: MixPanelProps) {
                 disabled={single.submitting || fanout.running}
               >
                 {k === 1
-                  ? t("pool.intensity_option_single")
+                  ? t("pool.intensity_option_random")
                   : t("pool.intensity_option_fanout", { k })}
               </button>
             ))}
@@ -175,13 +177,38 @@ export function MixPanel(props: MixPanelProps) {
               ? t("pool.intensity_hint_fanout", {
                   k: intensity,
                   mixes: fanout.stats.totalMixes,
-                  percent: (fanout.stats.linkage * 100).toFixed(1),
                 })
-              : t("pool.intensity_hint_single")}
+              : t("pool.intensity_hint_random")}
           </p>
-          {isFanout && !vaultUnlocked && (
-            <p className="text-xs text-amber basis-full leading-relaxed" role="status">
-              {t("pool.vault_locked_at_depth")}
+          {isFanout && (!wallet || !vaultUnlocked) && (
+            <div className="basis-full mt-2 flex flex-wrap items-center gap-3">
+              <p className="text-xs text-amber leading-relaxed" role="status">
+                {!wallet ? t("pool.depth_needs_wallet") : t("pool.vault_locked_at_depth")}
+              </p>
+              {!wallet ? (
+                <button
+                  type="button"
+                  className="lj-btn lj-btn--primary"
+                  onClick={() => setWalletModalOpen(true)}
+                >
+                  {t("app.connect_wallet")}
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  className="lj-btn lj-btn--primary"
+                  disabled={vaultBusy}
+                  onClick={() => void unlockWithWallet()}
+                >
+                  {vaultBusy && <span className="lj-spinner lj-spinner--sm" aria-hidden="true" />}
+                  {vaultBusy ? t("vault.unlocking") : t("vault.unlock_with_wallet")}
+                </button>
+              )}
+            </div>
+          )}
+          {isFanout && vaultError && (
+            <p className="basis-full text-xs text-coral" role="alert">
+              {t("vault.unlock_failed", { message: vaultError })}
             </p>
           )}
         </div>
@@ -370,6 +397,17 @@ export function MixPanel(props: MixPanelProps) {
           </button>
         </footer>
       </Modal>
+
+      {/* Wallet picker, mounted here so the depth-gate inline button can
+       *  open it without bouncing the user up to the header. */}
+      <WalletModal
+        open={walletModalOpen}
+        onClose={() => setWalletModalOpen(false)}
+        onConnected={(args) => {
+          setWallet(args);
+          setWalletModalOpen(false);
+        }}
+      />
     </>
   );
 }

@@ -83,7 +83,7 @@ describe("MixPanel", () => {
     const group = screen.getByRole("group", { name: /Intensity/i });
     const buttons = group.querySelectorAll("button");
     expect(buttons.length).toBe(3);
-    expect(buttons[0]!.textContent).toMatch(/Single/i);
+    expect(buttons[0]!.textContent).toMatch(/Random/i);
     expect(buttons[1]!.textContent).toMatch(/Depth 2/i);
     expect(buttons[2]!.textContent).toMatch(/Depth 3/i);
   });
@@ -111,10 +111,13 @@ describe("MixPanel", () => {
     expect(screen.getByText(/paying for everyone in this tree/i)).toBeInTheDocument();
   });
 
-  it("surfaces the vault-locked hint when the user picks k≥2 with a locked vault", () => {
+  it("surfaces an inline Connect wallet CTA at k≥2 when no wallet is connected", () => {
     renderPanel();
     fireEvent.click(screen.getByRole("button", { name: /Depth 2/i }));
-    expect(screen.getByText(/Unlock your vault/i)).toBeInTheDocument();
+    // The depth-gate hint mentions connecting a wallet, and the inline
+    // button uses the app-wide "Connect wallet" label.
+    expect(screen.getByText(/Connect a wallet/i)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Connect wallet/i })).toBeInTheDocument();
   });
 
   it("honours initialIntensity from the URL on mount", () => {

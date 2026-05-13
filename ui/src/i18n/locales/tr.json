@@ -223,11 +223,12 @@
     "confirm_lede_shard": "Lovejoin rastgele N kutu seçer, yapılandırılmış servisten kolateral ister ve Mix tx'ini gönderir. Shard modunda hiçbir şey imzalamazsın; cüzdan tx'in dışında kalır.",
     "confirm_lede_wallet": "Lovejoin rastgele N kutu seçer ve Mix tx'ini gönderir. Cüzdanın ücreti öder, kolateralı sağlar ve imzalar.",
     "intensity_eyebrow": "Yoğunluk",
-    "intensity_option_single": "Tekli",
     "intensity_option_fanout": "Derinlik {{k}}",
-    "intensity_hint_single": "Paylaşılan havuza tek bir Mix tx'i. Tur başına bağlanma olasılığı 1/3; fee shard modunda tx cüzdan kimliği taşımaz.",
-    "intensity_hint_fanout": "{{k}} derinliğinde yelpaze: toplam {{mixes}} Mix tx, kendi box'larından biriyle başlar. Bağlanma olasılığı (1/3)^{{k}} ≈ %{{percent}}.",
-    "vault_locked_at_depth": "Vault kilitli. ≥ 2 derinlik için ağacın kökü olarak senin olan bir box gerekir; önce vault'u aç."
+    "intensity_hint_fanout": "{{k}} derinliğinde yelpaze: toplam {{mixes}} Mix tx, kendi box'larından biriyle başlar. Bağlanma olasılığı (1/3)^{{k}}.",
+    "vault_locked_at_depth": "Vault kilitli. ≥ 2 derinlik için ağacın kökü olarak senin olan bir box gerekir; önce vault'u aç.",
+    "intensity_option_random": "Rastgele",
+    "intensity_hint_random": "Paylaşılan havuza tek bir Mix tx'i. Tur başına bağlanma olasılığı 1/3; fee shard modunda tx cüzdan kimliği taşımaz.",
+    "depth_needs_wallet": "Derinlik ≥ 2 ağacı kendi box'larından birinden türetir. Vault'u açmak için bir cüzdan bağla."
   },
   "deposit": {
     "section_title": "Yatırım",

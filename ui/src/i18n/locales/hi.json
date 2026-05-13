@@ -223,11 +223,12 @@
     "confirm_lede_shard": "Lovejoin यादृच्छिक रूप से N बक्से चुनेगा, कॉन्फ़िगर की गई सेवा से संपार्श्विक माँगेगा, और Mix tx सबमिट करेगा। shard मोड में आप कुछ हस्ताक्षर नहीं करते; वॉलेट tx के बाहर रहता है।",
     "confirm_lede_wallet": "Lovejoin यादृच्छिक रूप से N बक्से चुनेगा और Mix tx सबमिट करेगा। आपका वॉलेट शुल्क देगा, संपार्श्विक प्रदान करेगा, और हस्ताक्षर करेगा।",
     "intensity_eyebrow": "तीव्रता",
-    "intensity_option_single": "एकल",
     "intensity_option_fanout": "गहराई {{k}}",
-    "intensity_hint_single": "साझा pool में एक Mix tx। प्रति राउंड लिंकेज प्रायिकता 1/3; fee shard mode में tx wallet-anonymous रहती है।",
     "intensity_hint_fanout": "गहराई {{k}} फैन-आउट: कुल {{mixes}} Mix tx, आपकी एक box से शुरू। पूरा होने के बाद लिंकेज प्रायिकता (1/3)^{{k}} ≈ {{percent}}%।",
-    "vault_locked_at_depth": "vault लॉक है। गहराई ≥ 2 के लिए पेड़ की जड़ हेतु आपकी अपनी box चाहिए; पहले vault अनलॉक करें।"
+    "vault_locked_at_depth": "vault लॉक है। गहराई ≥ 2 के लिए पेड़ की जड़ हेतु आपकी अपनी box चाहिए; पहले vault अनलॉक करें।",
+    "intensity_option_random": "यादृच्छिक",
+    "intensity_hint_random": "साझा pool में एक Mix tx। प्रति राउंड लिंकेज प्रायिकता 1/3; fee shard mode में tx wallet-anonymous रहती है।",
+    "depth_needs_wallet": "गहराई ≥ 2 आपकी एक box से पेड़ निकालती है। vault अनलॉक करने के लिए wallet कनेक्ट करें।"
   },
   "deposit": {
     "section_title": "जमा",

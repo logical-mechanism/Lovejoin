@@ -223,11 +223,12 @@
     "confirm_lede_shard": "Lovejoin wählt N zufällige Boxes, fordert Collateral beim konfigurierten Dienst an und reicht die Mix-tx ein. Im Shard-Modus signierst du nichts; die Wallet bleibt außerhalb der tx.",
     "confirm_lede_wallet": "Lovejoin wählt N zufällige Boxes und reicht die Mix-tx ein. Deine Wallet zahlt die Gebühr, stellt das Collateral und signiert.",
     "intensity_eyebrow": "Intensität",
-    "intensity_option_single": "Einzeln",
     "intensity_option_fanout": "Tiefe {{k}}",
-    "intensity_hint_single": "Eine Mix-tx in den gemeinsamen Pool. Verknüpfungswahrscheinlichkeit 1/3 pro Runde; im Fee-Shard-Modus bleibt die Wallet außerhalb der tx.",
-    "intensity_hint_fanout": "Fan-out der Tiefe {{k}}: insgesamt {{mixes}} Mix-txs, ausgehend von einer deiner Boxes. Verknüpfung (1/3)^{{k}} ≈ {{percent}}%.",
-    "vault_locked_at_depth": "Der Vault ist gesperrt. Tiefe ≥ 2 braucht eine eigene Box als Wurzel des Baumes; entsperre zuerst den Vault."
+    "intensity_hint_fanout": "Fan-out der Tiefe {{k}}: insgesamt {{mixes}} Mix-txs, ausgehend von einer deiner Boxes. Verknüpfung (1/3)^{{k}}.",
+    "vault_locked_at_depth": "Der Vault ist gesperrt. Tiefe ≥ 2 braucht eine eigene Box als Wurzel des Baumes; entsperre zuerst den Vault.",
+    "intensity_option_random": "Zufällig",
+    "intensity_hint_random": "Eine Mix-tx in den gemeinsamen Pool. Verknüpfungswahrscheinlichkeit 1/3 pro Runde; im Fee-Shard-Modus bleibt die Wallet außerhalb der tx.",
+    "depth_needs_wallet": "Tiefe ≥ 2 leitet den Baum aus einer deiner Boxes ab. Verbinde eine Wallet, um den Vault zu entsperren."
   },
   "deposit": {
     "section_title": "Einzahlen",

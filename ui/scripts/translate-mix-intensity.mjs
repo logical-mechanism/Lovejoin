@@ -26,12 +26,12 @@ const TRANSLATIONS = {
   es: {
     pool: {
       intensity_eyebrow: "Intensidad",
-      intensity_option_single: "Sencillo",
+      intensity_option_random: "Aleatorio",
       intensity_option_fanout: "Profundidad {{k}}",
-      intensity_hint_single:
+      intensity_hint_random:
         "Una tx de Mix al pool compartido. Probabilidad de enlace 1/3 por ronda; la tx mantiene anonimato de billetera en modo fee shard.",
       intensity_hint_fanout:
-        "Abanico de profundidad {{k}}: {{mixes}} txs de Mix en total, partiendo de una de tus cajas. Probabilidad de enlace (1/3)^{{k}} ≈ {{percent}}%.",
+        "Abanico de profundidad {{k}}: {{mixes}} txs de Mix en total, partiendo de una de tus cajas. Probabilidad de enlace (1/3)^{{k}}.",
       vault_locked_at_depth:
         "La bóveda está bloqueada. La profundidad ≥ 2 necesita una caja propia para enraizar el árbol; desbloquea la bóveda primero.",
     },
@@ -46,12 +46,12 @@ const TRANSLATIONS = {
   fr: {
     pool: {
       intensity_eyebrow: "Intensité",
-      intensity_option_single: "Simple",
+      intensity_option_random: "Aléatoire",
       intensity_option_fanout: "Profondeur {{k}}",
-      intensity_hint_single:
+      intensity_hint_random:
         "Une tx de Mix vers le pool partagé. Probabilité de liaison 1/3 par tour ; la tx reste anonyme côté wallet en mode fee shard.",
       intensity_hint_fanout:
-        "Éventail de profondeur {{k}} : {{mixes}} txs de Mix au total, à partir d'une de vos boxes. Probabilité de liaison (1/3)^{{k}} ≈ {{percent}} %.",
+        "Éventail de profondeur {{k}} : {{mixes}} txs de Mix au total, à partir d'une de vos boxes. Probabilité de liaison (1/3)^{{k}}.",
       vault_locked_at_depth:
         "Le coffre est verrouillé. La profondeur ≥ 2 a besoin d'une box que vous possédez pour enraciner l'arbre ; déverrouillez d'abord le coffre.",
     },
@@ -66,12 +66,12 @@ const TRANSLATIONS = {
   de: {
     pool: {
       intensity_eyebrow: "Intensität",
-      intensity_option_single: "Einzeln",
+      intensity_option_random: "Zufällig",
       intensity_option_fanout: "Tiefe {{k}}",
-      intensity_hint_single:
+      intensity_hint_random:
         "Eine Mix-tx in den gemeinsamen Pool. Verknüpfungswahrscheinlichkeit 1/3 pro Runde; im Fee-Shard-Modus bleibt die Wallet außerhalb der tx.",
       intensity_hint_fanout:
-        "Fan-out der Tiefe {{k}}: insgesamt {{mixes}} Mix-txs, ausgehend von einer deiner Boxes. Verknüpfung (1/3)^{{k}} ≈ {{percent}}%.",
+        "Fan-out der Tiefe {{k}}: insgesamt {{mixes}} Mix-txs, ausgehend von einer deiner Boxes. Verknüpfung (1/3)^{{k}}.",
       vault_locked_at_depth:
         "Der Vault ist gesperrt. Tiefe ≥ 2 braucht eine eigene Box als Wurzel des Baumes; entsperre zuerst den Vault.",
     },
@@ -86,12 +86,12 @@ const TRANSLATIONS = {
   pt: {
     pool: {
       intensity_eyebrow: "Intensidade",
-      intensity_option_single: "Único",
+      intensity_option_random: "Aleatório",
       intensity_option_fanout: "Profundidade {{k}}",
-      intensity_hint_single:
+      intensity_hint_random:
         "Uma tx de Mix no pool partilhado. Probabilidade de ligação 1/3 por ronda; a tx mantém anonimato da carteira no modo fee shard.",
       intensity_hint_fanout:
-        "Leque de profundidade {{k}}: {{mixes}} txs de Mix no total, a partir de uma das tuas caixas. Probabilidade de ligação (1/3)^{{k}} ≈ {{percent}}%.",
+        "Leque de profundidade {{k}}: {{mixes}} txs de Mix no total, a partir de uma das tuas caixas. Probabilidade de ligação (1/3)^{{k}}.",
       vault_locked_at_depth:
         "O cofre está bloqueado. A profundidade ≥ 2 precisa de uma caixa tua para raiz da árvore; desbloqueia primeiro o cofre.",
     },
@@ -106,12 +106,12 @@ const TRANSLATIONS = {
   it: {
     pool: {
       intensity_eyebrow: "Intensità",
-      intensity_option_single: "Singolo",
+      intensity_option_random: "Casuale",
       intensity_option_fanout: "Profondità {{k}}",
-      intensity_hint_single:
+      intensity_hint_random:
         "Una tx di Mix nel pool condiviso. Probabilità di collegamento 1/3 per round; in modalità fee shard la tx resta anonima rispetto al wallet.",
       intensity_hint_fanout:
-        "Ventaglio di profondità {{k}}: {{mixes}} tx di Mix in totale, partendo da una delle tue box. Probabilità di collegamento (1/3)^{{k}} ≈ {{percent}}%.",
+        "Ventaglio di profondità {{k}}: {{mixes}} tx di Mix in totale, partendo da una delle tue box. Probabilità di collegamento (1/3)^{{k}}.",
       vault_locked_at_depth:
         "Il vault è bloccato. La profondità ≥ 2 richiede una box di tua proprietà per radicare l'albero; sblocca prima il vault.",
     },
@@ -126,12 +126,12 @@ const TRANSLATIONS = {
   pl: {
     pool: {
       intensity_eyebrow: "Intensywność",
-      intensity_option_single: "Pojedynczy",
+      intensity_option_random: "Losowe",
       intensity_option_fanout: "Głębokość {{k}}",
-      intensity_hint_single:
+      intensity_hint_random:
         "Pojedyncza tx Mix do wspólnej puli. Prawdopodobieństwo powiązania 1/3 na rundę; tx pozostaje anonimowa względem portfela w trybie fee shard.",
       intensity_hint_fanout:
-        "Rozgałęzienie głębokości {{k}}: łącznie {{mixes}} tx Mix, startując od jednej z twoich box. Prawdopodobieństwo powiązania (1/3)^{{k}} ≈ {{percent}}%.",
+        "Rozgałęzienie głębokości {{k}}: łącznie {{mixes}} tx Mix, startując od jednej z twoich box. Prawdopodobieństwo powiązania (1/3)^{{k}}.",
       vault_locked_at_depth:
         "Skarbiec jest zablokowany. Głębokość ≥ 2 wymaga własnej box jako korzenia drzewa; najpierw odblokuj skarbiec.",
     },
@@ -146,12 +146,12 @@ const TRANSLATIONS = {
   tr: {
     pool: {
       intensity_eyebrow: "Yoğunluk",
-      intensity_option_single: "Tekli",
+      intensity_option_random: "Rastgele",
       intensity_option_fanout: "Derinlik {{k}}",
-      intensity_hint_single:
+      intensity_hint_random:
         "Paylaşılan havuza tek bir Mix tx'i. Tur başına bağlanma olasılığı 1/3; fee shard modunda tx cüzdan kimliği taşımaz.",
       intensity_hint_fanout:
-        "{{k}} derinliğinde yelpaze: toplam {{mixes}} Mix tx, kendi box'larından biriyle başlar. Bağlanma olasılığı (1/3)^{{k}} ≈ %{{percent}}.",
+        "{{k}} derinliğinde yelpaze: toplam {{mixes}} Mix tx, kendi box'larından biriyle başlar. Bağlanma olasılığı (1/3)^{{k}}.",
       vault_locked_at_depth:
         "Vault kilitli. ≥ 2 derinlik için ağacın kökü olarak senin olan bir box gerekir; önce vault'u aç.",
     },
@@ -166,12 +166,12 @@ const TRANSLATIONS = {
   vi: {
     pool: {
       intensity_eyebrow: "Cường độ",
-      intensity_option_single: "Đơn",
+      intensity_option_random: "Ngẫu nhiên",
       intensity_option_fanout: "Độ sâu {{k}}",
-      intensity_hint_single:
+      intensity_hint_random:
         "Một tx Mix vào pool dùng chung. Xác suất liên kết 1/3 mỗi vòng; ở chế độ fee shard, tx giữ ẩn danh ví.",
       intensity_hint_fanout:
-        "Trộn theo cây độ sâu {{k}}: tổng {{mixes}} tx Mix, bắt đầu từ một box của bạn. Xác suất liên kết (1/3)^{{k}} ≈ {{percent}}%.",
+        "Trộn theo cây độ sâu {{k}}: tổng {{mixes}} tx Mix, bắt đầu từ một box của bạn. Xác suất liên kết (1/3)^{{k}}.",
       vault_locked_at_depth:
         "Vault đang khoá. Độ sâu ≥ 2 cần một box của bạn để làm gốc cây; hãy mở khoá vault trước.",
     },
@@ -186,12 +186,12 @@ const TRANSLATIONS = {
   id: {
     pool: {
       intensity_eyebrow: "Intensitas",
-      intensity_option_single: "Tunggal",
+      intensity_option_random: "Acak",
       intensity_option_fanout: "Kedalaman {{k}}",
-      intensity_hint_single:
+      intensity_hint_random:
         "Satu tx Mix ke pool bersama. Probabilitas keterhubungan 1/3 per ronde; di mode fee shard tx tetap anonim terhadap wallet.",
       intensity_hint_fanout:
-        "Fan-out kedalaman {{k}}: total {{mixes}} tx Mix, dimulai dari salah satu box milikmu. Probabilitas keterhubungan (1/3)^{{k}} ≈ {{percent}}%.",
+        "Fan-out kedalaman {{k}}: total {{mixes}} tx Mix, dimulai dari salah satu box milikmu. Probabilitas keterhubungan (1/3)^{{k}}.",
       vault_locked_at_depth:
         "Vault terkunci. Kedalaman ≥ 2 perlu satu box milikmu untuk menjadi akar pohon; buka vault terlebih dahulu.",
     },
@@ -206,12 +206,12 @@ const TRANSLATIONS = {
   ru: {
     pool: {
       intensity_eyebrow: "Интенсивность",
-      intensity_option_single: "Одна",
+      intensity_option_random: "Случайный",
       intensity_option_fanout: "Глубина {{k}}",
-      intensity_hint_single:
+      intensity_hint_random:
         "Одна tx Mix в общий пул. Вероятность связки 1/3 за раунд; в режиме fee shard tx остаётся анонимной по отношению к кошельку.",
       intensity_hint_fanout:
-        "Веер глубины {{k}}: всего {{mixes}} tx Mix, начиная с одной из ваших box. Вероятность связки (1/3)^{{k}} ≈ {{percent}}%.",
+        "Веер глубины {{k}}: всего {{mixes}} tx Mix, начиная с одной из ваших box. Вероятность связки (1/3)^{{k}}.",
       vault_locked_at_depth:
         "Vault заблокирован. Глубине ≥ 2 нужна ваша box как корень дерева; сначала разблокируйте vault.",
     },
@@ -226,9 +226,9 @@ const TRANSLATIONS = {
   zh: {
     pool: {
       intensity_eyebrow: "强度",
-      intensity_option_single: "单次",
+      intensity_option_random: "随机",
       intensity_option_fanout: "深度 {{k}}",
-      intensity_hint_single:
+      intensity_hint_random:
         "向共享池发送一笔 Mix tx。每轮的关联概率为 1/3；在 fee shard 模式下 tx 不带钱包身份。",
       intensity_hint_fanout:
         "深度 {{k}} 扇出：共 {{mixes}} 笔 Mix tx，从你的一个 box 出发。完成后的关联概率为 (1/3)^{{k}} ≈ {{percent}}%。",
@@ -245,9 +245,9 @@ const TRANSLATIONS = {
   ja: {
     pool: {
       intensity_eyebrow: "強度",
-      intensity_option_single: "単発",
+      intensity_option_random: "ランダム",
       intensity_option_fanout: "深さ {{k}}",
-      intensity_hint_single:
+      intensity_hint_random:
         "共有プールへの単一の Mix tx。ラウンドあたりのリンク確率は 1/3。fee shard モードでは tx はウォレット匿名のままです。",
       intensity_hint_fanout:
         "深さ {{k}} のファンアウト：合計 {{mixes}} 件の Mix tx、あなたの box の 1 つから出発します。リンク確率 (1/3)^{{k}} ≈ {{percent}}%。",
@@ -265,12 +265,12 @@ const TRANSLATIONS = {
   ko: {
     pool: {
       intensity_eyebrow: "강도",
-      intensity_option_single: "단일",
+      intensity_option_random: "무작위",
       intensity_option_fanout: "깊이 {{k}}",
-      intensity_hint_single:
+      intensity_hint_random:
         "공유 풀로 한 번의 Mix tx. 라운드당 연결 확률 1/3; fee shard 모드에서는 tx가 지갑 익명을 유지합니다.",
       intensity_hint_fanout:
-        "깊이 {{k}} 팬아웃: 총 {{mixes}}건의 Mix tx, 내 box 중 하나에서 시작합니다. 연결 확률 (1/3)^{{k}} ≈ {{percent}}%.",
+        "깊이 {{k}} 팬아웃: 총 {{mixes}}건의 Mix tx, 내 box 중 하나에서 시작합니다. 연결 확률 (1/3)^{{k}}.",
       vault_locked_at_depth:
         "vault가 잠겨 있습니다. 깊이 ≥ 2는 트리의 루트로 사용할 본인 box가 필요합니다. 먼저 vault를 잠금 해제하세요.",
     },
@@ -285,9 +285,9 @@ const TRANSLATIONS = {
   hi: {
     pool: {
       intensity_eyebrow: "तीव्रता",
-      intensity_option_single: "एकल",
+      intensity_option_random: "यादृच्छिक",
       intensity_option_fanout: "गहराई {{k}}",
-      intensity_hint_single:
+      intensity_hint_random:
         "साझा pool में एक Mix tx। प्रति राउंड लिंकेज प्रायिकता 1/3; fee shard mode में tx wallet-anonymous रहती है।",
       intensity_hint_fanout:
         "गहराई {{k}} फैन-आउट: कुल {{mixes}} Mix tx, आपकी एक box से शुरू। पूरा होने के बाद लिंकेज प्रायिकता (1/3)^{{k}} ≈ {{percent}}%।",
@@ -305,9 +305,9 @@ const TRANSLATIONS = {
   bn: {
     pool: {
       intensity_eyebrow: "তীব্রতা",
-      intensity_option_single: "একক",
+      intensity_option_random: "এলোমেলো",
       intensity_option_fanout: "গভীরতা {{k}}",
-      intensity_hint_single:
+      intensity_hint_random:
         "শেয়ার করা pool-এ একটি Mix tx। প্রতি রাউন্ডে লিঙ্কেজ সম্ভাবনা 1/3; fee shard mode-এ tx wallet-anonymous থাকে।",
       intensity_hint_fanout:
         "গভীরতা {{k}} ফ্যান-আউট: মোট {{mixes}} Mix tx, আপনার একটি box থেকে শুরু। চলার পর লিঙ্কেজ সম্ভাবনা (1/3)^{{k}} ≈ {{percent}}%।",
@@ -325,12 +325,12 @@ const TRANSLATIONS = {
   th: {
     pool: {
       intensity_eyebrow: "ความเข้ม",
-      intensity_option_single: "ครั้งเดียว",
+      intensity_option_random: "สุ่ม",
       intensity_option_fanout: "ความลึก {{k}}",
-      intensity_hint_single:
+      intensity_hint_random:
         "Mix tx เดียวเข้าสู่ pool รวม. ความน่าจะเป็นการเชื่อมโยง 1/3 ต่อรอบ; ในโหมด fee shard tx ยังคงไม่ระบุ wallet.",
       intensity_hint_fanout:
-        "Fan-out ความลึก {{k}}: ทั้งหมด {{mixes}} Mix tx เริ่มจาก box หนึ่งของคุณ. ความน่าจะเป็นการเชื่อมโยง (1/3)^{{k}} ≈ {{percent}}%.",
+        "Fan-out ความลึก {{k}}: ทั้งหมด {{mixes}} Mix tx เริ่มจาก box หนึ่งของคุณ. ความน่าจะเป็นการเชื่อมโยง (1/3)^{{k}}.",
       vault_locked_at_depth:
         "vault ถูกล็อก. ความลึก ≥ 2 ต้องใช้ box ของคุณเป็นรากของต้นไม้; กรุณาปลดล็อก vault ก่อน.",
     },
@@ -345,12 +345,12 @@ const TRANSLATIONS = {
   ar: {
     pool: {
       intensity_eyebrow: "الشدة",
-      intensity_option_single: "مرة واحدة",
+      intensity_option_random: "عشوائي",
       intensity_option_fanout: "العمق {{k}}",
-      intensity_hint_single:
+      intensity_hint_random:
         "معاملة Mix واحدة إلى pool المشترك. احتمال الربط 1/3 في كل جولة؛ في وضع fee shard تبقى المعاملة مجهولة بالنسبة للمحفظة.",
       intensity_hint_fanout:
-        "تشعب بعمق {{k}}: ما مجموعه {{mixes}} معاملة Mix، تبدأ من إحدى box الخاصة بك. احتمال الربط (1/3)^{{k}} ≈ {{percent}}%.",
+        "تشعب بعمق {{k}}: ما مجموعه {{mixes}} معاملة Mix، تبدأ من إحدى box الخاصة بك. احتمال الربط (1/3)^{{k}}.",
       vault_locked_at_depth:
         "الخزنة (vault) مقفلة. يحتاج العمق ≥ 2 إلى box تملكها لجذر الشجرة؛ افتح الخزنة أولاً.",
     },
@@ -365,12 +365,12 @@ const TRANSLATIONS = {
   fa: {
     pool: {
       intensity_eyebrow: "شدت",
-      intensity_option_single: "تک‌تایی",
+      intensity_option_random: "تصادفی",
       intensity_option_fanout: "عمق {{k}}",
-      intensity_hint_single:
+      intensity_hint_random:
         "یک تراکنش Mix به pool مشترک. احتمال پیوند 1/3 در هر دور؛ در حالت fee shard، تراکنش نسبت به کیف‌پول ناشناس می‌ماند.",
       intensity_hint_fanout:
-        "فن‌اوت با عمق {{k}}: در مجموع {{mixes}} تراکنش Mix که از یکی از box‌های شما شروع می‌شود. احتمال پیوند (1/3)^{{k}} ≈ {{percent}}%.",
+        "فن‌اوت با عمق {{k}}: در مجموع {{mixes}} تراکنش Mix که از یکی از box‌های شما شروع می‌شود. احتمال پیوند (1/3)^{{k}}.",
       vault_locked_at_depth:
         "vault قفل است. عمق ≥ 2 برای ریشهٔ درخت به یک box متعلق به شما نیاز دارد؛ ابتدا vault را باز کنید.",
     },
@@ -385,9 +385,9 @@ const TRANSLATIONS = {
   ur: {
     pool: {
       intensity_eyebrow: "شدت",
-      intensity_option_single: "واحد",
+      intensity_option_random: "تصادفی",
       intensity_option_fanout: "گہرائی {{k}}",
-      intensity_hint_single:
+      intensity_hint_random:
         "مشترکہ pool میں ایک Mix tx۔ ہر راؤنڈ میں ربط کا امکان 1/3؛ fee shard موڈ میں tx wallet کے لحاظ سے گمنام رہتی ہے۔",
       intensity_hint_fanout:
         "گہرائی {{k}} کا fan-out: کل {{mixes}} Mix tx، آپ کے کسی box سے شروع۔ مکمل ہونے پر ربط کا امکان (1/3)^{{k}} ≈ {{percent}}%۔",

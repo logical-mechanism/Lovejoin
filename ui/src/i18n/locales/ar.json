@@ -223,11 +223,12 @@
     "confirm_lede_shard": "سيختار Lovejoin N صناديق عشوائياً، ويطلب ضماناً من الخدمة المهيأة، ويُرسل معاملة Mix. في وضع shard لا توقّع على شيء؛ تظل المحفظة خارج المعاملة.",
     "confirm_lede_wallet": "سيختار Lovejoin N صناديق عشوائياً ويُرسل معاملة Mix. ستدفع محفظتك الرسوم، وتقدّم الضمان، وتوقّع.",
     "intensity_eyebrow": "الشدة",
-    "intensity_option_single": "مرة واحدة",
     "intensity_option_fanout": "العمق {{k}}",
-    "intensity_hint_single": "معاملة Mix واحدة إلى pool المشترك. احتمال الربط 1/3 في كل جولة؛ في وضع fee shard تبقى المعاملة مجهولة بالنسبة للمحفظة.",
-    "intensity_hint_fanout": "تشعب بعمق {{k}}: ما مجموعه {{mixes}} معاملة Mix، تبدأ من إحدى box الخاصة بك. احتمال الربط (1/3)^{{k}} ≈ {{percent}}%.",
-    "vault_locked_at_depth": "الخزنة (vault) مقفلة. يحتاج العمق ≥ 2 إلى box تملكها لجذر الشجرة؛ افتح الخزنة أولاً."
+    "intensity_hint_fanout": "تشعب بعمق {{k}}: ما مجموعه {{mixes}} معاملة Mix، تبدأ من إحدى box الخاصة بك. احتمال الربط (1/3)^{{k}}.",
+    "vault_locked_at_depth": "الخزنة (vault) مقفلة. يحتاج العمق ≥ 2 إلى box تملكها لجذر الشجرة؛ افتح الخزنة أولاً.",
+    "intensity_option_random": "عشوائي",
+    "intensity_hint_random": "معاملة Mix واحدة إلى pool المشترك. احتمال الربط 1/3 في كل جولة؛ في وضع fee shard تبقى المعاملة مجهولة بالنسبة للمحفظة.",
+    "depth_needs_wallet": "العمق ≥ 2 يشتق الشجرة من إحدى box الخاصة بك. اربط محفظة لفتح الخزنة (vault)."
   },
   "deposit": {
     "section_title": "إيداع",
