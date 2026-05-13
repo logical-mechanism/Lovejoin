@@ -595,8 +595,6 @@
     "review_total_fee_value": "모든 믹스에 걸쳐 최대 {{ada}} ADA",
     "review_pool": "풀에서 추첨",
     "review_pool_value": "사용 가능한 신선한 box {{have}}개, 필요 {{need}}개",
-    "disclosure_title": "이 트리의 모든 사람을 위해 비용을 지불하고 있습니다",
-    "disclosure_body": "자신의 box만 다시 믹스하면 관찰자가 당신의 체인을 사소하게 추적할 수 있습니다. 팬아웃은 이전 웨이브에서 건드린 모든 box를 다시 믹스합니다. 소유하지 않은 box도 포함됩니다. 이것이 당신의 가지를 구분 불가능하게 만드는 이유입니다. 전체 트리의 수수료 + 증명 구성 비용을 당신이 지불합니다.",
     "gate_no_owned_boxes": "소유한 box에서 팬아웃을 실행하려면 vault를 잠금 해제하고 최소 한 개의 box를 예치하세요.",
     "gate_pool_too_small": "풀이 너무 작습니다: 사용 가능한 신선한 box {{have}}개, 이 깊이의 팬아웃은 {{need}}개가 필요합니다.",
     "run_button": "깊이 {{d}} 팬아웃 실행",

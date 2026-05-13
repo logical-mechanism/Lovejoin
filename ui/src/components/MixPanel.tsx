@@ -10,9 +10,6 @@
 //     A k ≥ 2 fan-out at every leaf in wallet mode would publish the
 //     user's identity across N txs and undo the whole point; we hide
 //     the toggle and force shard mode.
-//   • The "you are paying for boxes you don't own" disclosure is the
-//     load-bearing piece of UX at k ≥ 2 and stays prominent above the
-//     CTA. never collapsed into a tooltip or buried below the fold.
 //   • k ≥ 2 needs an unlocked vault (it picks the user's first non-
 //     in-flight owned box as the tree's root). k = 1 does not.
 //
@@ -264,13 +261,6 @@ export function MixPanel(props: MixPanelProps) {
           poolSize={poolEntries.length}
           poolLoading={!addresses || !provider}
         />
-      )}
-
-      {isFanout && (
-        <div className="lj-banner lj-banner--signal mt-6 flex-col items-stretch">
-          <p className="lj-banner__title">{t("fanout.disclosure_title")}</p>
-          <p className="lj-banner__detail">{t("fanout.disclosure_body")}</p>
-        </div>
       )}
 
       <ActionArea

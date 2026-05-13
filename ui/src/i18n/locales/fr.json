@@ -595,8 +595,6 @@
     "review_total_fee_value": "Jusqu'à {{ada}} ADA pour tous les mixs",
     "review_pool": "Tirage du pool",
     "review_pool_value": "{{have}} boxes fraîches disponibles, {{need}} nécessaires",
-    "disclosure_title": "Vous payez pour tout l'arbre",
-    "disclosure_body": "Re-mixer uniquement votre propre box laisserait un observateur suivre votre chaîne trivialement. L'éventail re-mixe chaque box touchée par votre vague précédente, y compris des boxes qui ne vous appartiennent pas. C'est ce qui rend votre branche indistinguable. Vous payez les frais + le coût de construction des preuves pour tout l'arbre.",
     "gate_no_owned_boxes": "Déverrouillez votre coffre et déposez au moins une box pour lancer un éventail depuis une box que vous possédez.",
     "gate_pool_too_small": "Pool trop petit : {{have}} boxes fraîches disponibles, l'éventail à cette profondeur en demande {{need}}.",
     "run_button": "Lancer un éventail profondeur {{d}}",

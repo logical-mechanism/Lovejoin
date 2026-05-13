@@ -595,8 +595,6 @@
     "review_total_fee_value": "Do {{ada}} ADA we wszystkich mixach",
     "review_pool": "Pobranie z poolu",
     "review_pool_value": "Dostępnych {{have}} świeżych box, potrzeba {{need}}",
-    "disclosure_title": "Płacisz za wszystkich w tym drzewie",
-    "disclosure_body": "Ponowne mieszanie tylko własnej box pozwoliłoby obserwatorowi trywialnie śledzić twój łańcuch. Rozgałęzienie ponownie miesza każdą box dotkniętą w poprzedniej fali, w tym box, które do ciebie nie należą. To właśnie sprawia, że twoja gałąź jest nieodróżnialna. Płacisz opłaty + koszt konstrukcji dowodów za całe drzewo.",
     "gate_no_owned_boxes": "Odblokuj swój sejf i wpłać co najmniej jedną box, aby uruchomić rozgałęzienie z box, którą posiadasz.",
     "gate_pool_too_small": "Pool za mały: {{have}} świeżych box dostępnych, rozgałęzienie na tej głębokości potrzebuje {{need}}.",
     "run_button": "Uruchom rozgałęzienie głębokości {{d}}",

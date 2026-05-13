@@ -9,8 +9,7 @@
 //     `advanced` is true.
 //   • At k=1 the fee-payer toggle is visible.
 //   • At k≥2 the fee-payer toggle is HIDDEN (wallet mode would publish
-//     the user's identity across every leaf) and the disclosure banner
-//     is shown.
+//     the user's identity across every leaf).
 //   • When the vault is locked, picking k≥2 surfaces the
 //     vault-locked-at-depth hint and the CTA stays disabled.
 
@@ -101,14 +100,13 @@ describe("MixPanel", () => {
     expect(screen.getByRole("group", { name: "Fee payer" })).toBeInTheDocument();
   });
 
-  it("hides the fee-payer toggle and shows the disclosure at k≥2", () => {
+  it("hides the fee-payer toggle at k≥2", () => {
     renderPanel();
-    // Vault is locked in the test harness, so picking Depth 2 also
-    // surfaces the vault-locked-at-depth hint; the disclosure banner
-    // is independent and must still render.
+    // Wallet mode at every leaf of a fan-out would publish the
+    // submitter's identity across N txs, so we force shard and drop
+    // the toggle entirely once intensity goes above 1.
     fireEvent.click(screen.getByRole("button", { name: /Depth 2/i }));
     expect(screen.queryByRole("group", { name: "Fee payer" })).toBeNull();
-    expect(screen.getByText(/paying for everyone in this tree/i)).toBeInTheDocument();
   });
 
   it("surfaces an inline Connect wallet CTA at k≥2 when no wallet is connected", () => {
@@ -122,10 +120,10 @@ describe("MixPanel", () => {
 
   it("honours initialIntensity from the URL on mount", () => {
     renderPanel({ initialIntensity: 3 });
-    // The Depth 3 button is pressed.
+    // The Depth 3 button is pressed without any user interaction.
     const btn = screen.getByRole("button", { name: /Depth 3/i });
     expect(btn.getAttribute("aria-pressed")).toBe("true");
-    // And the disclosure is visible without a click.
-    expect(screen.getByText(/paying for everyone in this tree/i)).toBeInTheDocument();
+    // And the fee-payer toggle is gone (k≥2 forces shard).
+    expect(screen.queryByRole("group", { name: "Fee payer" })).toBeNull();
   });
 });

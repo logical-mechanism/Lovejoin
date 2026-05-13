@@ -595,8 +595,6 @@
     "review_total_fee_value": "Hasta {{ada}} ADA en todas las mezclas",
     "review_pool": "Extracción del pool",
     "review_pool_value": "{{have}} cajas frescas disponibles, {{need}} necesarias",
-    "disclosure_title": "Estás pagando por todos los del árbol",
-    "disclosure_body": "Re-mezclar solo tu propia caja dejaría que un observador siguiera tu cadena trivialmente. El abanico re-mezcla cada caja que tu onda anterior tocó, incluidas cajas que no son tuyas. Eso es lo que vuelve indistinguible tu rama. Pagas las comisiones y el coste de construcción de pruebas de todo el árbol.",
     "gate_no_owned_boxes": "Desbloquea tu bóveda y deposita al menos una caja para ejecutar un abanico desde una caja tuya.",
     "gate_pool_too_small": "Pool demasiado pequeño: {{have}} cajas frescas disponibles; este abanico necesita {{need}}.",
     "run_button": "Ejecutar abanico de profundidad {{d}}",

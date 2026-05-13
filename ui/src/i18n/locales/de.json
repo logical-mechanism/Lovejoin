@@ -595,8 +595,6 @@
     "review_total_fee_value": "Bis zu {{ada}} ADA über alle Mixe",
     "review_pool": "Pool-Auswahl",
     "review_pool_value": "{{have}} frische Boxen verfügbar, {{need}} benötigt",
-    "disclosure_title": "Du zahlst für alle in diesem Baum",
-    "disclosure_body": "Würde nur deine eigene Box neu gemischt, könnte ein Beobachter deiner Kette trivial folgen. Der Fan-out mischt jede Box deiner vorherigen Welle neu, auch Boxen, die dir nicht gehören. Genau das macht deinen Zweig ununterscheidbar. Du zahlst die Gebühren + die Beweis-Konstruktionskosten für den gesamten Baum.",
     "gate_no_owned_boxes": "Entsperre deinen Vault und lege mindestens eine Box ab, um einen Fan-out aus einer eigenen Box zu starten.",
     "gate_pool_too_small": "Pool zu klein: {{have}} frische Boxen verfügbar, der Fan-out auf dieser Tiefe braucht {{need}}.",
     "run_button": "Fan-out Tiefe {{d}} starten",

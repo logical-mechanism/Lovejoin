@@ -595,8 +595,6 @@
     "review_total_fee_value": "全部混合最多 {{ada}} ADA",
     "review_pool": "池中抽取",
     "review_pool_value": "可用新鲜 box {{have}} 个，需要 {{need}} 个",
-    "disclosure_title": "你在为这棵树里的每个人买单",
-    "disclosure_body": "只重新混合你自己的 box，观察者可以轻易跟踪你的链。扇出会重新混合上一轮你触及的每一个 box，包括不属于你的 box。这就是让你的分支不可区分的原因。整棵树的费用 + 证明构造成本由你支付。",
     "gate_no_owned_boxes": "请解锁你的 vault 并至少存入一个 box，才能从你拥有的 box 启动扇出。",
     "gate_pool_too_small": "池太小：可用新鲜 box {{have}} 个，此深度扇出需要 {{need}} 个。",
     "run_button": "运行深度 {{d}} 扇出",

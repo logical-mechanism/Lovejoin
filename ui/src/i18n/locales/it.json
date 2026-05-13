@@ -595,8 +595,6 @@
     "review_total_fee_value": "Fino a {{ada}} ADA su tutti i mix",
     "review_pool": "Estrazione dal pool",
     "review_pool_value": "{{have}} box fresche disponibili, {{need}} necessarie",
-    "disclosure_title": "Stai pagando per tutti in questo albero",
-    "disclosure_body": "Rimescolare solo la tua box permetterebbe a un osservatore di seguire banalmente la tua catena. Il ventaglio rimescola ogni box che la tua onda precedente ha toccato, incluse box che non ti appartengono. È questo a rendere il tuo ramo indistinguibile. Paghi le commissioni + il costo di costruzione delle prove per l'intero albero.",
     "gate_no_owned_boxes": "Sblocca il tuo vault e deposita almeno una box per avviare un ventaglio da una box che possiedi.",
     "gate_pool_too_small": "Pool troppo piccolo: {{have}} box fresche disponibili, il ventaglio a questa profondità ne richiede {{need}}.",
     "run_button": "Avvia ventaglio profondità {{d}}",

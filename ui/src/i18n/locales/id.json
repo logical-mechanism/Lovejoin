@@ -595,8 +595,6 @@
     "review_total_fee_value": "Hingga {{ada}} ADA di seluruh mix",
     "review_pool": "Pengambilan dari pool",
     "review_pool_value": "{{have}} box segar tersedia, {{need}} dibutuhkan",
-    "disclosure_title": "Kamu membayar untuk semua di pohon ini",
-    "disclosure_body": "Mencampur ulang hanya box milikmu sendiri membuat pengamat dapat mengikuti rantaimu dengan mudah. Pencabangan kipas mencampur ulang setiap box yang gelombang sebelumnya sentuh, termasuk box yang bukan milikmu. Itulah yang membuat cabangmu tidak terbedakan. Kamu membayar biaya + biaya konstruksi bukti untuk seluruh pohon.",
     "gate_no_owned_boxes": "Buka kunci vault-mu dan deposit setidaknya satu box untuk menjalankan kipas dari box milikmu.",
     "gate_pool_too_small": "Pool terlalu kecil: {{have}} box segar tersedia, kipas pada kedalaman ini butuh {{need}}.",
     "run_button": "Jalankan kipas kedalaman {{d}}",

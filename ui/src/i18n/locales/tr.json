@@ -595,8 +595,6 @@
     "review_total_fee_value": "Tüm karışımlar boyunca en fazla {{ada}} ADA",
     "review_pool": "Pool çekilişi",
     "review_pool_value": "{{have}} taze box mevcut, {{need}} gerekiyor",
-    "disclosure_title": "Bu ağaçtaki herkes için ödüyorsunuz",
-    "disclosure_body": "Yalnızca kendi box'unuzu yeniden karıştırmak, bir gözlemcinin zincirinizi kolayca takip etmesine izin verir. Yelpaze, önceki dalganızın dokunduğu her box'u yeniden karıştırır; sahip olmadığınız box'lar dahil. Dalınızı ayırt edilemez kılan budur. Tüm ağacın ücretlerini + ispat oluşturma maliyetini siz ödersiniz.",
     "gate_no_owned_boxes": "Kendi box'unuzdan yelpaze çalıştırmak için kasanızı açın ve en az bir box yatırın.",
     "gate_pool_too_small": "Pool çok küçük: {{have}} taze box mevcut; bu derinlikteki yelpaze {{need}} gerektiriyor.",
     "run_button": "Derinlik {{d}} yelpazesini çalıştır",
