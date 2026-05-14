@@ -33,7 +33,11 @@ import {
   type ReactNode,
 } from "react";
 import type { BrowserWallet } from "@meshsdk/core";
-import type { LovejoinAddresses, ChainProvider } from "@lovejoin/sdk";
+import {
+  detectBatchSigningCip103,
+  type LovejoinAddresses,
+  type ChainProvider,
+} from "@lovejoin/sdk";
 
 import { BackendClient } from "./backend.js";
 import { loadAddresses, loadConfig, makeProvider, saveConfig, type RuntimeConfig } from "./sdk.js";
@@ -60,6 +64,15 @@ export interface AppState {
   wallet: BrowserWallet | null;
   walletId: string | null;
   changeAddress: string | null;
+  /**
+   * Resolved CIP-103 (multi-tx signing) support for the connected
+   * wallet, probed at connect time via `detectBatchSigningCip103` and
+   * cached here so each fan-out run doesn't re-query
+   * `wallet.getExtensions()`. Null while the probe is in flight or no
+   * wallet is connected. Used by the fan-out hook to pick batch vs
+   * per-leaf signing without an extra round-trip per submit.
+   */
+  walletSupportsBatchSigning: boolean | null;
   /**
    * Cached spendable lovelace from the connected wallet, refreshed at
    * connect, after every tx submit (success or failure), and on demand
@@ -154,6 +167,9 @@ export function AppStateProvider({ children, testOverrides }: AppStateProviderPr
     testOverrides?.initialWallet?.changeAddress ?? null,
   );
   const [walletLovelace, setWalletLovelace] = useState<bigint | null>(null);
+  const [walletSupportsBatchSigning, setWalletSupportsBatchSigning] = useState<boolean | null>(
+    null,
+  );
 
   const [vault, setVault] = useState<UnlockedSeed | null>(null);
   const [vaultError, setVaultError] = useState<string | null>(null);
@@ -238,6 +254,7 @@ export function AppStateProvider({ children, testOverrides }: AppStateProviderPr
         setWalletId(null);
         setChangeAddress(null);
         setWalletLovelace(null);
+        setWalletSupportsBatchSigning(null);
         // Disconnecting the wallet implicitly locks the wallet-derived
         // vault since its seed is bound to that wallet's signature.
         setVault((cur) => (cur?.kind === "wallet" ? null : cur));
@@ -272,6 +289,26 @@ export function AppStateProvider({ children, testOverrides }: AppStateProviderPr
     }
     void refreshWalletBalance();
   }, [wallet, refreshWalletBalance]);
+
+  // Probe CIP-103 multi-tx signing support once per wallet connection.
+  // The fan-out hook reads the resolved boolean instead of re-probing
+  // on every submit; null while in flight so the UI can render a
+  // "checking…" state if it wants to.
+  useEffect(() => {
+    if (!wallet) {
+      setWalletSupportsBatchSigning(null);
+      return;
+    }
+    let cancelled = false;
+    setWalletSupportsBatchSigning(null);
+    void (async () => {
+      const supported = await detectBatchSigningCip103(wallet, walletId);
+      if (!cancelled) setWalletSupportsBatchSigning(supported);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [wallet, walletId]);
 
   const runScan = useCallback(
     async (seed: Uint8Array) => {
@@ -451,6 +488,7 @@ export function AppStateProvider({ children, testOverrides }: AppStateProviderPr
     markTxPending,
     walletLovelace,
     refreshWalletBalance,
+    walletSupportsBatchSigning,
   };
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }

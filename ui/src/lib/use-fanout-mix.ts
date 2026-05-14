@@ -22,7 +22,9 @@ import {
   fanoutLinkageProbability,
   fanoutTotalMixes,
   planFanout,
+  planFanoutTxs,
   submitFanout,
+  submitFanoutBatch,
   type ChainProvider,
   type FanoutEvent,
   type FanoutPlan,
@@ -111,7 +113,8 @@ export function useFanoutSubmit(args: UseFanoutSubmitArgs): UseFanoutSubmitResul
   const feePayer: MixFeePayer = args.feePayer ?? "shard";
   const { t } = useTranslation();
   const toast = useToast();
-  const { pendingTxRefs, markTxPending, rescan, refreshWalletBalance } = useAppState();
+  const { pendingTxRefs, markTxPending, rescan, refreshWalletBalance, walletSupportsBatchSigning } =
+    useAppState();
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [running, setRunning] = useState(false);
   const [progress, setProgress] = useState<ProgressState | null>(null);
@@ -202,15 +205,31 @@ export function useFanoutSubmit(args: UseFanoutSubmitArgs): UseFanoutSubmitResul
       }));
       const plan: FanoutPlan = planFanout({ rootBox: rootBox.entry, pool, depth });
       markTxPending(plan.poolRefsUsed.map((r) => refKey(r)));
-      const events = submitFanout({
-        plan,
-        network,
-        provider,
-        addresses,
-        ...(wallet ? { wallet } : {}),
-        feePayer,
-        retry: { maxAttempts: 3, delayBetweenAttemptsMs: 2_000 },
-      });
+      // Choose the CIP-103 batch path when the wallet supports it AND
+      // this is a wallet-funded run (shard-mode never prompts the
+      // wallet, so batching is a no-op there). Default-deny: if the
+      // probe hasn't resolved yet, fall back to per-leaf so the user
+      // is never blocked waiting on an extension query.
+      const useBatchSign =
+        feePayer === "wallet" && wallet !== null && walletSupportsBatchSigning === true;
+      const events = useBatchSign
+        ? await runBatchFanout({
+            plan,
+            network,
+            provider,
+            addresses,
+            wallet: wallet!,
+            feePayer,
+          })
+        : submitFanout({
+            plan,
+            network,
+            provider,
+            addresses,
+            ...(wallet ? { wallet } : {}),
+            feePayer,
+            retry: { maxAttempts: 3, delayBetweenAttemptsMs: 2_000 },
+          });
       setLastProgressAt(Date.now());
       const summary = await consumeEvents(events, (evt) => {
         if (cancelToken.current.cancelled) return;
@@ -342,4 +361,33 @@ function synthPoolUtxo(ref: { txId: string; outputIndex: number }, denomLovelace
     inlineDatum: null,
     referenceScript: null,
   };
+}
+
+// CIP-103 batch-sign path (issue #149). Builds every leaf first via
+// `planFanoutTxs` (no wallet calls), then hands the unsigned CBOR array
+// to `submitFanoutBatch` which prompts the wallet ONCE for the whole
+// tree and submits in order. Returned events look identical to
+// `submitFanout`'s stream so the caller's reducer doesn't care which
+// path drove the run.
+async function runBatchFanout(args: {
+  plan: FanoutPlan;
+  network: import("./sdk.js").Network;
+  provider: ChainProvider;
+  addresses: LovejoinAddresses;
+  wallet: import("@meshsdk/core").BrowserWallet;
+  feePayer: MixFeePayer;
+}): Promise<AsyncIterable<FanoutEvent>> {
+  const batch = await planFanoutTxs({
+    plan: args.plan,
+    network: args.network,
+    provider: args.provider,
+    addresses: args.addresses,
+    wallet: args.wallet,
+    feePayer: args.feePayer,
+  });
+  return submitFanoutBatch({
+    batch,
+    wallet: args.wallet,
+    provider: args.provider,
+  });
 }

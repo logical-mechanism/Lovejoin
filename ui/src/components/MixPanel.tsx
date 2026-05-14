@@ -91,8 +91,16 @@ export function MixPanel(props: MixPanelProps) {
     onSingleMixError,
     initialIntensity,
   } = props;
-  const { vault, ownedBoxes, unlockWithWallet, vaultBusy, vaultError, setWallet, walletId } =
-    useAppState();
+  const {
+    vault,
+    ownedBoxes,
+    unlockWithWallet,
+    vaultBusy,
+    vaultError,
+    setWallet,
+    walletId,
+    walletSupportsBatchSigning,
+  } = useAppState();
   const [walletModalOpen, setWalletModalOpen] = useState(false);
 
   const protocol = addresses?.protocol;
@@ -138,6 +146,11 @@ export function MixPanel(props: MixPanelProps) {
   // anonymity.
   const fanoutWalletPayerAllowed =
     isFanout && wallet !== null && walletSupportsChainedFanout(walletId);
+  // CIP-103 multi-tx signing (issue #149). When the wallet advertises
+  // batch signing the disclosure body promises one prompt instead of
+  // N. Null while the probe is in flight; we render the conservative
+  // per-leaf copy until the probe resolves so we never over-promise.
+  const fanoutBatchSignAvailable = fanoutWalletPayerAllowed && walletSupportsBatchSigning === true;
   const showFeePayerToggle = !isFanout || fanoutWalletPayerAllowed;
   const effectiveFeePayer: MixFeePayer = isFanout
     ? fanoutWalletPayerAllowed
@@ -266,7 +279,12 @@ export function MixPanel(props: MixPanelProps) {
               {feePayer === "shard"
                 ? t("pool.fee_payer_shard_hint", { cap: maxFeePerMixAda })
                 : isFanout
-                  ? t("pool.fee_payer_wallet_hint_fanout", { count: fanout.stats.totalMixes })
+                  ? t(
+                      fanoutBatchSignAvailable
+                        ? "pool.fee_payer_wallet_hint_fanout_batch"
+                        : "pool.fee_payer_wallet_hint_fanout",
+                      { count: fanout.stats.totalMixes },
+                    )
                   : t("pool.fee_payer_wallet_hint")}
             </p>
           </div>
@@ -282,9 +300,14 @@ export function MixPanel(props: MixPanelProps) {
           <div className="lj-banner lj-banner--coral" role="alert">
             <span className="lj-banner__title">{t("pool.fanout_wallet_disclosure_title")}</span>
             <p className="text-xs text-paper leading-relaxed">
-              {t("pool.fanout_wallet_disclosure_body", {
-                count: fanout.stats.totalMixes,
-              })}
+              {t(
+                fanoutBatchSignAvailable
+                  ? "pool.fanout_wallet_disclosure_body_batch"
+                  : "pool.fanout_wallet_disclosure_body",
+                {
+                  count: fanout.stats.totalMixes,
+                },
+              )}
             </p>
           </div>
         )}
