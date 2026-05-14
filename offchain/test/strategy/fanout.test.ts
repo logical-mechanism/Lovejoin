@@ -285,7 +285,7 @@ describe("helper math", () => {
     [2, 1 / 9],
     [3, 1 / 27],
     [4, 1 / 81],
-  ])("fanoutLinkageProbability(%i) = %f", (k, expected) => {
+  ])("fanoutLinkageProbability(%i) = %f (default n=3)", (k, expected) => {
     expect(fanoutLinkageProbability(k)).toBeCloseTo(expected, 10);
   });
 
@@ -294,7 +294,7 @@ describe("helper math", () => {
     [2, 4],
     [3, 13],
     [4, 40],
-  ])("fanoutTotalMixes(%i) = (3^%i - 1) / 2 = %i", (k, expected) => {
+  ])("fanoutTotalMixes(%i) = (3^%i - 1) / 2 = %i (default n=3)", (k, expected) => {
     expect(fanoutTotalMixes(k)).toBe(expected);
   });
 
@@ -303,7 +303,87 @@ describe("helper math", () => {
     [2, 9],
     [3, 27],
     [4, 81],
-  ])("fanoutBoxesTouched(%i) = 3^%i = %i", (k, expected) => {
+  ])("fanoutBoxesTouched(%i) = 3^%i = %i (default n=3)", (k, expected) => {
     expect(fanoutBoxesTouched(k)).toBe(expected);
+  });
+
+  // Wallet-mode fan-out at n=4 (issue #149 follow-up): pool size,
+  // linkage, and tx count all bump with the wider branching factor.
+  it.each([
+    [2, 1 / 16],
+    [3, 1 / 64],
+    [4, 1 / 256],
+  ])("fanoutLinkageProbability(%i, 4) = %f", (k, expected) => {
+    expect(fanoutLinkageProbability(k, 4)).toBeCloseTo(expected, 10);
+  });
+
+  it.each([
+    [2, 5], // (16 - 1) / 3
+    [3, 21], // (64 - 1) / 3
+    [4, 85], // (256 - 1) / 3
+  ])("fanoutTotalMixes(%i, 4) = %i", (k, expected) => {
+    expect(fanoutTotalMixes(k, 4)).toBe(expected);
+  });
+
+  it.each([
+    [2, 16],
+    [3, 64],
+    [4, 256],
+  ])("fanoutBoxesTouched(%i, 4) = %i", (k, expected) => {
+    expect(fanoutBoxesTouched(k, 4)).toBe(expected);
+  });
+});
+
+describe("planFanout — n=4 (wallet-mode width)", () => {
+  it("emits 4-input slots and the n=4 tree shape at depth 2", () => {
+    // Each slot consumes (parent or root) + 3 fresh = 4 inputs total.
+    // Wave 0: 1 slot × 3 fresh = 3 fresh. Wave 1: 4 slots × 3 fresh = 12 fresh.
+    // Pool requirement = 15; total mixes = 5; boxes touched = 16.
+    const root = makeEntry(0);
+    const pool = Array.from({ length: 50 }, (_, i) => makeEntry(i + 1));
+    const plan = planFanout({ rootBox: root, pool, depth: 2, n: 4, rng: zeroRng });
+    expect(plan.n).toBe(4);
+    expect(plan.totalMixes).toBe(5);
+    expect(plan.boxesTouched).toBe(16);
+    expect(plan.poolRefsUsed).toHaveLength(15);
+    expect(plan.waves).toHaveLength(2);
+    expect(plan.waves[0]!.slots).toHaveLength(1);
+    expect(plan.waves[1]!.slots).toHaveLength(4);
+    for (const wave of plan.waves) {
+      for (const slot of wave.slots) {
+        expect(slot.inputs).toHaveLength(4);
+      }
+    }
+    // Wave 1's slot 3's parent must be w0s0, output position 3.
+    const w1s3 = plan.waves[1]!.slots[3]!;
+    const parent = w1s3.inputs.find((i) => i.kind === "parent");
+    expect(parent?.kind).toBe("parent");
+    if (parent?.kind === "parent") {
+      expect(parent.parentSlotId).toBe("w0s0");
+      expect(parent.parentOutputPosition).toBe(3);
+    }
+  });
+
+  it("rejects n outside [2, FANOUT_MAX_N]", () => {
+    const root = makeEntry(0);
+    const pool = Array.from({ length: 50 }, (_, i) => makeEntry(i + 1));
+    expect(() => planFanout({ rootBox: root, pool, depth: 2, n: 1, rng: zeroRng })).toThrow(
+      /n must be an integer in/,
+    );
+    expect(() => planFanout({ rootBox: root, pool, depth: 2, n: 5, rng: zeroRng })).toThrow(
+      /n must be an integer in/,
+    );
+  });
+
+  it("falls back to n=3 (FANOUT_N) when n is omitted", () => {
+    const root = makeEntry(0);
+    const pool = Array.from({ length: 50 }, (_, i) => makeEntry(i + 1));
+    const plan = planFanout({ rootBox: root, pool, depth: 2, rng: zeroRng });
+    expect(plan.n).toBe(FANOUT_N);
+    for (const wave of plan.waves) {
+      for (const slot of wave.slots) {
+        expect(slot.inputs).toHaveLength(FANOUT_N);
+      }
+    }
   });
 });

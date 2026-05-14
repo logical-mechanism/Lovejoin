@@ -181,6 +181,11 @@ export function MixPanel(props: MixPanelProps) {
     ownedBoxes,
     poolEntries,
     depth: isFanout ? intensity : 2,
+    // Width per slot mirrors the single-Mix toggle: shard mode hits the
+    // on-chain N=3 anonymity-set floor; wallet mode goes to N=4 since
+    // there's no shard to pin it lower. Falls back to 3 if the network
+    // bundle is missing max_n_wallet (legacy bootstraps).
+    n: effectiveFeePayer === "shard" ? maxNShard : maxNWallet,
     feePayer: effectiveFeePayer,
   });
 

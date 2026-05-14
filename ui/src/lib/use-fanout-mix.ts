@@ -77,6 +77,15 @@ export interface UseFanoutSubmitArgs {
   }>;
   depth: number;
   /**
+   * Per-slot Mix width / branching factor. Default `3` to match the
+   * shard-mode anonymity-set floor enforced by `fee_contract.PayMixFee`.
+   * Wallet-funded fan-out passes `4` (the per-tx exec budget tolerates
+   * it; mix_logic enforces only the general `N ≥ 2` rule). Forwarded
+   * to `planFanout` and the linkage / total-mixes / boxes-touched
+   * stats so the review block reflects the actual tree shape.
+   */
+  n?: number;
+  /**
    * Who pays the per-tx fee for every leaf in the tree. Default `"shard"`,
    * which keeps every Mix wallet-anonymous (no wallet input or signature).
    * `"wallet"` opts the user out of wallet anonymity in exchange for not
@@ -111,6 +120,7 @@ export interface UseFanoutSubmitResult {
 export function useFanoutSubmit(args: UseFanoutSubmitArgs): UseFanoutSubmitResult {
   const { network, provider, addresses, wallet, ownedBoxes, poolEntries, depth } = args;
   const feePayer: MixFeePayer = args.feePayer ?? "shard";
+  const n: number = args.n ?? 3;
   const { t } = useTranslation();
   const toast = useToast();
   const { pendingTxRefs, markTxPending, rescan, refreshWalletBalance, walletSupportsBatchSigning } =
@@ -145,13 +155,13 @@ export function useFanoutSubmit(args: UseFanoutSubmitArgs): UseFanoutSubmitResul
   }, [ownedBoxes, pendingTxRefs]);
 
   const stats = useMemo<FanoutStats>(() => {
-    const totalMixes = fanoutTotalMixes(depth);
-    const boxesTouched = fanoutBoxesTouched(depth);
+    const totalMixes = fanoutTotalMixes(depth, n);
+    const boxesTouched = fanoutBoxesTouched(depth, n);
     const freshNeeded = boxesTouched - 1;
-    const linkage = fanoutLinkageProbability(depth);
+    const linkage = fanoutLinkageProbability(depth, n);
     const totalFeeLovelace = maxFeePerMixLovelace * BigInt(totalMixes);
     return { totalMixes, boxesTouched, freshNeeded, linkage, totalFeeLovelace };
-  }, [depth, maxFeePerMixLovelace]);
+  }, [depth, n, maxFeePerMixLovelace]);
 
   const eligiblePool = useMemo(() => {
     const rootRef = rootBox ? refKey(rootBox.entry.ref) : null;
@@ -203,7 +213,7 @@ export function useFanoutSubmit(args: UseFanoutSubmitArgs): UseFanoutSubmitResul
         b: e.b,
         utxo: synthPoolUtxo(e.ref, denomLovelace),
       }));
-      const plan: FanoutPlan = planFanout({ rootBox: rootBox.entry, pool, depth });
+      const plan: FanoutPlan = planFanout({ rootBox: rootBox.entry, pool, depth, n });
       markTxPending(plan.poolRefsUsed.map((r) => refKey(r)));
       // Choose the CIP-103 batch path when the wallet supports it AND
       // this is a wallet-funded run (shard-mode never prompts the

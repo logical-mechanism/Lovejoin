@@ -80,8 +80,24 @@ import { pickRandomNTuple } from "../pool/select.js";
 import type { PoolEntry } from "../pool/identify.js";
 import type { UtxoRef } from "../chain/provider.js";
 
-/** Fan-out tree width. Issue #137 only sanctions N=3 — see header. */
+/**
+ * Default fan-out tree width. Issue #137 sanctioned N=3 as the canonical
+ * shard-mode width (it's the on-chain anonymity-set floor enforced by
+ * `fee_contract.PayMixFee`). Wallet-funded fan-out can go to N=4 — the
+ * per-tx exec budget allows it and no on-chain floor pins it lower
+ * (mix_logic enforces the general `N ≥ 2` rule). Callers thread the
+ * effective N through `planFanout({ n })`.
+ */
 export const FANOUT_N = 3 as const;
+
+/**
+ * Hard upper bound on the planner's branching factor. Mirrors the per-tx
+ * `max_n_wallet` calibration (currently 4 across all networks). The
+ * planner rejects `n > FANOUT_MAX_N` so a UI bug can't accidentally
+ * request a width the Mix builder couldn't fit inside the per-tx exec
+ * budget.
+ */
+export const FANOUT_MAX_N = 4 as const;
 
 /** Hard cap on tree depth. See header for the rationale. */
 export const FANOUT_MAX_DEPTH = 4 as const;
@@ -158,6 +174,13 @@ export interface PlanFanoutArgs {
   /** `2 ≤ depth ≤ FANOUT_MAX_DEPTH`. */
   depth: number;
   /**
+   * Branching factor — also the per-slot Mix width N. Default `FANOUT_N`
+   * (=3) for shard-mode fan-out. Pass `4` for wallet-funded fan-out
+   * (the wallet-collateral mix-logic path tolerates N=4 inside the
+   * per-tx exec budget). Constrained to `[2, FANOUT_MAX_N]`.
+   */
+  n?: number;
+  /**
    * Refs to exclude from the fresh-pool sampler. Typically the union of:
    *   * pool entries known to be in-mempool inputs to other users' txs
    *     (from the backend's `/mempool/inputs`);
@@ -190,16 +213,22 @@ export function planFanout(args: PlanFanoutArgs): FanoutPlan {
         `(see FANOUT_MAX_DEPTH for the rationale)`,
     );
   }
+  const n = args.n ?? FANOUT_N;
+  if (!Number.isInteger(n) || n < 2 || n > FANOUT_MAX_N) {
+    throw new Error(`planFanout: n must be an integer in [2, ${FANOUT_MAX_N}], got ${n}`);
+  }
 
   const rootKey = refKey(args.rootBox.ref);
   const dedupedExcludes = new Set<string>([rootKey]);
   for (const r of args.excludeRefs ?? []) dedupedExcludes.add(refKey(r));
 
-  // Per-wave pool requirement: 3^k slots × 2 fresh boxes each.
+  // Per-wave pool requirement: n^k slots × (n-1) fresh boxes each.
+  // (The first input of each slot is the parent's output, or the root
+  // for wave 0; the remaining n-1 are fresh.)
   const perWaveFresh: number[] = [];
   let totalFresh = 0;
   for (let k = 0; k < args.depth; k++) {
-    const need = pow3(k) * 2;
+    const need = powN(n, k) * (n - 1);
     perWaveFresh.push(need);
     totalFresh += need;
   }
@@ -224,7 +253,7 @@ export function planFanout(args: PlanFanoutArgs): FanoutPlan {
 
   const waves: FanoutWave[] = [];
   for (let k = 0; k < args.depth; k++) {
-    const slotCount = pow3(k);
+    const slotCount = powN(n, k);
     const freshNeeded = perWaveFresh[k]!;
     const excludeRefs = Array.from(usedRefs).map(parseRefKey);
     const fresh = pickRandomNTuple({
@@ -258,8 +287,8 @@ export function planFanout(args: PlanFanoutArgs): FanoutPlan {
         // output position to inherit is s % N. This mapping is the
         // tree's branching factor — each parent has exactly N children,
         // one per output position.
-        const parentSlotIndex = Math.floor(s / FANOUT_N);
-        const parentOutputPosition = s % FANOUT_N;
+        const parentSlotIndex = Math.floor(s / n);
+        const parentOutputPosition = s % n;
         const parentId: FanoutSlotId = `w${k - 1}s${parentSlotIndex}`;
         inputs.push({
           kind: "parent",
@@ -267,12 +296,12 @@ export function planFanout(args: PlanFanoutArgs): FanoutPlan {
           parentOutputPosition,
         });
       }
-      // Two fresh boxes. The first slot uses fresh[0], fresh[1]; second
-      // uses fresh[2], fresh[3]; ... so we slice from the wave's fresh
-      // pool in slot order.
-      const baseFresh = s * 2;
-      inputs.push({ kind: "pool", entry: fresh[baseFresh]! });
-      inputs.push({ kind: "pool", entry: fresh[baseFresh + 1]! });
+      // (n-1) fresh boxes per slot. The first slot uses fresh[0..n-2];
+      // second uses fresh[n-1..2(n-1)-1]; etc.
+      const baseFresh = s * (n - 1);
+      for (let f = 0; f < n - 1; f++) {
+        inputs.push({ kind: "pool", entry: fresh[baseFresh + f]! });
+      }
       slots.push({ id, waveIndex: k, slotIndex: s, inputs });
     }
 
@@ -280,13 +309,13 @@ export function planFanout(args: PlanFanoutArgs): FanoutPlan {
   }
 
   return {
-    n: FANOUT_N,
+    n,
     depth: args.depth,
     rootBox: args.rootBox,
     waves,
     poolRefsUsed,
-    totalMixes: (pow3(args.depth) - 1) / 2,
-    boxesTouched: pow3(args.depth),
+    totalMixes: (powN(n, args.depth) - 1) / (n - 1),
+    boxesTouched: powN(n, args.depth),
   };
 }
 
@@ -343,28 +372,35 @@ export function getSlot(plan: FanoutPlan, id: FanoutSlotId): FanoutSlot {
   return wave.slots[parsed.slot]!;
 }
 
-/** Linkage probability after a depth-k fan-out: `(1/3)^k`. */
-export function fanoutLinkageProbability(depth: number): number {
-  return 1 / pow3(depth);
+/**
+ * Linkage probability after a depth-k fan-out at branching factor n:
+ * `(1/n)^k`. `n` defaults to `FANOUT_N` (3) for back-compat with callers
+ * that haven't migrated to passing it explicitly.
+ */
+export function fanoutLinkageProbability(depth: number, n: number = FANOUT_N): number {
+  return 1 / powN(n, depth);
 }
 
-/** `(3^k − 1) / 2`. */
-export function fanoutTotalMixes(depth: number): number {
-  return (pow3(depth) - 1) / 2;
+/**
+ * Total Mix tx count for a fan-out tree: `(n^depth − 1) / (n − 1)`. `n`
+ * defaults to `FANOUT_N`.
+ */
+export function fanoutTotalMixes(depth: number, n: number = FANOUT_N): number {
+  return (powN(n, depth) - 1) / (n - 1);
 }
 
-/** `3^k`. */
-export function fanoutBoxesTouched(depth: number): number {
-  return pow3(depth);
+/** Boxes touched (incl. root): `n^depth`. `n` defaults to `FANOUT_N`. */
+export function fanoutBoxesTouched(depth: number, n: number = FANOUT_N): number {
+  return powN(n, depth);
 }
 
 // ---------------------------------------------------------------------------
 // Local utilities
 // ---------------------------------------------------------------------------
 
-function pow3(k: number): number {
+function powN(n: number, k: number): number {
   let r = 1;
-  for (let i = 0; i < k; i++) r *= FANOUT_N;
+  for (let i = 0; i < k; i++) r *= n;
   return r;
 }
 
