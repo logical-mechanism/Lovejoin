@@ -173,18 +173,19 @@ describe("MixPanel", () => {
     expect(screen.getByRole("group", { name: "Fee payer" })).toBeInTheDocument();
   });
 
-  it("renders the load-bearing wallet-funded fan-out disclosure when the user picks the wallet path at k≥2", () => {
+  it("renders the wallet-funded fan-out disclosure when the user picks the wallet path at k≥2", () => {
     renderPanel({ walletId: "eternl" });
     fireEvent.click(screen.getByRole("button", { name: /Depth 2/i }));
     // Toggle is visible; flip it to wallet.
     const toggle = screen.getByRole("group", { name: "Fee payer" });
     const walletBtn = toggle.querySelectorAll("button")[1]!;
     fireEvent.click(walletBtn);
-    // The disclosure mentions both the per-tx identity exposure AND
-    // the multi-signature prompt count, so a user can't miss either
-    // half of the trade-off.
-    expect(screen.getByRole("alert").textContent).toMatch(/wallet identity/i);
-    expect(screen.getByRole("alert").textContent).toMatch(/sign/i);
+    // The disclosure title flags that the wallet is on every tx, and
+    // the body names what the wallet covers (collateral + fees).
+    const alert = screen.getByRole("alert").textContent ?? "";
+    expect(alert).toMatch(/wallet/i);
+    expect(alert).toMatch(/collateral/i);
+    expect(alert).toMatch(/transaction fees/i);
   });
 
   it("does NOT render the disclosure when the user stays on the fee-shard path at k≥2", () => {

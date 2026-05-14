@@ -316,6 +316,7 @@ export function MixPanel(props: MixPanelProps) {
         n={n}
         poolSize={poolEntries.length}
         ownedBoxCount={ownedBoxes.length}
+        upperGateShown={isFanout && (!wallet || !vaultUnlocked)}
       />
 
       {isFanout && fanout.progress && (
@@ -585,6 +586,7 @@ function ActionArea({
   n,
   poolSize,
   ownedBoxCount,
+  upperGateShown,
 }: {
   isFanout: boolean;
   intensity: number;
@@ -593,6 +595,13 @@ function ActionArea({
   n: number;
   poolSize: number;
   ownedBoxCount: number;
+  /**
+   * True when the intensity row is already rendering a wallet/vault gate
+   * hint (no wallet, or vault locked). The "no owned boxes" gate below
+   * the CTA repeats the same actionable advice in those states; suppress
+   * it so the user only sees one message.
+   */
+  upperGateShown: boolean;
 }) {
   const { t } = useTranslation();
 
@@ -600,7 +609,7 @@ function ActionArea({
   if (isFanout) {
     return (
       <>
-        {!fanout.hasOwned && (
+        {!upperGateShown && !fanout.hasOwned && (
           <p className="mt-6 text-xs text-amber">
             {ownedBoxCount > 0 ? t("fanout.gate_owned_in_flight") : t("fanout.gate_no_owned_boxes")}
           </p>
