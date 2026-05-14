@@ -3,6 +3,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  detectBatchSigningCip103,
   getWalletCapabilities,
   walletSupportsChainedFanout,
   WALLET_CAPABILITIES,
@@ -42,8 +43,14 @@ describe("walletSupportsChainedFanout", () => {
 
 describe("getWalletCapabilities", () => {
   it("returns the capability record for known wallets", () => {
-    expect(getWalletCapabilities("eternl")).toEqual({ chainedTxFanout: true });
-    expect(getWalletCapabilities("lace")).toEqual({ chainedTxFanout: true });
+    expect(getWalletCapabilities("eternl")).toEqual({
+      chainedTxFanout: true,
+      batchSigningCip103: true,
+    });
+    expect(getWalletCapabilities("lace")).toEqual({
+      chainedTxFanout: true,
+      batchSigningCip103: false,
+    });
   });
 
   it("returns null for unknown / empty wallet ids so callers can branch on default-deny", () => {
@@ -57,5 +64,41 @@ describe("getWalletCapabilities", () => {
     for (const key of Object.keys(WALLET_CAPABILITIES)) {
       expect(key).toBe(key.toLowerCase());
     }
+  });
+});
+
+describe("detectBatchSigningCip103", () => {
+  it("prefers the wallet's own getExtensions(103) advertisement", async () => {
+    // Wallet advertises CIP-103 even though the static table for this
+    // walletId says false: the runtime probe wins. Lets us catch a
+    // wallet that ships support after our last manual matrix.
+    const wallet = { getExtensions: async () => [95, 103] };
+    expect(await detectBatchSigningCip103(wallet, "lace")).toBe(true);
+  });
+
+  it("falls back to the static allowlist when getExtensions does not list 103", async () => {
+    // Eternl currently routes through mesh's experimental.signTxs path
+    // and does not list CIP-103 in getExtensions; the static entry is
+    // what keeps batch-signing reachable for it.
+    const wallet = { getExtensions: async () => [30, 95] };
+    expect(await detectBatchSigningCip103(wallet, "eternl")).toBe(true);
+  });
+
+  it("falls back to the static allowlist when getExtensions rejects", async () => {
+    const wallet = {
+      getExtensions: async () => {
+        throw new Error("simulated wallet error");
+      },
+    };
+    expect(await detectBatchSigningCip103(wallet, "eternl")).toBe(true);
+    expect(await detectBatchSigningCip103(wallet, "lace")).toBe(false);
+  });
+
+  it("default-denies when neither getExtensions nor the static table claim support", async () => {
+    const wallet = { getExtensions: async () => [30, 95] };
+    expect(await detectBatchSigningCip103(wallet, "lace")).toBe(false);
+    expect(await detectBatchSigningCip103(wallet, "nami")).toBe(false);
+    expect(await detectBatchSigningCip103(null, "nami")).toBe(false);
+    expect(await detectBatchSigningCip103(undefined, undefined)).toBe(false);
   });
 });

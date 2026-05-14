@@ -39,6 +39,23 @@ export interface WalletCapabilities {
    * same matrix against them.
    */
   chainedTxFanout: boolean;
+  /**
+   * Static best-effort hint for whether the wallet supports CIP-103
+   * (multi-tx signing via `signTxs`). The UI prefers the wallet's own
+   * `getExtensions()` advertisement at connect time over this static
+   * value — see {@link detectBatchSigningCip103}; the static table is
+   * only consulted when the wallet doesn't expose getExtensions or
+   * doesn't list CIP-103 there.
+   *
+   * Why keep a static value at all: some wallets (Eternl) ship CIP-103
+   * support via an `experimental.signTxs` path that doesn't show up in
+   * `getExtensions()`. The static table lets us still offer batch
+   * signing in that case, while default-denying for unknown wallets.
+   *
+   * Empirical work: issue #149 confirmed Eternl supports CIP-103 (via
+   * experimental.signTxs); Lace did not at the time of writing.
+   */
+  batchSigningCip103: boolean;
 }
 
 /**
@@ -55,8 +72,8 @@ export const WALLET_CAPABILITIES: Readonly<Record<string, WalletCapabilities>> =
   // when the parent is in their own mempool view. Adding a new wallet
   // requires the same manual matrix; do not extend this list from a
   // datasheet.
-  eternl: { chainedTxFanout: true },
-  lace: { chainedTxFanout: true },
+  eternl: { chainedTxFanout: true, batchSigningCip103: true },
+  lace: { chainedTxFanout: true, batchSigningCip103: false },
 };
 
 /**
@@ -80,4 +97,49 @@ export function getWalletCapabilities(
  */
 export function walletSupportsChainedFanout(walletId: string | null | undefined): boolean {
   return getWalletCapabilities(walletId)?.chainedTxFanout === true;
+}
+
+/**
+ * Minimum wallet surface for batch-sign detection. Implemented by mesh's
+ * `BrowserWallet` — typed as the structural intersection so the SDK
+ * doesn't import the mesh runtime just for the check.
+ */
+export interface BatchSigningProbe {
+  getExtensions(): Promise<number[]>;
+}
+
+/**
+ * Probe a connected wallet for CIP-103 (multi-tx signing) support. Used
+ * by the UI at connect time to decide whether the batch-sign fan-out
+ * path is available; result is cached in app state so each fan-out run
+ * doesn't re-probe.
+ *
+ * Resolution order:
+ *
+ *   1. Wallet's `getExtensions()` advertises `103` → true. This is the
+ *      authoritative signal per CIP-103, and catches a wallet that ships
+ *      support in a future version we haven't manually validated.
+ *   2. The wallet is on the static allowlist with `batchSigningCip103:
+ *      true` → true. Covers wallets like Eternl that route through an
+ *      `experimental.signTxs` path mesh detects internally but that
+ *      doesn't surface in `getExtensions()`.
+ *   3. Default-deny.
+ *
+ * A `getExtensions()` rejection (network glitch, wallet quirk) doesn't
+ * abort — we fall through to the static allowlist so the user can still
+ * batch-sign on Eternl even when its extension list fails to load.
+ */
+export async function detectBatchSigningCip103(
+  wallet: BatchSigningProbe | null | undefined,
+  walletId: string | null | undefined,
+): Promise<boolean> {
+  if (wallet) {
+    try {
+      const extensions = await wallet.getExtensions();
+      if (Array.isArray(extensions) && extensions.includes(103)) return true;
+    } catch {
+      // fall through to static lookup.
+    }
+  }
+  return getWalletCapabilities(walletId)?.batchSigningCip103 === true;
 }
