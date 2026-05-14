@@ -11,10 +11,14 @@ import { describe, expect, it } from "vitest";
 import {
   collectFanoutResults,
   materialiseSlotInputs,
+  planFanoutTxs,
   submitFanout,
+  submitFanoutBatch,
   type FanoutEvent,
+  type UnsignedFanoutBatch,
 } from "../../src/strategy/orchestrator.js";
 import { planFanout, type FanoutSlot } from "../../src/strategy/fanout.js";
+import type { LovejoinWallet } from "../../src/wallet/cip30.js";
 import type { BuildMixArgs, MixOutputPlan, MixPlan, MixResult } from "../../src/tx/mix.js";
 import type { LovejoinAddresses } from "../../src/tx/params.js";
 import type { ChainProvider, Utxo, UtxoRef } from "../../src/chain/provider.js";
@@ -125,6 +129,7 @@ function stubMixResult(slotIdLabel: string, n: number, feeShardIn: Utxo | null):
   };
   return {
     signedTxHex: "00",
+    unsignedTxHex: "00",
     txId,
     plan,
     actualFeeLovelace: txFee,
@@ -137,6 +142,16 @@ function stubTxId(label: string): string {
     .padEnd(64, "0")
     .slice(0, 64)
     .replace(/[^0-9a-f]/g, "a");
+}
+
+function makeMeshUtxo(txHash: string, outputIndex: number, address: string, lovelace: bigint) {
+  return {
+    input: { txHash, outputIndex },
+    output: {
+      address,
+      amount: [{ unit: "lovelace", quantity: lovelace.toString() }],
+    },
+  };
 }
 
 function feeShardUtxo(label: string, lovelace = 5_000_000n): Utxo {
@@ -547,5 +562,523 @@ describe("submitFanout", () => {
     expect(ySeen).toContainEqual([44n, 55n, 66n]);
     expect(pSeen).toContainEqual([2, 0, 1]);
     expect(pSeen).toContainEqual([0, 1, 2]);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// planFanoutTxs + submitFanoutBatch — issue #149 batch-sign path
+// ---------------------------------------------------------------------------
+
+function stubUnsignedMixResult(slotIdLabel: string, n: number, feeShardIn: Utxo | null): MixResult {
+  // Same as stubMixResult but with empty signedTxHex + a distinguishable
+  // unsigned CBOR. Mirrors what buildMixTx returns when buildOnly is true.
+  const base = stubMixResult(slotIdLabel, n, feeShardIn);
+  return {
+    signedTxHex: "",
+    unsignedTxHex: `un_${slotIdLabel}_${n}`,
+    txId: base.txId,
+    plan: base.plan,
+    actualFeeLovelace: base.actualFeeLovelace,
+  };
+}
+
+describe("planFanoutTxs", () => {
+  it("builds every slot in submission order without invoking the wallet", async () => {
+    const root = makeEntry(0);
+    const pool = Array.from({ length: 30 }, (_, i) => makeEntry(i + 1));
+    const plan = planFanout({ rootBox: root, pool, depth: 2, rng: zeroRng });
+
+    let buildCalls = 0;
+    const buildMix = async (args: BuildMixArgs): Promise<MixResult> => {
+      // Every leaf must arrive in buildOnly mode — that's the whole
+      // point of the planner step. A regression that forgets to flip
+      // it would silently sign N times instead of zero.
+      expect(args.buildOnly).toBe(true);
+      const label = `s${buildCalls++}`;
+      return stubUnsignedMixResult(label, args.inputs.length, feeShardUtxo(`${label}_fee`));
+    };
+
+    const batch = await planFanoutTxs({
+      plan,
+      network: "preprod",
+      provider: NULL_PROVIDER,
+      addresses: ADDRESSES,
+      feePayer: "wallet",
+      buildMix,
+    });
+    expect(batch.slots).toHaveLength(4); // 1 + 3 at depth 2
+    expect(batch.failed).toHaveLength(0);
+    expect(batch.slots.map((s) => s.slotId)).toEqual(["w0s0", "w1s0", "w1s1", "w1s2"]);
+    expect(batch.slots.every((s) => s.unsignedTxHex.startsWith("un_"))).toBe(true);
+    expect(batch.plan).toBe(plan);
+  });
+
+  it("threads walletUtxosOverride across leaves in wallet mode (issue #149 fix)", async () => {
+    // Regression for the "Input utxo is spent more than once" rejection
+    // Eternl returned on the first batch run. In wallet-funded mode,
+    // mesh's coin-selection picks a wallet UTxO PER LEAF. Without
+    // chaining, every leaf builds against the same pre-mempool snapshot
+    // and mesh picks the same UTxO → all four txs in a depth-2 batch
+    // reference the same input → wallet rejects. The orchestrator's
+    // planFanoutTxs is responsible for chaining: subtract consumed
+    // inputs, add change outputs, pass the rolling set to the next
+    // leaf via `walletUtxosOverride`.
+    const root = makeEntry(0);
+    const pool = Array.from({ length: 30 }, (_, i) => makeEntry(i + 1));
+    const plan = planFanout({ rootBox: root, pool, depth: 2, rng: zeroRng });
+
+    const startingUtxos = [
+      makeMeshUtxo("aa" + "00".repeat(31), 0, "addr1stub", 100_000_000n),
+      makeMeshUtxo("bb" + "00".repeat(31), 0, "addr1stub", 50_000_000n),
+    ];
+    let getUtxosCalls = 0;
+    const wallet = {
+      getUsedAddresses: async () => [],
+      getChangeAddress: () => "addr1stub",
+      getUtxos: async () => {
+        getUtxosCalls += 1;
+        return startingUtxos;
+      },
+      getCollateral: async () => [],
+      signTx: async () => "",
+      submitTx: async () => "",
+    } as unknown as LovejoinWallet;
+
+    let buildIdx = 0;
+    const overridesSeen: ReadonlyArray<unknown>[] = [];
+    const buildMix = async (args: BuildMixArgs): Promise<MixResult> => {
+      overridesSeen.push(args.walletUtxosOverride ?? []);
+      const label = `b${buildIdx}`;
+      const out = stubUnsignedMixResult(label, args.inputs.length, feeShardUtxo(`${label}_fee`));
+      buildIdx += 1;
+      return out;
+    };
+    // Stubbed chain function rolls one entry off per call to simulate
+    // "first leaf consumed the head, change recycled at the tail".
+    // Verifies that planFanoutTxs actually USES the returned list as
+    // the next leaf's override.
+    const chainStub = (current: ReadonlyArray<unknown>) => {
+      const next = current.slice(1) as Array<{ input: object; output: object }>;
+      next.push(
+        makeMeshUtxo(buildIdx.toString(16).padStart(64, "f"), 1, "addr1stub", 1_000_000n) as never,
+      );
+      return {
+        rolling: next as never,
+        inFlightChange: [],
+        consumedKeys: new Set<string>(),
+      };
+    };
+
+    await planFanoutTxs({
+      plan,
+      network: "preprod",
+      provider: NULL_PROVIDER,
+      addresses: ADDRESSES,
+      feePayer: "wallet",
+      wallet,
+      buildMix,
+      chainWalletUtxos: chainStub,
+    });
+
+    // wallet.getUtxos is called exactly once at planFanoutTxs entry —
+    // every subsequent leaf reads from the override, NOT the wallet.
+    expect(getUtxosCalls).toBe(1);
+    expect(overridesSeen).toHaveLength(4);
+    // First leaf sees the pristine wallet set (2 entries).
+    expect((overridesSeen[0] as unknown[]).length).toBe(2);
+    // Each subsequent leaf sees the stub's rolled-forward set: head
+    // dropped, change appended → still length 2 but with a different
+    // first-entry txHash.
+    expect((overridesSeen[1] as unknown[]).length).toBe(2);
+    expect((overridesSeen[2] as unknown[]).length).toBe(2);
+    expect((overridesSeen[3] as unknown[]).length).toBe(2);
+    // And critically, no two leaves see the same first-entry — that's
+    // the property the wallet checks at signTxs time.
+    const firstEntryTxHashes = overridesSeen.map(
+      (arr) => (arr[0] as { input: { txHash: string } }).input.txHash,
+    );
+    expect(new Set(firstEntryTxHashes).size).toBe(4);
+  });
+
+  it("splices in-flight wallet change into chainFrom.utxos so the evaluator can resolve it", async () => {
+    // Repro for the depth-3 "validation error from the withdraw" the
+    // user hit on the 6th leaf: by leaf 6 the original chain wallet
+    // UTxOs were exhausted and mesh's coin-selection picked an
+    // in-flight wallet change from an earlier leaf as the input. Mesh's
+    // tx.complete() then asked ogmios to evaluate the tx, but the
+    // in-flight ref wasn't in the additionalUtxoSet — so ogmios
+    // returned no per-redeemer exec budgets and mesh kept the
+    // populate-time placeholders. On chain the Mix validator blew
+    // through its (~0.01 mem) budget instantly.
+    //
+    // Fix: planFanoutTxs splices any rolling wallet UTxO whose ref
+    // isn't in the initial chain set into every leaf's chainFrom.utxos.
+    const root = makeEntry(0);
+    const pool = Array.from({ length: 30 }, (_, i) => makeEntry(i + 1));
+    const plan = planFanout({ rootBox: root, pool, depth: 2, rng: zeroRng });
+
+    // Wallet starts with 2 chain UTxOs.
+    const chainTxA = "aa" + "00".repeat(31);
+    const chainTxB = "bb" + "00".repeat(31);
+    const startingUtxos = [
+      makeMeshUtxo(chainTxA, 0, "addr1stub", 100_000_000n),
+      makeMeshUtxo(chainTxB, 0, "addr1stub", 50_000_000n),
+    ];
+    const wallet = {
+      getUsedAddresses: async () => [],
+      getChangeAddress: () => "addr1stub",
+      getUtxos: async () => startingUtxos,
+      getCollateral: async () => [],
+      signTx: async () => "",
+      submitTx: async () => "",
+    } as unknown as LovejoinWallet;
+
+    const chainFromByLeaf: Array<ReadonlyArray<Utxo>> = [];
+    let buildIdx = 0;
+    const buildMix = async (args: BuildMixArgs): Promise<MixResult> => {
+      chainFromByLeaf.push(args.chainFrom?.utxos ?? []);
+      const label = `b${buildIdx++}`;
+      return stubUnsignedMixResult(label, args.inputs.length, feeShardUtxo(`${label}_fee`));
+    };
+    // Simulate "consumed the chain UTxO at the head and emitted an
+    // in-flight change at the tail" — by leaf 2 the only entries in
+    // rollingWalletUtxos are in-flight refs that the chain provider
+    // cannot resolve without being told about them. The stub also
+    // surfaces the change in `inFlightChange` so the orchestrator
+    // adds it to subsequent leaves' chainFrom.utxos.
+    const inFlightRefs: Array<{ txHash: string; outputIndex: number }> = [];
+    const chainStub = (current: ReadonlyArray<unknown>) => {
+      const dropped = current[0] as { input: { txHash: string; outputIndex: number } } | undefined;
+      const next = current.slice(1) as Array<{ input: object; output: object }>;
+      const newRef = {
+        txHash: buildIdx.toString(16).padStart(64, "f"),
+        outputIndex: 3,
+      };
+      inFlightRefs.push(newRef);
+      next.push(makeMeshUtxo(newRef.txHash, newRef.outputIndex, "addr1stub", 1_000_000n) as never);
+      const consumedKeys = new Set<string>();
+      if (dropped)
+        consumedKeys.add(`${dropped.input.txHash.toLowerCase()}#${dropped.input.outputIndex}`);
+      const inFlightChange: Utxo[] = [
+        {
+          ref: { txId: newRef.txHash.toLowerCase(), outputIndex: newRef.outputIndex },
+          address: "addr1stub",
+          lovelace: 1_000_000n,
+          assets: {},
+          inlineDatum: null,
+          referenceScript: null,
+        },
+      ];
+      return {
+        rolling: next as never,
+        inFlightChange,
+        consumedKeys,
+      };
+    };
+
+    await planFanoutTxs({
+      plan,
+      network: "preprod",
+      provider: NULL_PROVIDER,
+      addresses: ADDRESSES,
+      feePayer: "wallet",
+      wallet,
+      buildMix,
+      chainWalletUtxos: chainStub,
+    });
+
+    // Leaf 0 sees no in-flight wallet utxos yet (the wallet's initial
+    // set is all chain-resident).
+    expect(chainFromByLeaf[0]).toHaveLength(0);
+    // Leaves 1+ see the rolling in-flight refs spliced in. After leaf
+    // 0 builds, the rolling set has one in-flight change ("f...3");
+    // leaf 1's chainFrom must carry it so ogmios can resolve it.
+    expect(chainFromByLeaf[1]!.length).toBeGreaterThanOrEqual(1);
+    const seenRefKeys = new Set(
+      chainFromByLeaf[1]!.map((u) => `${u.ref.txId.toLowerCase()}#${u.ref.outputIndex}`),
+    );
+    const firstInFlight = inFlightRefs[0]!;
+    expect(
+      seenRefKeys.has(`${firstInFlight.txHash.toLowerCase()}#${firstInFlight.outputIndex}`),
+    ).toBe(true);
+    // Critically: the CHAIN refs (chainTxA / chainTxB) must NOT be
+    // spliced in — they don't need to be in additionalUtxoSet because
+    // the evaluator can resolve them from chain state. Including them
+    // would just eat into the backend's 32-entry cap.
+    for (const u of chainFromByLeaf[1]!) {
+      expect(u.ref.txId).not.toBe(chainTxA);
+      expect(u.ref.txId).not.toBe(chainTxB);
+    }
+  });
+
+  it("does not fetch wallet utxos in shard mode (no chaining needed)", async () => {
+    const root = makeEntry(0);
+    const pool = Array.from({ length: 30 }, (_, i) => makeEntry(i + 1));
+    const plan = planFanout({ rootBox: root, pool, depth: 2, rng: zeroRng });
+
+    let getUtxosCalls = 0;
+    const wallet = {
+      getUsedAddresses: async () => [],
+      getChangeAddress: () => "addr1stub",
+      getUtxos: async () => {
+        getUtxosCalls += 1;
+        return [];
+      },
+      getCollateral: async () => [],
+      signTx: async () => "",
+      submitTx: async () => "",
+    } as unknown as LovejoinWallet;
+
+    const buildMix = async (args: BuildMixArgs): Promise<MixResult> => {
+      expect(args.walletUtxosOverride).toBeUndefined();
+      return stubUnsignedMixResult("s", args.inputs.length, feeShardUtxo("fee"));
+    };
+
+    await planFanoutTxs({
+      plan,
+      network: "preprod",
+      provider: NULL_PROVIDER,
+      addresses: ADDRESSES,
+      feePayer: "shard",
+      wallet,
+      buildMix,
+    });
+
+    expect(getUtxosCalls).toBe(0);
+  });
+
+  it("records build-time failures and cascades descendants", async () => {
+    const root = makeEntry(0);
+    const pool = Array.from({ length: 30 }, (_, i) => makeEntry(i + 1));
+    const plan = planFanout({ rootBox: root, pool, depth: 2, rng: zeroRng });
+
+    let n = 0;
+    const buildMix = async (args: BuildMixArgs): Promise<MixResult> => {
+      const label = `s${n++}`;
+      if (label === "s0") throw new Error("simulated wave-0 build failure");
+      return stubUnsignedMixResult(label, args.inputs.length, feeShardUtxo(`${label}_fee`));
+    };
+
+    const batch = await planFanoutTxs({
+      plan,
+      network: "preprod",
+      provider: NULL_PROVIDER,
+      addresses: ADDRESSES,
+      feePayer: "wallet",
+      buildMix,
+    });
+    expect(batch.slots).toHaveLength(0); // wave-0 failed; wave-1 cascaded.
+    expect(batch.failed).toHaveLength(1);
+    expect(batch.failed[0]!.slotId).toBe("w0s0");
+    expect(batch.failed[0]!.droppedDescendants).toEqual(["w0s0", "w1s0", "w1s1", "w1s2"]);
+  });
+});
+
+describe("submitFanoutBatch", () => {
+  function buildStubBatch(plan: ReturnType<typeof planFanout>): UnsignedFanoutBatch {
+    return {
+      plan,
+      slots: plan.waves.flatMap((wave, waveIndex) =>
+        wave.slots.map((slot) => {
+          const result = stubUnsignedMixResult(slot.id, 3, feeShardUtxo(`${slot.id}_fee`));
+          return {
+            slotId: slot.id,
+            waveIndex,
+            unsignedTxHex: result.unsignedTxHex,
+            txId: result.txId,
+            plan: result.plan,
+            actualFeeLovelace: result.actualFeeLovelace,
+          };
+        }),
+      ),
+      failed: [],
+    };
+  }
+
+  function makeStubWallet(
+    opts: {
+      signedCbors?: (unsigned: string[]) => string[];
+      rejectSign?: Error;
+    } = {},
+  ): { wallet: LovejoinWallet; signCallCount: () => number; signedSeen: () => string[][] } {
+    const seen: string[][] = [];
+    const wallet = {
+      getUsedAddresses: async () => [],
+      getChangeAddress: () => "",
+      getUtxos: async () => [],
+      getCollateral: async () => [],
+      signTx: async () => {
+        throw new Error("signTx must not be called in batch path");
+      },
+      signTxs: async (unsignedTxs: string[]) => {
+        seen.push(unsignedTxs);
+        if (opts.rejectSign) throw opts.rejectSign;
+        const fn = opts.signedCbors ?? ((arr) => arr.map((u) => `signed:${u}`));
+        return fn(unsignedTxs);
+      },
+      submitTx: async () => {
+        throw new Error("wallet.submitTx must not be called — submitFanoutBatch uses provider");
+      },
+    } as LovejoinWallet;
+    return {
+      wallet,
+      signCallCount: () => seen.length,
+      signedSeen: () => seen,
+    };
+  }
+
+  it("issues exactly one signTxs prompt for the whole tree and submits via the chain provider", async () => {
+    const root = makeEntry(0);
+    const pool = Array.from({ length: 30 }, (_, i) => makeEntry(i + 1));
+    const plan = planFanout({ rootBox: root, pool, depth: 2, rng: zeroRng });
+    const batch = buildStubBatch(plan);
+
+    const submitted: string[] = [];
+    const provider = {
+      submitTx: async (signed: string) => {
+        submitted.push(signed);
+        return signed.replace(/^signed:un_/, "txid_") + "_chain";
+      },
+    } as unknown as ChainProvider;
+
+    const stub = makeStubWallet();
+    const events: FanoutEvent[] = [];
+    for await (const evt of submitFanoutBatch({ batch, wallet: stub.wallet, provider })) {
+      events.push(evt);
+    }
+
+    expect(stub.signCallCount()).toBe(1);
+    expect(stub.signedSeen()[0]).toHaveLength(4); // one CBOR per slot
+    expect(submitted).toHaveLength(4);
+    // Submission order matches batch order (wave-major).
+    expect(submitted).toEqual(batch.slots.map((s) => `signed:${s.unsignedTxHex}`));
+
+    const submittedEvts = events.filter((e) => e.kind === "slot-submitted");
+    expect(submittedEvts).toHaveLength(4);
+    expect(events.filter((e) => e.kind === "slot-failed")).toHaveLength(0);
+    expect(events.filter((e) => e.kind === "wave-started")).toHaveLength(2);
+    expect(events.filter((e) => e.kind === "wave-completed")).toHaveLength(2);
+    const completed = events.at(-1)!;
+    if (completed.kind === "plan-completed") {
+      expect(completed.submittedSlots).toBe(4);
+      expect(completed.failedSlots).toBe(0);
+    }
+  });
+
+  it("throws when the wallet does not implement signTxs", async () => {
+    const root = makeEntry(0);
+    const pool = Array.from({ length: 30 }, (_, i) => makeEntry(i + 1));
+    const plan = planFanout({ rootBox: root, pool, depth: 2, rng: zeroRng });
+    const batch = buildStubBatch(plan);
+    const noBatchWallet = {
+      getUsedAddresses: async () => [],
+      getChangeAddress: () => "",
+      getUtxos: async () => [],
+      getCollateral: async () => [],
+      signTx: async () => "",
+      submitTx: async () => "",
+    } as LovejoinWallet;
+    const provider = { submitTx: async () => "" } as unknown as ChainProvider;
+
+    await expect(async () => {
+      const iter = submitFanoutBatch({ batch, wallet: noBatchWallet, provider });
+      for await (const _evt of iter) void _evt;
+    }).rejects.toThrow(/does not implement CIP-103 signTxs/);
+  });
+
+  it("on submit failure cascades the slot's descendants and continues submitting siblings", async () => {
+    const root = makeEntry(0);
+    const pool = Array.from({ length: 50 }, (_, i) => makeEntry(i + 1));
+    const plan = planFanout({ rootBox: root, pool, depth: 3, rng: zeroRng });
+    const batch = buildStubBatch(plan);
+
+    // Reject the submission for w1s1 — its three wave-2 descendants
+    // should cascade dropped; the other two wave-1 siblings + their
+    // descendants must still submit.
+    const provider = {
+      submitTx: async (signed: string) => {
+        if (signed.includes("w1s1")) throw new Error("submitTx refused");
+        return `chain_${signed}`;
+      },
+    } as unknown as ChainProvider;
+    const stub = makeStubWallet();
+
+    const events: FanoutEvent[] = [];
+    for await (const evt of submitFanoutBatch({ batch, wallet: stub.wallet, provider })) {
+      events.push(evt);
+    }
+
+    const submitted = events.filter((e) => e.kind === "slot-submitted");
+    const failed = events.filter((e) => e.kind === "slot-failed");
+    // 1 + 2 (siblings of w1s1) + 6 (their depth-2 descendants) = 9
+    expect(submitted).toHaveLength(9);
+    expect(failed).toHaveLength(1);
+    if (failed[0]?.kind === "slot-failed") {
+      expect(failed[0].slotId).toBe("w1s1");
+      // Cascade = w1s1 + its 3 wave-2 children.
+      expect(failed[0].droppedDescendants).toEqual(["w1s1", "w2s3", "w2s4", "w2s5"]);
+    }
+  });
+
+  it("replays planner-time failures in the same wave-relative order as submitFanout", async () => {
+    // A build-time failure at depth-2 (wave 0) must surface BEFORE any
+    // depth-2 wave-completed event so the UI's reducer sees the same
+    // sequencing whether the user is on the per-leaf or batch path.
+    const root = makeEntry(0);
+    const pool = Array.from({ length: 30 }, (_, i) => makeEntry(i + 1));
+    const plan = planFanout({ rootBox: root, pool, depth: 2, rng: zeroRng });
+    const batch: UnsignedFanoutBatch = {
+      plan,
+      slots: [],
+      failed: [
+        {
+          slotId: "w0s0",
+          waveIndex: 0,
+          error: new Error("simulated build failure"),
+          droppedDescendants: ["w0s0", "w1s0", "w1s1", "w1s2"],
+        },
+      ],
+    };
+    const stub = makeStubWallet();
+    const provider = { submitTx: async () => "" } as unknown as ChainProvider;
+    const events: FanoutEvent[] = [];
+    for await (const evt of submitFanoutBatch({ batch, wallet: stub.wallet, provider })) {
+      events.push(evt);
+    }
+    // signTxs got an empty array — no slot bodies survived.
+    expect(stub.signCallCount()).toBe(0);
+    const failed = events.filter((e) => e.kind === "slot-failed");
+    expect(failed).toHaveLength(1);
+    if (failed[0]?.kind === "slot-failed") expect(failed[0].slotId).toBe("w0s0");
+    const completed = events.at(-1)!;
+    if (completed.kind === "plan-completed") {
+      expect(completed.submittedSlots).toBe(0);
+      expect(completed.failedSlots).toBe(4);
+    }
+  });
+
+  it("propagates a signTxs rejection (user-declined batch) up to the caller", async () => {
+    // Whole-tree rejection in CIP-103 is clean: the wallet returns
+    // before any tx is submitted. Caller catches the throw and shows
+    // an error toast; partial recovery is the caller's policy.
+    const root = makeEntry(0);
+    const pool = Array.from({ length: 30 }, (_, i) => makeEntry(i + 1));
+    const plan = planFanout({ rootBox: root, pool, depth: 2, rng: zeroRng });
+    const batch = buildStubBatch(plan);
+    const stub = makeStubWallet({ rejectSign: new Error("user declined") });
+    const provider = {
+      submitTx: async () => {
+        throw new Error("must not submit on signTxs failure");
+      },
+    } as unknown as ChainProvider;
+    await expect(async () => {
+      for await (const _evt of submitFanoutBatch({
+        batch,
+        wallet: stub.wallet,
+        provider,
+      })) {
+        void _evt;
+      }
+    }).rejects.toThrow(/user declined/);
   });
 });

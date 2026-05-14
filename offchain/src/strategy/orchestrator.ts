@@ -52,15 +52,17 @@ import {
   type BuildMixArgs,
   type MixFeePayer,
   type MixInput,
+  type MixPlan,
   type MixResult,
 } from "../tx/mix.js";
 import type { CollateralProvider } from "../tx/collateral.js";
 import type { ChainProvider, Lovelace, Utxo, UtxoRef } from "../chain/provider.js";
 import { type LovejoinAddresses } from "../tx/params.js";
 import { buildScriptAddress } from "../tx/address.js";
-import { type LovejoinWallet, networkIdFor } from "../wallet/cip30.js";
+import { type LovejoinWallet, networkIdFor, normalizeWalletUtxos } from "../wallet/cip30.js";
 import type { Scalar } from "../crypto/index.js";
 import type { RetryOptions } from "../tx/retry.js";
+import type { UTxO as MeshUtxo } from "@meshsdk/core";
 import {
   fanoutDescendants,
   type FanoutInputDescriptor,
@@ -171,6 +173,46 @@ export interface SubmitFanoutArgs {
    * @internal
    */
   buildMix?: typeof buildMixTx;
+  /**
+   * Internal-use seam (planFanoutTxs only): override the wallet-UTxO
+   * chaining function. Production leaves this undefined and the real
+   * `chainWalletUtxosAfterBuild` (which parses the unsigned CBOR via
+   * @meshsdk/core-cst) is used. Tests inject a stub that returns the
+   * rolling list verbatim, bypassing the CBOR parser so they can
+   * exercise the override-threading logic with synthetic CBOR.
+   *
+   * @internal
+   */
+  chainWalletUtxos?: (
+    current: ReadonlyArray<MeshUtxo>,
+    unsignedTxHex: string,
+    changeAddressBech32: string,
+  ) => ChainWalletUtxosResult;
+}
+
+/**
+ * Output of {@link chainWalletUtxosAfterBuild}. The orchestrator needs
+ * three pieces of info from each leaf's just-built unsigned CBOR:
+ *
+ *   * `rolling` — the wallet's spendable set with this leaf's consumed
+ *     input(s) removed and its change output(s) added. Fed to the next
+ *     leaf as `walletUtxosOverride`.
+ *   * `inFlightChange` — this leaf's change outputs in flat `Utxo`
+ *     shape. The orchestrator merges them into subsequent leaves'
+ *     `chainFrom.utxos` so ogmios's evaluator can resolve a wallet
+ *     input that came from a previous leaf in the same batch — without
+ *     this the evaluator falls back to populate-time placeholder ex
+ *     units and the chain rejects the tx with a script-budget
+ *     validation error.
+ *   * `consumedKeys` — refKeys of every input this tx spent. The
+ *     orchestrator subtracts them from the in-flight wallet-change map
+ *     so a wallet utxo that's already been spent doesn't get re-added
+ *     to a later leaf's chainFrom.
+ */
+export interface ChainWalletUtxosResult {
+  rolling: MeshUtxo[];
+  inFlightChange: Utxo[];
+  consumedKeys: Set<string>;
 }
 
 /**
@@ -532,6 +574,481 @@ export interface FanoutRunSummary {
   /** Most recent `plan-completed` event, or null if the iterator was
    *  abandoned before completion. */
   completed: { submittedSlots: number; failedSlots: number } | null;
+}
+
+// ---------------------------------------------------------------------------
+// Batch-sign path — issue #149.
+//
+// Wallet-funded fan-out via the per-leaf `submitFanout` pops one CIP-30
+// signTx prompt per slot (4 at depth 2, 13 at depth 3) which makes the
+// flow user-hostile even when the chained-tx path itself works fine.
+// CIP-103 lets the wallet sign an array of unsigned txs in one prompt;
+// this two-step API splits the existing `submitFanout` loop into:
+//
+//   1. `planFanoutTxs` — runs the wave-by-wave build loop with
+//      `buildOnly: true` so each leaf returns just an unsigned tx CBOR
+//      + the derived txId. No wallet calls, no submission. Internally
+//      delegates to `submitFanout` with a wrapped buildMix that flips
+//      buildOnly on; reuses the wave coordination + fee-shard tracking
+//      logic verbatim.
+//   2. `submitFanoutBatch` — accepts the batch from (1), calls
+//      `wallet.signTxs(...)` ONCE for the whole array, then submits
+//      each signed CBOR in order, yielding the same FanoutEvent stream
+//      as submitFanout so the UI can reuse its progress reducer.
+//
+// Wallets without CIP-103 fall back to per-leaf `submitFanout`. The
+// UI gate lives in `useFanoutSubmit`; the SDK exposes both paths so
+// non-UI callers (CLI, tests) can pick either.
+// ---------------------------------------------------------------------------
+
+/** A single fan-out slot's build output, ready for batch-signing. */
+export interface UnsignedFanoutSlot {
+  slotId: FanoutSlotId;
+  waveIndex: number;
+  /** Unsigned tx CBOR ready to be handed to `wallet.signTxs(...)`. */
+  unsignedTxHex: string;
+  /** Tx id derived from the unsigned body hash. Matches the value the
+   *  chain will assign post-submission (witnesses don't affect it). */
+  txId: string;
+  plan: MixPlan;
+  actualFeeLovelace: Lovelace | null;
+}
+
+/** A built-but-unsigned fan-out tree, output of {@link planFanoutTxs}. */
+export interface UnsignedFanoutBatch {
+  /** The original plan — surfaced so `submitFanoutBatch` can cascade
+   *  failed-slot descendants the same way `submitFanout` does. */
+  plan: FanoutPlan;
+  /**
+   * Built slots in submission order (wave-major, plan-order within a
+   * wave). Pass `.map(s => s.unsignedTxHex)` directly to
+   * `wallet.signTxs(...)`.
+   */
+  slots: ReadonlyArray<UnsignedFanoutSlot>;
+  /**
+   * Slots whose `buildOnly` pass failed (e.g. fee-shard pick exhausted,
+   * evaluator error). Their descendants are already excluded from
+   * `slots` per the orchestrator's cascade rule. The UI can render
+   * these alongside the run summary in the same shape as the per-leaf
+   * path's slot-failed events.
+   */
+  failed: ReadonlyArray<{
+    slotId: FanoutSlotId;
+    waveIndex: number;
+    error: Error;
+    droppedDescendants: FanoutSlotId[];
+  }>;
+}
+
+/**
+ * Build every Mix tx for a fan-out plan without signing or submitting.
+ * Wraps the standard `submitFanout` wave loop and forces every slot's
+ * `buildMixTx` call into `buildOnly: true` mode so the wallet is never
+ * touched.
+ *
+ * Use this together with {@link submitFanoutBatch} to drive CIP-103
+ * multi-tx signing — one wallet prompt for the whole tree instead of N.
+ *
+ * Caller responsibilities:
+ *   * `args.feePayer` should be `"wallet"` for the batch path to be
+ *     meaningful — shard-mode is already wallet-anonymous and never
+ *     prompts the wallet, so batch-signing it is a no-op. Defaults to
+ *     `"shard"` to match `submitFanout` for shape compatibility, but
+ *     callers in the wallet-funded fan-out path pass `"wallet"`.
+ *   * Pass the same `wallet` here as you will pass to
+ *     `submitFanoutBatch`. The wallet here is consumed by
+ *     `WalletProvider.prepareCollateral` for each leaf (a query, not a
+ *     signature).
+ */
+export async function planFanoutTxs(args: SubmitFanoutArgs): Promise<UnsignedFanoutBatch> {
+  // Wrap the caller's buildMix (or the default) so every slot's build
+  // pass runs in `buildOnly` mode. This re-uses every coordination
+  // detail of submitFanout — fee-shard exclusion, in-flight chainFrom
+  // splicing, parent → child input resolution — without copy-pasting
+  // the wave loop.
+  const underlyingBuild = args.buildMix ?? buildMixTx;
+  const feePayer: MixFeePayer = args.feePayer ?? "shard";
+
+  // Wallet-UTxO chaining (fixes the "Input utxo is spent more than once"
+  // signTxs rejection on Eternl). In wallet-funded mode every leaf's
+  // build calls `wallet.getUtxos()`, but inside `planFanoutTxs` no leaf
+  // ever gets submitted, so every call returns the same pre-mempool
+  // snapshot and mesh picks the SAME wallet input for every leaf. We
+  // pre-fetch once here, subtract consumed inputs + add change outputs
+  // after each build, and pass the rolling list to subsequent builds
+  // via `walletUtxosOverride`. The per-leaf `submitFanout` path doesn't
+  // need this because the wallet sees each submit and updates its own
+  // mempool view between calls.
+  const initialWalletUtxos: MeshUtxo[] = [];
+  let changeAddress: string | null = null;
+  if (feePayer === "wallet" && args.wallet) {
+    const fetched = await args.wallet.getUtxos();
+    initialWalletUtxos.push(...normalizeWalletUtxos(fetched));
+    changeAddress = await args.wallet.getChangeAddress();
+  }
+  let rollingWalletUtxos: MeshUtxo[] = initialWalletUtxos.slice();
+  // In-flight wallet change UTxOs (this batch's prior-leaf outputs that
+  // aren't on chain yet). Keyed by refKey so the next leaf's consumed
+  // inputs can remove them from the map without a linear scan, and the
+  // values are spliced into the next leaf's `chainFrom.utxos` so
+  // ogmios's evaluator can resolve them — without that the evaluator
+  // returns no exec budgets, redeemers ship with the populate-time
+  // placeholder (mem=10000 / steps=1_000_000), and on-chain Mix
+  // validation fails out of script budget.
+  const inFlightWalletExtras = new Map<string, Utxo>();
+
+  // Load core-cst once if we're in wallet mode — the real chaining
+  // helper needs it to parse each unsigned tx, and a dynamic import
+  // per call would add a few ms × N leaves of redundant module-
+  // resolution work. Skipped entirely when the caller injects a test
+  // chainWalletUtxos stub.
+  const cst =
+    feePayer === "wallet" && args.wallet && !args.chainWalletUtxos
+      ? ((await import("@meshsdk/core-cst")) as typeof import("@meshsdk/core-cst"))
+      : null;
+  const chainWalletUtxos =
+    args.chainWalletUtxos ??
+    ((current, unsignedTxHex, changeAddressBech32) =>
+      chainWalletUtxosAfterBuild(current, unsignedTxHex, changeAddressBech32, cst!));
+
+  const buildOnlyMix = async (a: BuildMixArgs): Promise<MixResult> => {
+    const override =
+      feePayer === "wallet" && rollingWalletUtxos.length > 0
+        ? { walletUtxosOverride: rollingWalletUtxos.slice() }
+        : {};
+    // Splice any in-flight wallet UTxOs (change emitted by an earlier
+    // leaf in this batch, not yet on chain) into chainFrom.utxos.
+    // Bound: ≤ (slots built so far) entries, comfortably under the
+    // backend's 32-entry cap together with the existing chainFrom
+    // contributors (direct parent's mix outputs + in-flight fee-shard
+    // extras).
+    const chainFromArg = (() => {
+      const baseUtxos = a.chainFrom?.utxos ?? [];
+      const inFlightWalletList = Array.from(inFlightWalletExtras.values());
+      const merged: Utxo[] = [...baseUtxos, ...inFlightWalletList];
+      if (merged.length === 0) return undefined;
+      return { ...(a.chainFrom ?? {}), utxos: merged };
+    })();
+    const built = await underlyingBuild({
+      ...a,
+      ...override,
+      buildOnly: true,
+      ...(chainFromArg ? { chainFrom: chainFromArg } : {}),
+    });
+    if (feePayer === "wallet" && changeAddress) {
+      const result = chainWalletUtxos(rollingWalletUtxos, built.unsignedTxHex, changeAddress);
+      rollingWalletUtxos = result.rolling;
+      // Remove just-spent inputs from the in-flight tracker. Chain
+      // helper returns the full consumed set including the mix-box +
+      // pool inputs; those aren't in the map so .delete() is a no-op
+      // for them.
+      for (const k of result.consumedKeys) inFlightWalletExtras.delete(k);
+      // Add this leaf's wallet change as a new in-flight entry so
+      // subsequent leaves can resolve it via chainFrom.
+      for (const u of result.inFlightChange) {
+        const key = `${u.ref.txId.toLowerCase()}#${u.ref.outputIndex}`;
+        inFlightWalletExtras.set(key, u);
+      }
+    }
+    return built;
+  };
+
+  const slots: UnsignedFanoutSlot[] = [];
+  const failed: Array<UnsignedFanoutBatch["failed"][number]> = [];
+
+  for await (const evt of submitFanout({ ...args, buildMix: buildOnlyMix })) {
+    if (evt.kind === "slot-submitted") {
+      // "submitted" here means "built" because buildOnly was set.
+      slots.push({
+        slotId: evt.slotId,
+        waveIndex: evt.waveIndex,
+        unsignedTxHex: evt.result.unsignedTxHex,
+        txId: evt.txId,
+        plan: evt.result.plan,
+        actualFeeLovelace: evt.result.actualFeeLovelace,
+      });
+    } else if (evt.kind === "slot-failed") {
+      failed.push({
+        slotId: evt.slotId,
+        waveIndex: evt.waveIndex,
+        error: evt.error,
+        droppedDescendants: [...evt.droppedDescendants],
+      });
+    }
+    // wave-started / wave-completed / plan-completed are informational
+    // during planning; the caller receives the full picture in the
+    // returned UnsignedFanoutBatch.
+  }
+
+  return { plan: args.plan, slots, failed };
+}
+
+/**
+ * Walk a freshly-built unsigned Mix tx and update a rolling wallet-UTxO
+ * set so the next leaf in a batch sees the wallet's post-build state
+ * instead of the same pre-mempool snapshot. Exported so unit tests can
+ * exercise the parser directly against synthesized CBOR.
+ *
+ * Removes any UTxO whose `(txHash, outputIndex)` matches a tx input.
+ * Adds any tx output whose `address` matches the wallet's change
+ * address AND has no inline datum AND no script ref — that's the
+ * shape mesh emits for wallet change in wallet-funded Mix mode.
+ *
+ * `cst` is passed in so the caller controls when the heavy
+ * @meshsdk/core-cst module gets imported; we hoist that load to the
+ * top of `planFanoutTxs` and reuse the handle across every leaf.
+ */
+export function chainWalletUtxosAfterBuild(
+  current: ReadonlyArray<MeshUtxo>,
+  unsignedTxHex: string,
+  changeAddressBech32: string,
+  cst: typeof import("@meshsdk/core-cst"),
+): ChainWalletUtxosResult {
+  const tx = cst.deserializeTx(unsignedTxHex);
+  const txId = String(cst.resolveTxHash(unsignedTxHex)).toLowerCase();
+
+  const consumedKeys = new Set<string>();
+  for (const inp of tx.body().inputs().values()) {
+    const hash = inp.transactionId().toString().toLowerCase();
+    consumedKeys.add(`${hash}#${Number(inp.index())}`);
+  }
+
+  const rolling: MeshUtxo[] = current.filter((u) => {
+    const k = `${u.input.txHash.toLowerCase()}#${u.input.outputIndex}`;
+    return !consumedKeys.has(k);
+  });
+
+  // Collect change outputs in BOTH shapes:
+  //   * MeshUtxo (pushed onto `rolling` so the next leaf's
+  //     walletUtxosOverride picks them up for coin-selection).
+  //   * lovejoin `Utxo` (returned separately as `inFlightChange` so
+  //     the orchestrator can splice them into the next leaf's
+  //     `chainFrom.utxos` — without that the evaluator can't resolve
+  //     a wallet input that came from a previous leaf in the batch
+  //     and the redeemers ship with placeholder ex units, which the
+  //     chain rejects).
+  const inFlightChange: Utxo[] = [];
+  const outputs = tx.body().outputs();
+  const changeAddressLower = changeAddressBech32.toLowerCase();
+  for (let i = 0; i < outputs.length; i++) {
+    const out = outputs[i]!;
+    let outAddr: string;
+    try {
+      outAddr = out.address().toBech32();
+    } catch {
+      // Non-bech32 (byron, malformed); can't be a change output we
+      // produced. Skip.
+      continue;
+    }
+    if (outAddr.toLowerCase() !== changeAddressLower) continue;
+    // Mix-box outputs always carry an inline datum; the fee shard
+    // (irrelevant in wallet mode) also carries one. Wallet change is
+    // datumless. Same goes for ref-script-bearing outputs.
+    if (out.datum()) continue;
+    if (out.scriptRef && out.scriptRef()) continue;
+
+    const value = out.amount();
+    const lovelace = value.coin();
+    const amount: Array<{ unit: string; quantity: string }> = [
+      { unit: "lovelace", quantity: lovelace.toString() },
+    ];
+    const assets: Record<string, bigint> = {};
+    const multiAsset = value.multiasset();
+    if (multiAsset && multiAsset.size > 0) {
+      for (const [assetId, qty] of multiAsset.entries()) {
+        const unit = assetId.toString();
+        amount.push({ unit, quantity: qty.toString() });
+        assets[unit] = (assets[unit] ?? 0n) + BigInt(qty.toString());
+      }
+    }
+
+    rolling.push({
+      input: { txHash: txId, outputIndex: i },
+      output: { address: outAddr, amount },
+    });
+    inFlightChange.push({
+      ref: { txId, outputIndex: i },
+      address: outAddr,
+      lovelace: BigInt(lovelace.toString()),
+      assets,
+      inlineDatum: null,
+      referenceScript: null,
+    });
+  }
+
+  return { rolling, inFlightChange, consumedKeys };
+}
+
+export interface SubmitFanoutBatchArgs {
+  batch: UnsignedFanoutBatch;
+  /** Wallet exposing CIP-103 `signTxs`. Probe via
+   *  `detectBatchSigningCip103` before calling — this function does NOT
+   *  re-probe and will throw at signTxs-call time on an unsupported
+   *  wallet. */
+  wallet: LovejoinWallet;
+  provider: ChainProvider;
+}
+
+/**
+ * Sign + submit a pre-built fan-out batch via CIP-103. Yields the same
+ * FanoutEvent stream as `submitFanout` so the UI can reuse its progress
+ * reducer.
+ *
+ * Flow:
+ *
+ *   1. Replay the planner's `slot-failed` events first so the UI
+ *      sees build-time failures before submit-time progress (matches
+ *      `submitFanout`'s ordering: a build failure in wave N fires
+ *      before wave N's `wave-completed`).
+ *   2. Call `wallet.signTxs(allUnsignedCbors, false)` ONCE. The wallet
+ *      shows one CIP-30 prompt covering the whole tree; rejection
+ *      throws and the entire batch is abandoned.
+ *   3. Submit each signed CBOR in submission order. On a submit
+ *      failure, cascade descendants to dropped (parent's outputs never
+ *      land on chain so children can't resolve their refs) and emit
+ *      one `slot-failed` event per failure.
+ *
+ * Wave-grouping events (`wave-started` / `wave-completed`) are
+ * reconstructed from the batch slots' `waveIndex` so consumers that
+ * count waves don't have to special-case the batch path.
+ */
+export async function* submitFanoutBatch(args: SubmitFanoutBatchArgs): AsyncIterable<FanoutEvent> {
+  const { batch, wallet, provider } = args;
+  if (!wallet.signTxs) {
+    throw new Error(
+      "submitFanoutBatch: wallet does not implement CIP-103 signTxs. " +
+        "Probe via detectBatchSigningCip103 and fall back to submitFanout.",
+    );
+  }
+
+  // Pre-compute wave grouping so wave-started / wave-completed events
+  // line up with the per-leaf path. Build-failed slots are surfaced
+  // BEFORE their wave's wave-completed event so the UI's reducer sees
+  // the same order as the per-leaf path.
+  const slotsByWave = new Map<number, UnsignedFanoutSlot[]>();
+  const failedByWave = new Map<number, UnsignedFanoutBatch["failed"][number][]>();
+  let maxWave = -1;
+  for (const slot of batch.slots) {
+    if (!slotsByWave.has(slot.waveIndex)) slotsByWave.set(slot.waveIndex, []);
+    slotsByWave.get(slot.waveIndex)!.push(slot);
+    if (slot.waveIndex > maxWave) maxWave = slot.waveIndex;
+  }
+  for (const f of batch.failed) {
+    if (!failedByWave.has(f.waveIndex)) failedByWave.set(f.waveIndex, []);
+    failedByWave.get(f.waveIndex)!.push(f);
+    if (f.waveIndex > maxWave) maxWave = f.waveIndex;
+  }
+
+  // Batch sign. One prompt for the whole tree. If the wallet refuses,
+  // the rejection bubbles up; partial recovery is the caller's call
+  // (typically: re-plan from confirmed boxes and retry).
+  const unsignedCbors = batch.slots.map((s) => s.unsignedTxHex);
+  console.log(
+    `[lovejoin/fanout] submitFanoutBatch: requesting CIP-103 signature on ${unsignedCbors.length} tx(s)`,
+  );
+  const signStart = Date.now();
+  const signedCbors = unsignedCbors.length === 0 ? [] : await wallet.signTxs(unsignedCbors, false);
+  console.log(`[lovejoin/fanout] wallet.signTxs returned in ${Date.now() - signStart}ms`);
+  if (signedCbors.length !== unsignedCbors.length) {
+    throw new Error(
+      `submitFanoutBatch: wallet.signTxs returned ${signedCbors.length} signed txs; ` +
+        `expected ${unsignedCbors.length}`,
+    );
+  }
+
+  let submittedCount = 0;
+  let failedCount = batch.failed.reduce((acc, f) => acc + f.droppedDescendants.length, 0);
+  const dropped = new Set<FanoutSlotId>();
+  for (const f of batch.failed) {
+    for (const id of f.droppedDescendants) dropped.add(id);
+  }
+
+  for (let k = 0; k <= maxWave; k++) {
+    const waveSlots = slotsByWave.get(k) ?? [];
+    const waveFailed = failedByWave.get(k) ?? [];
+    yield { kind: "wave-started", waveIndex: k, slotCount: waveSlots.length };
+
+    const submittedThisWave: FanoutSlotId[] = [];
+    const failedThisWave: FanoutSlotId[] = [];
+
+    // Replay planner-time failures first so per-leaf and batch paths
+    // emit slot-failed events in the same relative order.
+    for (const f of waveFailed) {
+      failedThisWave.push(f.slotId);
+      yield {
+        kind: "slot-failed",
+        slotId: f.slotId,
+        waveIndex: f.waveIndex,
+        error: f.error,
+        droppedDescendants: [...f.droppedDescendants],
+      };
+    }
+
+    for (const slot of waveSlots) {
+      if (dropped.has(slot.slotId)) continue;
+
+      // Find this slot's signed CBOR by position in the batch (same
+      // index as in batch.slots since we kept submission order).
+      const idx = batch.slots.indexOf(slot);
+      const signedCbor = signedCbors[idx]!;
+      const slotStartMs = Date.now();
+      let submittedTxId: string;
+      try {
+        submittedTxId = await provider.submitTx(signedCbor);
+        console.log(
+          `[lovejoin/fanout] slot ${slot.slotId} (wave ${k + 1}) submitted in ` +
+            `${Date.now() - slotStartMs}ms — tx ${submittedTxId.slice(0, 12)}…`,
+        );
+      } catch (err) {
+        const droppedList = fanoutDescendants(batch.plan, slot.slotId);
+        for (const id of droppedList) dropped.add(id);
+        failedCount += droppedList.length;
+        failedThisWave.push(slot.slotId);
+        console.warn(
+          `[lovejoin/fanout] slot ${slot.slotId} (wave ${k + 1}) submitTx failed after ` +
+            `${Date.now() - slotStartMs}ms`,
+        );
+        yield {
+          kind: "slot-failed",
+          slotId: slot.slotId,
+          waveIndex: k,
+          error: err instanceof Error ? err : new Error(String(err)),
+          droppedDescendants: droppedList,
+        };
+        continue;
+      }
+
+      const result: MixResult = {
+        signedTxHex: signedCbor,
+        unsignedTxHex: slot.unsignedTxHex,
+        txId: submittedTxId,
+        plan: slot.plan,
+        actualFeeLovelace: slot.actualFeeLovelace,
+      };
+      submittedCount += 1;
+      submittedThisWave.push(slot.slotId);
+      yield {
+        kind: "slot-submitted",
+        slotId: slot.slotId,
+        waveIndex: k,
+        txId: submittedTxId,
+        result,
+      };
+    }
+
+    yield {
+      kind: "wave-completed",
+      waveIndex: k,
+      submitted: submittedThisWave,
+      failed: failedThisWave,
+    };
+  }
+
+  yield {
+    kind: "plan-completed",
+    submittedSlots: submittedCount,
+    failedSlots: failedCount,
+  };
 }
 
 /**

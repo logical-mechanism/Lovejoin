@@ -10,6 +10,14 @@
     ".": {
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
+    },
+    "./crypto/bls": {
+      "types": "./dist/crypto/bls.d.ts",
+      "import": "./dist/crypto/bls.js"
+    },
+    "./wallet/seed": {
+      "types": "./dist/wallet/seed.d.ts",
+      "import": "./dist/wallet/seed.js"
     }
   },
   "bin": {

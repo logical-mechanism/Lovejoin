@@ -91,8 +91,17 @@ export function MixPanel(props: MixPanelProps) {
     onSingleMixError,
     initialIntensity,
   } = props;
-  const { vault, ownedBoxes, unlockWithWallet, vaultBusy, vaultError, setWallet, walletId } =
-    useAppState();
+  const {
+    vault,
+    ownedBoxes,
+    unlockWithWallet,
+    vaultBusy,
+    vaultError,
+    setWallet,
+    walletId,
+    walletSupportsBatchSigning,
+    scanInFlight,
+  } = useAppState();
   const [walletModalOpen, setWalletModalOpen] = useState(false);
 
   const protocol = addresses?.protocol;
@@ -138,6 +147,11 @@ export function MixPanel(props: MixPanelProps) {
   // anonymity.
   const fanoutWalletPayerAllowed =
     isFanout && wallet !== null && walletSupportsChainedFanout(walletId);
+  // CIP-103 multi-tx signing (issue #149). When the wallet advertises
+  // batch signing the disclosure body promises one prompt instead of
+  // N. Null while the probe is in flight; we render the conservative
+  // per-leaf copy until the probe resolves so we never over-promise.
+  const fanoutBatchSignAvailable = fanoutWalletPayerAllowed && walletSupportsBatchSigning === true;
   const showFeePayerToggle = !isFanout || fanoutWalletPayerAllowed;
   const effectiveFeePayer: MixFeePayer = isFanout
     ? fanoutWalletPayerAllowed
@@ -167,6 +181,11 @@ export function MixPanel(props: MixPanelProps) {
     ownedBoxes,
     poolEntries,
     depth: isFanout ? intensity : 2,
+    // Width per slot mirrors the single-Mix toggle: shard mode hits the
+    // on-chain N=3 anonymity-set floor; wallet mode goes to N=4 since
+    // there's no shard to pin it lower. Falls back to 3 if the network
+    // bundle is missing max_n_wallet (legacy bootstraps).
+    n: effectiveFeePayer === "shard" ? maxNShard : maxNWallet,
     feePayer: effectiveFeePayer,
   });
 
@@ -203,6 +222,22 @@ export function MixPanel(props: MixPanelProps) {
                 })
               : t("pool.intensity_hint_random")}
           </p>
+          {isFanout && vaultUnlocked && scanInFlight && (
+            // After signData returns, runScan walks the pool to find
+            // owned boxes — that's another 3-5 s where the UI looks
+            // ready but the fan-out CTA still depends on data being
+            // hydrated. Show a subtle status line so the wait doesn't
+            // read as a hang. Also covers background rescans triggered
+            // by tab focus + the 60 s timer on the Vault page.
+            <p
+              className="basis-full mt-2 text-xs text-whisper leading-relaxed flex items-center gap-2"
+              role="status"
+              aria-live="polite"
+            >
+              <span className="lj-spinner lj-spinner--sm" aria-hidden="true" />
+              {t("vault.scanning_boxes_hint")}
+            </p>
+          )}
           {isFanout && (!wallet || !vaultUnlocked) && (
             <div className="basis-full mt-2 flex flex-col items-start gap-2">
               <p className="text-xs text-amber leading-relaxed" role="status">
@@ -266,7 +301,12 @@ export function MixPanel(props: MixPanelProps) {
               {feePayer === "shard"
                 ? t("pool.fee_payer_shard_hint", { cap: maxFeePerMixAda })
                 : isFanout
-                  ? t("pool.fee_payer_wallet_hint_fanout", { count: fanout.stats.totalMixes })
+                  ? t(
+                      fanoutBatchSignAvailable
+                        ? "pool.fee_payer_wallet_hint_fanout_batch"
+                        : "pool.fee_payer_wallet_hint_fanout",
+                      { count: fanout.stats.totalMixes },
+                    )
                   : t("pool.fee_payer_wallet_hint")}
             </p>
           </div>
@@ -282,9 +322,14 @@ export function MixPanel(props: MixPanelProps) {
           <div className="lj-banner lj-banner--coral" role="alert">
             <span className="lj-banner__title">{t("pool.fanout_wallet_disclosure_title")}</span>
             <p className="text-xs text-paper leading-relaxed">
-              {t("pool.fanout_wallet_disclosure_body", {
-                count: fanout.stats.totalMixes,
-              })}
+              {t(
+                fanoutBatchSignAvailable
+                  ? "pool.fanout_wallet_disclosure_body_batch"
+                  : "pool.fanout_wallet_disclosure_body",
+                {
+                  count: fanout.stats.totalMixes,
+                },
+              )}
             </p>
           </div>
         )}
@@ -295,6 +340,7 @@ export function MixPanel(props: MixPanelProps) {
           totalMixes={fanout.stats.totalMixes}
           boxesTouched={fanout.stats.boxesTouched}
           depth={intensity}
+          n={n}
           totalFeeLovelace={fanout.stats.totalFeeLovelace}
           freshAvailable={fanout.eligiblePool.length}
           freshNeeded={fanout.stats.freshNeeded}
@@ -414,7 +460,7 @@ export function MixPanel(props: MixPanelProps) {
           <div className="flex justify-between gap-4">
             <dt className="lj-eyebrow">{t("fanout.review_linkage")}</dt>
             <dd className="text-sm text-paper">
-              {t("fanout.review_linkage_value", { d: intensity })}
+              {t("fanout.review_linkage_value", { d: intensity, n })}
             </dd>
           </div>
           <div className="flex justify-between gap-4">
@@ -525,6 +571,7 @@ function FanoutReviewBlock({
   totalMixes,
   boxesTouched,
   depth,
+  n,
   totalFeeLovelace,
   freshAvailable,
   freshNeeded,
@@ -532,6 +579,7 @@ function FanoutReviewBlock({
   totalMixes: number;
   boxesTouched: number;
   depth: number;
+  n: number;
   totalFeeLovelace: bigint;
   freshAvailable: number;
   freshNeeded: number;
@@ -555,7 +603,7 @@ function FanoutReviewBlock({
         </div>
         <div className="lj-review__row">
           <dt className="lj-review__label">{t("fanout.review_linkage")}</dt>
-          <dd className="lj-review__value">{t("fanout.review_linkage_value", { d: depth })}</dd>
+          <dd className="lj-review__value">{t("fanout.review_linkage_value", { d: depth, n })}</dd>
         </div>
         <div className="lj-review__row">
           <dt className="lj-review__label">{t("fanout.review_total_fee")}</dt>

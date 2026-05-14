@@ -57,6 +57,23 @@ export interface LovejoinWallet {
   getCollateral(): Promise<MeshUtxo[] | string[] | undefined>;
   /** Sign a CBOR-hex tx; returns the signed tx as CBOR hex. */
   signTx(unsignedTx: string, partialSign?: boolean): Promise<string>;
+  /**
+   * CIP-103 multi-tx signing. Wallet returns one signed CBOR per input.
+   * Optional because not every wallet implements it: mesh's
+   * `BrowserWallet` exposes it on every wallet adapter but rejects with
+   * "Wallet does not support signTxs" at call-time for wallets that
+   * lack both the CIP-103 standard and the experimental shape. Callers
+   * MUST probe via `detectBatchSigningCip103` before relying on this.
+   */
+  signTxs?(unsignedTxs: string[], partialSign?: boolean): Promise<string[]>;
+  /**
+   * CIP-30 extensions advertisement. Returns the list of CIP numbers the
+   * wallet supports (e.g. `[95, 103]`). Optional — server-side mesh
+   * wallets (MeshWallet) don't carry an extension list. UI callers
+   * probe via {@link detectBatchSigningCip103} which handles absence
+   * gracefully.
+   */
+  getExtensions?(): Promise<number[]>;
   /** Submit a signed tx; returns the txid. */
   submitTx(signedTx: string): Promise<string>;
 }

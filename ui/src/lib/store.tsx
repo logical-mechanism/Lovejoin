@@ -33,7 +33,11 @@ import {
   type ReactNode,
 } from "react";
 import type { BrowserWallet } from "@meshsdk/core";
-import type { LovejoinAddresses, ChainProvider } from "@lovejoin/sdk";
+import {
+  detectBatchSigningCip103,
+  type LovejoinAddresses,
+  type ChainProvider,
+} from "@lovejoin/sdk";
 
 import { BackendClient } from "./backend.js";
 import { loadAddresses, loadConfig, makeProvider, saveConfig, type RuntimeConfig } from "./sdk.js";
@@ -61,6 +65,15 @@ export interface AppState {
   walletId: string | null;
   changeAddress: string | null;
   /**
+   * Resolved CIP-103 (multi-tx signing) support for the connected
+   * wallet, probed at connect time via `detectBatchSigningCip103` and
+   * cached here so each fan-out run doesn't re-query
+   * `wallet.getExtensions()`. Null while the probe is in flight or no
+   * wallet is connected. Used by the fan-out hook to pick batch vs
+   * per-leaf signing without an extra round-trip per submit.
+   */
+  walletSupportsBatchSigning: boolean | null;
+  /**
    * Cached spendable lovelace from the connected wallet, refreshed at
    * connect, after every tx submit (success or failure), and on demand
    * via `refreshWalletBalance()`. Null when no wallet is connected, or
@@ -82,6 +95,20 @@ export interface AppState {
   poolSize: number;
   nextDepositIndex: number;
   scanError: string | null;
+  /**
+   * True while a pool scan is in-flight. Distinct from `vaultBusy` (which
+   * only flips during the wallet signData + initial scan during unlock).
+   * Stays true for every `runScan` call: the initial unlock-time scan
+   * (also reflected in vaultBusy), the background tab-focus / 60 s
+   * timer rescans on the Vault page, and the post-tx rescans triggered
+   * after every Mix / Withdraw / Deposit submit.
+   *
+   * Surfaces fed off `ownedBoxes` (MixPanel's fan-out path is the
+   * canonical reader) display a subtle "Loading your boxes…" affordance
+   * while this is true so the user knows the data is currently being
+   * refreshed instead of treating a brief wait as a hang.
+   */
+  scanInFlight: boolean;
 
   /**
    * Set of `${txId}#${outputIndex}` keys for boxes the user has just
@@ -154,6 +181,9 @@ export function AppStateProvider({ children, testOverrides }: AppStateProviderPr
     testOverrides?.initialWallet?.changeAddress ?? null,
   );
   const [walletLovelace, setWalletLovelace] = useState<bigint | null>(null);
+  const [walletSupportsBatchSigning, setWalletSupportsBatchSigning] = useState<boolean | null>(
+    null,
+  );
 
   const [vault, setVault] = useState<UnlockedSeed | null>(null);
   const [vaultError, setVaultError] = useState<string | null>(null);
@@ -165,6 +195,7 @@ export function AppStateProvider({ children, testOverrides }: AppStateProviderPr
     nextDepositIndex: 0,
   });
   const [scanError, setScanError] = useState<string | null>(null);
+  const [scanInFlight, setScanInFlight] = useState(false);
 
   // Pending-tx refs (refKey strings). `pendingExpiry` tracks when each
   // ref was marked so the safety timer can sweep stale entries even if
@@ -238,6 +269,7 @@ export function AppStateProvider({ children, testOverrides }: AppStateProviderPr
         setWalletId(null);
         setChangeAddress(null);
         setWalletLovelace(null);
+        setWalletSupportsBatchSigning(null);
         // Disconnecting the wallet implicitly locks the wallet-derived
         // vault since its seed is bound to that wallet's signature.
         setVault((cur) => (cur?.kind === "wallet" ? null : cur));
@@ -273,10 +305,31 @@ export function AppStateProvider({ children, testOverrides }: AppStateProviderPr
     void refreshWalletBalance();
   }, [wallet, refreshWalletBalance]);
 
+  // Probe CIP-103 multi-tx signing support once per wallet connection.
+  // The fan-out hook reads the resolved boolean instead of re-probing
+  // on every submit; null while in flight so the UI can render a
+  // "checking…" state if it wants to.
+  useEffect(() => {
+    if (!wallet) {
+      setWalletSupportsBatchSigning(null);
+      return;
+    }
+    let cancelled = false;
+    setWalletSupportsBatchSigning(null);
+    void (async () => {
+      const supported = await detectBatchSigningCip103(wallet, walletId);
+      if (!cancelled) setWalletSupportsBatchSigning(supported);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [wallet, walletId]);
+
   const runScan = useCallback(
     async (seed: Uint8Array) => {
       if (!provider || !addresses) return;
       setScanError(null);
+      setScanInFlight(true);
       try {
         const result = await scanPool({ seed, provider, addresses });
         // Merge per-box `generation` from the indexer when a backend URL
@@ -329,6 +382,8 @@ export function AppStateProvider({ children, testOverrides }: AppStateProviderPr
         if (mutated) setPendingTxRefs(survivors);
       } catch (e) {
         setScanError((e as Error).message);
+      } finally {
+        setScanInFlight(false);
       }
     },
     [provider, addresses, pendingTxRefs, config.backendUrl],
@@ -443,6 +498,7 @@ export function AppStateProvider({ children, testOverrides }: AppStateProviderPr
     poolSize: scan.poolSize,
     nextDepositIndex: scan.nextDepositIndex,
     scanError,
+    scanInFlight,
     unlockWithWallet,
     unlockWithPassword,
     lockVault,
@@ -451,6 +507,7 @@ export function AppStateProvider({ children, testOverrides }: AppStateProviderPr
     markTxPending,
     walletLovelace,
     refreshWalletBalance,
+    walletSupportsBatchSigning,
   };
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }
