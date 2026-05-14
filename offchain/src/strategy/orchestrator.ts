@@ -59,9 +59,10 @@ import type { CollateralProvider } from "../tx/collateral.js";
 import type { ChainProvider, Lovelace, Utxo, UtxoRef } from "../chain/provider.js";
 import { type LovejoinAddresses } from "../tx/params.js";
 import { buildScriptAddress } from "../tx/address.js";
-import { type LovejoinWallet, networkIdFor } from "../wallet/cip30.js";
+import { type LovejoinWallet, networkIdFor, normalizeWalletUtxos } from "../wallet/cip30.js";
 import type { Scalar } from "../crypto/index.js";
 import type { RetryOptions } from "../tx/retry.js";
+import type { UTxO as MeshUtxo } from "@meshsdk/core";
 import {
   fanoutDescendants,
   type FanoutInputDescriptor,
@@ -172,6 +173,21 @@ export interface SubmitFanoutArgs {
    * @internal
    */
   buildMix?: typeof buildMixTx;
+  /**
+   * Internal-use seam (planFanoutTxs only): override the wallet-UTxO
+   * chaining function. Production leaves this undefined and the real
+   * `chainWalletUtxosAfterBuild` (which parses the unsigned CBOR via
+   * @meshsdk/core-cst) is used. Tests inject a stub that returns the
+   * rolling list verbatim, bypassing the CBOR parser so they can
+   * exercise the override-threading logic with synthetic CBOR.
+   *
+   * @internal
+   */
+  chainWalletUtxos?: (
+    current: ReadonlyArray<MeshUtxo>,
+    unsignedTxHex: string,
+    changeAddressBech32: string,
+  ) => MeshUtxo[];
 }
 
 /**
@@ -626,7 +642,52 @@ export async function planFanoutTxs(args: SubmitFanoutArgs): Promise<UnsignedFan
   // splicing, parent → child input resolution — without copy-pasting
   // the wave loop.
   const underlyingBuild = args.buildMix ?? buildMixTx;
-  const buildOnlyMix = (a: BuildMixArgs) => underlyingBuild({ ...a, buildOnly: true });
+  const feePayer: MixFeePayer = args.feePayer ?? "shard";
+
+  // Wallet-UTxO chaining (fixes the "Input utxo is spent more than once"
+  // signTxs rejection on Eternl). In wallet-funded mode every leaf's
+  // build calls `wallet.getUtxos()`, but inside `planFanoutTxs` no leaf
+  // ever gets submitted, so every call returns the same pre-mempool
+  // snapshot and mesh picks the SAME wallet input for every leaf. We
+  // pre-fetch once here, subtract consumed inputs + add change outputs
+  // after each build, and pass the rolling list to subsequent builds
+  // via `walletUtxosOverride`. The per-leaf `submitFanout` path doesn't
+  // need this because the wallet sees each submit and updates its own
+  // mempool view between calls.
+  const initialWalletUtxos: MeshUtxo[] = [];
+  let changeAddress: string | null = null;
+  if (feePayer === "wallet" && args.wallet) {
+    const fetched = await args.wallet.getUtxos();
+    initialWalletUtxos.push(...normalizeWalletUtxos(fetched));
+    changeAddress = await args.wallet.getChangeAddress();
+  }
+  let rollingWalletUtxos: MeshUtxo[] = initialWalletUtxos.slice();
+
+  // Load core-cst once if we're in wallet mode — the real chaining
+  // helper needs it to parse each unsigned tx, and a dynamic import
+  // per call would add a few ms × N leaves of redundant module-
+  // resolution work. Skipped entirely when the caller injects a test
+  // chainWalletUtxos stub.
+  const cst =
+    feePayer === "wallet" && args.wallet && !args.chainWalletUtxos
+      ? ((await import("@meshsdk/core-cst")) as typeof import("@meshsdk/core-cst"))
+      : null;
+  const chainWalletUtxos =
+    args.chainWalletUtxos ??
+    ((current, unsignedTxHex, changeAddressBech32) =>
+      chainWalletUtxosAfterBuild(current, unsignedTxHex, changeAddressBech32, cst!));
+
+  const buildOnlyMix = async (a: BuildMixArgs): Promise<MixResult> => {
+    const override =
+      feePayer === "wallet" && rollingWalletUtxos.length > 0
+        ? { walletUtxosOverride: rollingWalletUtxos.slice() }
+        : {};
+    const built = await underlyingBuild({ ...a, ...override, buildOnly: true });
+    if (feePayer === "wallet" && changeAddress) {
+      rollingWalletUtxos = chainWalletUtxos(rollingWalletUtxos, built.unsignedTxHex, changeAddress);
+    }
+    return built;
+  };
 
   const slots: UnsignedFanoutSlot[] = [];
   const failed: Array<UnsignedFanoutBatch["failed"][number]> = [];
@@ -656,6 +717,80 @@ export async function planFanoutTxs(args: SubmitFanoutArgs): Promise<UnsignedFan
   }
 
   return { plan: args.plan, slots, failed };
+}
+
+/**
+ * Walk a freshly-built unsigned Mix tx and update a rolling wallet-UTxO
+ * set so the next leaf in a batch sees the wallet's post-build state
+ * instead of the same pre-mempool snapshot. Exported so unit tests can
+ * exercise the parser directly against synthesized CBOR.
+ *
+ * Removes any UTxO whose `(txHash, outputIndex)` matches a tx input.
+ * Adds any tx output whose `address` matches the wallet's change
+ * address AND has no inline datum AND no script ref — that's the
+ * shape mesh emits for wallet change in wallet-funded Mix mode.
+ *
+ * `cst` is passed in so the caller controls when the heavy
+ * @meshsdk/core-cst module gets imported; we hoist that load to the
+ * top of `planFanoutTxs` and reuse the handle across every leaf.
+ */
+export function chainWalletUtxosAfterBuild(
+  current: ReadonlyArray<MeshUtxo>,
+  unsignedTxHex: string,
+  changeAddressBech32: string,
+  cst: typeof import("@meshsdk/core-cst"),
+): MeshUtxo[] {
+  const tx = cst.deserializeTx(unsignedTxHex);
+  const txId = String(cst.resolveTxHash(unsignedTxHex)).toLowerCase();
+
+  const consumed = new Set<string>();
+  for (const inp of tx.body().inputs().values()) {
+    const hash = inp.transactionId().toString().toLowerCase();
+    consumed.add(`${hash}#${inp.index()}`);
+  }
+
+  const next: MeshUtxo[] = current.filter((u) => {
+    const k = `${u.input.txHash.toLowerCase()}#${u.input.outputIndex}`;
+    return !consumed.has(k);
+  });
+
+  const outputs = tx.body().outputs();
+  for (let i = 0; i < outputs.length; i++) {
+    const out = outputs[i]!;
+    let outAddr: string;
+    try {
+      outAddr = out.address().toBech32();
+    } catch {
+      // Non-bech32 (byron, malformed); can't be a change output we
+      // produced. Skip.
+      continue;
+    }
+    if (outAddr !== changeAddressBech32) continue;
+    // Mix-box outputs always carry an inline datum; the fee shard
+    // (irrelevant in wallet mode) also carries one. Wallet change is
+    // datumless. Same goes for ref-script-bearing outputs.
+    if (out.datum()) continue;
+    if (out.scriptRef && out.scriptRef()) continue;
+
+    const value = out.amount();
+    const lovelace = value.coin();
+    const amount: Array<{ unit: string; quantity: string }> = [
+      { unit: "lovelace", quantity: lovelace.toString() },
+    ];
+    const multiAsset = value.multiasset();
+    if (multiAsset && multiAsset.size > 0) {
+      for (const [assetId, qty] of multiAsset.entries()) {
+        amount.push({ unit: assetId.toString(), quantity: qty.toString() });
+      }
+    }
+
+    next.push({
+      input: { txHash: txId, outputIndex: i },
+      output: { address: outAddr, amount },
+    });
+  }
+
+  return next;
 }
 
 export interface SubmitFanoutBatchArgs {

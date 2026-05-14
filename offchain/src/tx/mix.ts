@@ -786,6 +786,24 @@ export interface BuildMixArgs {
    */
   buildOnly?: boolean;
   /**
+   * Override mesh's coin-selection input set. When set, `buildMixTx`
+   * uses this list verbatim instead of calling `wallet.getUtxos()`.
+   *
+   * The fan-out batch path uses this to chain wallet UTxOs across
+   * leaves: every leaf in the batch is built before any is submitted,
+   * so `wallet.getUtxos()` returns the same pre-mempool snapshot for
+   * every call and mesh would pick the SAME wallet input for every
+   * leaf — which the wallet rejects as "Input utxo is spent more than
+   * once" at `signTxs` time. The orchestrator pre-fetches the wallet's
+   * UTxOs, subtracts consumed inputs after each build, and adds the
+   * change output(s) to the rolling set so the next leaf sees the
+   * wallet's true post-build state.
+   *
+   * Only honoured when `feePayer === "wallet"`. Ignored in shard mode
+   * (no wallet input on the tx at all).
+   */
+  walletUtxosOverride?: ReadonlyArray<import("@meshsdk/core").UTxO>;
+  /**
    * Retry on input collisions. Useful for shard mode under heavy mix
    * activity: if the picked fee shard was consumed by another tx
    * between build and submit, the SDK transparently re-picks a fresh
@@ -1149,7 +1167,9 @@ export async function buildMixTx(args: BuildMixArgs): Promise<MixResult> {
       : preparedCollateral.inputs[0]!.address;
     const walletUtxos =
       feePayer === "wallet" && args.wallet
-        ? normalizeWalletUtxos(await args.wallet.getUtxos())
+        ? args.walletUtxosOverride
+          ? args.walletUtxosOverride.slice()
+          : normalizeWalletUtxos(await args.wallet.getUtxos())
         : [];
 
     // Tiny populate-time placeholder per redeemer. Overwritten by the
