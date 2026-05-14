@@ -1,4 +1,4 @@
-// Unified Mix surface. issue #137 / PR #146.
+// Unified Mix surface. issue #137 / PR #146 / issue #147.
 //
 // One panel, one dial, one CTA. Depth k = 1 is a single Mix tx (the
 // canonical hyperstructure path, reachable without a connected wallet);
@@ -6,10 +6,20 @@
 // the user's own boxes. Same concept, varying intensity.
 //
 // Visibility rules:
-//   • Fee-payer toggle (shard | wallet) is only meaningful at k = 1.
-//     A k ≥ 2 fan-out at every leaf in wallet mode would publish the
-//     user's identity across N txs and undo the whole point; we hide
-//     the toggle and force shard mode.
+//   • Fee-payer toggle (shard | wallet) at k = 1 is always available.
+//   • Fee-payer toggle at k ≥ 2 (wallet-funded fan-out) is gated on
+//     three conditions, all of which must be true:
+//       1. `?advanced=1` is on the URL — we ship the wallet-funded
+//          fan-out behind the advanced flag for one release cycle so we
+//          can collect failure reports before promoting it to the
+//          general surface.
+//       2. A CIP-30 wallet is connected (it has to sign every leaf).
+//       3. The wallet is on the chained-tx allowlist
+//          (`walletSupportsChainedFanout`). Wallets that don't accept
+//          mempool-only inputs at sign time would crash the tree
+//          mid-run with no clean recovery; default-deny.
+//     Default stays `"shard"` even when the toggle is visible; the user
+//     has to opt in.
 //   • k ≥ 2 needs an unlocked vault (it picks the user's first non-
 //     in-flight owned box as the tree's root). k = 1 does not.
 //
@@ -22,7 +32,12 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { BrowserWallet } from "@meshsdk/core";
-import type { ChainProvider, LovejoinAddresses, MixFeePayer } from "@lovejoin/sdk";
+import {
+  walletSupportsChainedFanout,
+  type ChainProvider,
+  type LovejoinAddresses,
+  type MixFeePayer,
+} from "@lovejoin/sdk";
 
 import { formatAda } from "../lib/format.js";
 import type { Network } from "../lib/sdk.js";
@@ -80,7 +95,8 @@ export function MixPanel(props: MixPanelProps) {
     onSingleMixError,
     initialIntensity,
   } = props;
-  const { vault, ownedBoxes, unlockWithWallet, vaultBusy, vaultError, setWallet } = useAppState();
+  const { vault, ownedBoxes, unlockWithWallet, vaultBusy, vaultError, setWallet, walletId } =
+    useAppState();
   const [walletModalOpen, setWalletModalOpen] = useState(false);
 
   const protocol = addresses?.protocol;
@@ -118,7 +134,19 @@ export function MixPanel(props: MixPanelProps) {
   }, [feePayer]);
 
   const isFanout = intensity >= 2;
-  const effectiveFeePayer: MixFeePayer = isFanout ? "shard" : feePayer;
+
+  // Wallet-funded fan-out (issue #147). Default-deny: hidden unless the
+  // advanced flag is on, a wallet is connected, and the wallet is on the
+  // allowlist. Even when visible the default stays "shard"; the user has
+  // to deliberately switch to opt out of wallet anonymity.
+  const fanoutWalletPayerAllowed =
+    isFanout && advanced && wallet !== null && walletSupportsChainedFanout(walletId);
+  const showFeePayerToggle = !isFanout || fanoutWalletPayerAllowed;
+  const effectiveFeePayer: MixFeePayer = isFanout
+    ? fanoutWalletPayerAllowed
+      ? feePayer
+      : "shard"
+    : feePayer;
   const n = effectiveFeePayer === "shard" ? maxNShard : maxNWallet;
 
   const single = useSingleMix({
@@ -142,6 +170,7 @@ export function MixPanel(props: MixPanelProps) {
     ownedBoxes,
     poolEntries,
     depth: isFanout ? intensity : 2,
+    feePayer: effectiveFeePayer,
   });
 
   return (
@@ -210,7 +239,7 @@ export function MixPanel(props: MixPanelProps) {
           )}
         </div>
 
-        {!isFanout && (
+        {showFeePayerToggle && (
           <div className="flex flex-wrap items-center gap-x-6 gap-y-2">
             <Eyebrow id="fee-payer-label">{t("pool.fee_payer_label")}</Eyebrow>
             <div
@@ -223,7 +252,7 @@ export function MixPanel(props: MixPanelProps) {
                 type="button"
                 aria-pressed={feePayer === "shard"}
                 onClick={() => setFeePayer("shard")}
-                disabled={single.submitting}
+                disabled={single.submitting || fanout.running}
               >
                 {t("pool.fee_payer_shard")}
               </button>
@@ -231,7 +260,7 @@ export function MixPanel(props: MixPanelProps) {
                 type="button"
                 aria-pressed={feePayer === "wallet"}
                 onClick={() => setFeePayer("wallet")}
-                disabled={single.submitting}
+                disabled={single.submitting || fanout.running}
               >
                 {t("pool.fee_payer_wallet")}
               </button>
@@ -239,7 +268,26 @@ export function MixPanel(props: MixPanelProps) {
             <p id="fee-payer-hint" className="text-xs text-whisper basis-full leading-relaxed">
               {feePayer === "shard"
                 ? t("pool.fee_payer_shard_hint", { cap: maxFeePerMixAda })
-                : t("pool.fee_payer_wallet_hint")}
+                : isFanout
+                  ? t("pool.fee_payer_wallet_hint_fanout", { count: fanout.stats.totalMixes })
+                  : t("pool.fee_payer_wallet_hint")}
+            </p>
+          </div>
+        )}
+
+        {/* Load-bearing disclosure (issue #147). Wallet-funded fan-out
+         *  publishes the user's wallet identity on every leaf in the
+         *  tree and asks them to sign N times — both costs the user is
+         *  opting INTO when they leave shard mode. The banner is
+         *  intentionally above the review block so the user can't miss
+         *  it before the confirm modal. */}
+        {isFanout && fanoutWalletPayerAllowed && effectiveFeePayer === "wallet" && (
+          <div className="lj-banner lj-banner--coral" role="alert">
+            <span className="lj-banner__title">{t("pool.fanout_wallet_disclosure_title")}</span>
+            <p className="text-xs text-paper leading-relaxed">
+              {t("pool.fanout_wallet_disclosure_body", {
+                count: fanout.stats.totalMixes,
+              })}
             </p>
           </div>
         )}
@@ -345,11 +393,17 @@ export function MixPanel(props: MixPanelProps) {
             {t("fanout.confirm_title")}
           </h2>
           <p className="mt-2 text-sm text-muted">
-            {t("fanout.confirm_lede", {
-              count: fanout.stats.totalMixes,
-              boxes: fanout.stats.boxesTouched,
-              ada: formatAda(fanout.stats.totalFeeLovelace),
-            })}
+            {effectiveFeePayer === "wallet"
+              ? t("fanout.confirm_lede_wallet", {
+                  count: fanout.stats.totalMixes,
+                  boxes: fanout.stats.boxesTouched,
+                  ada: formatAda(fanout.stats.totalFeeLovelace),
+                })
+              : t("fanout.confirm_lede", {
+                  count: fanout.stats.totalMixes,
+                  boxes: fanout.stats.boxesTouched,
+                  ada: formatAda(fanout.stats.totalFeeLovelace),
+                })}
           </p>
         </header>
         <dl className="lj-banner lj-banner--signal flex-col items-stretch gap-3">
@@ -371,6 +425,14 @@ export function MixPanel(props: MixPanelProps) {
               {t("fanout.review_total_fee_value", {
                 ada: formatAda(fanout.stats.totalFeeLovelace),
               })}
+            </dd>
+          </div>
+          <div className="flex justify-between gap-4">
+            <dt className="lj-eyebrow">{t("pool.review_fee_path")}</dt>
+            <dd className="text-sm text-paper">
+              {effectiveFeePayer === "shard"
+                ? t("pool.review_fee_path_shard")
+                : t("pool.review_fee_path_wallet")}
             </dd>
           </div>
         </dl>
