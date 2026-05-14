@@ -401,6 +401,7 @@
     "unlock_failed": "解錠に失敗: {{message}}",
     "no_wallet": "先にウォレットを接続してください。",
     "scanning_pool": "所有ボックスをプールでスキャン中…",
+    "scanning_boxes_hint": "ボックスを読み込み中…",
     "scan_failed": "プールのスキャンに失敗: {{message}}",
     "scan_again": "再スキャン",
     "scan_summary": "{{pool}} 個のプールボックスから {{count}} 個の所有ボックスを発見。",

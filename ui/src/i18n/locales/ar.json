@@ -401,6 +401,7 @@
     "unlock_failed": "فشل الفتح: {{message}}",
     "no_wallet": "اربط محفظة أولاً.",
     "scanning_pool": "جارٍ مسح الـpool بحثاً عن صناديقك…",
+    "scanning_boxes_hint": "جارٍ تحميل صناديقك…",
     "scan_failed": "فشل مسح الـpool: {{message}}",
     "scan_again": "إعادة المسح",
     "scan_summary": "تم العثور على {{count}} صندوق(ا) لك ضمن {{pool}} صناديق pool.",

@@ -401,6 +401,7 @@
     "unlock_failed": "ปลดล็อกไม่สำเร็จ: {{message}}",
     "no_wallet": "เชื่อมต่อกระเป๋าก่อน",
     "scanning_pool": "กำลังสแกน pool เพื่อหากล่องของคุณ…",
+    "scanning_boxes_hint": "กำลังโหลดกล่องของคุณ…",
     "scan_failed": "สแกน pool ไม่สำเร็จ: {{message}}",
     "scan_again": "สแกนอีกครั้ง",
     "scan_summary": "พบกล่องของคุณ {{count}} กล่องในกล่อง pool {{pool}} กล่อง",

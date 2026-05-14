@@ -446,6 +446,7 @@
     "unlock_failed": "Unlock failed: {{message}}",
     "no_wallet": "Connect a wallet first.",
     "scanning_pool": "Scanning the pool for owned boxes…",
+    "scanning_boxes_hint": "Loading your boxes…",
     "scan_failed": "Pool scan failed: {{message}}",
     "scan_again": "Rescan",
     "scan_summary": "Found {{count}} owned box(es) in {{pool}} pool boxes.",

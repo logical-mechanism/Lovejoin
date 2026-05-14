@@ -401,6 +401,7 @@
     "unlock_failed": "Falha ao destrancar: {{message}}",
     "no_wallet": "Conecte uma carteira primeiro.",
     "scanning_pool": "Verificando o pool em busca de caixas próprias…",
+    "scanning_boxes_hint": "Carregando suas caixas…",
     "scan_failed": "Falha ao verificar o pool: {{message}}",
     "scan_again": "Verificar novamente",
     "scan_summary": "Encontradas {{count}} caixa(s) próprias em {{pool}} caixas do pool.",

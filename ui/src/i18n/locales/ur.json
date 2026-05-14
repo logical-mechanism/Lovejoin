@@ -401,6 +401,7 @@
     "unlock_failed": "کھولنے میں ناکامی: {{message}}",
     "no_wallet": "پہلے ایک والٹ منسلک کریں۔",
     "scanning_pool": "ذاتی باکسوں کے لیے pool اسکین ہو رہا ہے…",
+    "scanning_boxes_hint": "آپ کے باکس لوڈ ہو رہے ہیں…",
     "scan_failed": "Pool اسکین ناکام: {{message}}",
     "scan_again": "دوبارہ اسکین کریں",
     "scan_summary": "{{pool}} pool باکسوں میں سے {{count}} ذاتی باکس ملے۔",

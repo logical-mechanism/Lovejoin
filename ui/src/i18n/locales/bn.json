@@ -401,6 +401,7 @@
     "unlock_failed": "আনলক ব্যর্থ: {{message}}",
     "no_wallet": "প্রথমে একটি ওয়ালেট কানেক্ট করুন।",
     "scanning_pool": "মালিকানাধীন বক্সের জন্য pool স্ক্যান করা হচ্ছে…",
+    "scanning_boxes_hint": "আপনার বক্স লোড করা হচ্ছে…",
     "scan_failed": "Pool স্ক্যান ব্যর্থ: {{message}}",
     "scan_again": "আবার স্ক্যান",
     "scan_summary": "{{pool}}টি pool বক্সের মধ্যে {{count}}টি মালিকানাধীন বক্স পাওয়া গেছে।",

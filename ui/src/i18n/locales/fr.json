@@ -401,6 +401,7 @@
     "unlock_failed": "Échec du déverrouillage : {{message}}",
     "no_wallet": "Connectez d'abord un portefeuille.",
     "scanning_pool": "Analyse de la pool à la recherche de boîtes vous appartenant…",
+    "scanning_boxes_hint": "Chargement de vos boîtes…",
     "scan_failed": "Échec de l'analyse de la pool : {{message}}",
     "scan_again": "Relancer l'analyse",
     "scan_summary": "{{count}} boîte(s) trouvée(s) parmi {{pool}} boîtes de pool.",

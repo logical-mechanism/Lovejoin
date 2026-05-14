@@ -401,6 +401,7 @@
     "unlock_failed": "잠금 해제 실패: {{message}}",
     "no_wallet": "먼저 지갑을 연결하세요.",
     "scanning_pool": "소유 박스를 풀에서 스캔 중…",
+    "scanning_boxes_hint": "박스를 불러오는 중…",
     "scan_failed": "풀 스캔 실패: {{message}}",
     "scan_again": "다시 스캔",
     "scan_summary": "{{pool}}개의 풀 박스에서 {{count}}개의 소유 박스를 찾았습니다.",

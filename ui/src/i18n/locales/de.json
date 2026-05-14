@@ -401,6 +401,7 @@
     "unlock_failed": "Entsperren fehlgeschlagen: {{message}}",
     "no_wallet": "Verbinde zuerst eine Wallet.",
     "scanning_pool": "Suche nach eigenen Boxes im Pool…",
+    "scanning_boxes_hint": "Lade deine Boxes…",
     "scan_failed": "Pool-Scan fehlgeschlagen: {{message}}",
     "scan_again": "Erneut suchen",
     "scan_summary": "{{count}} eigene Box(es) in {{pool}} Pool-Boxes gefunden.",

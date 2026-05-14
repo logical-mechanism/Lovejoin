@@ -95,6 +95,20 @@ export interface AppState {
   poolSize: number;
   nextDepositIndex: number;
   scanError: string | null;
+  /**
+   * True while a pool scan is in-flight. Distinct from `vaultBusy` (which
+   * only flips during the wallet signData + initial scan during unlock).
+   * Stays true for every `runScan` call: the initial unlock-time scan
+   * (also reflected in vaultBusy), the background tab-focus / 60 s
+   * timer rescans on the Vault page, and the post-tx rescans triggered
+   * after every Mix / Withdraw / Deposit submit.
+   *
+   * Surfaces fed off `ownedBoxes` (MixPanel's fan-out path is the
+   * canonical reader) display a subtle "Loading your boxes…" affordance
+   * while this is true so the user knows the data is currently being
+   * refreshed instead of treating a brief wait as a hang.
+   */
+  scanInFlight: boolean;
 
   /**
    * Set of `${txId}#${outputIndex}` keys for boxes the user has just
@@ -181,6 +195,7 @@ export function AppStateProvider({ children, testOverrides }: AppStateProviderPr
     nextDepositIndex: 0,
   });
   const [scanError, setScanError] = useState<string | null>(null);
+  const [scanInFlight, setScanInFlight] = useState(false);
 
   // Pending-tx refs (refKey strings). `pendingExpiry` tracks when each
   // ref was marked so the safety timer can sweep stale entries even if
@@ -314,6 +329,7 @@ export function AppStateProvider({ children, testOverrides }: AppStateProviderPr
     async (seed: Uint8Array) => {
       if (!provider || !addresses) return;
       setScanError(null);
+      setScanInFlight(true);
       try {
         const result = await scanPool({ seed, provider, addresses });
         // Merge per-box `generation` from the indexer when a backend URL
@@ -366,6 +382,8 @@ export function AppStateProvider({ children, testOverrides }: AppStateProviderPr
         if (mutated) setPendingTxRefs(survivors);
       } catch (e) {
         setScanError((e as Error).message);
+      } finally {
+        setScanInFlight(false);
       }
     },
     [provider, addresses, pendingTxRefs, config.backendUrl],
@@ -480,6 +498,7 @@ export function AppStateProvider({ children, testOverrides }: AppStateProviderPr
     poolSize: scan.poolSize,
     nextDepositIndex: scan.nextDepositIndex,
     scanError,
+    scanInFlight,
     unlockWithWallet,
     unlockWithPassword,
     lockVault,

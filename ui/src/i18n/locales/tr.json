@@ -401,6 +401,7 @@
     "unlock_failed": "Açma başarısız: {{message}}",
     "no_wallet": "Önce bir cüzdan bağlayın.",
     "scanning_pool": "Kendi kutularınız için pool taranıyor…",
+    "scanning_boxes_hint": "Kutularınız yükleniyor…",
     "scan_failed": "Pool taraması başarısız: {{message}}",
     "scan_again": "Yeniden tara",
     "scan_summary": "{{pool}} pool kutusunda {{count}} kendi kutu(lar) bulundu.",

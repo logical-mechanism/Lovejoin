@@ -401,6 +401,7 @@
     "unlock_failed": "解锁失败：{{message}}",
     "no_wallet": "请先连接钱包。",
     "scanning_pool": "正在扫描资金池中你的盒子…",
+    "scanning_boxes_hint": "正在加载你的盒子…",
     "scan_failed": "资金池扫描失败：{{message}}",
     "scan_again": "重新扫描",
     "scan_summary": "在 {{pool}} 个池中盒子里找到 {{count}} 个属于你的盒子。",

@@ -100,6 +100,7 @@ export function MixPanel(props: MixPanelProps) {
     setWallet,
     walletId,
     walletSupportsBatchSigning,
+    scanInFlight,
   } = useAppState();
   const [walletModalOpen, setWalletModalOpen] = useState(false);
 
@@ -216,6 +217,22 @@ export function MixPanel(props: MixPanelProps) {
                 })
               : t("pool.intensity_hint_random")}
           </p>
+          {isFanout && vaultUnlocked && scanInFlight && (
+            // After signData returns, runScan walks the pool to find
+            // owned boxes — that's another 3-5 s where the UI looks
+            // ready but the fan-out CTA still depends on data being
+            // hydrated. Show a subtle status line so the wait doesn't
+            // read as a hang. Also covers background rescans triggered
+            // by tab focus + the 60 s timer on the Vault page.
+            <p
+              className="basis-full mt-2 text-xs text-whisper leading-relaxed flex items-center gap-2"
+              role="status"
+              aria-live="polite"
+            >
+              <span className="lj-spinner lj-spinner--sm" aria-hidden="true" />
+              {t("vault.scanning_boxes_hint")}
+            </p>
+          )}
           {isFanout && (!wallet || !vaultUnlocked) && (
             <div className="basis-full mt-2 flex flex-col items-start gap-2">
               <p className="text-xs text-amber leading-relaxed" role="status">

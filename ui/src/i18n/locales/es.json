@@ -401,6 +401,7 @@
     "unlock_failed": "Desbloqueo fallido: {{message}}",
     "no_wallet": "Conecta primero una cartera.",
     "scanning_pool": "Escaneando la pool en busca de cajas propias…",
+    "scanning_boxes_hint": "Cargando tus cajas…",
     "scan_failed": "Error al escanear la pool: {{message}}",
     "scan_again": "Reescanear",
     "scan_summary": "Se encontraron {{count}} caja(s) propia(s) en {{pool}} cajas de la pool.",

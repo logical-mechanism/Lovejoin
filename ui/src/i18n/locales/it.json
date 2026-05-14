@@ -401,6 +401,7 @@
     "unlock_failed": "Sblocco non riuscito: {{message}}",
     "no_wallet": "Collega prima un wallet.",
     "scanning_pool": "Scansione della pool per i box propri…",
+    "scanning_boxes_hint": "Caricamento delle tue box…",
     "scan_failed": "Scansione della pool fallita: {{message}}",
     "scan_again": "Riavvia scansione",
     "scan_summary": "Trovati {{count}} box propri tra {{pool}} box della pool.",

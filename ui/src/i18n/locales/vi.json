@@ -401,6 +401,7 @@
     "unlock_failed": "Mở khoá thất bại: {{message}}",
     "no_wallet": "Hãy kết nối ví trước.",
     "scanning_pool": "Đang quét pool tìm hộp sở hữu…",
+    "scanning_boxes_hint": "Đang tải các hộp của bạn…",
     "scan_failed": "Quét pool thất bại: {{message}}",
     "scan_again": "Quét lại",
     "scan_summary": "Tìm thấy {{count}} hộp sở hữu trong {{pool}} hộp pool.",

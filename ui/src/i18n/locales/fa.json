@@ -401,6 +401,7 @@
     "unlock_failed": "باز کردن ناموفق بود: {{message}}",
     "no_wallet": "ابتدا یک کیف پول وصل کنید.",
     "scanning_pool": "در حال اسکن pool برای باکس‌های متعلق به شما…",
+    "scanning_boxes_hint": "در حال بارگذاری باکس‌های شما…",
     "scan_failed": "اسکن pool ناموفق بود: {{message}}",
     "scan_again": "اسکن مجدد",
     "scan_summary": "{{count}} باکس متعلق در میان {{pool}} باکس pool یافت شد.",

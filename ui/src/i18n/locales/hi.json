@@ -401,6 +401,7 @@
     "unlock_failed": "अनलॉक विफल: {{message}}",
     "no_wallet": "पहले एक वॉलेट कनेक्ट करें।",
     "scanning_pool": "स्वामित्व बॉक्सों के लिए पूल स्कैन हो रहा है…",
+    "scanning_boxes_hint": "आपके बॉक्स लोड हो रहे हैं…",
     "scan_failed": "पूल स्कैन विफल: {{message}}",
     "scan_again": "फिर से स्कैन करें",
     "scan_summary": "{{pool}} पूल बॉक्सों में {{count}} स्वामित्व बॉक्स मिले।",

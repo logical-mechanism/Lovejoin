@@ -401,6 +401,7 @@
     "unlock_failed": "Odblokowanie nieudane: {{message}}",
     "no_wallet": "Najpierw połącz portfel.",
     "scanning_pool": "Skanowanie poolu w poszukiwaniu twoich boxów…",
+    "scanning_boxes_hint": "Ładowanie twoich boxów…",
     "scan_failed": "Skan poolu nieudany: {{message}}",
     "scan_again": "Skanuj ponownie",
     "scan_summary": "Znaleziono {{count}} własnych boxów wśród {{pool}} boxów poolu.",

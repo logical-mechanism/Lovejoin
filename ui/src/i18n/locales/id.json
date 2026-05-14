@@ -401,6 +401,7 @@
     "unlock_failed": "Buka gagal: {{message}}",
     "no_wallet": "Hubungkan dompet dulu.",
     "scanning_pool": "Memindai pool untuk kotak milik…",
+    "scanning_boxes_hint": "Memuat kotak Anda…",
     "scan_failed": "Pemindaian pool gagal: {{message}}",
     "scan_again": "Pindai ulang",
     "scan_summary": "Ditemukan {{count}} kotak milik di {{pool}} kotak pool.",
