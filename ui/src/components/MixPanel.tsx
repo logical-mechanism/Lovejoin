@@ -8,18 +8,14 @@
 // Visibility rules:
 //   • Fee-payer toggle (shard | wallet) at k = 1 is always available.
 //   • Fee-payer toggle at k ≥ 2 (wallet-funded fan-out) is gated on
-//     three conditions, all of which must be true:
-//       1. `?advanced=1` is on the URL — we ship the wallet-funded
-//          fan-out behind the advanced flag for one release cycle so we
-//          can collect failure reports before promoting it to the
-//          general surface.
-//       2. A CIP-30 wallet is connected (it has to sign every leaf).
-//       3. The wallet is on the chained-tx allowlist
+//     two conditions, both of which must be true:
+//       1. A CIP-30 wallet is connected (it has to sign every leaf).
+//       2. The wallet is on the chained-tx allowlist
 //          (`walletSupportsChainedFanout`). Wallets that don't accept
 //          mempool-only inputs at sign time would crash the tree
 //          mid-run with no clean recovery; default-deny.
 //     Default stays `"shard"` even when the toggle is visible; the user
-//     has to opt in.
+//     has to opt in via the load-bearing disclosure.
 //   • k ≥ 2 needs an unlocked vault (it picks the user's first non-
 //     in-flight owned box as the tree's root). k = 1 does not.
 //
@@ -135,12 +131,13 @@ export function MixPanel(props: MixPanelProps) {
 
   const isFanout = intensity >= 2;
 
-  // Wallet-funded fan-out (issue #147). Default-deny: hidden unless the
-  // advanced flag is on, a wallet is connected, and the wallet is on the
-  // allowlist. Even when visible the default stays "shard"; the user has
-  // to deliberately switch to opt out of wallet anonymity.
+  // Wallet-funded fan-out (issue #147). Default-deny: hidden unless a
+  // wallet is connected and the wallet is on the allowlist. Even when
+  // visible the default stays "shard"; the user has to deliberately
+  // switch via the load-bearing disclosure to opt out of wallet
+  // anonymity.
   const fanoutWalletPayerAllowed =
-    isFanout && advanced && wallet !== null && walletSupportsChainedFanout(walletId);
+    isFanout && wallet !== null && walletSupportsChainedFanout(walletId);
   const showFeePayerToggle = !isFanout || fanoutWalletPayerAllowed;
   const effectiveFeePayer: MixFeePayer = isFanout
     ? fanoutWalletPayerAllowed

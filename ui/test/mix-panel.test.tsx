@@ -8,11 +8,9 @@
 //   • Intensity dial offers k=1, k=2, k=3 by default; k=4 only when
 //     `advanced` is true.
 //   • At k=1 the fee-payer toggle is always visible.
-//   • At k≥2 the fee-payer toggle is HIDDEN by default (wallet mode at
-//     every leaf would publish the user's identity across N txs).
-//   • At k≥2 the toggle is VISIBLE only when all three of: advanced
-//     mode, a connected wallet, and the wallet is on the chained-tx
-//     allowlist (issue #147 — wallet-funded fan-out is opt-in).
+//   • At k≥2 the fee-payer toggle is HIDDEN unless a wallet on the
+//     chained-tx allowlist is connected (issue #147). Hidden when no
+//     wallet, hidden when the wallet isn't on the allowlist.
 //   • Picking the wallet fee path at k≥2 surfaces a load-bearing
 //     disclosure banner about the privacy + signing trade-off.
 //   • When the vault is locked, picking k≥2 surfaces the
@@ -143,37 +141,40 @@ describe("MixPanel", () => {
     expect(screen.getByRole("group", { name: "Fee payer" })).toBeInTheDocument();
   });
 
-  it("hides the fee-payer toggle at k≥2 by default (no advanced flag, no wallet)", () => {
+  it("hides the fee-payer toggle at k≥2 when no wallet is connected", () => {
     renderPanel();
-    // Wallet mode at every leaf of a fan-out would publish the
-    // submitter's identity across N txs. Without the advanced flag
-    // the toggle stays hidden so a user can't accidentally opt out
-    // of wallet anonymity.
-    fireEvent.click(screen.getByRole("button", { name: /Depth 2/i }));
-    expect(screen.queryByRole("group", { name: "Fee payer" })).toBeNull();
-  });
-
-  it("keeps the toggle hidden at k≥2 when advanced=true but no wallet is connected", () => {
-    renderPanel({ advanced: true });
+    // Without a wallet there's no one to sign the leaf txs, so the
+    // wallet-fee path can't even be attempted; hide the toggle to
+    // keep the surface honest about which actions are reachable.
     fireEvent.click(screen.getByRole("button", { name: /Depth 2/i }));
     expect(screen.queryByRole("group", { name: "Fee payer" })).toBeNull();
   });
 
   it("keeps the toggle hidden at k≥2 when wallet is connected but NOT on the chained-tx allowlist", () => {
     // Nami isn't on the allowlist (issue #147 — empirical addition only).
-    renderPanel({ advanced: true, walletId: "nami" });
+    // Allowed wallets handle a tx whose inputs include mempool-only
+    // parents; un-validated wallets would crash the tree mid-run.
+    renderPanel({ walletId: "nami" });
     fireEvent.click(screen.getByRole("button", { name: /Depth 2/i }));
     expect(screen.queryByRole("group", { name: "Fee payer" })).toBeNull();
   });
 
-  it("exposes the fee-payer toggle at k≥2 when advanced + wallet on allowlist (issue #147)", () => {
-    renderPanel({ advanced: true, walletId: "eternl" });
+  it("exposes the fee-payer toggle at k≥2 when an allowlisted wallet is connected (issue #147)", () => {
+    // No `advanced` flag — wallet-funded fan-out is reachable from the
+    // default surface as long as the wallet can handle it.
+    renderPanel({ walletId: "eternl" });
     fireEvent.click(screen.getByRole("button", { name: /Depth 2/i }));
     expect(screen.getByRole("group", { name: "Fee payer" })).toBeInTheDocument();
   });
 
+  it("also exposes the toggle at k=3 with an allowlisted wallet", () => {
+    renderPanel({ walletId: "eternl" });
+    fireEvent.click(screen.getByRole("button", { name: /Depth 3/i }));
+    expect(screen.getByRole("group", { name: "Fee payer" })).toBeInTheDocument();
+  });
+
   it("renders the load-bearing wallet-funded fan-out disclosure when the user picks the wallet path at k≥2", () => {
-    renderPanel({ advanced: true, walletId: "eternl" });
+    renderPanel({ walletId: "eternl" });
     fireEvent.click(screen.getByRole("button", { name: /Depth 2/i }));
     // Toggle is visible; flip it to wallet.
     const toggle = screen.getByRole("group", { name: "Fee payer" });
@@ -187,7 +188,7 @@ describe("MixPanel", () => {
   });
 
   it("does NOT render the disclosure when the user stays on the fee-shard path at k≥2", () => {
-    renderPanel({ advanced: true, walletId: "eternl" });
+    renderPanel({ walletId: "eternl" });
     fireEvent.click(screen.getByRole("button", { name: /Depth 2/i }));
     // Toggle is visible but stays on shard; no banner.
     expect(screen.queryByRole("alert")).toBeNull();
