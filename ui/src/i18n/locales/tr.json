@@ -442,7 +442,24 @@
     "fanout_entry_eyebrow": "Gizlilik takviyesi",
     "fanout_entry_title": "Yelpaze karışım başlat",
     "fanout_entry_lede": "Kendi box'larından birinden başlayan bir ağaçta birkaç Mix tx'ini zincirler. Kolun 9 veya daha fazlasından ayırt edilemez hale gelir.",
-    "fanout_entry_cta": "Yelpaze çalıştır"
+    "fanout_entry_cta": "Yelpaze çalıştır",
+    "seedelf": {
+      "eyebrow": "Gizli cüzdan",
+      "title": "Seedelf",
+      "lede": "Lovejoin kasanızın kilidini açan aynı cüzdan imzasından türetilen gizli cüzdan kayıtları. Her kayıt, ADA alabileceğiniz özel bir adrestir; yalnızca siz harcayabilirsiniz. seedelf-cli ile kullandığınız aynı zincir üstü Seedelf protokolü.",
+      "scanning": "Taranıyor…",
+      "rescan": "Yeniden tara",
+      "scan_failed": "Seedelf taraması başarısız: {{message}}",
+      "empty_title": "Henüz Seedelf yok",
+      "empty_hint": "İlk gizli kaydınızı seedelf-cli ile basabilir veya uygulama içi basım akışını bekleyebilirsiniz.",
+      "registers_label": "Kayıtlar",
+      "funds_label": "Bakiyeli UTxO'lar",
+      "balance_label": "Toplam bakiye",
+      "registers_heading": "Kayıtlarınız",
+      "index_label": "indeks {{i}}",
+      "actions_coming_soon": "Basma, gönderme ve harcama akışları sonraki bir güncellemede gelecek. Şimdilik gizli cüzdanınızı seedelf-cli ile yönetin.",
+      "balance_ada": "{{amount}} ADA"
+    }
   },
   "secret_card": {
     "title": "Bu sırrı şimdi kaydedin",

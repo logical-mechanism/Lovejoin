@@ -442,7 +442,24 @@
     "fanout_entry_eyebrow": "隐私增强",
     "fanout_entry_title": "启动扇出混合",
     "fanout_entry_lede": "把多笔 Mix tx 串成一棵从你拥有的 box 出发的树。你的分支最终在 9 个及以上分支中不可区分。",
-    "fanout_entry_cta": "启动扇出"
+    "fanout_entry_cta": "启动扇出",
+    "seedelf": {
+      "eyebrow": "隐身钱包",
+      "title": "Seedelf",
+      "lede": "由与解锁 Lovejoin 金库相同的钱包签名派生的隐身钱包注册。每个注册都是一个可接收 ADA 的私密地址；只有你才能花费。这是你通过 seedelf-cli 使用的同一链上 Seedelf 协议。",
+      "scanning": "扫描中…",
+      "rescan": "重新扫描",
+      "scan_failed": "Seedelf 扫描失败：{{message}}",
+      "empty_title": "尚无 Seedelf",
+      "empty_hint": "你可以使用 seedelf-cli 铸造第一个隐身注册，或等待应用内铸造流程上线。",
+      "registers_label": "注册",
+      "funds_label": "已存入的 UTxO",
+      "balance_label": "总余额",
+      "registers_heading": "你的注册",
+      "index_label": "索引 {{i}}",
+      "actions_coming_soon": "铸造、发送和支出流程将在后续更新中上线。目前请通过 seedelf-cli 管理你的隐身钱包。",
+      "balance_ada": "{{amount}} ADA"
+    }
   },
   "secret_card": {
     "title": "现在保存这个密钥",

@@ -442,7 +442,24 @@
     "fanout_entry_eyebrow": "Penguat privasi",
     "fanout_entry_title": "Jalankan mix berbentuk kipas",
     "fanout_entry_lede": "Merangkai beberapa tx Mix menjadi pohon yang dimulai dari salah satu box milikmu. Cabangmu menjadi tidak terbedakan di antara 9+ cabang lain.",
-    "fanout_entry_cta": "Jalankan kipas"
+    "fanout_entry_cta": "Jalankan kipas",
+    "seedelf": {
+      "eyebrow": "Dompet siluman",
+      "title": "Seedelf",
+      "lede": "Register dompet siluman yang diturunkan dari tanda tangan dompet yang sama yang membuka vault Lovejoin Anda. Setiap register adalah alamat pribadi untuk menerima ADA; hanya Anda yang dapat membelanjakannya. Protokol Seedelf on-chain yang sama yang Anda gunakan melalui seedelf-cli.",
+      "scanning": "Memindai…",
+      "rescan": "Pindai ulang",
+      "scan_failed": "Pemindaian Seedelf gagal: {{message}}",
+      "empty_title": "Belum ada Seedelf",
+      "empty_hint": "Anda dapat mencetak register siluman pertama dari seedelf-cli atau menunggu alur cetak dalam aplikasi.",
+      "registers_label": "Register",
+      "funds_label": "UTxO yang didanai",
+      "balance_label": "Saldo total",
+      "registers_heading": "Register Anda",
+      "index_label": "indeks {{i}}",
+      "actions_coming_soon": "Alur cetak, kirim, dan belanja hadir di pembaruan berikutnya. Untuk saat ini, kelola dompet siluman Anda dari seedelf-cli.",
+      "balance_ada": "{{amount}} ADA"
+    }
   },
   "secret_card": {
     "title": "Simpan secret ini sekarang",

@@ -10,6 +10,10 @@ Lovejoin follows [SemVer](https://semver.org/) starting at 0.3.0. Day-to-day wor
 
 ## [Unreleased]
 
+### Added
+
+- **Seedelf stealth-wallet integration.** The Vault now hosts a read-only Seedelf section that surfaces registers + funds owned by the active wallet seed. Same curve, same Schnorr shape, same collateral provider as Lovejoin's Mix flow; the per-register secret derivation is domain-separated from the Lovejoin owner derivation via the HKDF info tag `lovejoin/seedelf/v1`. The SDK ships plan helpers for mint / send / spend transactions, addresses for the canonical Seedelf deployment on Preprod + Mainnet, env-var overrides for operators running their own copy, and 40 unit tests. Mint / send / spend transactional UI flows ship in a follow-up update; today's surface is the scanner + balance display. See `docs/seedelf.md` for the wallet model and ITM caveats (#135).
+
 ## [0.4.0] - YYYY-MM-DD
 
 Preprod re-bootstrap that ships three on-chain audit follow-ups. Validator bytecode changes for `mix_logic`, `fee_contract`, and `one_shot_mint`; `mix_box` is unchanged. The off-chain SDK + backend + UI continue to ship against the live deployment, now pointing at the post-redeploy addresses. Mainnet deployment of the same on-chain code remains in preparation; the disclosure posture (no third-party audit, no bug bounty) is unchanged.

@@ -442,7 +442,24 @@
     "fanout_entry_eyebrow": "プライバシー強化",
     "fanout_entry_title": "ファンアウト・ミックスを実行",
     "fanout_entry_lede": "あなたの box の 1 つから始まるツリーに、複数の Mix tx をチェーンします。あなたの枝は 9 本以上の中で見分けがつかなくなります。",
-    "fanout_entry_cta": "ファンアウトを実行"
+    "fanout_entry_cta": "ファンアウトを実行",
+    "seedelf": {
+      "eyebrow": "ステルスウォレット",
+      "title": "Seedelf",
+      "lede": "Lovejoin ボールトを解除するのと同じウォレット署名から派生したステルスウォレットのレジスタ。各レジスタは ADA を受け取るためのプライベートアドレスで、使用できるのはあなただけです。seedelf-cli から使うのと同じオンチェーンの Seedelf プロトコルです。",
+      "scanning": "スキャン中…",
+      "rescan": "再スキャン",
+      "scan_failed": "Seedelf のスキャンに失敗しました: {{message}}",
+      "empty_title": "Seedelf はまだありません",
+      "empty_hint": "最初のステルスレジスタは seedelf-cli から鋳造するか、アプリ内の鋳造フローを待ってください。",
+      "registers_label": "レジスタ",
+      "funds_label": "資金付き UTxO",
+      "balance_label": "総残高",
+      "registers_heading": "あなたのレジスタ",
+      "index_label": "インデックス {{i}}",
+      "actions_coming_soon": "鋳造、送信、支払いのフローは次回のアップデートで提供します。当面はステルスウォレットを seedelf-cli から管理してください。",
+      "balance_ada": "{{amount}} ADA"
+    }
   },
   "secret_card": {
     "title": "このシークレットを今すぐ保存",

@@ -442,7 +442,24 @@
     "fanout_entry_eyebrow": "Refuerzo de privacidad",
     "fanout_entry_title": "Ejecutar mezcla en abanico",
     "fanout_entry_lede": "Encadena varias txs de Mix en un árbol partiendo de una de tus cajas. Tu rama acaba siendo indistinguible de otras 9 o más.",
-    "fanout_entry_cta": "Ejecutar abanico"
+    "fanout_entry_cta": "Ejecutar abanico",
+    "seedelf": {
+      "eyebrow": "Billetera sigilosa",
+      "title": "Seedelf",
+      "lede": "Registros de billetera sigilosa derivados de la misma firma de billetera que desbloquea tu bóveda Lovejoin. Cada registro es una dirección privada en la que puedes recibir ADA; solo tú puedes gastarlo. El mismo protocolo Seedelf en cadena que usas con seedelf-cli.",
+      "scanning": "Escaneando…",
+      "rescan": "Volver a escanear",
+      "scan_failed": "Escaneo de Seedelf falló: {{message}}",
+      "empty_title": "Aún no hay Seedelf",
+      "empty_hint": "Puedes acuñar tu primer registro sigiloso con seedelf-cli o esperar el flujo de acuñación en la app.",
+      "registers_label": "Registros",
+      "funds_label": "UTxO con fondos",
+      "balance_label": "Saldo total",
+      "registers_heading": "Tus registros",
+      "index_label": "índice {{i}}",
+      "actions_coming_soon": "Los flujos de acuñar, enviar y gastar llegarán en una actualización posterior. Por ahora, administra tu billetera sigilosa con seedelf-cli.",
+      "balance_ada": "{{amount}} ADA"
+    }
   },
   "secret_card": {
     "title": "Guarda este secreto ahora",
