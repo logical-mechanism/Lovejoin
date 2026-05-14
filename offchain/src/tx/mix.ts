@@ -767,6 +767,25 @@ export interface BuildMixArgs {
   /** If true, sign but don't submit. Default: false. */
   signOnly?: boolean;
   /**
+   * If true, return the unsigned tx CBOR without calling `wallet.signTx`
+   * or `provider.submitTx`. Used by the fan-out batch-sign path
+   * (`planFanoutTxs` → `submitFanoutBatch`) so every leaf in the tree
+   * is built first, then signed in one CIP-103 prompt, then submitted
+   * in order. The returned `MixResult.signedTxHex` is the empty string;
+   * the unsigned CBOR is on `unsignedTxHex` and the txId is derived
+   * from its tx-body hash (same value the chain will assign after
+   * submission, since witnesses don't affect the body hash).
+   *
+   * Skips the wallet-side signing step entirely. The collateral-host
+   * branch (external `signTxBody`) still runs because the host's vkey
+   * witness must already be merged before the wallet sees the tx —
+   * but that branch is irrelevant for the wallet-funded fan-out path
+   * (WalletProvider, no external host).
+   *
+   * Default: false (preserves the canonical sign+submit behavior).
+   */
+  buildOnly?: boolean;
+  /**
    * Retry on input collisions. Useful for shard mode under heavy mix
    * activity: if the picked fee shard was consumed by another tx
    * between build and submit, the SDK transparently re-picks a fresh
@@ -838,6 +857,14 @@ export interface BuildMixArgs {
 
 export interface MixResult {
   signedTxHex: string;
+  /**
+   * Same tx as `signedTxHex` but without any witnesses appended. Useful
+   * for batch-sign callers (`planFanoutTxs`) that hand the unsigned CBOR
+   * to `wallet.signTxs(...)` in one prompt. Always populated; in the
+   * default sign+submit path this is just the value `tx.complete()`
+   * returned before the wallet signature was merged.
+   */
+  unsignedTxHex: string;
   txId: Hex32;
   /** The plan the tx was built from — useful for callers that want to
    *  inspect the chosen permutation / output (a', b') for tracking. */
@@ -1466,6 +1493,27 @@ export async function buildMixTx(args: BuildMixArgs): Promise<MixResult> {
       }
     }
 
+    // buildOnly short-circuit: return the unsigned tx + derived txId
+    // without invoking the wallet or the chain submitter. Callers
+    // (planFanoutTxs) re-collect every slot's unsigned CBOR for one
+    // batch wallet.signTxs(...) prompt downstream. txId is derivable
+    // because Cardano's txId is the blake2b-256 hash of the tx body
+    // bytes, which witnesses don't touch.
+    if (args.buildOnly) {
+      const cstBuildOnly = await import("@meshsdk/core-cst");
+      const builtTxId = String(cstBuildOnly.resolveTxHash(unsignedTxHex));
+      console.log(
+        `[lovejoin/mix] buildOnly: skipping sign+submit; txId=${builtTxId.slice(0, 12)}…`,
+      );
+      return {
+        signedTxHex: "",
+        unsignedTxHex,
+        txId: builtTxId,
+        plan,
+        actualFeeLovelace,
+      };
+    }
+
     // Witness path. With GivemeMyProvider (the default for Mix) the user's
     // wallet does not sign at all — the host's vkey is the only signer the
     // tx needs. With WalletProvider the wallet signs the collateral input
@@ -1506,10 +1554,10 @@ export async function buildMixTx(args: BuildMixArgs): Promise<MixResult> {
     }
 
     if (args.signOnly) {
-      return { signedTxHex: signedTx, txId: "", plan, actualFeeLovelace };
+      return { signedTxHex: signedTx, unsignedTxHex, txId: "", plan, actualFeeLovelace };
     }
     const txId = await args.provider.submitTx(signedTx);
-    return { signedTxHex: signedTx, txId, plan, actualFeeLovelace };
+    return { signedTxHex: signedTx, unsignedTxHex, txId, plan, actualFeeLovelace };
   }, args.retry);
 }
 
