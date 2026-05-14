@@ -1,30 +1,30 @@
 // Off-main-thread vault scan.
 //
-// scanPool's inner loop is `maxIndex × |pool|` BLS12-381 G1 scalar muls.
-// On a ~50K-box pool with ~100 owned indices that's ~5M scalar muls and
-// several seconds of synchronous CPU even with the decompression cache
-// from the previous perf pass. Yielding every 4 indices helped the
-// browser stay painted but the wall-clock didn't change — the user still
-// waited, and on large vaults Chrome eventually pops the "Wait for app"
-// dialog.
-//
-// This worker runs the same loop off the main thread. Vite (`?worker` /
-// the URL+import.meta.url pattern) bundles it as a separate module-graph
-// entry, the BLS WASM initialises inside the worker, and the main thread
-// stays interactive throughout. The user keeps seeing the
-// "Loading your boxes…" hint instead of a frozen tab.
+// PR #150 moved the BLS scalar-mul loop here so the main thread no
+// longer freezes during unlock. This module then evolved to keep state
+// across messages — the decompression cache and the previous scan's
+// owned set live at module scope so each message after the first only
+// pays for the pool diff (see `scan-core.ts` for the algorithm). On a
+// healthy session that turns post-tx rescans from "5-15 s of
+// 'Loading your boxes…'" into "well under a second, no spinner".
 //
 // Wire shape:
 //
-//   main → worker  { seed, entries: { ref, a, b }[], maxIndex, minProbe }
-//   worker → main  { ownedIndices: { entryIdx, depositIndex, secret }[],
-//                    poolSize, nextDepositIndex }
+//   main → worker  { type: "scan", seed, entries, maxIndex, minProbe }
+//   main → worker  { type: "reset" }                — drop all caches
+//   worker → main  { hits, nextDepositIndex, poolSize, decompressed, scalarMuls }
+//
+// The "reset" message is sent by the main thread when the user re-locks
+// the vault and the worker is being kept alive (cheaper than spinning a
+// new worker; the BLS WASM init isn't free). The worker also detects
+// seed changes via a fingerprint check inside `runIncrementalScan` and
+// resets itself, but the explicit message is kept for callers that want
+// to be sure.
 //
 // We pass entries as flat-byte tuples rather than the SDK's `PoolEntry`
 // shape so the message stays structured-clone-friendly (no bigints in
 // the wire path). Owner secret is shipped back as a 32-byte hex so the
-// main thread can rehydrate the Scalar via the SDK's existing
-// `bytesToScalar` path.
+// main thread can rehydrate the Scalar via `BigInt("0x" + hex)`.
 
 // IMPORTANT: deep-import the leaf submodules instead of `@lovejoin/sdk`'s
 // barrel. The barrel re-exports the tx-builder / chain-provider layers
@@ -32,105 +32,43 @@
 // bundler ships without the wasm plugin chain the main app uses, so
 // importing the barrel from here crashes the production build with
 // "ESM integration proposal for Wasm is not supported". The crypto +
-// wallet seed modules are pure blst-ts + WebCrypto, no mesh, so the
-// worker bundles cleanly.
-import { deriveOwnerSecret } from "@lovejoin/sdk/wallet/seed";
-import { pointEqual, pointFromBytes, scalarMul, scalarToBytes } from "@lovejoin/sdk/crypto/bls";
+// wallet seed modules are pure noble-curves + WebCrypto, no mesh, so
+// the worker bundles cleanly. `scan-core.ts` is a sibling module that
+// imports from the same two leaf paths, so it inherits the same
+// guarantee.
+import { newScanState, resetScanState, runIncrementalScan } from "./scan-core.js";
+import type { ScanInput, ScanResponse } from "./scan-core.js";
 
-interface ScanRequest {
-  seed: Uint8Array;
-  /**
-   * Pool entries to scan. `ref` is opaque to the worker (passed through
-   * verbatim on the response) so we don't have to ship the full
-   * `PoolEntry` shape across `postMessage`.
-   */
-  entries: ReadonlyArray<{
-    ref: { txId: string; outputIndex: number };
-    a: Uint8Array;
-    b: Uint8Array;
-  }>;
-  maxIndex: number;
-  minProbe: number;
+interface ScanRequest extends ScanInput {
+  type: "scan";
 }
 
-interface ScanHit {
-  /** Index into the request's `entries` array — the main thread looks
-   *  up the actual `PoolEntry` from this. */
-  entryIdx: number;
-  depositIndex: number;
-  /** 64-hex master secret for `depositIndex` (consistent across hits
-   *  for the same `depositIndex`; the main thread dedupes by index). */
-  secretHex: string;
+interface ResetRequest {
+  type: "reset";
 }
 
-interface ScanResponse {
-  hits: ReadonlyArray<ScanHit>;
-  /** Highest depositIndex with a hit, +1 — what the next deposit should
-   *  claim. -1 + 1 = 0 when nothing was found. */
-  nextDepositIndex: number;
-  poolSize: number;
-}
+type WorkerRequest = ScanRequest | ResetRequest;
 
-self.onmessage = (event: MessageEvent<ScanRequest>) => {
-  const { seed, entries, maxIndex, minProbe } = event.data;
+const state = newScanState();
 
-  // Decompress (a, b) once per entry. Malformed entries are skipped —
-  // they can't be ours since validation at spend time would reject
-  // them anyway.
-  const decoded: Array<{
-    entryIdx: number;
-    aPt: ReturnType<typeof pointFromBytes>;
-    bPt: ReturnType<typeof pointFromBytes>;
-  }> = [];
-  for (let idx = 0; idx < entries.length; idx++) {
-    const e = entries[idx]!;
-    try {
-      decoded.push({ entryIdx: idx, aPt: pointFromBytes(e.a), bPt: pointFromBytes(e.b) });
-    } catch {
-      // skip
-    }
+self.onmessage = (event: MessageEvent<WorkerRequest>) => {
+  const req = event.data;
+  if (req.type === "reset") {
+    resetScanState(state);
+    return;
   }
-
-  const hits: ScanHit[] = [];
-  let lastHit = -1;
-  for (let i = 0; i < maxIndex; i++) {
-    const x = deriveOwnerSecret(seed, i);
-    let matchedAny = false;
-    let cachedSecretHex: string | null = null;
-    for (const d of decoded) {
-      if (pointEqual(scalarMul(x, d.aPt), d.bPt)) {
-        if (cachedSecretHex === null) {
-          cachedSecretHex = bytesToHex(scalarToBytes(x));
-        }
-        hits.push({
-          entryIdx: d.entryIdx,
-          depositIndex: i,
-          secretHex: cachedSecretHex,
-        });
-        matchedAny = true;
-      }
-    }
-    if (matchedAny) lastHit = i;
-    if (i - lastHit >= minProbe && lastHit >= 0) break;
-    if (i - lastHit >= minProbe && lastHit < 0 && i >= minProbe * 2) break;
-  }
-
-  const response: ScanResponse = {
-    hits,
-    nextDepositIndex: lastHit + 1,
-    poolSize: entries.length,
-  };
+  const response: ScanResponse = runIncrementalScan(state, {
+    seed: req.seed,
+    entries: req.entries,
+    maxIndex: req.maxIndex,
+    minProbe: req.minProbe,
+  });
   (self as unknown as Worker).postMessage(response);
 };
-
-function bytesToHex(b: Uint8Array): string {
-  let s = "";
-  for (const x of b) s += x.toString(16).padStart(2, "0");
-  return s;
-}
 
 // Surfaced so the main-side TypeScript can import the request/response
 // shapes without re-declaring them. The worker module's runtime entry
 // point is the `onmessage` handler above; these exports are
 // erased-at-runtime types only.
-export type { ScanRequest, ScanResponse, ScanHit };
+export type { ScanRequest, ResetRequest, WorkerRequest };
+export type { ScanResponse, ScanHit, ScanInput } from "./scan-core.js";

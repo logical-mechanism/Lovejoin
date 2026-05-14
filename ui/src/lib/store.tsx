@@ -43,11 +43,12 @@ import { BackendClient } from "./backend.js";
 import { loadAddresses, loadConfig, makeProvider, saveConfig, type RuntimeConfig } from "./sdk.js";
 import { useAfterFirstPaint } from "./use-after-first-paint.js";
 import {
-  scanPool,
+  createVaultScanner,
   unlockFromPassword,
   unlockFromWallet,
   type OwnedBox,
   type UnlockedSeed,
+  type VaultScanner,
   type VaultScanResult,
 } from "./vault.js";
 
@@ -325,13 +326,35 @@ export function AppStateProvider({ children, testOverrides }: AppStateProviderPr
     };
   }, [wallet, walletId]);
 
+  // Long-lived scanner. Holds the worker + decompression cache + previous
+  // scan's owned set across rescans so post-tx and tab-focus rescans pay
+  // only for the pool diff (see scan-core.ts). Disposed and recreated when
+  // (provider, addresses) change, and on lock so the next unlock starts
+  // from a clean cache instead of inheriting a different vault's state.
+  const scannerRef = useRef<VaultScanner | null>(null);
+  useEffect(() => {
+    if (!provider || !addresses) {
+      scannerRef.current?.dispose();
+      scannerRef.current = null;
+      return;
+    }
+    scannerRef.current?.dispose();
+    scannerRef.current = createVaultScanner({ provider, addresses });
+    return () => {
+      scannerRef.current?.dispose();
+      scannerRef.current = null;
+    };
+  }, [provider, addresses]);
+
   const runScan = useCallback(
     async (seed: Uint8Array) => {
       if (!provider || !addresses) return;
+      const scanner = scannerRef.current;
+      if (!scanner) return;
       setScanError(null);
       setScanInFlight(true);
       try {
-        const result = await scanPool({ seed, provider, addresses });
+        const result = await scanner.scan(seed);
         // Merge per-box `generation` from the indexer when a backend URL
         // is configured. The counter is indexer-only (the on-chain datum
         // has no room for it — see CLAUDE.md M4.5), so we degrade
@@ -467,6 +490,10 @@ export function AppStateProvider({ children, testOverrides }: AppStateProviderPr
     setScanError(null);
     pendingExpiryRef.current.clear();
     setPendingTxRefs(new Set());
+    // Drop the scanner's in-memory caches so a future unlock under a
+    // different seed/wallet starts cold instead of inheriting the
+    // previous vault's owned refs.
+    scannerRef.current?.reset();
   }, []);
 
   const rescan = useCallback(async () => {
