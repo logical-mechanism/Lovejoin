@@ -596,7 +596,7 @@
     "review_total_mixes": "Łączna liczba mixów",
     "review_boxes_touched": "Dotknięte boxy",
     "review_linkage": "Prawdopodobieństwo powiązania",
-    "review_linkage_value": "(1/3)^{{d}} po wykonaniu",
+    "review_linkage_value": "(1/{{n}})^{{d}} po wykonaniu",
     "review_total_fee": "Łączna opłata w najgorszym przypadku",
     "review_total_fee_value": "Do {{ada}} ADA we wszystkich mixach",
     "review_pool": "Pobranie z poolu",

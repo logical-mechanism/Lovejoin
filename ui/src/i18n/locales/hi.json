@@ -596,7 +596,7 @@
     "review_total_mixes": "कुल मिक्स",
     "review_boxes_touched": "छुए गए box",
     "review_linkage": "लिंकेज प्रायिकता",
-    "review_linkage_value": "चलाने के बाद (1/3)^{{d}}",
+    "review_linkage_value": "चलाने के बाद (1/{{n}})^{{d}}",
     "review_total_fee": "सबसे खराब स्थिति का कुल शुल्क",
     "review_total_fee_value": "सभी मिक्स पर अधिकतम {{ada}} ADA",
     "review_pool": "pool से चयन",

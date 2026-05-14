@@ -596,7 +596,7 @@
     "review_total_mixes": "Total mix",
     "review_boxes_touched": "Box yang disentuh",
     "review_linkage": "Probabilitas keterkaitan",
-    "review_linkage_value": "(1/3)^{{d}} setelah dijalankan",
+    "review_linkage_value": "(1/{{n}})^{{d}} setelah dijalankan",
     "review_total_fee": "Total biaya kasus terburuk",
     "review_total_fee_value": "Hingga {{ada}} ADA di seluruh mix",
     "review_pool": "Pengambilan dari pool",

@@ -596,7 +596,7 @@
     "review_total_mixes": "Mezclas totales",
     "review_boxes_touched": "Cajas tocadas",
     "review_linkage": "Probabilidad de enlace",
-    "review_linkage_value": "(1/3)^{{d}} tras la ejecución",
+    "review_linkage_value": "(1/{{n}})^{{d}} tras la ejecución",
     "review_total_fee": "Comisión total en el peor caso",
     "review_total_fee_value": "Hasta {{ada}} ADA en todas las mezclas",
     "review_pool": "Extracción del pool",

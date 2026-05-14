@@ -596,7 +596,7 @@
     "review_total_mixes": "کل مکس",
     "review_boxes_touched": "چھوئے گئے box",
     "review_linkage": "ربط احتمال",
-    "review_linkage_value": "چلانے کے بعد (1/3)^{{d}}",
+    "review_linkage_value": "چلانے کے بعد (1/{{n}})^{{d}}",
     "review_total_fee": "بدترین صورت کل فیس",
     "review_total_fee_value": "تمام مکس میں زیادہ سے زیادہ {{ada}} ADA",
     "review_pool": "pool سے انتخاب",

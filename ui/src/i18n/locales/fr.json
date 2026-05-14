@@ -596,7 +596,7 @@
     "review_total_mixes": "Mix totaux",
     "review_boxes_touched": "Boxes touchées",
     "review_linkage": "Probabilité de liaison",
-    "review_linkage_value": "(1/3)^{{d}} après l'exécution",
+    "review_linkage_value": "(1/{{n}})^{{d}} après l'exécution",
     "review_total_fee": "Frais totaux dans le pire cas",
     "review_total_fee_value": "Jusqu'à {{ada}} ADA pour tous les mixs",
     "review_pool": "Tirage du pool",

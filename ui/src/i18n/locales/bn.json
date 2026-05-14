@@ -596,7 +596,7 @@
     "review_total_mixes": "মোট মিক্স",
     "review_boxes_touched": "স্পর্শ করা box",
     "review_linkage": "লিংকেজ সম্ভাব্যতা",
-    "review_linkage_value": "চালানোর পর (1/3)^{{d}}",
+    "review_linkage_value": "চালানোর পর (1/{{n}})^{{d}}",
     "review_total_fee": "সবচেয়ে খারাপ ক্ষেত্রের মোট ফি",
     "review_total_fee_value": "সমস্ত মিক্স জুড়ে সর্বাধিক {{ada}} ADA",
     "review_pool": "Pool থেকে নির্বাচন",

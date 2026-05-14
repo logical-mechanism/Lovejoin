@@ -596,7 +596,7 @@
     "review_total_mixes": "Всего смешиваний",
     "review_boxes_touched": "Затронуто box",
     "review_linkage": "Вероятность связи",
-    "review_linkage_value": "(1/3)^{{d}} после запуска",
+    "review_linkage_value": "(1/{{n}})^{{d}} после запуска",
     "review_total_fee": "Худшая суммарная комиссия",
     "review_total_fee_value": "До {{ada}} ADA на все смешивания",
     "review_pool": "Выборка из пула",

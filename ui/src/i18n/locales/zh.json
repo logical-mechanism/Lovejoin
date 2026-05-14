@@ -596,7 +596,7 @@
     "review_total_mixes": "总混合数",
     "review_boxes_touched": "触及 box 数",
     "review_linkage": "关联概率",
-    "review_linkage_value": "运行后 (1/3)^{{d}}",
+    "review_linkage_value": "运行后 (1/{{n}})^{{d}}",
     "review_total_fee": "最坏情况总费用",
     "review_total_fee_value": "全部混合最多 {{ada}} ADA",
     "review_pool": "池中抽取",

@@ -249,7 +249,7 @@
     "review_total_mixes": "Total mixes",
     "review_boxes_touched": "Boxes touched",
     "review_linkage": "Linkage probability",
-    "review_linkage_value": "(1/3)^{{d}} after the run",
+    "review_linkage_value": "(1/{{n}})^{{d}} after the run",
     "review_total_fee": "Worst-case total fee",
     "review_total_fee_value": "Up to {{ada}} ADA across all mixes",
     "review_pool": "Pool draw",

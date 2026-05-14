@@ -340,6 +340,7 @@ export function MixPanel(props: MixPanelProps) {
           totalMixes={fanout.stats.totalMixes}
           boxesTouched={fanout.stats.boxesTouched}
           depth={intensity}
+          n={n}
           totalFeeLovelace={fanout.stats.totalFeeLovelace}
           freshAvailable={fanout.eligiblePool.length}
           freshNeeded={fanout.stats.freshNeeded}
@@ -459,7 +460,7 @@ export function MixPanel(props: MixPanelProps) {
           <div className="flex justify-between gap-4">
             <dt className="lj-eyebrow">{t("fanout.review_linkage")}</dt>
             <dd className="text-sm text-paper">
-              {t("fanout.review_linkage_value", { d: intensity })}
+              {t("fanout.review_linkage_value", { d: intensity, n })}
             </dd>
           </div>
           <div className="flex justify-between gap-4">
@@ -570,6 +571,7 @@ function FanoutReviewBlock({
   totalMixes,
   boxesTouched,
   depth,
+  n,
   totalFeeLovelace,
   freshAvailable,
   freshNeeded,
@@ -577,6 +579,7 @@ function FanoutReviewBlock({
   totalMixes: number;
   boxesTouched: number;
   depth: number;
+  n: number;
   totalFeeLovelace: bigint;
   freshAvailable: number;
   freshNeeded: number;
@@ -600,7 +603,7 @@ function FanoutReviewBlock({
         </div>
         <div className="lj-review__row">
           <dt className="lj-review__label">{t("fanout.review_linkage")}</dt>
-          <dd className="lj-review__value">{t("fanout.review_linkage_value", { d: depth })}</dd>
+          <dd className="lj-review__value">{t("fanout.review_linkage_value", { d: depth, n })}</dd>
         </div>
         <div className="lj-review__row">
           <dt className="lj-review__label">{t("fanout.review_total_fee")}</dt>

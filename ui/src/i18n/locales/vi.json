@@ -596,7 +596,7 @@
     "review_total_mixes": "Tổng số trộn",
     "review_boxes_touched": "Box đã chạm",
     "review_linkage": "Xác suất liên kết",
-    "review_linkage_value": "(1/3)^{{d}} sau khi chạy",
+    "review_linkage_value": "(1/{{n}})^{{d}} sau khi chạy",
     "review_total_fee": "Phí tổng trường hợp xấu nhất",
     "review_total_fee_value": "Tối đa {{ada}} ADA trên tất cả các trộn",
     "review_pool": "Rút từ pool",

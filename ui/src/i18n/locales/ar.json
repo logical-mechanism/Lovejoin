@@ -596,7 +596,7 @@
     "review_total_mixes": "إجمالي الخلطات",
     "review_boxes_touched": "الصناديق التي لُمست",
     "review_linkage": "احتمال الارتباط",
-    "review_linkage_value": "(1/3)^{{d}} بعد التشغيل",
+    "review_linkage_value": "(1/{{n}})^{{d}} بعد التشغيل",
     "review_total_fee": "إجمالي الرسوم في أسوأ الحالات",
     "review_total_fee_value": "حتى {{ada}} ADA عبر كل الخلطات",
     "review_pool": "السحب من المسبح",
