@@ -961,6 +961,7 @@ export async function buildMixTx(args: BuildMixArgs): Promise<MixResult> {
             });
     }
 
+    const planStart = Date.now();
     const plan = planMixTx({
       inputs: args.inputs,
       ...(args.ySecrets ? { ySecrets: args.ySecrets } : {}),
@@ -972,6 +973,9 @@ export async function buildMixTx(args: BuildMixArgs): Promise<MixResult> {
       networkId,
       ...(args.txFeeLovelace !== undefined ? { txFeeLovelace: args.txFeeLovelace } : {}),
     });
+    console.log(
+      `[lovejoin/mix] planMixTx done in ${Date.now() - planStart}ms (N=${plan.inputs.length})`,
+    );
 
     // Cross-check: every proof must verify locally. If any fail it's a
     // critical encoding-parity bug — abort before we burn fees.
@@ -991,15 +995,19 @@ export async function buildMixTx(args: BuildMixArgs): Promise<MixResult> {
     // Cardano's collateralPercent is 150 — required collateral covers
     // 1.5x the tx fee. We pin to 5_000_000 lovelace as a generous default
     // (max_fee is sub-1-ADA so 5 ADA is well over).
+    const prepCollStart = Date.now();
     const preparedCollateral = await collateralProvider.prepareCollateral({
       provider: args.provider,
       collateralAmountLovelace: 5_000_000n,
     });
+    console.log(`[lovejoin/mix] prepareCollateral done in ${Date.now() - prepCollStart}ms`);
 
+    const meshInitStart = Date.now();
     const meshCore = await import("@meshsdk/core");
     const { MeshTxBuilder } = meshCore;
     const meshProvider = await getMeshProvider(args.provider);
     const meshParams = await getMeshProtocolParams(args.provider);
+    console.log(`[lovejoin/mix] mesh init done in ${Date.now() - meshInitStart}ms`);
 
     // chainFrom resolution. If the caller is chaining onto an in-flight
     // parent (Deposit / Replenish / prior Mix), convert the parent's
@@ -1300,11 +1308,21 @@ export async function buildMixTx(args: BuildMixArgs): Promise<MixResult> {
       tx.txEvaluationMultiplier = 1;
       populate(tx, feeOverride);
       const completeStart = Date.now();
-      const result = await tx.complete();
-      console.log(
-        `[lovejoin/mix] mesh.complete() pass ${passLabel} done in ${Date.now() - completeStart}ms`,
-      );
-      return result;
+      try {
+        const result = await tx.complete();
+        console.log(
+          `[lovejoin/mix] mesh.complete() pass ${passLabel} ok in ${Date.now() - completeStart}ms`,
+        );
+        return result;
+      } catch (err) {
+        // Also log on failure: pass 2 (fee-discovery) frequently throws
+        // when mesh-csl disagrees with our minFee, and the throw branch
+        // is silent without this. The error itself propagates as before.
+        console.log(
+          `[lovejoin/mix] mesh.complete() pass ${passLabel} threw in ${Date.now() - completeStart}ms`,
+        );
+        throw err;
+      }
     };
 
     // Build pass(es).
