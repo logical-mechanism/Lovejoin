@@ -35,6 +35,7 @@ import { useAppState } from "../lib/store.js";
 import { Eyebrow } from "../components/ui/Eyebrow.js";
 import { MixReview } from "../components/MixReview.js";
 import { RecoverPasswordPanel } from "../components/RecoverPasswordPanel.js";
+import { SeedelfPanel } from "../components/SeedelfPanel.js";
 import { TxBuildProgress } from "../components/TxBuildProgress.js";
 import { VaultTable } from "../components/VaultTable.js";
 import { WithdrawForm } from "../components/WithdrawForm.js";
@@ -321,6 +322,8 @@ function UnlockedVault() {
           if (target) void runMix(target);
         }}
       />
+
+      <SeedelfPanel />
     </section>
   );
 }

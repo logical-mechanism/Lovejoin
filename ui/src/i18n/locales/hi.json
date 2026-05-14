@@ -442,7 +442,24 @@
     "fanout_entry_eyebrow": "गोपनीयता बूस्ट",
     "fanout_entry_title": "फैन-आउट मिक्स चलाएँ",
     "fanout_entry_lede": "अपनी एक box से शुरू होकर कई Mix tx को एक पेड़ में जोड़ता है। आपकी शाखा 9 या उससे अधिक के बीच पहचानने योग्य नहीं रहती।",
-    "fanout_entry_cta": "फैन-आउट चलाएँ"
+    "fanout_entry_cta": "फैन-आउट चलाएँ",
+    "seedelf": {
+      "eyebrow": "स्टेल्थ वॉलेट",
+      "title": "Seedelf",
+      "lede": "वही वॉलेट सिग्नेचर जो आपकी Lovejoin वॉल्ट खोलता है, उसी से प्राप्त स्टेल्थ-वॉलेट रजिस्टर। प्रत्येक रजिस्टर एक निजी पता है जिस पर आप ADA प्राप्त कर सकते हैं; केवल आप ही खर्च कर सकते हैं। वही ऑन-चेन Seedelf प्रोटोकॉल जिसे आप seedelf-cli के माध्यम से उपयोग करते हैं।",
+      "scanning": "स्कैन हो रहा है…",
+      "rescan": "फिर से स्कैन करें",
+      "scan_failed": "Seedelf स्कैन विफल: {{message}}",
+      "empty_title": "अभी कोई Seedelf नहीं",
+      "empty_hint": "अपना पहला स्टेल्थ रजिस्टर seedelf-cli से बना सकते हैं या इन-ऐप मिंट फ्लो की प्रतीक्षा कर सकते हैं।",
+      "registers_label": "रजिस्टर",
+      "funds_label": "फंडेड UTxO",
+      "balance_label": "कुल शेष",
+      "registers_heading": "आपके रजिस्टर",
+      "index_label": "इंडेक्स {{i}}",
+      "actions_coming_soon": "मिंट, सेंड और स्पेंड फ्लो एक अनुवर्ती अपडेट में आ रहे हैं। फिलहाल, अपने स्टेल्थ वॉलेट को seedelf-cli से प्रबंधित करें।",
+      "balance_ada": "{{amount}} ADA"
+    }
   },
   "secret_card": {
     "title": "यह secret अभी सहेजें",

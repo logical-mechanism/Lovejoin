@@ -442,7 +442,24 @@
     "fanout_entry_eyebrow": "Wzmocnienie prywatności",
     "fanout_entry_title": "Uruchom mix rozgałęziony",
     "fanout_entry_lede": "Łączy kilka tx Mix w drzewo startujące od jednej z twoich box. Twoja gałąź staje się nierozróżnialna spośród 9 lub więcej.",
-    "fanout_entry_cta": "Uruchom rozgałęzienie"
+    "fanout_entry_cta": "Uruchom rozgałęzienie",
+    "seedelf": {
+      "eyebrow": "Ukryty portfel",
+      "title": "Seedelf",
+      "lede": "Rejestry ukrytego portfela wyprowadzone z tego samego podpisu portfela, który odblokowuje twój sejf Lovejoin. Każdy rejestr to prywatny adres do odbioru ADA; tylko ty możesz wydać. Ten sam protokół Seedelf on-chain, którego używasz przez seedelf-cli.",
+      "scanning": "Skanowanie…",
+      "rescan": "Skanuj ponownie",
+      "scan_failed": "Skanowanie Seedelf nie powiodło się: {{message}}",
+      "empty_title": "Brak Seedelfów",
+      "empty_hint": "Pierwszy rejestr ukryty możesz wykuć przez seedelf-cli lub poczekać na proces wykuwania w aplikacji.",
+      "registers_label": "Rejestry",
+      "funds_label": "Zasilone UTxO",
+      "balance_label": "Łączne saldo",
+      "registers_heading": "Twoje rejestry",
+      "index_label": "indeks {{i}}",
+      "balance_ada": "{{amount}} ADA",
+      "actions_coming_soon": "Procesy wykuwania, wysyłania i wydawania pojawią się w kolejnej aktualizacji. Na razie zarządzaj ukrytym portfelem przez seedelf-cli."
+    }
   },
   "secret_card": {
     "title": "Zapisz teraz ten sekret",

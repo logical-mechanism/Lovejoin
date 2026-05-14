@@ -442,7 +442,24 @@
     "fanout_entry_eyebrow": "Renforcement de confidentialité",
     "fanout_entry_title": "Lancer un mix en éventail",
     "fanout_entry_lede": "Enchaînez plusieurs txs de Mix en un arbre à partir d'une de vos boxes. Votre branche devient indistinguable parmi 9 autres ou plus.",
-    "fanout_entry_cta": "Lancer l'éventail"
+    "fanout_entry_cta": "Lancer l'éventail",
+    "seedelf": {
+      "eyebrow": "Portefeuille furtif",
+      "title": "Seedelf",
+      "lede": "Registres de portefeuille furtif dérivés de la même signature de portefeuille qui déverrouille votre coffre Lovejoin. Chaque registre est une adresse privée pour recevoir des ADA ; vous seul pouvez la dépenser. Le même protocole Seedelf on-chain que vous utilisez via seedelf-cli.",
+      "scanning": "Analyse…",
+      "rescan": "Relancer l'analyse",
+      "scan_failed": "Échec de l'analyse Seedelf : {{message}}",
+      "empty_title": "Pas encore de Seedelf",
+      "empty_hint": "Vous pouvez frapper votre premier registre furtif depuis seedelf-cli ou attendre le flux de frappe dans l'app.",
+      "registers_label": "Registres",
+      "funds_label": "UTxO financés",
+      "balance_label": "Solde total",
+      "registers_heading": "Vos registres",
+      "index_label": "index {{i}}",
+      "actions_coming_soon": "Les flux de frappe, d'envoi et de dépense arriveront dans une mise à jour ultérieure. En attendant, gérez votre portefeuille furtif depuis seedelf-cli.",
+      "balance_ada": "{{amount}} ADA"
+    }
   },
   "secret_card": {
     "title": "Sauvegardez ce secret maintenant",

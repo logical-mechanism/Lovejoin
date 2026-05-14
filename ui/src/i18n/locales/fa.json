@@ -442,7 +442,24 @@
     "fanout_entry_eyebrow": "تقویت حریم خصوصی",
     "fanout_entry_title": "اجرای فن‌اوت Mix",
     "fanout_entry_lede": "چند تراکنش Mix را در درختی به‌هم زنجیر می‌کند که از یکی از box‌های شما آغاز می‌شود. شاخهٔ شما در میان ۹ شاخه یا بیشتر غیرقابل تمایز می‌گردد.",
-    "fanout_entry_cta": "اجرای فن‌اوت"
+    "fanout_entry_cta": "اجرای فن‌اوت",
+    "seedelf": {
+      "eyebrow": "کیف پول مخفی",
+      "title": "Seedelf",
+      "lede": "ثبت‌های کیف پول مخفی که از همان امضای کیف پولی که قفل صندوق Lovejoin شما را باز می‌کند مشتق شده‌اند. هر ثبت یک آدرس خصوصی برای دریافت ADA است؛ فقط شما می‌توانید خرج کنید. همان پروتکل آن‌چین Seedelf که از طریق seedelf-cli استفاده می‌کنید.",
+      "scanning": "در حال اسکن…",
+      "rescan": "اسکن مجدد",
+      "scan_failed": "اسکن Seedelf ناموفق بود: {{message}}",
+      "empty_title": "هنوز Seedelf ندارید",
+      "empty_hint": "می‌توانید اولین ثبت مخفی خود را از seedelf-cli ضرب کنید یا منتظر جریان ضرب درون برنامه‌ای بمانید.",
+      "registers_label": "ثبت‌ها",
+      "funds_label": "UTxO های دارای موجودی",
+      "balance_label": "مانده کل",
+      "registers_heading": "ثبت‌های شما",
+      "index_label": "اندیس {{i}}",
+      "actions_coming_soon": "جریان‌های ضرب، ارسال و خرج در به‌روزرسانی بعدی منتشر می‌شوند. در حال حاضر کیف پول مخفی خود را با seedelf-cli مدیریت کنید.",
+      "balance_ada": "{{amount}} ADA"
+    }
   },
   "secret_card": {
     "title": "این راز را همین حالا ذخیره کنید",

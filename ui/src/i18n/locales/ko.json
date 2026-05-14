@@ -442,7 +442,24 @@
     "fanout_entry_eyebrow": "프라이버시 부스트",
     "fanout_entry_title": "팬아웃 믹스 실행",
     "fanout_entry_lede": "본인 box 중 하나에서 시작하는 트리로 여러 Mix tx를 연결합니다. 본인 분기가 9개 이상의 다른 분기와 구분되지 않습니다.",
-    "fanout_entry_cta": "팬아웃 실행"
+    "fanout_entry_cta": "팬아웃 실행",
+    "seedelf": {
+      "eyebrow": "스텔스 지갑",
+      "title": "Seedelf",
+      "lede": "Lovejoin 볼트를 잠금 해제하는 것과 동일한 지갑 서명에서 파생된 스텔스 지갑 레지스터. 각 레지스터는 ADA를 받을 수 있는 개인 주소이며, 사용은 본인만 가능합니다. seedelf-cli로 사용하는 것과 동일한 온체인 Seedelf 프로토콜입니다.",
+      "scanning": "스캔 중…",
+      "rescan": "다시 스캔",
+      "scan_failed": "Seedelf 스캔 실패: {{message}}",
+      "empty_title": "아직 Seedelf 없음",
+      "empty_hint": "첫 스텔스 레지스터는 seedelf-cli에서 발행하거나 인앱 발행 흐름을 기다리세요.",
+      "registers_label": "레지스터",
+      "funds_label": "자금 있는 UTxO",
+      "balance_label": "총 잔액",
+      "registers_heading": "당신의 레지스터",
+      "index_label": "인덱스 {{i}}",
+      "actions_coming_soon": "발행, 전송, 지출 흐름은 후속 업데이트에서 제공됩니다. 지금은 seedelf-cli에서 스텔스 지갑을 관리하세요.",
+      "balance_ada": "{{amount}} ADA"
+    }
   },
   "secret_card": {
     "title": "이 시크릿을 지금 저장하세요",

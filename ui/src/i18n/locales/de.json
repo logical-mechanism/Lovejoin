@@ -442,7 +442,24 @@
     "fanout_entry_eyebrow": "Privatsphären-Boost",
     "fanout_entry_title": "Fan-out-Mix starten",
     "fanout_entry_lede": "Verkettet mehrere Mix-txs zu einem Baum ausgehend von einer deiner Boxes. Dein Zweig wird ununterscheidbar von 9 oder mehr anderen.",
-    "fanout_entry_cta": "Fan-out starten"
+    "fanout_entry_cta": "Fan-out starten",
+    "seedelf": {
+      "eyebrow": "Stealth-Wallet",
+      "title": "Seedelf",
+      "lede": "Stealth-Wallet-Register, abgeleitet aus derselben Wallet-Signatur, die Ihre Lovejoin-Vault entsperrt. Jedes Register ist eine private Adresse, an die Sie ADA empfangen können; nur Sie können sie ausgeben. Dasselbe On-Chain-Seedelf-Protokoll, das Sie über seedelf-cli verwenden.",
+      "scanning": "Scannen…",
+      "rescan": "Neu scannen",
+      "scan_failed": "Seedelf-Scan fehlgeschlagen: {{message}}",
+      "empty_title": "Noch kein Seedelf",
+      "empty_hint": "Sie können Ihr erstes Stealth-Register über seedelf-cli prägen oder auf den In-App-Mint-Flow warten.",
+      "registers_label": "Register",
+      "funds_label": "Finanzierte UTxOs",
+      "balance_label": "Gesamtguthaben",
+      "registers_heading": "Ihre Register",
+      "index_label": "Index {{i}}",
+      "actions_coming_soon": "Mint-, Send- und Spend-Flows kommen in einem nachfolgenden Update. Verwalten Sie Ihre Stealth-Wallet vorerst über seedelf-cli.",
+      "balance_ada": "{{amount}} ADA"
+    }
   },
   "secret_card": {
     "title": "Dieses Geheimnis jetzt sichern",

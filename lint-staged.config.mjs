@@ -22,8 +22,11 @@ export default {
   "*.{ts,tsx,mts,cts,js,jsx,mjs,cjs,json,md,yml,yaml,css}": ["prettier --write"],
 
   // Lint TS / TSX with eslint --fix. Scoped to source workspaces.
+  // `--no-warn-ignored` keeps eslint quiet when lint-staged hands it a file
+  // matched by `ignores:` in eslint.config.js (e.g. *.d.ts), so editing an
+  // `env.d.ts` doesn't fail the pre-commit hook on a max-warnings tripwire.
   "{offchain,backend,ui,integration-tests,stress-tests}/**/*.{ts,tsx,js,jsx}": [
-    "eslint --fix --max-warnings=0",
+    "eslint --fix --max-warnings=0 --no-warn-ignored",
   ],
 
   // Per-workspace typecheck if any TS file in that workspace was touched.

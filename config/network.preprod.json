@@ -19,5 +19,13 @@
   },
   "ogmios_url": null,
   "dbsync_url": null,
-  "collateral_provider_endpoint": "https://giveme.my"
+  "collateral_provider_endpoint": "https://giveme.my",
+  "seedelf": {
+    "wallet_script_hash": "94bca9c099e84ffd90d150316bb44c31a78702239076a0a80ea4a469",
+    "seedelf_policy_id": "84967d911e1a10d5b4a38441879f374a07f340945bcf9e7697485255",
+    "wallet_reference_utxo_ref": "51f12c1a5c2b0558a284628d81b06dee50b27693242fe35618c5f921730c0527#1",
+    "seedelf_reference_utxo_ref": "f3955f42f660fae8b3e4dcf664011876cf769d87aa8450dc73171b4f6b5f520b#1",
+    "wallet_reference_script_size": 629,
+    "seedelf_reference_script_size": 519
+  }
 }
