@@ -149,9 +149,20 @@ export interface CreateVaultScannerArgs {
 }
 
 export function createVaultScanner(args: CreateVaultScannerArgs): VaultScanner {
-  const denomLovelace = BigInt(args.addresses.protocol.denom_lovelace);
-  const networkId: 0 | 1 = args.addresses.network === "mainnet" ? 1 : 0;
-  const mixBoxAddress = buildScriptAddress(args.addresses.mixBoxScriptHash, networkId);
+  // Address derivation is lazy so test harnesses that pass placeholder
+  // `addresses` (e.g. MixPanel tests with no real script hash) don't
+  // crash the moment they mount the store; they only fail if they
+  // actually call `scan()`.
+  let mixBoxAddress: string | null = null;
+  let denomLovelace: bigint | null = null;
+  function ensureAddress(): { mixBoxAddress: string; denomLovelace: bigint } {
+    if (mixBoxAddress === null || denomLovelace === null) {
+      const networkId: 0 | 1 = args.addresses.network === "mainnet" ? 1 : 0;
+      mixBoxAddress = buildScriptAddress(args.addresses.mixBoxScriptHash, networkId);
+      denomLovelace = BigInt(args.addresses.protocol.denom_lovelace);
+    }
+    return { mixBoxAddress, denomLovelace };
+  }
 
   // Inline-mode state. Used either when no Worker is available or when
   // a worker error promoted the scanner into permanent inline mode.
@@ -232,6 +243,7 @@ export function createVaultScanner(args: CreateVaultScannerArgs): VaultScanner {
       if (disposed) throw new Error("vault scanner disposed");
       const maxIndex = opts?.maxIndex ?? MAX_INDEX_SCAN;
       const minProbe = opts?.minProbe ?? 8;
+      const { mixBoxAddress, denomLovelace } = ensureAddress();
       const pool = await fetchPool({
         provider: args.provider,
         mixBoxAddressBech32: mixBoxAddress,
