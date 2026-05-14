@@ -221,7 +221,14 @@
     "review_collateral_value_wallet": "Fourni par votre portefeuille connecté",
     "review_linkage_value": "1/{{n}} par tour",
     "confirm_lede_shard": "Lovejoin choisira N boxes au hasard, demandera du collatéral au service configuré et soumettra la tx de Mix. En mode shard, vous ne signez rien ; le portefeuille reste hors de la tx.",
-    "confirm_lede_wallet": "Lovejoin choisira N boxes au hasard et soumettra la tx de Mix. Votre portefeuille paiera les frais, fournira le collatéral et signera."
+    "confirm_lede_wallet": "Lovejoin choisira N boxes au hasard et soumettra la tx de Mix. Votre portefeuille paiera les frais, fournira le collatéral et signera.",
+    "intensity_eyebrow": "Intensité",
+    "intensity_option_fanout": "Profondeur {{k}}",
+    "intensity_hint_fanout": "Éventail de profondeur {{k}} : {{mixes}} txs de Mix au total, à partir d'une de vos boxes.",
+    "vault_locked_at_depth": "Le coffre est verrouillé. La profondeur ≥ 2 a besoin d'une box que vous possédez pour enraciner l'arbre ; déverrouillez d'abord le coffre.",
+    "intensity_option_random": "Aléatoire",
+    "intensity_hint_random": "Une tx de Mix vers le pool partagé. Probabilité de liaison 1/3 par tour ; la tx reste anonyme côté wallet en mode fee shard.",
+    "depth_needs_wallet": "La profondeur ≥ 2 fait dériver l'arbre d'une de vos boxes. Connectez un wallet pour déverrouiller le coffre."
   },
   "deposit": {
     "section_title": "Dépôt",
@@ -425,7 +432,11 @@
     "mix_row_confirm_lede": "Soumet une tx de mix à frais de shard qui inclut cette boîte plus {{n}} - 1 autres boîtes choisies au hasard dans la pool active. La wallet reste hors de la tx ; les frais sont payés par un fee shard. Le compteur de tours de cette boîte augmente d'un une fois la tx confirmée.",
     "mix_row_confirm_submit": "Mixer cette boîte",
     "mix_disabled_collateral": "Fournisseur de collatéral injoignable. La soumission de mix est désactivée.",
-    "mix_disabled_pool": "Pool trop petite pour mixer cette boîte. Il faut {{need}} boîtes actives ; il y en a {{have}}."
+    "mix_disabled_pool": "Pool trop petite pour mixer cette boîte. Il faut {{need}} boîtes actives ; il y en a {{have}}.",
+    "fanout_entry_eyebrow": "Renforcement de confidentialité",
+    "fanout_entry_title": "Lancer un mix en éventail",
+    "fanout_entry_lede": "Enchaînez plusieurs txs de Mix en un arbre à partir d'une de vos boxes. Votre branche devient indistinguable parmi 9 autres ou plus.",
+    "fanout_entry_cta": "Lancer l'éventail"
   },
   "secret_card": {
     "title": "Sauvegardez ce secret maintenant",
@@ -567,5 +578,40 @@
       "withdraw_h": "Retrait",
       "withdraw_p1": "La dernière étape. Tu dépenses une de tes boîtes vers une adresse de destination en utilisant une preuve Schnorr de connaissance du secret de propriétaire. Aucune signature de portefeuille n'est nécessaire sur la boîte elle-même, donc la destination n'a pas de lien on-chain avec le portefeuille qui a déposé à l'origine."
     }
+  },
+  "fanout": {
+    "eyebrow": "Renforcement de confidentialité",
+    "section_title": "Mix en éventail",
+    "lede": "Enchaînez plusieurs txs de Mix en un arbre de profondeur k partant d'une de vos boxes. Après chaque vague, chaque box que vous avez touchée est re-mixée avec deux boxes fraîches du pool. Votre branche devient l'une de 3^k branches indistinguables avec une probabilité de liaison (1/3)^k.",
+    "depth_label": "Profondeur",
+    "depth_option": "k = {{d}}",
+    "depth_hint": "La profondeur {{d}} mixe votre branche dans 3^{{d}} branches indistinguables. Probabilité de liaison après l'exécution : {{percent}} %.",
+    "review_title": "Aperçu du plan",
+    "review_total_mixes": "Mix totaux",
+    "review_boxes_touched": "Boxes touchées",
+    "review_linkage": "Probabilité de liaison",
+    "review_linkage_value": "(1/3)^{{d}} après l'exécution",
+    "review_total_fee": "Frais totaux dans le pire cas",
+    "review_total_fee_value": "Jusqu'à {{ada}} ADA pour tous les mixs",
+    "review_pool": "Tirage du pool",
+    "review_pool_value": "{{have}} boxes fraîches disponibles, {{need}} nécessaires",
+    "gate_no_owned_boxes": "Déverrouillez votre coffre et déposez au moins une box pour lancer un éventail depuis une box que vous possédez.",
+    "gate_pool_too_small": "Pool trop petit : {{have}} boxes fraîches disponibles, l'éventail à cette profondeur en demande {{need}}.",
+    "run_button": "Lancer un éventail profondeur {{d}}",
+    "running": "Éventail profondeur {{d}} en cours…",
+    "cancel_button": "Arrêter le suivi",
+    "confirm_eyebrow": "Vérification finale",
+    "confirm_title": "Confirmer l'envoi de l'éventail",
+    "confirm_lede": "Lovejoin enverra {{count}} txs de Mix touchant {{boxes}} mix-boxes au total, avec des frais au pire cas allant jusqu'à {{ada}} ADA. Chaque tx est anonyme côté portefeuille en mode shard ; le service de collatéral signe chaque tx.",
+    "confirm_submit": "Confirmer et envoyer",
+    "progress_title": "Progression de l'éventail",
+    "progress_summary": "{{done}} sur {{total}} mixs traités · {{submitted}} envoyés · {{failed}} abandonnés",
+    "progress_current_wave": "Actuellement sur la vague {{wave}}",
+    "progress_dropped": "{{count}} mix(s) abandonné(s) car leur tx parente a échoué",
+    "toast_success": "Éventail terminé — {{count}} mix(s) envoyé(s)",
+    "toast_partial": "Éventail terminé avec des erreurs — {{submitted}} envoyés, {{failed}} abandonnés",
+    "toast_failed": "Éventail échoué",
+    "gate_owned_in_flight": "Toutes vos boxes sont encore en vol depuis une tx précédente. Attendez le prochain bloc et réessayez.",
+    "progress_slow_hint": "Cette étape prend plus de temps que d'habitude. À mesure que la chaîne de l'éventail s'allonge, le nœud Cardano revalide chaque transaction en attente avant d'en accepter une nouvelle ; les étapes plus profondes peuvent ajouter quelques secondes. Les tx envoyées seront tout de même incluses dans le prochain bloc."
   }
 }

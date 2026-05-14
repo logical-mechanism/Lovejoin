@@ -961,6 +961,7 @@ export async function buildMixTx(args: BuildMixArgs): Promise<MixResult> {
             });
     }
 
+    const planStart = Date.now();
     const plan = planMixTx({
       inputs: args.inputs,
       ...(args.ySecrets ? { ySecrets: args.ySecrets } : {}),
@@ -972,6 +973,9 @@ export async function buildMixTx(args: BuildMixArgs): Promise<MixResult> {
       networkId,
       ...(args.txFeeLovelace !== undefined ? { txFeeLovelace: args.txFeeLovelace } : {}),
     });
+    console.log(
+      `[lovejoin/mix] planMixTx done in ${Date.now() - planStart}ms (N=${plan.inputs.length})`,
+    );
 
     // Cross-check: every proof must verify locally. If any fail it's a
     // critical encoding-parity bug — abort before we burn fees.
@@ -991,15 +995,19 @@ export async function buildMixTx(args: BuildMixArgs): Promise<MixResult> {
     // Cardano's collateralPercent is 150 — required collateral covers
     // 1.5x the tx fee. We pin to 5_000_000 lovelace as a generous default
     // (max_fee is sub-1-ADA so 5 ADA is well over).
+    const prepCollStart = Date.now();
     const preparedCollateral = await collateralProvider.prepareCollateral({
       provider: args.provider,
       collateralAmountLovelace: 5_000_000n,
     });
+    console.log(`[lovejoin/mix] prepareCollateral done in ${Date.now() - prepCollStart}ms`);
 
+    const meshInitStart = Date.now();
     const meshCore = await import("@meshsdk/core");
     const { MeshTxBuilder } = meshCore;
     const meshProvider = await getMeshProvider(args.provider);
     const meshParams = await getMeshProtocolParams(args.provider);
+    console.log(`[lovejoin/mix] mesh init done in ${Date.now() - meshInitStart}ms`);
 
     // chainFrom resolution. If the caller is chaining onto an in-flight
     // parent (Deposit / Replenish / prior Mix), convert the parent's
@@ -1277,7 +1285,13 @@ export async function buildMixTx(args: BuildMixArgs): Promise<MixResult> {
             },
           })
         : meshProvider;
+    // Counts how many times buildOnce is called per slot so the per-stage
+    // log can show pass-1 / pass-2 / pass-3 (initial / fee-discovery /
+    // fee-bump). Reset per slot.
+    let buildPassCount = 0;
     const buildOnce = async (feeOverride?: bigint): Promise<string> => {
+      buildPassCount += 1;
+      const passLabel = buildPassCount;
       const tx = new MeshTxBuilder({
         fetcher: fetcherForBuild as never,
         submitter: meshProvider as never,
@@ -1293,7 +1307,22 @@ export async function buildMixTx(args: BuildMixArgs): Promise<MixResult> {
       // evaluator's numbers exactly — they're the chain's own values.
       tx.txEvaluationMultiplier = 1;
       populate(tx, feeOverride);
-      return tx.complete();
+      const completeStart = Date.now();
+      try {
+        const result = await tx.complete();
+        console.log(
+          `[lovejoin/mix] mesh.complete() pass ${passLabel} ok in ${Date.now() - completeStart}ms`,
+        );
+        return result;
+      } catch (err) {
+        // Also log on failure: pass 2 (fee-discovery) frequently throws
+        // when mesh-csl disagrees with our minFee, and the throw branch
+        // is silent without this. The error itself propagates as before.
+        console.log(
+          `[lovejoin/mix] mesh.complete() pass ${passLabel} threw in ${Date.now() - completeStart}ms`,
+        );
+        throw err;
+      }
     };
 
     // Build pass(es).
@@ -1398,9 +1427,18 @@ export async function buildMixTx(args: BuildMixArgs): Promise<MixResult> {
             `feeOut=${plan.feeShardInput.lovelace - capped}`,
         );
         if (capped !== plan.txFeeLovelace) {
-          unsignedTxHex = await buildWithFeeBumpRetry(buildOnce, capped, plan.txFeeLovelace);
+          const bumped = await buildWithFeeBumpRetry(buildOnce, capped, plan.txFeeLovelace);
+          unsignedTxHex = bumped.txHex;
+          // Use the FINAL fee the rebuild settled on, not the initial
+          // `capped` value. mesh-csl can ratchet the fee a few hundred
+          // lovelace higher when its own min-fee check disagrees with
+          // ours; recording the pre-bump value here mis-predicts the
+          // post-state fee-shard's on-chain lovelace and breaks
+          // chained Mix txs that picks that shard via feeShardExtras.
+          actualFeeLovelace = bumped.finalFee;
+        } else {
+          actualFeeLovelace = capped;
         }
-        actualFeeLovelace = capped;
       } else {
         console.warn(
           `[lovejoin/mix] shard-mode fee discovery: evaluator returned non-array ` +
@@ -1439,19 +1477,24 @@ export async function buildMixTx(args: BuildMixArgs): Promise<MixResult> {
       // Same additionalUtxos array used for the evaluator above is also
       // forwarded to the collateral host so its evaluator sees the same
       // chain state. See BuildMixArgs.chainFrom.
+      const signStart = Date.now();
       const hostWitness = await collateralProvider.signTxBody(
         unsignedTxHex,
         additionalUtxos ? { additionalUtxos } : undefined,
       );
+      const signMs = Date.now() - signStart;
       if (!hostWitness) {
         throw new Error(
           "Mix tx: collateral provider claimed externallySigned but signTxBody() returned null",
         );
       }
+      const mergeStart = Date.now();
       signedTx = await appendVkeyWitness(unsignedTxHex, hostWitness);
+      const mergeMs = Date.now() - mergeStart;
 
       console.log(
-        `[lovejoin/mix] external collateral witness merged from ${hostWitness.vkeyHex.slice(0, 8)}…`,
+        `[lovejoin/mix] external collateral witness merged from ${hostWitness.vkeyHex.slice(0, 8)}… ` +
+          `(signTxBody=${signMs}ms, witnessMerge=${mergeMs}ms)`,
       );
     } else {
       if (!args.wallet) {
@@ -1529,12 +1572,13 @@ async function buildWithFeeBumpRetry(
   initialFee: bigint,
   feeCeiling: bigint,
   attempts = 3,
-): Promise<string> {
+): Promise<{ txHex: string; finalFee: bigint }> {
   let fee = initialFee;
   let lastErr: unknown;
   for (let i = 0; i < attempts; i++) {
     try {
-      return await buildOnce(fee);
+      const txHex = await buildOnce(fee);
+      return { txHex, finalFee: fee };
     } catch (e) {
       lastErr = e;
       const msg = e instanceof Error ? e.message : String(e);

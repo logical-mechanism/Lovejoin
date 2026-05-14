@@ -221,7 +221,14 @@
     "review_collateral_value_wallet": "Cung cấp bởi ví đã kết nối của bạn",
     "review_linkage_value": "1/{{n}} mỗi vòng",
     "confirm_lede_shard": "Lovejoin sẽ chọn ngẫu nhiên N box, yêu cầu collateral từ dịch vụ đã cấu hình và gửi tx Mix. Ở chế độ shard, bạn không ký gì; ví ở ngoài tx.",
-    "confirm_lede_wallet": "Lovejoin sẽ chọn ngẫu nhiên N box và gửi tx Mix. Ví của bạn sẽ trả phí, cung cấp collateral và ký."
+    "confirm_lede_wallet": "Lovejoin sẽ chọn ngẫu nhiên N box và gửi tx Mix. Ví của bạn sẽ trả phí, cung cấp collateral và ký.",
+    "intensity_eyebrow": "Cường độ",
+    "intensity_option_fanout": "Độ sâu {{k}}",
+    "intensity_hint_fanout": "Trộn theo cây độ sâu {{k}}: tổng {{mixes}} tx Mix, bắt đầu từ một box của bạn.",
+    "vault_locked_at_depth": "Vault đang khoá. Độ sâu ≥ 2 cần một box của bạn để làm gốc cây; hãy mở khoá vault trước.",
+    "intensity_option_random": "Ngẫu nhiên",
+    "intensity_hint_random": "Một tx Mix vào pool dùng chung. Xác suất liên kết 1/3 mỗi vòng; ở chế độ fee shard, tx giữ ẩn danh ví.",
+    "depth_needs_wallet": "Độ sâu ≥ 2 dựng cây từ một box của bạn. Hãy kết nối ví để mở khoá vault."
   },
   "deposit": {
     "section_title": "Gửi",
@@ -425,7 +432,11 @@
     "mix_row_confirm_lede": "Gửi một tx trộn theo phí shard, bao gồm hộp này cộng thêm {{n}} - 1 hộp khác được chọn ngẫu nhiên từ pool đang hoạt động. Ví không tham gia tx; phí do một fee shard chi trả. Bộ đếm vòng của hộp này tăng thêm một khi tx được xác nhận.",
     "mix_row_confirm_submit": "Trộn hộp này",
     "mix_disabled_collateral": "Không thể kết nối tới nhà cung cấp tài sản đảm bảo. Việc gửi trộn bị tắt.",
-    "mix_disabled_pool": "Pool quá nhỏ để trộn hộp này. Cần {{need}} hộp đang hoạt động; có {{have}}."
+    "mix_disabled_pool": "Pool quá nhỏ để trộn hộp này. Cần {{need}} hộp đang hoạt động; có {{have}}.",
+    "fanout_entry_eyebrow": "Tăng cường riêng tư",
+    "fanout_entry_title": "Chạy trộn theo cây",
+    "fanout_entry_lede": "Liên kết nhiều tx Mix thành một cây bắt đầu từ một box của bạn. Nhánh của bạn trở nên không thể phân biệt giữa 9+ nhánh khác.",
+    "fanout_entry_cta": "Chạy trộn theo cây"
   },
   "secret_card": {
     "title": "Lưu khoá bí mật này ngay",
@@ -567,5 +578,40 @@
       "withdraw_h": "Rút",
       "withdraw_p1": "Bước cuối cùng. Bạn chi một trong các box của mình tới một địa chỉ đích bằng bằng chứng Schnorr về kiến thức của bí mật chủ sở hữu. Không cần chữ ký ví trên chính box, vì vậy đích không có liên kết on-chain với ví đã gửi ban đầu."
     }
+  },
+  "fanout": {
+    "eyebrow": "Tăng cường riêng tư",
+    "section_title": "Trộn theo cây",
+    "lede": "Nối nhiều tx Mix thành một cây sâu k bắt đầu từ một trong các box của bạn. Sau mỗi đợt, mọi box bạn đã chạm được trộn lại với hai box mới từ pool. Nhánh của bạn trở thành một trong 3^k nhánh không phân biệt được với xác suất liên kết (1/3)^k.",
+    "depth_label": "Độ sâu",
+    "depth_option": "k = {{d}}",
+    "depth_hint": "Độ sâu {{d}} trộn nhánh của bạn vào 3^{{d}} nhánh không phân biệt được. Xác suất liên kết sau khi chạy: {{percent}}%.",
+    "review_title": "Xem trước kế hoạch",
+    "review_total_mixes": "Tổng số trộn",
+    "review_boxes_touched": "Box đã chạm",
+    "review_linkage": "Xác suất liên kết",
+    "review_linkage_value": "(1/3)^{{d}} sau khi chạy",
+    "review_total_fee": "Phí tổng trường hợp xấu nhất",
+    "review_total_fee_value": "Tối đa {{ada}} ADA trên tất cả các trộn",
+    "review_pool": "Rút từ pool",
+    "review_pool_value": "{{have}} box mới sẵn có, cần {{need}}",
+    "gate_no_owned_boxes": "Mở khóa kho lưu trữ và gửi tối thiểu một box để chạy trộn theo cây từ một box thuộc về bạn.",
+    "gate_pool_too_small": "Pool quá nhỏ: {{have}} box mới sẵn có, trộn theo cây ở độ sâu này cần {{need}}.",
+    "run_button": "Chạy trộn cây độ sâu {{d}}",
+    "running": "Đang chạy trộn cây độ sâu {{d}}…",
+    "cancel_button": "Dừng theo dõi",
+    "confirm_eyebrow": "Kiểm tra cuối",
+    "confirm_title": "Xác nhận gửi trộn cây",
+    "confirm_lede": "Lovejoin sẽ gửi {{count}} tx Mix chạm tổng cộng {{boxes}} mix-box, với phí xấu nhất lên đến {{ada}} ADA. Mỗi tx ẩn danh với ví trong chế độ shard; dịch vụ collateral ký mỗi tx.",
+    "confirm_submit": "Xác nhận và gửi",
+    "progress_title": "Tiến độ trộn cây",
+    "progress_summary": "Đã xử lý {{done}} trên {{total}} · {{submitted}} đã gửi · {{failed}} bị hủy",
+    "progress_current_wave": "Đang ở đợt {{wave}}",
+    "progress_dropped": "{{count}} trộn bị hủy vì tx cha thất bại",
+    "toast_success": "Trộn cây hoàn tất — {{count}} trộn đã gửi",
+    "toast_partial": "Trộn cây kết thúc với lỗi — {{submitted}} đã gửi, {{failed}} bị hủy",
+    "toast_failed": "Trộn cây thất bại",
+    "gate_owned_in_flight": "Mọi box bạn sở hữu vẫn đang bay từ tx trước. Hãy đợi khối tiếp theo và thử lại.",
+    "progress_slow_hint": "Bước này đang lâu hơn bình thường. Khi chuỗi fan-out kéo dài, node Cardano sẽ xác thực lại mọi giao dịch đang chờ trước khi chấp nhận một giao dịch mới, nên các bước sau có thể mất thêm vài giây. Các tx đã gửi vẫn sẽ vào block tiếp theo."
   }
 }

@@ -221,7 +221,14 @@
     "review_collateral_value_wallet": "Dostarczany przez twój podłączony portfel",
     "review_linkage_value": "1/{{n}} na rundę",
     "confirm_lede_shard": "Lovejoin wybierze N losowych boxów, poprosi o kolateral ze skonfigurowanej usługi i wyśle tx Mix. W trybie shard niczego nie podpisujesz; portfel pozostaje poza tx.",
-    "confirm_lede_wallet": "Lovejoin wybierze N losowych boxów i wyśle tx Mix. Twój portfel zapłaci opłatę, dostarczy kolateral i podpisze."
+    "confirm_lede_wallet": "Lovejoin wybierze N losowych boxów i wyśle tx Mix. Twój portfel zapłaci opłatę, dostarczy kolateral i podpisze.",
+    "intensity_eyebrow": "Intensywność",
+    "intensity_option_fanout": "Głębokość {{k}}",
+    "intensity_hint_fanout": "Rozgałęzienie głębokości {{k}}: łącznie {{mixes}} tx Mix, startując od jednej z twoich box.",
+    "vault_locked_at_depth": "Skarbiec jest zablokowany. Głębokość ≥ 2 wymaga własnej box jako korzenia drzewa; najpierw odblokuj skarbiec.",
+    "intensity_option_random": "Losowe",
+    "intensity_hint_random": "Pojedyncza tx Mix do wspólnej puli. Prawdopodobieństwo powiązania 1/3 na rundę; tx pozostaje anonimowa względem portfela w trybie fee shard.",
+    "depth_needs_wallet": "Głębokość ≥ 2 wyprowadza drzewo z jednej z twoich box. Podłącz portfel, aby odblokować skarbiec."
   },
   "deposit": {
     "section_title": "Wpłata",
@@ -425,7 +432,11 @@
     "mix_row_confirm_lede": "Wysyła tx mixu z opłatą shard, która zawiera ten box plus {{n}} - 1 innych boxów wybranych losowo z aktywnego poola. Wallet pozostaje poza tx; opłatę pokrywa fee shard. Licznik rund tego boxa rośnie o jeden po potwierdzeniu tx.",
     "mix_row_confirm_submit": "Zmiksuj ten box",
     "mix_disabled_collateral": "Dostawca collateralu nieosiągalny. Wysyłanie mixu jest wyłączone.",
-    "mix_disabled_pool": "Pool jest za mały, aby zmiksować ten box. Potrzeba {{need}} aktywnych boxów; jest {{have}}."
+    "mix_disabled_pool": "Pool jest za mały, aby zmiksować ten box. Potrzeba {{need}} aktywnych boxów; jest {{have}}.",
+    "fanout_entry_eyebrow": "Wzmocnienie prywatności",
+    "fanout_entry_title": "Uruchom mix rozgałęziony",
+    "fanout_entry_lede": "Łączy kilka tx Mix w drzewo startujące od jednej z twoich box. Twoja gałąź staje się nierozróżnialna spośród 9 lub więcej.",
+    "fanout_entry_cta": "Uruchom rozgałęzienie"
   },
   "secret_card": {
     "title": "Zapisz teraz ten sekret",
@@ -567,5 +578,40 @@
       "withdraw_h": "Wypłata",
       "withdraw_p1": "Ostatni krok. Wydajesz jeden ze swoich boxów na adres docelowy, używając dowodu Schnorra znajomości sekretu właściciela. Podpis portfela na samym boxie nie jest potrzebny, więc cel nie ma on-chainowego powiązania z portfelem, który pierwotnie wpłacił."
     }
+  },
+  "fanout": {
+    "eyebrow": "Wzmocnienie prywatności",
+    "section_title": "Mix rozgałęziony",
+    "lede": "Łączy kilka tx Mix w drzewo o głębokości k, startujące od jednej z twoich box. Po każdej fali każda dotknięta box jest ponownie mieszana z dwiema świeżymi box z poolu. Twoja gałąź staje się jedną z 3^k nieodróżnialnych gałęzi z prawdopodobieństwem powiązania (1/3)^k.",
+    "depth_label": "Głębokość",
+    "depth_option": "k = {{d}}",
+    "depth_hint": "Głębokość {{d}} miesza twoją gałąź w 3^{{d}} nieodróżnialnych gałęzi. Prawdopodobieństwo powiązania po wykonaniu: {{percent}}%.",
+    "review_title": "Podgląd planu",
+    "review_total_mixes": "Łączna liczba mixów",
+    "review_boxes_touched": "Dotknięte boxy",
+    "review_linkage": "Prawdopodobieństwo powiązania",
+    "review_linkage_value": "(1/3)^{{d}} po wykonaniu",
+    "review_total_fee": "Łączna opłata w najgorszym przypadku",
+    "review_total_fee_value": "Do {{ada}} ADA we wszystkich mixach",
+    "review_pool": "Pobranie z poolu",
+    "review_pool_value": "Dostępnych {{have}} świeżych box, potrzeba {{need}}",
+    "gate_no_owned_boxes": "Odblokuj swój sejf i wpłać co najmniej jedną box, aby uruchomić rozgałęzienie z box, którą posiadasz.",
+    "gate_pool_too_small": "Pool za mały: {{have}} świeżych box dostępnych, rozgałęzienie na tej głębokości potrzebuje {{need}}.",
+    "run_button": "Uruchom rozgałęzienie głębokości {{d}}",
+    "running": "Trwa rozgałęzienie głębokości {{d}}…",
+    "cancel_button": "Zatrzymaj śledzenie",
+    "confirm_eyebrow": "Ostateczna kontrola",
+    "confirm_title": "Potwierdź wysyłkę rozgałęzienia",
+    "confirm_lede": "Lovejoin wyśle {{count}} tx Mix dotykając łącznie {{boxes}} mix-box, z opłatą w najgorszym przypadku do {{ada}} ADA. Każda tx jest anonimowa dla portfela w trybie shard; usługa kolateralu podpisuje każdą tx.",
+    "confirm_submit": "Potwierdź i wyślij",
+    "progress_title": "Postęp rozgałęzienia",
+    "progress_summary": "{{done}} z {{total}} mixów przetworzonych · {{submitted}} wysłanych · {{failed}} odrzuconych",
+    "progress_current_wave": "Obecnie na fali {{wave}}",
+    "progress_dropped": "{{count}} mix(ów) odrzuconych, bo ich tx nadrzędna nie powiodła się",
+    "toast_success": "Rozgałęzienie zakończone — wysłano {{count}} mix(ów)",
+    "toast_partial": "Rozgałęzienie zakończone z błędami — wysłano {{submitted}}, odrzucono {{failed}}",
+    "toast_failed": "Rozgałęzienie nieudane",
+    "gate_owned_in_flight": "Wszystkie twoje boxy są jeszcze w locie z poprzedniej tx. Poczekaj na następny blok i spróbuj ponownie.",
+    "progress_slow_hint": "Ten krok trwa dłużej niż zwykle. W miarę jak łańcuch rozgałęzienia się wydłuża, węzeł Cardano ponownie waliduje każdą transakcję w kolejce przed przyjęciem nowej, więc kolejne kroki mogą zająć kilka dodatkowych sekund. Wysłane tx i tak trafią do następnego bloku."
   }
 }

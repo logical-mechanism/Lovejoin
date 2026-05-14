@@ -36,6 +36,7 @@ export type FetchFn = (
     method?: string;
     headers?: Record<string, string>;
     body?: string | Uint8Array;
+    signal?: AbortSignal;
   },
 ) => Promise<{
   ok: boolean;
@@ -417,7 +418,10 @@ export class BlockfrostProvider implements ChainProvider {
       `[lovejoin/submit] POST ${this.baseUrl}/tx/submit (txCbor=${signedTxCborHex.length / 2} bytes)`,
     );
 
-    console.log(`[lovejoin/submit] signed tx hex: ${signedTxCborHex}`);
+    const submitStart = Date.now();
+    // 30s wall-clock cap. See BackendChainProvider.submitTx for the
+    // rationale. Without it a stuck upstream (Blockfrost rate-limit
+    // bucket exhausted, transient outage) hangs the caller indefinitely.
     const res = await this.fetchFn(`${this.baseUrl}/tx/submit`, {
       method: "POST",
       headers: {
@@ -425,9 +429,12 @@ export class BlockfrostProvider implements ChainProvider {
         project_id: this.projectId,
       },
       body: hexToBytes(signedTxCborHex),
+      signal: AbortSignal.timeout(30_000),
     });
 
-    console.log(`[lovejoin/submit] HTTP ${res.status} ${res.statusText}`);
+    console.log(
+      `[lovejoin/submit] HTTP ${res.status} ${res.statusText} in ${Date.now() - submitStart}ms`,
+    );
     if (!res.ok) {
       const body = await res.text();
 

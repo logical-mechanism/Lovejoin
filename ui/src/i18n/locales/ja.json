@@ -221,7 +221,14 @@
     "review_collateral_value_wallet": "接続中のウォレットから提供",
     "review_linkage_value": "1 ラウンドあたり 1/{{n}}",
     "confirm_lede_shard": "Lovejoin はランダムに N 個のボックスを選び、設定済みサービスに担保を要求して Mix トランザクションを送信します。shard モードでは何も署名しません；ウォレットはトランザクションの外に留まります。",
-    "confirm_lede_wallet": "Lovejoin はランダムに N 個のボックスを選び、Mix トランザクションを送信します。ウォレットが手数料を支払い、担保を提供し、署名します。"
+    "confirm_lede_wallet": "Lovejoin はランダムに N 個のボックスを選び、Mix トランザクションを送信します。ウォレットが手数料を支払い、担保を提供し、署名します。",
+    "intensity_eyebrow": "強度",
+    "intensity_option_fanout": "深さ {{k}}",
+    "intensity_hint_fanout": "深さ {{k}} のファンアウト：合計 {{mixes}} 件の Mix tx、あなたの box の 1 つから出発します。",
+    "vault_locked_at_depth": "vault がロックされています。深さ ≥ 2 はあなたの box をツリーの根として必要とします。まず vault をアンロックしてください。",
+    "intensity_option_random": "ランダム",
+    "intensity_hint_random": "共有プールへの単一の Mix tx。ラウンドあたりのリンク確率は 1/3。fee shard モードでは tx はウォレット匿名のままです。",
+    "depth_needs_wallet": "深さ ≥ 2 ではあなたの box の 1 つからツリーを派生させます。vault を解除するためにウォレットを接続してください。"
   },
   "deposit": {
     "section_title": "入金",
@@ -425,7 +432,11 @@
     "mix_row_confirm_lede": "このボックスに加えて、ライブプールからランダムに選んだ {{n}} - 1 個のボックスを含むシャード手数料ミックストランザクションを送信します。ウォレットはトランザクションに含まれず、手数料は fee shard が支払います。トランザクションが確定すると、このボックスのラウンドカウンタが1増えます。",
     "mix_row_confirm_submit": "このボックスをミックス",
     "mix_disabled_collateral": "コラテラルプロバイダーに到達できません。ミックスの送信は無効です。",
-    "mix_disabled_pool": "このボックスをミックスするにはプールが小さすぎます。ライブボックスが {{need}} 個必要で、現在 {{have}} 個です。"
+    "mix_disabled_pool": "このボックスをミックスするにはプールが小さすぎます。ライブボックスが {{need}} 個必要で、現在 {{have}} 個です。",
+    "fanout_entry_eyebrow": "プライバシー強化",
+    "fanout_entry_title": "ファンアウト・ミックスを実行",
+    "fanout_entry_lede": "あなたの box の 1 つから始まるツリーに、複数の Mix tx をチェーンします。あなたの枝は 9 本以上の中で見分けがつかなくなります。",
+    "fanout_entry_cta": "ファンアウトを実行"
   },
   "secret_card": {
     "title": "このシークレットを今すぐ保存",
@@ -567,5 +578,40 @@
       "withdraw_h": "出金(withdraw)",
       "withdraw_p1": "最後のステップ。あなたは所有者秘密の知識のSchnorr証明 を使って、ボックスの1つを宛先アドレスに使います。ボッ クス自体へのウォレット署名は不要なので、宛先と元々入 金したウォレットとの間にオンチェーンのリンクはありま せん。"
     }
+  },
+  "fanout": {
+    "eyebrow": "プライバシー強化",
+    "section_title": "ファンアウト・ミックス",
+    "lede": "あなたの所有する box の 1 つから始まる深さ k のツリーに複数の Mix tx を連鎖させます。各ウェーブの後、触れた box はそれぞれプール内の 2 つの新鮮な box と再ミックスされます。あなたのブランチは 3^k 個の見分けがつかないブランチの 1 つになり、リンク確率は (1/3)^k です。",
+    "depth_label": "深さ",
+    "depth_option": "k = {{d}}",
+    "depth_hint": "深さ {{d}} はあなたのブランチを 3^{{d}} 個の見分けがつかないブランチに混ぜます。実行後のリンク確率: {{percent}}%。",
+    "review_title": "プランのプレビュー",
+    "review_total_mixes": "総ミックス数",
+    "review_boxes_touched": "触れた box 数",
+    "review_linkage": "リンク確率",
+    "review_linkage_value": "実行後 (1/3)^{{d}}",
+    "review_total_fee": "最悪ケースの総手数料",
+    "review_total_fee_value": "全ミックスで最大 {{ada}} ADA",
+    "review_pool": "プールからの抽選",
+    "review_pool_value": "新鮮な box {{have}} 個が利用可能、{{need}} 個が必要",
+    "gate_no_owned_boxes": "所有する box からファンアウトを実行するには、vault を解錠して少なくとも 1 つ box を入金してください。",
+    "gate_pool_too_small": "プールが小さすぎます: 新鮮な box {{have}} 個が利用可能、この深さのファンアウトには {{need}} 個必要です。",
+    "run_button": "深さ {{d}} のファンアウトを実行",
+    "running": "深さ {{d}} のファンアウトを実行中…",
+    "cancel_button": "追跡を停止",
+    "confirm_eyebrow": "最終確認",
+    "confirm_title": "ファンアウト送信の確認",
+    "confirm_lede": "Lovejoin は合計 {{boxes}} 個の mix-box に触れる {{count}} 個の Mix tx を送信します。最悪ケースの手数料は最大 {{ada}} ADA です。各 tx は shard モードでウォレットに対して匿名です。コラテラル・サービスが各 tx に署名します。",
+    "confirm_submit": "確認して送信",
+    "progress_title": "ファンアウトの進捗",
+    "progress_summary": "{{total}} 個のミックスのうち {{done}} 個を処理 · {{submitted}} 個を送信 · {{failed}} 個を破棄",
+    "progress_current_wave": "現在 {{wave}} 波目",
+    "progress_dropped": "{{count}} 個のミックスが親 tx の失敗により破棄されました",
+    "toast_success": "ファンアウト完了 — {{count}} 個のミックスを送信しました",
+    "toast_partial": "ファンアウトはエラーで終了しました — 送信 {{submitted}} 件、破棄 {{failed}} 件",
+    "toast_failed": "ファンアウトに失敗しました",
+    "gate_owned_in_flight": "所有するすべての box が前回の tx でまだ移動中です。次のブロックを待ってから再試行してください。",
+    "progress_slow_hint": "このスロットは通常より時間がかかっています。ファンアウトのチェーンが伸びるにつれて、Cardano ノードは新しい tx を受け入れる前にキュー内のすべてのトランザクションを再検証するため、後半のスロットは数秒余分にかかる場合があります。送信済みの tx は次のブロックには取り込まれます。"
   }
 }

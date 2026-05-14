@@ -126,9 +126,9 @@ describe("tx/collateral — WalletProvider", () => {
 
 describe("tx/collateral — GivemeMyProvider", () => {
   // Pinned giveme.my preprod entry — see known-collateral-hosts.ts.
-  const HOST_PKH = "7c24c22d1dc252d31f6022ff22ccc838c2ab83a461172d7c2dae61f4";
-  const HOST_PUBKEY = "fa2025e788fae01ce10deffff386f992f62a311758819e4e3792887396c171ba";
-  const HOST_UTXO_TXID = "1d388e615da2dca607e28f704130d04e39da6f251d551d66d054b75607e0393f";
+  const HOST_PKH = "1108b97f2e199d58a0c0697d25412d0fb14d354dcd39654b9eb0dec8";
+  const HOST_PUBKEY = "754c1db51aaee2e939b05b529ff5e210d8469afebcd2e487dae6f125fd500356";
+  const HOST_UTXO_TXID = "ef18e00c412c06b74606c5e68901693c3974b2073dbec1dfd8b74f01af3102a1";
   const HOST_UTXO_IDX = 0;
   const HOST_ADDRESS = "addr_test1q_host_address";
   const HOST_UTXO_LOVELACE = 50_000_000n;

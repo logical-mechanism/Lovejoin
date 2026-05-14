@@ -221,7 +221,14 @@
     "review_collateral_value_wallet": "Von deiner verbundenen Wallet bereitgestellt",
     "review_linkage_value": "1/{{n}} pro Runde",
     "confirm_lede_shard": "Lovejoin wählt N zufällige Boxes, fordert Collateral beim konfigurierten Dienst an und reicht die Mix-tx ein. Im Shard-Modus signierst du nichts; die Wallet bleibt außerhalb der tx.",
-    "confirm_lede_wallet": "Lovejoin wählt N zufällige Boxes und reicht die Mix-tx ein. Deine Wallet zahlt die Gebühr, stellt das Collateral und signiert."
+    "confirm_lede_wallet": "Lovejoin wählt N zufällige Boxes und reicht die Mix-tx ein. Deine Wallet zahlt die Gebühr, stellt das Collateral und signiert.",
+    "intensity_eyebrow": "Intensität",
+    "intensity_option_fanout": "Tiefe {{k}}",
+    "intensity_hint_fanout": "Fan-out der Tiefe {{k}}: insgesamt {{mixes}} Mix-txs, ausgehend von einer deiner Boxes.",
+    "vault_locked_at_depth": "Der Vault ist gesperrt. Tiefe ≥ 2 braucht eine eigene Box als Wurzel des Baumes; entsperre zuerst den Vault.",
+    "intensity_option_random": "Zufällig",
+    "intensity_hint_random": "Eine Mix-tx in den gemeinsamen Pool. Verknüpfungswahrscheinlichkeit 1/3 pro Runde; im Fee-Shard-Modus bleibt die Wallet außerhalb der tx.",
+    "depth_needs_wallet": "Tiefe ≥ 2 leitet den Baum aus einer deiner Boxes ab. Verbinde eine Wallet, um den Vault zu entsperren."
   },
   "deposit": {
     "section_title": "Einzahlen",
@@ -425,7 +432,11 @@
     "mix_row_confirm_lede": "Reicht eine Shard-Fee-Mix-Tx ein, die diese Box plus {{n}} - 1 weitere Boxes enthält, zufällig aus dem Live-Pool gezogen. Die Wallet bleibt aus der Tx heraus; die Gebühr zahlt ein Fee-Shard. Der Runden-Zähler dieser Box steigt um eins, sobald die Tx bestätigt ist.",
     "mix_row_confirm_submit": "Diese Box mixen",
     "mix_disabled_collateral": "Collateral-Anbieter nicht erreichbar. Mix-Einreichung ist deaktiviert.",
-    "mix_disabled_pool": "Pool zu klein, um diese Box zu mixen. Benötigt {{need}} Live-Boxes; vorhanden {{have}}."
+    "mix_disabled_pool": "Pool zu klein, um diese Box zu mixen. Benötigt {{need}} Live-Boxes; vorhanden {{have}}.",
+    "fanout_entry_eyebrow": "Privatsphären-Boost",
+    "fanout_entry_title": "Fan-out-Mix starten",
+    "fanout_entry_lede": "Verkettet mehrere Mix-txs zu einem Baum ausgehend von einer deiner Boxes. Dein Zweig wird ununterscheidbar von 9 oder mehr anderen.",
+    "fanout_entry_cta": "Fan-out starten"
   },
   "secret_card": {
     "title": "Dieses Geheimnis jetzt sichern",
@@ -567,5 +578,40 @@
       "withdraw_h": "Auszahlen",
       "withdraw_p1": "Der letzte Schritt. Du gibst eine deiner Boxen an eine Zieladresse aus, mit einem Schnorr-Beweis der Kenntnis des Eigentümer-Geheimnisses. Auf der Box selbst wird keine Wallet-Signatur gebraucht, also hat das Ziel keinen On-Chain-Bezug zur Wallet, die ursprünglich eingezahlt hat."
     }
+  },
+  "fanout": {
+    "eyebrow": "Privatsphären-Boost",
+    "section_title": "Fan-out-Mix",
+    "lede": "Verkettet mehrere Mix-Txs zu einem Baum der Tiefe k, ausgehend von einer eigenen Box. Nach jeder Welle wird jede berührte Box mit zwei frischen Pool-Boxen neu gemischt. Dein Zweig wird einer von 3^k nicht unterscheidbaren Zweigen mit Verknüpfungswahrscheinlichkeit (1/3)^k.",
+    "depth_label": "Tiefe",
+    "depth_option": "k = {{d}}",
+    "depth_hint": "Tiefe {{d}} mischt deinen Zweig in 3^{{d}} nicht unterscheidbare Zweige. Verknüpfungswahrscheinlichkeit nach dem Lauf: {{percent}} %.",
+    "review_title": "Plan-Vorschau",
+    "review_total_mixes": "Mixe insgesamt",
+    "review_boxes_touched": "Berührte Boxen",
+    "review_linkage": "Verknüpfungswahrscheinlichkeit",
+    "review_linkage_value": "(1/3)^{{d}} nach dem Lauf",
+    "review_total_fee": "Worst-Case-Gesamtgebühr",
+    "review_total_fee_value": "Bis zu {{ada}} ADA über alle Mixe",
+    "review_pool": "Pool-Auswahl",
+    "review_pool_value": "{{have}} frische Boxen verfügbar, {{need}} benötigt",
+    "gate_no_owned_boxes": "Entsperre deinen Vault und lege mindestens eine Box ab, um einen Fan-out aus einer eigenen Box zu starten.",
+    "gate_pool_too_small": "Pool zu klein: {{have}} frische Boxen verfügbar, der Fan-out auf dieser Tiefe braucht {{need}}.",
+    "run_button": "Fan-out Tiefe {{d}} starten",
+    "running": "Fan-out Tiefe {{d}} läuft…",
+    "cancel_button": "Verfolgung stoppen",
+    "confirm_eyebrow": "Letzte Prüfung",
+    "confirm_title": "Fan-out-Übermittlung bestätigen",
+    "confirm_lede": "Lovejoin sendet {{count}} Mix-Txs, die insgesamt {{boxes}} Mix-Boxen berühren, mit Gebühren im Worst-Case bis zu {{ada}} ADA. Jede Tx ist im Shard-Modus Wallet-anonym; der Collateral-Service signiert jede Tx.",
+    "confirm_submit": "Bestätigen und senden",
+    "progress_title": "Fan-out-Fortschritt",
+    "progress_summary": "{{done}} von {{total}} Mixen verarbeitet · {{submitted}} gesendet · {{failed}} verworfen",
+    "progress_current_wave": "Aktuell in Welle {{wave}}",
+    "progress_dropped": "{{count}} Mix(e) verworfen, weil die Eltern-Tx fehlschlug",
+    "toast_success": "Fan-out abgeschlossen — {{count}} Mix(e) gesendet",
+    "toast_partial": "Fan-out mit Fehlern beendet — {{submitted}} gesendet, {{failed}} verworfen",
+    "toast_failed": "Fan-out fehlgeschlagen",
+    "gate_owned_in_flight": "Jede eigene Box ist noch von einer vorherigen Tx im Umlauf. Warte auf den nächsten Block und versuch's erneut.",
+    "progress_slow_hint": "Dieser Schritt dauert länger als üblich. Während die Fan-out-Kette wächst, validiert der Cardano-Node jede wartende Transaktion erneut, bevor eine neue akzeptiert wird; spätere Schritte können daher einige Sekunden zusätzlich brauchen. Eingereichte Txs landen weiterhin im nächsten Block."
   }
 }

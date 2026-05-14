@@ -1,13 +1,12 @@
 // M6 component smoke tests — pure render paths for the new components.
 
-import { fireEvent, render, screen } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { render, screen } from "@testing-library/react";
+import { describe, expect, it } from "vitest";
 
 import {
   CollateralProviderBanner,
   CollateralProviderPill,
 } from "../src/components/CollateralProviderStatus.js";
-import { MixWidthSlider } from "../src/components/MixWidthSlider.js";
 import "../src/i18n/index.js";
 
 describe("CollateralProviderPill", () => {
@@ -31,24 +30,5 @@ describe("CollateralProviderBanner", () => {
   it("renders the banner when status is down", () => {
     render(<CollateralProviderBanner status="down" />);
     expect(screen.getByRole("alert")).toBeInTheDocument();
-  });
-});
-
-describe("MixWidthSlider", () => {
-  it("clamps value into [2, maxN] and exposes it via the slider", () => {
-    const onChange = vi.fn();
-    render(<MixWidthSlider value={99} maxN={6} onChange={onChange} />);
-    const slider = screen.getByRole("slider") as HTMLInputElement;
-    expect(slider.value).toBe("6");
-    expect(screen.getByText(/max 6/)).toBeInTheDocument();
-    // The value digit is rendered prominently with display typography.
-    expect(screen.getAllByText("6").length).toBeGreaterThan(0);
-  });
-
-  it("emits a numeric onChange when the slider moves", () => {
-    const onChange = vi.fn();
-    render(<MixWidthSlider value={2} maxN={6} onChange={onChange} />);
-    fireEvent.change(screen.getByRole("slider"), { target: { value: "4" } });
-    expect(onChange).toHaveBeenCalledWith(4);
   });
 });

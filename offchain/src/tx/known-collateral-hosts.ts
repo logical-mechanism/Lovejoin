@@ -54,30 +54,36 @@ export interface KnownCollateralHostNetwork {
 }
 
 /**
- * Pinned known.hosts.json, snapshot of upstream main as of 2026-04-28.
+ * Pinned known.hosts.json, snapshot of upstream main as of 2026-05-11.
  * The `$pkh / $network / $utxo / $id / $idx / $url / $onion` template entry
  * upstream is dropped here — it's documentation, not a real host.
+ *
+ * 2026-05-11 bump: giveme.my rotated its key + collateral UTxOs.
+ * Previous snapshot (2026-04-28) carried pkh 7c24c22d… / vkey fa2025e7…;
+ * the new keyset is pkh 1108b97f… / vkey 754c1db5… and the per-network
+ * collateral UTxOs moved. Mix txs built against the stale pkh started
+ * returning HTTP 500 from the host's signer once the old key was
+ * retired. The `onion` field is dropped: upstream removed it from the
+ * `giveme.my` entry in the same bump.
  */
 export const KNOWN_COLLATERAL_HOSTS: ReadonlyArray<KnownCollateralHost> = [
   {
     name: "giveme.my",
     networks: new Set(["preprod", "mainnet"]),
-    pkhHex: "7c24c22d1dc252d31f6022ff22ccc838c2ab83a461172d7c2dae61f4",
-    publicKeyHex: "fa2025e788fae01ce10deffff386f992f62a311758819e4e3792887396c171ba",
+    pkhHex: "1108b97f2e199d58a0c0697d25412d0fb14d354dcd39654b9eb0dec8",
+    publicKeyHex: "754c1db51aaee2e939b05b529ff5e210d8469afebcd2e487dae6f125fd500356",
     perNetwork: {
       preprod: {
-        utxoTxId: "1d388e615da2dca607e28f704130d04e39da6f251d551d66d054b75607e0393f",
+        utxoTxId: "ef18e00c412c06b74606c5e68901693c3974b2073dbec1dfd8b74f01af3102a1",
         utxoOutputIndex: 0,
         url: "https://www.giveme.my/preprod/collateral/",
-        onion:
-          "http://fjy3v62j7vqytvtviixsbixcmgyxgfolb7pg5bb3vcozxn4rrlu7z6ad.onion/preprod/collateral/",
+        onion: "",
       },
       mainnet: {
-        utxoTxId: "e62351eacbdd001aee77a91805840d2b81f77feebbf2439fb01b79e76c42c839",
+        utxoTxId: "1c2fbce4e3974f721b27226645c7a35d648698c77f62bc337b40bc2cd294e9cd",
         utxoOutputIndex: 0,
         url: "https://www.giveme.my/mainnet/collateral/",
-        onion:
-          "http://fjy3v62j7vqytvtviixsbixcmgyxgfolb7pg5bb3vcozxn4rrlu7z6ad.onion/mainnet/collateral/",
+        onion: "",
       },
       testnet: undefined,
     },

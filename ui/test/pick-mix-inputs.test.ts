@@ -10,7 +10,7 @@
 
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { pickMixInputs } from "../src/components/MixButton.js";
+import { pickMixInputs } from "../src/lib/pick-mix-inputs.js";
 
 interface Entry {
   ref: { txId: string; outputIndex: number };

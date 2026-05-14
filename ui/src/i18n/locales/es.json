@@ -221,7 +221,14 @@
     "review_collateral_value_wallet": "Provisto por tu billetera conectada",
     "review_linkage_value": "1/{{n}} por ronda",
     "confirm_lede_shard": "Lovejoin elegirá N cajas al azar, pedirá colateral al servicio configurado y enviará la tx de Mix. En modo shard no firmas nada; la billetera queda fuera de la tx.",
-    "confirm_lede_wallet": "Lovejoin elegirá N cajas al azar y enviará la tx de Mix. Tu billetera pagará la comisión, aportará el colateral y firmará."
+    "confirm_lede_wallet": "Lovejoin elegirá N cajas al azar y enviará la tx de Mix. Tu billetera pagará la comisión, aportará el colateral y firmará.",
+    "intensity_eyebrow": "Intensidad",
+    "intensity_option_fanout": "Profundidad {{k}}",
+    "intensity_hint_fanout": "Abanico de profundidad {{k}}: {{mixes}} txs de Mix en total, partiendo de una de tus cajas.",
+    "vault_locked_at_depth": "La bóveda está bloqueada. La profundidad ≥ 2 necesita una caja propia para enraizar el árbol; desbloquea la bóveda primero.",
+    "intensity_option_random": "Aleatorio",
+    "intensity_hint_random": "Una tx de Mix al pool compartido. Probabilidad de enlace 1/3 por ronda; la tx mantiene anonimato de billetera en modo fee shard.",
+    "depth_needs_wallet": "La profundidad ≥ 2 deriva el árbol desde una de tus cajas. Conecta una billetera para desbloquear la bóveda."
   },
   "deposit": {
     "section_title": "Depósito",
@@ -425,7 +432,11 @@
     "mix_row_confirm_lede": "Envía una tx de mezcla con tarifa por shard que incluye esta caja más otras {{n}} - 1 cajas elegidas al azar de la pool activa. La wallet queda fuera de la tx; la tarifa la paga un fee shard. El contador de rondas de esta caja sube en uno cuando la tx se confirma.",
     "mix_row_confirm_submit": "Mezclar esta caja",
     "mix_disabled_collateral": "Proveedor de colateral inaccesible. El envío de mezcla está deshabilitado.",
-    "mix_disabled_pool": "Pool demasiado pequeña para mezclar esta caja. Se necesitan {{need}} cajas activas; hay {{have}}."
+    "mix_disabled_pool": "Pool demasiado pequeña para mezclar esta caja. Se necesitan {{need}} cajas activas; hay {{have}}.",
+    "fanout_entry_eyebrow": "Refuerzo de privacidad",
+    "fanout_entry_title": "Ejecutar mezcla en abanico",
+    "fanout_entry_lede": "Encadena varias txs de Mix en un árbol partiendo de una de tus cajas. Tu rama acaba siendo indistinguible de otras 9 o más.",
+    "fanout_entry_cta": "Ejecutar abanico"
   },
   "secret_card": {
     "title": "Guarda este secreto ahora",
@@ -567,5 +578,40 @@
       "withdraw_h": "Retiro",
       "withdraw_p1": "El último paso. Gastas una de tus cajas a una dirección destino usando una prueba Schnorr de conocimiento del secreto de propietario. No hace falta firma de wallet sobre la caja en sí, así que el destino no tiene vínculo on-chain con la wallet que depositó originalmente."
     }
+  },
+  "fanout": {
+    "eyebrow": "Refuerzo de privacidad",
+    "section_title": "Mezcla en abanico",
+    "lede": "Encadena varias txs de Mix en un árbol de profundidad k que parte de una de tus cajas. Tras cada onda, cada caja que tocaste se re-mezcla con dos cajas frescas del pool. Tu rama queda como una de 3^k ramas indistinguibles, con probabilidad de enlace (1/3)^k.",
+    "depth_label": "Profundidad",
+    "depth_option": "k = {{d}}",
+    "depth_hint": "Profundidad {{d}} mezcla tu rama en 3^{{d}} ramas indistinguibles. Probabilidad de enlace tras la ejecución: {{percent}}%.",
+    "review_title": "Previsión del plan",
+    "review_total_mixes": "Mezclas totales",
+    "review_boxes_touched": "Cajas tocadas",
+    "review_linkage": "Probabilidad de enlace",
+    "review_linkage_value": "(1/3)^{{d}} tras la ejecución",
+    "review_total_fee": "Comisión total en el peor caso",
+    "review_total_fee_value": "Hasta {{ada}} ADA en todas las mezclas",
+    "review_pool": "Extracción del pool",
+    "review_pool_value": "{{have}} cajas frescas disponibles, {{need}} necesarias",
+    "gate_no_owned_boxes": "Desbloquea tu bóveda y deposita al menos una caja para ejecutar un abanico desde una caja tuya.",
+    "gate_pool_too_small": "Pool demasiado pequeño: {{have}} cajas frescas disponibles; este abanico necesita {{need}}.",
+    "run_button": "Ejecutar abanico de profundidad {{d}}",
+    "running": "Ejecutando abanico de profundidad {{d}}…",
+    "cancel_button": "Dejar de rastrear",
+    "confirm_eyebrow": "Verificación final",
+    "confirm_title": "Confirmar envío del abanico",
+    "confirm_lede": "Lovejoin enviará {{count}} txs de Mix tocando {{boxes}} mix-boxes en total, con una comisión en el peor caso de hasta {{ada}} ADA. Cada tx es anónima para la billetera en modo shard; el servicio de colateral firma cada tx.",
+    "confirm_submit": "Confirmar y enviar",
+    "progress_title": "Progreso del abanico",
+    "progress_summary": "{{done}} de {{total}} mezclas procesadas · {{submitted}} enviadas · {{failed}} descartadas",
+    "progress_current_wave": "Actualmente en la onda {{wave}}",
+    "progress_dropped": "{{count}} mezcla(s) descartada(s) porque su tx padre falló",
+    "toast_success": "Abanico completo — {{count}} mezcla(s) enviada(s)",
+    "toast_partial": "Abanico terminado con errores — {{submitted}} enviadas, {{failed}} descartadas",
+    "toast_failed": "Abanico fallido",
+    "gate_owned_in_flight": "Todas las cajas propias siguen en vuelo de una tx anterior. Espera al próximo bloque e inténtalo de nuevo.",
+    "progress_slow_hint": "Esta operación está tardando más de lo habitual. A medida que crece la cadena del abanico, el nodo de Cardano vuelve a validar cada transacción en cola antes de aceptar una nueva, por lo que los últimos pasos pueden añadir unos segundos. Las txs enviadas seguirán incluyéndose en el próximo bloque."
   }
 }
