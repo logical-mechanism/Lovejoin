@@ -218,7 +218,7 @@
     "fee_payer_wallet_hint": "Ví của bạn trả phí và cung cấp tài sản thế chấp. Không có trần trên chuỗi, nhưng danh tính ví đi vào tx.",
     "fee_payer_wallet_hint_fanout": "Ví của bạn trả phí, cấp tài sản thế chấp và ký mọi mix trong cây. Tổng {{count}} chữ ký. Không có trần on-chain, nhưng danh tính ví xuất hiện trên mọi tx.",
     "fanout_wallet_disclosure_title": "Fan-out trả từ ví: ví của bạn sẽ có mặt trên mọi tx",
-    "fanout_wallet_disclosure_body": "Tất cả {{count}} tx Mix trong cây sẽ mang danh tính ví của bạn. Bạn sẽ được nhắc ký từng cái (một số ví gộp chúng vào một prompt duy nhất). Phí được trả từ ví của bạn, không phải từ fee shard on-chain. Quay lại Fee shard để giữ mọi tx ẩn danh ví.",
+    "fanout_wallet_disclosure_body": "Tất cả {{count}} tx Mix trong cây sẽ mang danh tính ví của bạn. Ví của bạn sẽ nhắc bạn ký {{count}} lần riêng biệt, một chữ ký mỗi leaf, khi orchestrator lần lượt xây dựng và gửi từng Mix. Phí được trả từ ví của bạn, không phải từ fee shard on-chain. Quay lại Fee shard để giữ mọi tx ẩn danh ví.",
     "tx_preview_fee_wallet": "Phí do ví của bạn trả, ví cũng cung cấp tài sản thế chấp. Danh tính ví đi vào tx.",
     "review_collateral_value_shard": "Cung cấp bởi dịch vụ collateral đã cấu hình",
     "review_collateral_value_wallet": "Cung cấp bởi ví đã kết nối của bạn",

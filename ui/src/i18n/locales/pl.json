@@ -218,7 +218,7 @@
     "fee_payer_wallet_hint": "Twój portfel płaci opłatę i dostarcza kolateral. Brak limitu on-chain, ale tożsamość portfela trafia na tx.",
     "fee_payer_wallet_hint_fanout": "Twój portfel płaci opłatę, dostarcza zabezpieczenie i podpisuje każdy mix w drzewie. Łącznie {{count}} podpisów. Brak limitu on-chain, ale tożsamość portfela jest na każdej tx.",
     "fanout_wallet_disclosure_title": "Fan-out finansowany z portfela: twój portfel będzie na każdej tx",
-    "fanout_wallet_disclosure_body": "Wszystkie {{count}} txs Mix w drzewie będą nosić tożsamość twojego portfela. Zostaniesz poproszony o podpisanie każdej z nich (niektóre portfele grupują je w jeden monit). Opłata jest pobierana z twojego portfela, a nie z fee shardu on-chain. Wróć do Fee shard, aby zachować anonimowość portfela na każdej tx.",
+    "fanout_wallet_disclosure_body": "Wszystkie {{count}} txs Mix w drzewie będą nosić tożsamość twojego portfela. Twój portfel poprosi cię o {{count}} oddzielnych podpisów, jeden na liść, gdy orkiestrator buduje i przesyła każdy Mix po kolei. Opłata jest pobierana z twojego portfela, a nie z fee shardu on-chain. Wróć do Fee shard, aby zachować anonimowość portfela na każdej tx.",
     "tx_preview_fee_wallet": "Opłatę płaci twój portfel, on też dostarcza kolateral. Tożsamość portfela jest na tx.",
     "review_collateral_value_shard": "Dostarczany przez skonfigurowaną usługę kolateralu",
     "review_collateral_value_wallet": "Dostarczany przez twój podłączony portfel",

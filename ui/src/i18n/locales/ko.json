@@ -218,7 +218,7 @@
     "fee_payer_wallet_hint": "지갑이 수수료를 내고 담보를 제공합니다. 온체인 상한은 없지만, 지갑 신원이 트랜잭션에 올라갑니다.",
     "fee_payer_wallet_hint_fanout": "지갑이 트리의 모든 믹스에 대해 수수료를 지불하고 담보를 제공하며 각 tx에 서명합니다. 총 {{count}}개의 서명. 온체인 상한은 없지만 모든 tx에 지갑 ID가 표시됩니다.",
     "fanout_wallet_disclosure_title": "지갑 지불 팬아웃: 모든 tx에 지갑이 노출됩니다",
-    "fanout_wallet_disclosure_body": "트리의 {{count}}개 Mix tx 모두에 지갑 ID가 실립니다. 각 tx에 서명하라는 요청을 받습니다 (일부 지갑은 단일 프롬프트로 묶습니다). 수수료는 온체인 수수료 샤드가 아닌 지갑에서 지불됩니다. 모든 tx를 지갑 익명으로 유지하려면 Fee shard로 돌아가세요.",
+    "fanout_wallet_disclosure_body": "트리의 {{count}}개 Mix tx 모두에 지갑 ID가 실립니다. 오케스트레이터가 각 Mix를 차례로 빌드하고 제출할 때 지갑은 {{count}}번 따로따로 서명을 요청합니다 (리프당 서명 한 개). 수수료는 온체인 수수료 샤드가 아닌 지갑에서 지불됩니다. 모든 tx를 지갑 익명으로 유지하려면 Fee shard로 돌아가세요.",
     "tx_preview_fee_wallet": "수수료는 지갑이 지불하고, 담보도 지갑이 제공합니다. 지갑 신원이 트랜잭션에 올라갑니다.",
     "review_collateral_value_shard": "구성된 담보 서비스에서 제공",
     "review_collateral_value_wallet": "연결된 지갑에서 제공",

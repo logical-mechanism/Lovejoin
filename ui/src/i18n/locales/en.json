@@ -206,7 +206,7 @@
     "fee_payer_wallet_hint": "Your wallet pays the fee and supplies collateral. No on-chain cap, but your wallet identity is on the tx.",
     "fee_payer_wallet_hint_fanout": "Your wallet pays the fee and supplies collateral for every mix in the tree, and signs each one. {{count}} signatures total. No on-chain cap, but your wallet identity is on every tx.",
     "fanout_wallet_disclosure_title": "Wallet-funded fan-out: your wallet will be on every tx",
-    "fanout_wallet_disclosure_body": "All {{count}} Mix txs in the tree will carry your wallet identity. You will be prompted to sign each one (some wallets batch them into a single prompt). The fee is paid from your wallet, not the on-chain fee shard. Switch back to Fee shard to keep every tx wallet-anonymous.",
+    "fanout_wallet_disclosure_body": "All {{count}} Mix txs in the tree will carry your wallet identity. Your wallet will prompt you {{count}} separate times, one signature per leaf, as the orchestrator builds and submits each Mix in turn. The fee is paid from your wallet, not the on-chain fee shard. Switch back to Fee shard to keep every tx wallet-anonymous.",
     "tx_preview_title": "Transaction preview",
     "tx_preview_fee_shard": "Fee paid by the fee_contract shard. Collateral provided by the configured collateral service. Your wallet is not involved in this tx.",
     "tx_preview_fee_wallet": "Fee paid by your wallet, and your wallet also supplies the collateral. Your wallet identity is on the tx.",

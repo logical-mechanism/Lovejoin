@@ -218,7 +218,7 @@
     "fee_payer_wallet_hint": "Deine Wallet zahlt die Gebühr und stellt das Collateral. Keine On-Chain-Obergrenze, aber deine Wallet-Identität steht auf der tx.",
     "fee_payer_wallet_hint_fanout": "Deine Wallet zahlt die Gebühr, stellt das Collateral und signiert jeden Mix im Baum. {{count}} Signaturen insgesamt. Keine On-Chain-Grenze, aber deine Wallet-Identität steht auf jeder tx.",
     "fanout_wallet_disclosure_title": "Wallet-finanzierter Fan-out: deine Wallet ist auf jeder tx",
-    "fanout_wallet_disclosure_body": "Alle {{count}} Mix-txs im Baum tragen deine Wallet-Identität. Du wirst aufgefordert, jede einzeln zu signieren (manche Wallets bündeln das in einer einzigen Aufforderung). Die Gebühr wird aus deiner Wallet bezahlt, nicht aus dem On-Chain-Fee-Shard. Wechsle zurück zu Fee Shard, damit jede tx wallet-anonym bleibt.",
+    "fanout_wallet_disclosure_body": "Alle {{count}} Mix-txs im Baum tragen deine Wallet-Identität. Deine Wallet fragt dich {{count}} Mal nacheinander, eine Signatur pro Blatt, während der Orchestrator jeden Mix der Reihe nach baut und einreicht. Die Gebühr wird aus deiner Wallet bezahlt, nicht aus dem On-Chain-Fee-Shard. Wechsle zurück zu Fee Shard, damit jede tx wallet-anonym bleibt.",
     "tx_preview_fee_wallet": "Gebühr von deiner Wallet bezahlt, deine Wallet stellt auch das Collateral. Deine Wallet-Identität steht auf der tx.",
     "review_collateral_value_shard": "Vom konfigurierten Collateral-Dienst bereitgestellt",
     "review_collateral_value_wallet": "Von deiner verbundenen Wallet bereitgestellt",

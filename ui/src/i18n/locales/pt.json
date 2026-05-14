@@ -218,7 +218,7 @@
     "fee_payer_wallet_hint": "Sua carteira paga a taxa e fornece o colateral. Sem teto on-chain, mas sua identidade de carteira fica na tx.",
     "fee_payer_wallet_hint_fanout": "Sua carteira paga a taxa, fornece o collateral e assina cada mix da árvore. {{count}} assinaturas no total. Sem teto on-chain, mas sua identidade de carteira fica em cada tx.",
     "fanout_wallet_disclosure_title": "Fan-out pago pela carteira: sua carteira estará em cada tx",
-    "fanout_wallet_disclosure_body": "Todas as {{count}} txs de Mix da árvore carregarão sua identidade de carteira. Você será solicitado a assinar cada uma (algumas carteiras agrupam em um único prompt). A taxa sai da sua carteira, não do fee shard on-chain. Volte para Fee shard para manter cada tx anônima do lado da carteira.",
+    "fanout_wallet_disclosure_body": "Todas as {{count}} txs de Mix da árvore carregarão sua identidade de carteira. Sua carteira solicitará {{count}} assinaturas separadas, uma por folha, à medida que o orquestrador constrói e envia cada Mix por vez. A taxa sai da sua carteira, não do fee shard on-chain. Volte para Fee shard para manter cada tx anônima do lado da carteira.",
     "tx_preview_fee_wallet": "Taxa paga pela sua carteira, que também fornece o colateral. Sua identidade de carteira fica na tx.",
     "review_collateral_value_shard": "Fornecido pelo serviço de colateral configurado",
     "review_collateral_value_wallet": "Fornecido pela sua carteira conectada",

@@ -218,7 +218,7 @@
     "fee_payer_wallet_hint": "Cüzdanın ücreti öder ve kolateralı sağlar. Zincir-üstü tavan yok, ama cüzdan kimliğin tx'e düşer.",
     "fee_payer_wallet_hint_fanout": "Cüzdanınız ağaçtaki her mix için ücreti öder, teminat sağlar ve her birini imzalar. Toplam {{count}} imza. Zincir üzeri tavan yok, ancak cüzdan kimliğiniz her tx'te görünür.",
     "fanout_wallet_disclosure_title": "Cüzdan ödemeli fan-out: cüzdanınız her tx'te olacak",
-    "fanout_wallet_disclosure_body": "Ağaçtaki {{count}} Mix tx'inin tümü cüzdan kimliğinizi taşır. Her birini imzalamanız istenecektir (bazı cüzdanlar bunları tek bir istemde toplar). Ücret zincir üzeri fee shard yerine cüzdanınızdan ödenir. Her tx'in cüzdan-anonim kalması için Fee shard'a geri dönün.",
+    "fanout_wallet_disclosure_body": "Ağaçtaki {{count}} Mix tx'inin tümü cüzdan kimliğinizi taşır. Orkestratör her Mix'i sırayla oluşturup gönderirken cüzdanınız sizden {{count}} ayrı imza isteyecek, her yaprak için bir imza. Ücret zincir üzeri fee shard yerine cüzdanınızdan ödenir. Her tx'in cüzdan-anonim kalması için Fee shard'a geri dönün.",
     "tx_preview_fee_wallet": "Ücreti cüzdanın öder, kolateralı da cüzdanın sağlar. Cüzdan kimliğin tx'tedir.",
     "review_collateral_value_shard": "Yapılandırılmış kolateral hizmeti tarafından sağlanır",
     "review_collateral_value_wallet": "Bağlı cüzdanın tarafından sağlanır",

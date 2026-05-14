@@ -218,7 +218,7 @@
     "fee_payer_wallet_hint": "Il tuo wallet paga la commissione e fornisce il collaterale. Nessun tetto on-chain, ma la tua identità di wallet finisce sulla tx.",
     "fee_payer_wallet_hint_fanout": "Il tuo wallet paga la commissione, fornisce il collateral e firma ogni mix dell'albero. {{count}} firme in totale. Nessun tetto on-chain, ma la tua identità wallet è su ogni tx.",
     "fanout_wallet_disclosure_title": "Fan-out finanziato dal wallet: il tuo wallet sarà su ogni tx",
-    "fanout_wallet_disclosure_body": "Tutte le {{count}} tx Mix dell'albero porteranno la tua identità wallet. Ti verrà chiesto di firmare ciascuna (alcuni wallet le raggruppano in un singolo prompt). La commissione viene pagata dal tuo wallet, non dal fee shard on-chain. Torna a Fee shard per mantenere ogni tx anonima.",
+    "fanout_wallet_disclosure_body": "Tutte le {{count}} tx Mix dell'albero porteranno la tua identità wallet. Il tuo wallet ti chiederà {{count}} firme separate, una per foglia, mentre l'orchestrator costruisce e invia ogni Mix a turno. La commissione viene pagata dal tuo wallet, non dal fee shard on-chain. Torna a Fee shard per mantenere ogni tx anonima.",
     "tx_preview_fee_wallet": "Commissione pagata dal tuo wallet, che fornisce anche il collaterale. La tua identità di wallet è sulla tx.",
     "review_collateral_value_shard": "Fornito dal servizio di collaterale configurato",
     "review_collateral_value_wallet": "Fornito dal tuo wallet connesso",

@@ -218,7 +218,7 @@
     "fee_payer_wallet_hint": "Votre portefeuille paie les frais et fournit le collatéral. Pas de plafond on-chain, mais votre identité de portefeuille est sur la tx.",
     "fee_payer_wallet_hint_fanout": "Votre portefeuille paie les frais, fournit le collatéral et signe chaque mix de l'arbre. {{count}} signatures au total. Pas de plafond on-chain, mais votre identité de portefeuille apparaît sur chaque tx.",
     "fanout_wallet_disclosure_title": "Fan-out financé par le portefeuille : votre portefeuille sera sur chaque tx",
-    "fanout_wallet_disclosure_body": "Les {{count}} txs de mix de l'arbre porteront votre identité de portefeuille. Vous serez invité à signer chacune (certains portefeuilles les regroupent en une seule demande). Les frais sont payés depuis votre portefeuille, pas depuis le fee shard on-chain. Revenez à Fee shard pour garder chaque tx anonyme côté portefeuille.",
+    "fanout_wallet_disclosure_body": "Les {{count}} txs de mix de l'arbre porteront votre identité de portefeuille. Votre portefeuille vous demandera {{count}} signatures distinctes, une par feuille, au fur et à mesure que l'orchestrateur construit et soumet chaque mix tour à tour. Les frais sont payés depuis votre portefeuille, pas depuis le fee shard on-chain. Revenez à Fee shard pour garder chaque tx anonyme côté portefeuille.",
     "tx_preview_fee_wallet": "Frais payés par votre portefeuille, qui fournit aussi le collatéral. Votre identité de portefeuille est sur la tx.",
     "review_collateral_value_shard": "Fourni par le service de collatéral configuré",
     "review_collateral_value_wallet": "Fourni par votre portefeuille connecté",

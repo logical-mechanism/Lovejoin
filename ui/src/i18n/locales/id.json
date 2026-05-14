@@ -218,7 +218,7 @@
     "fee_payer_wallet_hint": "Dompetmu membayar biaya dan menyediakan jaminan. Tanpa batas on-chain, tapi identitas dompetmu masuk ke tx.",
     "fee_payer_wallet_hint_fanout": "Wallet Anda membayar biaya, menyediakan jaminan untuk setiap mix di pohon, dan menandatangani masing-masing. Total {{count}} tanda tangan. Tidak ada batas on-chain, tetapi identitas wallet Anda ada pada setiap tx.",
     "fanout_wallet_disclosure_title": "Fan-out berbiaya wallet: wallet Anda akan ada di setiap tx",
-    "fanout_wallet_disclosure_body": "Seluruh {{count}} txs Mix di pohon akan membawa identitas wallet Anda. Anda akan diminta menandatangani masing-masing (beberapa wallet menggabungkannya menjadi satu prompt). Biaya dibayar dari wallet Anda, bukan dari fee shard on-chain. Kembali ke Fee shard untuk menjaga setiap tx tetap anonim.",
+    "fanout_wallet_disclosure_body": "Seluruh {{count}} txs Mix di pohon akan membawa identitas wallet Anda. Wallet Anda akan meminta tanda tangan {{count}} kali secara terpisah, satu tanda tangan per leaf, saat orchestrator membangun dan mengirim setiap Mix secara bergiliran. Biaya dibayar dari wallet Anda, bukan dari fee shard on-chain. Kembali ke Fee shard untuk menjaga setiap tx tetap anonim.",
     "tx_preview_fee_wallet": "Biaya dibayar dompetmu, dan dompetmu juga menyediakan jaminan. Identitas dompetmu masuk ke tx.",
     "review_collateral_value_shard": "Disediakan oleh layanan collateral yang dikonfigurasi",
     "review_collateral_value_wallet": "Disediakan oleh dompet yang terhubung",
