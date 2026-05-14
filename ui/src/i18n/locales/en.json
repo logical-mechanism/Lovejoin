@@ -262,7 +262,7 @@
     "progress_title": "Fan-out progress",
     "progress_summary": "{{done}} of {{total}} mixes processed · {{submitted}} submitted · {{failed}} dropped",
     "progress_current_wave": "Currently on wave {{wave}}",
-    "progress_slow_hint": "This slot is taking longer than usual. The collateral host may be retrying through a transient outage — this can add a few seconds per occurrence.",
+    "progress_slow_hint": "This slot is taking longer than usual. As the fan-out chain grows, the Cardano node re-validates every queued transaction before accepting a new one, so later slots can add a few seconds. Submitted txs still land in the next block.",
     "progress_dropped": "{{count}} mix(es) dropped because their parent tx failed",
     "toast_success": "Fan-out complete — {{count}} mix(es) submitted",
     "toast_partial": "Fan-out finished with errors — {{submitted}} submitted, {{failed}} dropped",

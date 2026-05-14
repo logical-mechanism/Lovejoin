@@ -612,6 +612,6 @@
     "toast_partial": "Yelpaze hatalarla tamamlandı — {{submitted}} gönderildi, {{failed}} düşürüldü",
     "toast_failed": "Yelpaze başarısız",
     "gate_owned_in_flight": "Sahip olduğun her box hâlâ önceki bir tx'ten uçuyor. Bir sonraki bloğu bekle ve tekrar dene.",
-    "progress_slow_hint": "Bu adım her zamankinden uzun sürüyor. Kolateral hizmeti geçici bir kesinti sonrası yeniden deniyor olabilir — bu her olayda birkaç saniye ekler."
+    "progress_slow_hint": "Bu adım her zamankinden uzun sürüyor. Yelpaze zinciri büyüdükçe Cardano düğümü, yeni bir tx kabul etmeden önce kuyruktaki her işlemi yeniden doğrular; dolayısıyla sonraki adımlar birkaç saniye daha uzun sürebilir. Gönderilen tx'ler yine de bir sonraki blokta yer alır."
   }
 }

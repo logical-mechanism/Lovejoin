@@ -612,6 +612,6 @@
     "toast_partial": "Rozgałęzienie zakończone z błędami — wysłano {{submitted}}, odrzucono {{failed}}",
     "toast_failed": "Rozgałęzienie nieudane",
     "gate_owned_in_flight": "Wszystkie twoje boxy są jeszcze w locie z poprzedniej tx. Poczekaj na następny blok i spróbuj ponownie.",
-    "progress_slow_hint": "Ten krok trwa dłużej niż zwykle. Usługa kolateralu może ponawiać próbę po krótkiej awarii — to dodaje kilka sekund na zdarzenie."
+    "progress_slow_hint": "Ten krok trwa dłużej niż zwykle. W miarę jak łańcuch rozgałęzienia się wydłuża, węzeł Cardano ponownie waliduje każdą transakcję w kolejce przed przyjęciem nowej, więc kolejne kroki mogą zająć kilka dodatkowych sekund. Wysłane tx i tak trafią do następnego bloku."
   }
 }
