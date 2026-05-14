@@ -616,6 +616,6 @@
     "toast_partial": "Trộn cây kết thúc với lỗi — {{submitted}} đã gửi, {{failed}} bị hủy",
     "toast_failed": "Trộn cây thất bại",
     "gate_owned_in_flight": "Mọi box bạn sở hữu vẫn đang bay từ tx trước. Hãy đợi khối tiếp theo và thử lại.",
-    "progress_slow_hint": "Bước này đang lâu hơn bình thường. Khi chuỗi fan-out kéo dài, node Cardano sẽ xác thực lại mọi giao dịch đang chờ trước khi chấp nhận một giao dịch mới, nên các bước sau có thể mất thêm vài giây. Các tx đã gửi vẫn sẽ vào block tiếp theo."
+    "progress_slow_hint": "tx này đang mất nhiều thời gian hơn bình thường."
   }
 }

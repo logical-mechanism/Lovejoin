@@ -616,6 +616,6 @@
     "toast_partial": "Leque terminou com erros — {{submitted}} enviados, {{failed}} descartados",
     "toast_failed": "Leque falhou",
     "gate_owned_in_flight": "Todas as suas boxes ainda estão em trânsito de uma tx anterior. Aguarde o próximo bloco e tente de novo.",
-    "progress_slow_hint": "Este passo está a demorar mais do que o habitual. À medida que a cadeia em leque cresce, o nó Cardano revalida cada transação em fila antes de aceitar uma nova, por isso os passos mais profundos podem somar alguns segundos. As txs submetidas continuam a entrar no próximo bloco."
+    "progress_slow_hint": "Esta tx está demorando mais que o normal."
   }
 }

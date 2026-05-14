@@ -616,6 +616,6 @@
     "toast_partial": "扇出有错误地完成 — 已提交 {{submitted}}，丢弃 {{failed}}",
     "toast_failed": "扇出失败",
     "gate_owned_in_flight": "你所有的 box 都还在前一笔交易的途中。等下一个区块后再试。",
-    "progress_slow_hint": "此步骤比平常更耗时。随着扇出链条变长，Cardano 节点每次接受新交易前都会重新验证队列中的所有交易，越靠后的步骤会多花几秒钟。已提交的 tx 仍会进入下一个区块。"
+    "progress_slow_hint": "这笔 tx 用时比平时长。"
   }
 }

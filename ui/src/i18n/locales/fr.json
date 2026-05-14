@@ -616,6 +616,6 @@
     "toast_partial": "Éventail terminé avec des erreurs — {{submitted}} envoyés, {{failed}} abandonnés",
     "toast_failed": "Éventail échoué",
     "gate_owned_in_flight": "Toutes vos boxes sont encore en vol depuis une tx précédente. Attendez le prochain bloc et réessayez.",
-    "progress_slow_hint": "Cette étape prend plus de temps que d'habitude. À mesure que la chaîne de l'éventail s'allonge, le nœud Cardano revalide chaque transaction en attente avant d'en accepter une nouvelle ; les étapes plus profondes peuvent ajouter quelques secondes. Les tx envoyées seront tout de même incluses dans le prochain bloc."
+    "progress_slow_hint": "Cette tx prend plus de temps que d'habitude."
   }
 }

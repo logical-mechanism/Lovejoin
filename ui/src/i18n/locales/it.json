@@ -616,6 +616,6 @@
     "toast_partial": "Ventaglio terminato con errori — {{submitted}} inviati, {{failed}} scartati",
     "toast_failed": "Ventaglio fallito",
     "gate_owned_in_flight": "Ogni box è ancora in volo da una tx precedente. Attendi il prossimo blocco e riprova.",
-    "progress_slow_hint": "Questo passo sta richiedendo più tempo del solito. Man mano che la catena del ventaglio cresce, il nodo Cardano rivalida ogni transazione in coda prima di accettarne una nuova, quindi i passi più profondi possono aggiungere qualche secondo. Le tx inviate verranno comunque incluse nel prossimo blocco."
+    "progress_slow_hint": "Questa tx sta impiegando più tempo del solito."
   }
 }

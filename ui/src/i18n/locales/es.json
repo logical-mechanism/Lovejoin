@@ -616,6 +616,6 @@
     "toast_partial": "Abanico terminado con errores — {{submitted}} enviadas, {{failed}} descartadas",
     "toast_failed": "Abanico fallido",
     "gate_owned_in_flight": "Todas las cajas propias siguen en vuelo de una tx anterior. Espera al próximo bloque e inténtalo de nuevo.",
-    "progress_slow_hint": "Esta operación está tardando más de lo habitual. A medida que crece la cadena del abanico, el nodo de Cardano vuelve a validar cada transacción en cola antes de aceptar una nueva, por lo que los últimos pasos pueden añadir unos segundos. Las txs enviadas seguirán incluyéndose en el próximo bloque."
+    "progress_slow_hint": "Esta tx está tardando más de lo habitual."
   }
 }
