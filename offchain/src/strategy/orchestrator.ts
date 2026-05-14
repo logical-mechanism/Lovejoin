@@ -187,7 +187,32 @@ export interface SubmitFanoutArgs {
     current: ReadonlyArray<MeshUtxo>,
     unsignedTxHex: string,
     changeAddressBech32: string,
-  ) => MeshUtxo[];
+  ) => ChainWalletUtxosResult;
+}
+
+/**
+ * Output of {@link chainWalletUtxosAfterBuild}. The orchestrator needs
+ * three pieces of info from each leaf's just-built unsigned CBOR:
+ *
+ *   * `rolling` — the wallet's spendable set with this leaf's consumed
+ *     input(s) removed and its change output(s) added. Fed to the next
+ *     leaf as `walletUtxosOverride`.
+ *   * `inFlightChange` — this leaf's change outputs in flat `Utxo`
+ *     shape. The orchestrator merges them into subsequent leaves'
+ *     `chainFrom.utxos` so ogmios's evaluator can resolve a wallet
+ *     input that came from a previous leaf in the same batch — without
+ *     this the evaluator falls back to populate-time placeholder ex
+ *     units and the chain rejects the tx with a script-budget
+ *     validation error.
+ *   * `consumedKeys` — refKeys of every input this tx spent. The
+ *     orchestrator subtracts them from the in-flight wallet-change map
+ *     so a wallet utxo that's already been spent doesn't get re-added
+ *     to a later leaf's chainFrom.
+ */
+export interface ChainWalletUtxosResult {
+  rolling: MeshUtxo[];
+  inFlightChange: Utxo[];
+  consumedKeys: Set<string>;
 }
 
 /**
@@ -662,6 +687,15 @@ export async function planFanoutTxs(args: SubmitFanoutArgs): Promise<UnsignedFan
     changeAddress = await args.wallet.getChangeAddress();
   }
   let rollingWalletUtxos: MeshUtxo[] = initialWalletUtxos.slice();
+  // In-flight wallet change UTxOs (this batch's prior-leaf outputs that
+  // aren't on chain yet). Keyed by refKey so the next leaf's consumed
+  // inputs can remove them from the map without a linear scan, and the
+  // values are spliced into the next leaf's `chainFrom.utxos` so
+  // ogmios's evaluator can resolve them — without that the evaluator
+  // returns no exec budgets, redeemers ship with the populate-time
+  // placeholder (mem=10000 / steps=1_000_000), and on-chain Mix
+  // validation fails out of script budget.
+  const inFlightWalletExtras = new Map<string, Utxo>();
 
   // Load core-cst once if we're in wallet mode — the real chaining
   // helper needs it to parse each unsigned tx, and a dynamic import
@@ -682,9 +716,39 @@ export async function planFanoutTxs(args: SubmitFanoutArgs): Promise<UnsignedFan
       feePayer === "wallet" && rollingWalletUtxos.length > 0
         ? { walletUtxosOverride: rollingWalletUtxos.slice() }
         : {};
-    const built = await underlyingBuild({ ...a, ...override, buildOnly: true });
+    // Splice any in-flight wallet UTxOs (change emitted by an earlier
+    // leaf in this batch, not yet on chain) into chainFrom.utxos.
+    // Bound: ≤ (slots built so far) entries, comfortably under the
+    // backend's 32-entry cap together with the existing chainFrom
+    // contributors (direct parent's mix outputs + in-flight fee-shard
+    // extras).
+    const chainFromArg = (() => {
+      const baseUtxos = a.chainFrom?.utxos ?? [];
+      const inFlightWalletList = Array.from(inFlightWalletExtras.values());
+      const merged: Utxo[] = [...baseUtxos, ...inFlightWalletList];
+      if (merged.length === 0) return undefined;
+      return { ...(a.chainFrom ?? {}), utxos: merged };
+    })();
+    const built = await underlyingBuild({
+      ...a,
+      ...override,
+      buildOnly: true,
+      ...(chainFromArg ? { chainFrom: chainFromArg } : {}),
+    });
     if (feePayer === "wallet" && changeAddress) {
-      rollingWalletUtxos = chainWalletUtxos(rollingWalletUtxos, built.unsignedTxHex, changeAddress);
+      const result = chainWalletUtxos(rollingWalletUtxos, built.unsignedTxHex, changeAddress);
+      rollingWalletUtxos = result.rolling;
+      // Remove just-spent inputs from the in-flight tracker. Chain
+      // helper returns the full consumed set including the mix-box +
+      // pool inputs; those aren't in the map so .delete() is a no-op
+      // for them.
+      for (const k of result.consumedKeys) inFlightWalletExtras.delete(k);
+      // Add this leaf's wallet change as a new in-flight entry so
+      // subsequent leaves can resolve it via chainFrom.
+      for (const u of result.inFlightChange) {
+        const key = `${u.ref.txId.toLowerCase()}#${u.ref.outputIndex}`;
+        inFlightWalletExtras.set(key, u);
+      }
     }
     return built;
   };
@@ -739,22 +803,33 @@ export function chainWalletUtxosAfterBuild(
   unsignedTxHex: string,
   changeAddressBech32: string,
   cst: typeof import("@meshsdk/core-cst"),
-): MeshUtxo[] {
+): ChainWalletUtxosResult {
   const tx = cst.deserializeTx(unsignedTxHex);
   const txId = String(cst.resolveTxHash(unsignedTxHex)).toLowerCase();
 
-  const consumed = new Set<string>();
+  const consumedKeys = new Set<string>();
   for (const inp of tx.body().inputs().values()) {
     const hash = inp.transactionId().toString().toLowerCase();
-    consumed.add(`${hash}#${inp.index()}`);
+    consumedKeys.add(`${hash}#${Number(inp.index())}`);
   }
 
-  const next: MeshUtxo[] = current.filter((u) => {
+  const rolling: MeshUtxo[] = current.filter((u) => {
     const k = `${u.input.txHash.toLowerCase()}#${u.input.outputIndex}`;
-    return !consumed.has(k);
+    return !consumedKeys.has(k);
   });
 
+  // Collect change outputs in BOTH shapes:
+  //   * MeshUtxo (pushed onto `rolling` so the next leaf's
+  //     walletUtxosOverride picks them up for coin-selection).
+  //   * lovejoin `Utxo` (returned separately as `inFlightChange` so
+  //     the orchestrator can splice them into the next leaf's
+  //     `chainFrom.utxos` — without that the evaluator can't resolve
+  //     a wallet input that came from a previous leaf in the batch
+  //     and the redeemers ship with placeholder ex units, which the
+  //     chain rejects).
+  const inFlightChange: Utxo[] = [];
   const outputs = tx.body().outputs();
+  const changeAddressLower = changeAddressBech32.toLowerCase();
   for (let i = 0; i < outputs.length; i++) {
     const out = outputs[i]!;
     let outAddr: string;
@@ -765,7 +840,7 @@ export function chainWalletUtxosAfterBuild(
       // produced. Skip.
       continue;
     }
-    if (outAddr !== changeAddressBech32) continue;
+    if (outAddr.toLowerCase() !== changeAddressLower) continue;
     // Mix-box outputs always carry an inline datum; the fee shard
     // (irrelevant in wallet mode) also carries one. Wallet change is
     // datumless. Same goes for ref-script-bearing outputs.
@@ -777,20 +852,31 @@ export function chainWalletUtxosAfterBuild(
     const amount: Array<{ unit: string; quantity: string }> = [
       { unit: "lovelace", quantity: lovelace.toString() },
     ];
+    const assets: Record<string, bigint> = {};
     const multiAsset = value.multiasset();
     if (multiAsset && multiAsset.size > 0) {
       for (const [assetId, qty] of multiAsset.entries()) {
-        amount.push({ unit: assetId.toString(), quantity: qty.toString() });
+        const unit = assetId.toString();
+        amount.push({ unit, quantity: qty.toString() });
+        assets[unit] = (assets[unit] ?? 0n) + BigInt(qty.toString());
       }
     }
 
-    next.push({
+    rolling.push({
       input: { txHash: txId, outputIndex: i },
       output: { address: outAddr, amount },
     });
+    inFlightChange.push({
+      ref: { txId, outputIndex: i },
+      address: outAddr,
+      lovelace: BigInt(lovelace.toString()),
+      assets,
+      inlineDatum: null,
+      referenceScript: null,
+    });
   }
 
-  return next;
+  return { rolling, inFlightChange, consumedKeys };
 }
 
 export interface SubmitFanoutBatchArgs {

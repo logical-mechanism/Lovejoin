@@ -658,11 +658,15 @@ describe("planFanoutTxs", () => {
     // Verifies that planFanoutTxs actually USES the returned list as
     // the next leaf's override.
     const chainStub = (current: ReadonlyArray<unknown>) => {
-      const next = current.slice(1) as ReadonlyArray<{ input: object; output: object }>;
+      const next = current.slice(1) as Array<{ input: object; output: object }>;
       next.push(
         makeMeshUtxo(buildIdx.toString(16).padStart(64, "f"), 1, "addr1stub", 1_000_000n) as never,
       );
-      return next as never;
+      return {
+        rolling: next as never,
+        inFlightChange: [],
+        consumedKeys: new Set<string>(),
+      };
     };
 
     await planFanoutTxs({
@@ -694,6 +698,117 @@ describe("planFanoutTxs", () => {
       (arr) => (arr[0] as { input: { txHash: string } }).input.txHash,
     );
     expect(new Set(firstEntryTxHashes).size).toBe(4);
+  });
+
+  it("splices in-flight wallet change into chainFrom.utxos so the evaluator can resolve it", async () => {
+    // Repro for the depth-3 "validation error from the withdraw" the
+    // user hit on the 6th leaf: by leaf 6 the original chain wallet
+    // UTxOs were exhausted and mesh's coin-selection picked an
+    // in-flight wallet change from an earlier leaf as the input. Mesh's
+    // tx.complete() then asked ogmios to evaluate the tx, but the
+    // in-flight ref wasn't in the additionalUtxoSet — so ogmios
+    // returned no per-redeemer exec budgets and mesh kept the
+    // populate-time placeholders. On chain the Mix validator blew
+    // through its (~0.01 mem) budget instantly.
+    //
+    // Fix: planFanoutTxs splices any rolling wallet UTxO whose ref
+    // isn't in the initial chain set into every leaf's chainFrom.utxos.
+    const root = makeEntry(0);
+    const pool = Array.from({ length: 30 }, (_, i) => makeEntry(i + 1));
+    const plan = planFanout({ rootBox: root, pool, depth: 2, rng: zeroRng });
+
+    // Wallet starts with 2 chain UTxOs.
+    const chainTxA = "aa" + "00".repeat(31);
+    const chainTxB = "bb" + "00".repeat(31);
+    const startingUtxos = [
+      makeMeshUtxo(chainTxA, 0, "addr1stub", 100_000_000n),
+      makeMeshUtxo(chainTxB, 0, "addr1stub", 50_000_000n),
+    ];
+    const wallet = {
+      getUsedAddresses: async () => [],
+      getChangeAddress: () => "addr1stub",
+      getUtxos: async () => startingUtxos,
+      getCollateral: async () => [],
+      signTx: async () => "",
+      submitTx: async () => "",
+    } as unknown as LovejoinWallet;
+
+    const chainFromByLeaf: Array<ReadonlyArray<Utxo>> = [];
+    let buildIdx = 0;
+    const buildMix = async (args: BuildMixArgs): Promise<MixResult> => {
+      chainFromByLeaf.push(args.chainFrom?.utxos ?? []);
+      const label = `b${buildIdx++}`;
+      return stubUnsignedMixResult(label, args.inputs.length, feeShardUtxo(`${label}_fee`));
+    };
+    // Simulate "consumed the chain UTxO at the head and emitted an
+    // in-flight change at the tail" — by leaf 2 the only entries in
+    // rollingWalletUtxos are in-flight refs that the chain provider
+    // cannot resolve without being told about them. The stub also
+    // surfaces the change in `inFlightChange` so the orchestrator
+    // adds it to subsequent leaves' chainFrom.utxos.
+    const inFlightRefs: Array<{ txHash: string; outputIndex: number }> = [];
+    const chainStub = (current: ReadonlyArray<unknown>) => {
+      const dropped = current[0] as { input: { txHash: string; outputIndex: number } } | undefined;
+      const next = current.slice(1) as Array<{ input: object; output: object }>;
+      const newRef = {
+        txHash: buildIdx.toString(16).padStart(64, "f"),
+        outputIndex: 3,
+      };
+      inFlightRefs.push(newRef);
+      next.push(makeMeshUtxo(newRef.txHash, newRef.outputIndex, "addr1stub", 1_000_000n) as never);
+      const consumedKeys = new Set<string>();
+      if (dropped)
+        consumedKeys.add(`${dropped.input.txHash.toLowerCase()}#${dropped.input.outputIndex}`);
+      const inFlightChange: Utxo[] = [
+        {
+          ref: { txId: newRef.txHash.toLowerCase(), outputIndex: newRef.outputIndex },
+          address: "addr1stub",
+          lovelace: 1_000_000n,
+          assets: {},
+          inlineDatum: null,
+          referenceScript: null,
+        },
+      ];
+      return {
+        rolling: next as never,
+        inFlightChange,
+        consumedKeys,
+      };
+    };
+
+    await planFanoutTxs({
+      plan,
+      network: "preprod",
+      provider: NULL_PROVIDER,
+      addresses: ADDRESSES,
+      feePayer: "wallet",
+      wallet,
+      buildMix,
+      chainWalletUtxos: chainStub,
+    });
+
+    // Leaf 0 sees no in-flight wallet utxos yet (the wallet's initial
+    // set is all chain-resident).
+    expect(chainFromByLeaf[0]).toHaveLength(0);
+    // Leaves 1+ see the rolling in-flight refs spliced in. After leaf
+    // 0 builds, the rolling set has one in-flight change ("f...3");
+    // leaf 1's chainFrom must carry it so ogmios can resolve it.
+    expect(chainFromByLeaf[1]!.length).toBeGreaterThanOrEqual(1);
+    const seenRefKeys = new Set(
+      chainFromByLeaf[1]!.map((u) => `${u.ref.txId.toLowerCase()}#${u.ref.outputIndex}`),
+    );
+    const firstInFlight = inFlightRefs[0]!;
+    expect(
+      seenRefKeys.has(`${firstInFlight.txHash.toLowerCase()}#${firstInFlight.outputIndex}`),
+    ).toBe(true);
+    // Critically: the CHAIN refs (chainTxA / chainTxB) must NOT be
+    // spliced in — they don't need to be in additionalUtxoSet because
+    // the evaluator can resolve them from chain state. Including them
+    // would just eat into the backend's 32-entry cap.
+    for (const u of chainFromByLeaf[1]!) {
+      expect(u.ref.txId).not.toBe(chainTxA);
+      expect(u.ref.txId).not.toBe(chainTxB);
+    }
   });
 
   it("does not fetch wallet utxos in shard mode (no chaining needed)", async () => {
