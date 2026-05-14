@@ -19,3 +19,6 @@ export * from "./pool/index.js";
 
 // Higher-level strategy layer composing the per-tx builders (issue #137).
 export * from "./strategy/index.js";
+
+// Seedelf stealth-wallet integration (issue #135).
+export * from "./seedelf/index.js";

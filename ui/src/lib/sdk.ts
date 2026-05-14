@@ -18,8 +18,10 @@ import {
   BlockfrostProvider,
   getKnownCollateralHost,
   lovejoinNetworkToCollateralNetwork,
+  resolveSeedelfAddresses,
   type ChainProvider,
   type LovejoinAddresses,
+  type SeedelfAddresses,
 } from "@lovejoin/sdk";
 
 export const NETWORKS = ["preprod", "preview", "mainnet"] as const;
@@ -87,6 +89,41 @@ export function envDefaults(): RuntimeConfig {
     backendUrl,
     collateralProviderEndpoint: rawCollateral || defaultCollateralEndpoint(network),
   };
+}
+
+/**
+ * Resolve the Seedelf protocol addresses for the active network. Combines
+ * the SDK's canonical defaults with any `VITE_SEEDELF_*` overrides set at
+ * build time. Returns `null` when the network has no canonical default
+ * AND no override is set — the UI surfaces "Seedelf not configured" rather
+ * than crashing in that case.
+ */
+export function loadSeedelfAddresses(network: Network): SeedelfAddresses | null {
+  const env = import.meta.env;
+  const sizeFromEnv = (v: string | undefined): number | undefined => {
+    if (v === undefined || v.trim() === "") return undefined;
+    const n = Number.parseInt(v, 10);
+    return Number.isFinite(n) && n > 0 ? n : undefined;
+  };
+  // Build the overrides as a spread of present-only fields. `exactOptional
+  // PropertyTypes` rejects `{ foo: undefined }` literal shapes, so we only
+  // include each key when the env actually carries a value.
+  const overrides: Parameters<typeof resolveSeedelfAddresses>[1] = {};
+  const walletScriptHash = env.VITE_SEEDELF_WALLET_SCRIPT_HASH?.trim();
+  if (walletScriptHash) overrides.walletScriptHash = walletScriptHash;
+  const seedelfPolicyId = env.VITE_SEEDELF_POLICY_ID?.trim();
+  if (seedelfPolicyId) overrides.seedelfPolicyId = seedelfPolicyId;
+  const walletRefStr = env.VITE_SEEDELF_WALLET_REFERENCE_UTXO?.trim();
+  if (walletRefStr) overrides.walletReferenceUtxoRef = walletRefStr;
+  const seedelfRefStr = env.VITE_SEEDELF_REFERENCE_UTXO?.trim();
+  if (seedelfRefStr) overrides.seedelfReferenceUtxoRef = seedelfRefStr;
+  const walletRefSize = sizeFromEnv(env.VITE_SEEDELF_WALLET_REFERENCE_SCRIPT_SIZE);
+  if (walletRefSize !== undefined) overrides.walletReferenceScriptSize = walletRefSize;
+  const seedelfRefSize = sizeFromEnv(env.VITE_SEEDELF_REFERENCE_SCRIPT_SIZE);
+  if (seedelfRefSize !== undefined) overrides.seedelfReferenceScriptSize = seedelfRefSize;
+  // resolveSeedelfAddresses expects "preprod" / "preview" / "test" / "mainnet";
+  // the UI's Network type already matches the first three (preview maps 1:1).
+  return resolveSeedelfAddresses(network, overrides);
 }
 
 /**
