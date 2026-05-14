@@ -1277,7 +1277,13 @@ export async function buildMixTx(args: BuildMixArgs): Promise<MixResult> {
             },
           })
         : meshProvider;
+    // Counts how many times buildOnce is called per slot so the per-stage
+    // log can show pass-1 / pass-2 / pass-3 (initial / fee-discovery /
+    // fee-bump). Reset per slot.
+    let buildPassCount = 0;
     const buildOnce = async (feeOverride?: bigint): Promise<string> => {
+      buildPassCount += 1;
+      const passLabel = buildPassCount;
       const tx = new MeshTxBuilder({
         fetcher: fetcherForBuild as never,
         submitter: meshProvider as never,
@@ -1293,7 +1299,12 @@ export async function buildMixTx(args: BuildMixArgs): Promise<MixResult> {
       // evaluator's numbers exactly — they're the chain's own values.
       tx.txEvaluationMultiplier = 1;
       populate(tx, feeOverride);
-      return tx.complete();
+      const completeStart = Date.now();
+      const result = await tx.complete();
+      console.log(
+        `[lovejoin/mix] mesh.complete() pass ${passLabel} done in ${Date.now() - completeStart}ms`,
+      );
+      return result;
     };
 
     // Build pass(es).
@@ -1448,19 +1459,24 @@ export async function buildMixTx(args: BuildMixArgs): Promise<MixResult> {
       // Same additionalUtxos array used for the evaluator above is also
       // forwarded to the collateral host so its evaluator sees the same
       // chain state. See BuildMixArgs.chainFrom.
+      const signStart = Date.now();
       const hostWitness = await collateralProvider.signTxBody(
         unsignedTxHex,
         additionalUtxos ? { additionalUtxos } : undefined,
       );
+      const signMs = Date.now() - signStart;
       if (!hostWitness) {
         throw new Error(
           "Mix tx: collateral provider claimed externallySigned but signTxBody() returned null",
         );
       }
+      const mergeStart = Date.now();
       signedTx = await appendVkeyWitness(unsignedTxHex, hostWitness);
+      const mergeMs = Date.now() - mergeStart;
 
       console.log(
-        `[lovejoin/mix] external collateral witness merged from ${hostWitness.vkeyHex.slice(0, 8)}…`,
+        `[lovejoin/mix] external collateral witness merged from ${hostWitness.vkeyHex.slice(0, 8)}… ` +
+          `(signTxBody=${signMs}ms, witnessMerge=${mergeMs}ms)`,
       );
     } else {
       if (!args.wallet) {

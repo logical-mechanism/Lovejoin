@@ -40,6 +40,7 @@ export type FetchFn = (
     method?: string;
     headers?: Record<string, string>;
     body?: string;
+    signal?: AbortSignal;
   },
 ) => Promise<{
   ok: boolean;
@@ -124,12 +125,24 @@ export class BackendChainProvider implements ChainProvider {
     return this.tryWithFallback(
       "submitTx",
       async () => {
+        const startedAt = Date.now();
+        console.log(
+          `[lovejoin/submit] POST ${this.baseUrl}/submit (txCbor=${signedTxCborHex.length / 2} bytes)`,
+        );
+        // 30s wall-clock cap. Without it a stuck upstream (back-pressured
+        // mempool, hung TCP socket, paused container) leaves the caller
+        // spinning forever; user-visible symptom is a fan-out run that
+        // never finishes its last slot. 30s is generous: a healthy
+        // submission round-trip is < 1s, and ogmios will reject an
+        // invalid tx in milliseconds.
         const res = await this.fetchFn(`${this.baseUrl}/submit`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ cbor: signedTxCborHex }),
+          signal: AbortSignal.timeout(30_000),
         });
         const body = await readJson(res);
+        console.log(`[lovejoin/submit] HTTP ${res.status} in ${Date.now() - startedAt}ms`);
         if (!res.ok) {
           throw new Error(
             `BackendChainProvider.submitTx (${res.status}): ${
