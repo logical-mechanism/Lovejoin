@@ -328,6 +328,63 @@ describe("submitFanout", () => {
     }
   });
 
+  it("forwards args.feePayer to every slot's build (issue #147 wallet-funded fan-out)", async () => {
+    // Default is "shard"; an explicit "wallet" must reach every leaf so
+    // the wallet branch in mix.ts kicks in for the entire tree, not
+    // just the root. Without this the orchestrator would silently
+    // submit wallet-anonymous shard txs even when the user asked for
+    // wallet-funded fan-out.
+    const root = makeEntry(0);
+    const pool = Array.from({ length: 30 }, (_, i) => makeEntry(i + 1));
+    const plan = planFanout({ rootBox: root, pool, depth: 2, rng: zeroRng });
+
+    const seenFeePayer: string[] = [];
+    let n = 0;
+    const buildMix = async (args: BuildMixArgs): Promise<MixResult> => {
+      seenFeePayer.push(args.feePayer ?? "(unset)");
+      const label = `s${n++}`;
+      return stubMixResult(label, args.inputs.length, feeShardUtxo(`${label}_fee`));
+    };
+
+    for await (const _evt of submitFanout({
+      plan,
+      network: "preprod",
+      provider: NULL_PROVIDER,
+      addresses: ADDRESSES,
+      feePayer: "wallet",
+      buildMix,
+    })) {
+      // drain
+    }
+    expect(seenFeePayer).toHaveLength(4); // 1 + 3 slots at depth 2.
+    for (const fp of seenFeePayer) expect(fp).toBe("wallet");
+  });
+
+  it("defaults to feePayer=shard when args.feePayer is omitted", async () => {
+    const root = makeEntry(0);
+    const pool = Array.from({ length: 30 }, (_, i) => makeEntry(i + 1));
+    const plan = planFanout({ rootBox: root, pool, depth: 2, rng: zeroRng });
+
+    const seenFeePayer: string[] = [];
+    let n = 0;
+    const buildMix = async (args: BuildMixArgs): Promise<MixResult> => {
+      seenFeePayer.push(args.feePayer ?? "(unset)");
+      const label = `s${n++}`;
+      return stubMixResult(label, args.inputs.length, feeShardUtxo(`${label}_fee`));
+    };
+
+    for await (const _evt of submitFanout({
+      plan,
+      network: "preprod",
+      provider: NULL_PROVIDER,
+      addresses: ADDRESSES,
+      buildMix,
+    })) {
+      // drain
+    }
+    for (const fp of seenFeePayer) expect(fp).toBe("shard");
+  });
+
   it("excludes consumed fee shards from future picks via excludeFeeShardRefs", async () => {
     const root = makeEntry(0);
     const pool = Array.from({ length: 30 }, (_, i) => makeEntry(i + 1));
