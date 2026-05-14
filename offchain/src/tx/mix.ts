@@ -767,6 +767,43 @@ export interface BuildMixArgs {
   /** If true, sign but don't submit. Default: false. */
   signOnly?: boolean;
   /**
+   * If true, return the unsigned tx CBOR without calling `wallet.signTx`
+   * or `provider.submitTx`. Used by the fan-out batch-sign path
+   * (`planFanoutTxs` → `submitFanoutBatch`) so every leaf in the tree
+   * is built first, then signed in one CIP-103 prompt, then submitted
+   * in order. The returned `MixResult.signedTxHex` is the empty string;
+   * the unsigned CBOR is on `unsignedTxHex` and the txId is derived
+   * from its tx-body hash (same value the chain will assign after
+   * submission, since witnesses don't affect the body hash).
+   *
+   * Skips the wallet-side signing step entirely. The collateral-host
+   * branch (external `signTxBody`) still runs because the host's vkey
+   * witness must already be merged before the wallet sees the tx —
+   * but that branch is irrelevant for the wallet-funded fan-out path
+   * (WalletProvider, no external host).
+   *
+   * Default: false (preserves the canonical sign+submit behavior).
+   */
+  buildOnly?: boolean;
+  /**
+   * Override mesh's coin-selection input set. When set, `buildMixTx`
+   * uses this list verbatim instead of calling `wallet.getUtxos()`.
+   *
+   * The fan-out batch path uses this to chain wallet UTxOs across
+   * leaves: every leaf in the batch is built before any is submitted,
+   * so `wallet.getUtxos()` returns the same pre-mempool snapshot for
+   * every call and mesh would pick the SAME wallet input for every
+   * leaf — which the wallet rejects as "Input utxo is spent more than
+   * once" at `signTxs` time. The orchestrator pre-fetches the wallet's
+   * UTxOs, subtracts consumed inputs after each build, and adds the
+   * change output(s) to the rolling set so the next leaf sees the
+   * wallet's true post-build state.
+   *
+   * Only honoured when `feePayer === "wallet"`. Ignored in shard mode
+   * (no wallet input on the tx at all).
+   */
+  walletUtxosOverride?: ReadonlyArray<import("@meshsdk/core").UTxO>;
+  /**
    * Retry on input collisions. Useful for shard mode under heavy mix
    * activity: if the picked fee shard was consumed by another tx
    * between build and submit, the SDK transparently re-picks a fresh
@@ -838,6 +875,14 @@ export interface BuildMixArgs {
 
 export interface MixResult {
   signedTxHex: string;
+  /**
+   * Same tx as `signedTxHex` but without any witnesses appended. Useful
+   * for batch-sign callers (`planFanoutTxs`) that hand the unsigned CBOR
+   * to `wallet.signTxs(...)` in one prompt. Always populated; in the
+   * default sign+submit path this is just the value `tx.complete()`
+   * returned before the wallet signature was merged.
+   */
+  unsignedTxHex: string;
   txId: Hex32;
   /** The plan the tx was built from — useful for callers that want to
    *  inspect the chosen permutation / output (a', b') for tracking. */
@@ -961,6 +1006,7 @@ export async function buildMixTx(args: BuildMixArgs): Promise<MixResult> {
             });
     }
 
+    const planStart = Date.now();
     const plan = planMixTx({
       inputs: args.inputs,
       ...(args.ySecrets ? { ySecrets: args.ySecrets } : {}),
@@ -972,6 +1018,9 @@ export async function buildMixTx(args: BuildMixArgs): Promise<MixResult> {
       networkId,
       ...(args.txFeeLovelace !== undefined ? { txFeeLovelace: args.txFeeLovelace } : {}),
     });
+    console.log(
+      `[lovejoin/mix] planMixTx done in ${Date.now() - planStart}ms (N=${plan.inputs.length})`,
+    );
 
     // Cross-check: every proof must verify locally. If any fail it's a
     // critical encoding-parity bug — abort before we burn fees.
@@ -991,15 +1040,19 @@ export async function buildMixTx(args: BuildMixArgs): Promise<MixResult> {
     // Cardano's collateralPercent is 150 — required collateral covers
     // 1.5x the tx fee. We pin to 5_000_000 lovelace as a generous default
     // (max_fee is sub-1-ADA so 5 ADA is well over).
+    const prepCollStart = Date.now();
     const preparedCollateral = await collateralProvider.prepareCollateral({
       provider: args.provider,
       collateralAmountLovelace: 5_000_000n,
     });
+    console.log(`[lovejoin/mix] prepareCollateral done in ${Date.now() - prepCollStart}ms`);
 
+    const meshInitStart = Date.now();
     const meshCore = await import("@meshsdk/core");
     const { MeshTxBuilder } = meshCore;
     const meshProvider = await getMeshProvider(args.provider);
     const meshParams = await getMeshProtocolParams(args.provider);
+    console.log(`[lovejoin/mix] mesh init done in ${Date.now() - meshInitStart}ms`);
 
     // chainFrom resolution. If the caller is chaining onto an in-flight
     // parent (Deposit / Replenish / prior Mix), convert the parent's
@@ -1114,7 +1167,9 @@ export async function buildMixTx(args: BuildMixArgs): Promise<MixResult> {
       : preparedCollateral.inputs[0]!.address;
     const walletUtxos =
       feePayer === "wallet" && args.wallet
-        ? normalizeWalletUtxos(await args.wallet.getUtxos())
+        ? args.walletUtxosOverride
+          ? args.walletUtxosOverride.slice()
+          : normalizeWalletUtxos(await args.wallet.getUtxos())
         : [];
 
     // Tiny populate-time placeholder per redeemer. Overwritten by the
@@ -1277,7 +1332,13 @@ export async function buildMixTx(args: BuildMixArgs): Promise<MixResult> {
             },
           })
         : meshProvider;
+    // Counts how many times buildOnce is called per slot so the per-stage
+    // log can show pass-1 / pass-2 / pass-3 (initial / fee-discovery /
+    // fee-bump). Reset per slot.
+    let buildPassCount = 0;
     const buildOnce = async (feeOverride?: bigint): Promise<string> => {
+      buildPassCount += 1;
+      const passLabel = buildPassCount;
       const tx = new MeshTxBuilder({
         fetcher: fetcherForBuild as never,
         submitter: meshProvider as never,
@@ -1293,7 +1354,22 @@ export async function buildMixTx(args: BuildMixArgs): Promise<MixResult> {
       // evaluator's numbers exactly — they're the chain's own values.
       tx.txEvaluationMultiplier = 1;
       populate(tx, feeOverride);
-      return tx.complete();
+      const completeStart = Date.now();
+      try {
+        const result = await tx.complete();
+        console.log(
+          `[lovejoin/mix] mesh.complete() pass ${passLabel} ok in ${Date.now() - completeStart}ms`,
+        );
+        return result;
+      } catch (err) {
+        // Also log on failure: pass 2 (fee-discovery) frequently throws
+        // when mesh-csl disagrees with our minFee, and the throw branch
+        // is silent without this. The error itself propagates as before.
+        console.log(
+          `[lovejoin/mix] mesh.complete() pass ${passLabel} threw in ${Date.now() - completeStart}ms`,
+        );
+        throw err;
+      }
     };
 
     // Build pass(es).
@@ -1398,9 +1474,18 @@ export async function buildMixTx(args: BuildMixArgs): Promise<MixResult> {
             `feeOut=${plan.feeShardInput.lovelace - capped}`,
         );
         if (capped !== plan.txFeeLovelace) {
-          unsignedTxHex = await buildWithFeeBumpRetry(buildOnce, capped, plan.txFeeLovelace);
+          const bumped = await buildWithFeeBumpRetry(buildOnce, capped, plan.txFeeLovelace);
+          unsignedTxHex = bumped.txHex;
+          // Use the FINAL fee the rebuild settled on, not the initial
+          // `capped` value. mesh-csl can ratchet the fee a few hundred
+          // lovelace higher when its own min-fee check disagrees with
+          // ours; recording the pre-bump value here mis-predicts the
+          // post-state fee-shard's on-chain lovelace and breaks
+          // chained Mix txs that picks that shard via feeShardExtras.
+          actualFeeLovelace = bumped.finalFee;
+        } else {
+          actualFeeLovelace = capped;
         }
-        actualFeeLovelace = capped;
       } else {
         console.warn(
           `[lovejoin/mix] shard-mode fee discovery: evaluator returned non-array ` +
@@ -1428,6 +1513,27 @@ export async function buildMixTx(args: BuildMixArgs): Promise<MixResult> {
       }
     }
 
+    // buildOnly short-circuit: return the unsigned tx + derived txId
+    // without invoking the wallet or the chain submitter. Callers
+    // (planFanoutTxs) re-collect every slot's unsigned CBOR for one
+    // batch wallet.signTxs(...) prompt downstream. txId is derivable
+    // because Cardano's txId is the blake2b-256 hash of the tx body
+    // bytes, which witnesses don't touch.
+    if (args.buildOnly) {
+      const cstBuildOnly = await import("@meshsdk/core-cst");
+      const builtTxId = String(cstBuildOnly.resolveTxHash(unsignedTxHex));
+      console.log(
+        `[lovejoin/mix] buildOnly: skipping sign+submit; txId=${builtTxId.slice(0, 12)}…`,
+      );
+      return {
+        signedTxHex: "",
+        unsignedTxHex,
+        txId: builtTxId,
+        plan,
+        actualFeeLovelace,
+      };
+    }
+
     // Witness path. With GivemeMyProvider (the default for Mix) the user's
     // wallet does not sign at all — the host's vkey is the only signer the
     // tx needs. With WalletProvider the wallet signs the collateral input
@@ -1439,19 +1545,24 @@ export async function buildMixTx(args: BuildMixArgs): Promise<MixResult> {
       // Same additionalUtxos array used for the evaluator above is also
       // forwarded to the collateral host so its evaluator sees the same
       // chain state. See BuildMixArgs.chainFrom.
+      const signStart = Date.now();
       const hostWitness = await collateralProvider.signTxBody(
         unsignedTxHex,
         additionalUtxos ? { additionalUtxos } : undefined,
       );
+      const signMs = Date.now() - signStart;
       if (!hostWitness) {
         throw new Error(
           "Mix tx: collateral provider claimed externallySigned but signTxBody() returned null",
         );
       }
+      const mergeStart = Date.now();
       signedTx = await appendVkeyWitness(unsignedTxHex, hostWitness);
+      const mergeMs = Date.now() - mergeStart;
 
       console.log(
-        `[lovejoin/mix] external collateral witness merged from ${hostWitness.vkeyHex.slice(0, 8)}…`,
+        `[lovejoin/mix] external collateral witness merged from ${hostWitness.vkeyHex.slice(0, 8)}… ` +
+          `(signTxBody=${signMs}ms, witnessMerge=${mergeMs}ms)`,
       );
     } else {
       if (!args.wallet) {
@@ -1463,10 +1574,10 @@ export async function buildMixTx(args: BuildMixArgs): Promise<MixResult> {
     }
 
     if (args.signOnly) {
-      return { signedTxHex: signedTx, txId: "", plan, actualFeeLovelace };
+      return { signedTxHex: signedTx, unsignedTxHex, txId: "", plan, actualFeeLovelace };
     }
     const txId = await args.provider.submitTx(signedTx);
-    return { signedTxHex: signedTx, txId, plan, actualFeeLovelace };
+    return { signedTxHex: signedTx, unsignedTxHex, txId, plan, actualFeeLovelace };
   }, args.retry);
 }
 
@@ -1529,12 +1640,13 @@ async function buildWithFeeBumpRetry(
   initialFee: bigint,
   feeCeiling: bigint,
   attempts = 3,
-): Promise<string> {
+): Promise<{ txHex: string; finalFee: bigint }> {
   let fee = initialFee;
   let lastErr: unknown;
   for (let i = 0; i < attempts; i++) {
     try {
-      return await buildOnce(fee);
+      const txHex = await buildOnce(fee);
+      return { txHex, finalFee: fee };
     } catch (e) {
       lastErr = e;
       const msg = e instanceof Error ? e.message : String(e);

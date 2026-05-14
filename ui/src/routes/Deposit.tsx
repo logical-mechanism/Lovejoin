@@ -54,9 +54,14 @@ export function Deposit() {
 
   // Reasonable upper bound: a deposit tx has 1 fee-shard input, N mix-box
   // outputs, 1 fee-shard output, plus mesh's wallet change — all ada-only.
-  // 20 mix-boxes per tx fits comfortably within Cardano's 16 KB tx size
-  // (each mix-box output is ~150 bytes for the address+value+inline datum).
-  const MAX_BULK_COUNT = 20;
+  // Empirically at N=20 the unsigned tx weighs ~3.5 KB, so each mix-box
+  // adds ~150 bytes (address + value + inline (a, b) datum). N=50 lands
+  // around ~8 KB, comfortably under Cardano's 16 KB tx-size limit. The
+  // wallet pays per-output min-utxo and one signature for the whole tx,
+  // so the constraint that matters for the user is wallet balance, not
+  // tx size — surface 50 as the dial cap so high-volume depositors aren't
+  // forced into multiple tx round-trips for what fits in one.
+  const MAX_BULK_COUNT = 50;
 
   // Locked-vault state mirrors the Vault screen exactly: always render
   // the unlock CTA so the path forward is visible, gate it behind a

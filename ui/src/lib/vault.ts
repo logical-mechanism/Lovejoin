@@ -25,7 +25,8 @@
 //      Replaces the prior BIP-39 + IndexedDB fallback, which required
 //      saving 24 words AND maintaining browser storage to recover.
 //
-// Once unlocked, the vault scans the live pool with `findOwnedBoxes` for
+// Once unlocked, the vault scans the live pool (pre-decompressed per
+// entry) for
 // indices `[0..MAX_INDEX_SCAN)` and surfaces the union as `OwnedBox[]`.
 // The "next deposit index" is the smallest counter that didn't match an
 // existing box — straightforward because indices are dense by
@@ -39,7 +40,6 @@ import {
   deriveOwnerSecret,
   deriveSeedFromWalletSignature,
   fetchPool,
-  findOwnedBoxes,
   ownsBox,
   recoverySalt,
   scalarMul,
@@ -56,6 +56,9 @@ import {
   type Scalar,
   type SignDataCapableWallet,
 } from "@lovejoin/sdk";
+
+import { newScanState, runIncrementalScan, type ScanCoreState } from "./scan-core.js";
+import type { ScanResponse } from "./scan-core.js";
 
 interface RewardAddressCapableWallet {
   getRewardAddresses(): Promise<string[]>;
@@ -105,19 +108,213 @@ export interface VaultScanResult {
 }
 
 /**
- * Walk the live pool with the master seed and return every owned box.
+ * A long-lived scanner bound to a (provider, addresses) pair. Holds the
+ * decompression + ownership caches across rescans (see `scan-core.ts`)
+ * so post-tx and tab-focus rescans only pay for the pool diff.
  *
- * Strategy: derive the deposit-time `[x]·G` for each candidate index
- * `0..maxIndex`; if any pool entry's `b` decompresses to the same point
- * (regardless of randomization rounds), that entry is ours. Once we
- * stop finding owned boxes we stop scanning — but we always probe at
- * least `minProbe` consecutive misses past the last hit so a deposit
- * that sits in the pool at index 50 but indices 51..52 are missing
- * doesn't make us return early at index 53.
+ * Lifecycle: one scanner per unlocked vault session. Create on unlock,
+ * `dispose()` on lock or when (provider, addresses) change.
  *
- * The scan complexity is O(maxIndex · poolSize) point comparisons;
- * each comparison is a 48-byte uncompress + a constant-time equal,
- * which is fast enough for ~1024 × ~50K boxes (≈ 50ms in Chrome).
+ * Worker-backed when `Worker` is available, with an inline fallback for
+ * test environments and worker-deficient browsers. Both paths use
+ * `runIncrementalScan` from `scan-core.ts`, so behaviour is identical;
+ * only the threading differs. If the worker fails to instantiate or
+ * errors mid-scan, the scanner permanently falls back to inline mode
+ * for the rest of its life — recreating the worker on every retry
+ * just amplifies whatever environmental issue caused the original
+ * failure.
+ */
+export interface VaultScanner {
+  scan(
+    seed: Uint8Array,
+    opts?: {
+      maxIndex?: number;
+      minProbe?: number;
+    },
+  ): Promise<VaultScanResult>;
+  /**
+   * Drop the scanner's caches without tearing down the worker. Use when
+   * the vault is locked but the scanner instance might be reused for the
+   * next unlock — keeping the worker alive saves the BLS WASM init on
+   * the next scan. Seed-fingerprint detection inside `runIncrementalScan`
+   * makes this defensive: a different seed would auto-reset anyway.
+   */
+  reset(): void;
+  dispose(): void;
+}
+
+export interface CreateVaultScannerArgs {
+  provider: ChainProvider;
+  addresses: LovejoinAddresses;
+}
+
+export function createVaultScanner(args: CreateVaultScannerArgs): VaultScanner {
+  // Address derivation is lazy so test harnesses that pass placeholder
+  // `addresses` (e.g. MixPanel tests with no real script hash) don't
+  // crash the moment they mount the store; they only fail if they
+  // actually call `scan()`.
+  let mixBoxAddress: string | null = null;
+  let denomLovelace: bigint | null = null;
+  function ensureAddress(): { mixBoxAddress: string; denomLovelace: bigint } {
+    if (mixBoxAddress === null || denomLovelace === null) {
+      const networkId: 0 | 1 = args.addresses.network === "mainnet" ? 1 : 0;
+      mixBoxAddress = buildScriptAddress(args.addresses.mixBoxScriptHash, networkId);
+      denomLovelace = BigInt(args.addresses.protocol.denom_lovelace);
+    }
+    return { mixBoxAddress, denomLovelace };
+  }
+
+  // Inline-mode state. Used either when no Worker is available or when
+  // a worker error promoted the scanner into permanent inline mode.
+  let inlineState: ScanCoreState | null = null;
+  let worker: Worker | null = null;
+  let workerBroken = false;
+  let disposed = false;
+
+  function ensureWorker(): Worker | null {
+    if (workerBroken) return null;
+    if (worker) return worker;
+    if (typeof Worker === "undefined") return null;
+    try {
+      worker = new Worker(new URL("./scan-worker.ts", import.meta.url), {
+        type: "module",
+        name: "lovejoin-vault-scan",
+      });
+      return worker;
+    } catch (e) {
+      console.warn(
+        `[lovejoin/vault] scan worker unavailable, running on main thread: ${e instanceof Error ? e.message : String(e)}`,
+      );
+      workerBroken = true;
+      worker = null;
+      return null;
+    }
+  }
+
+  function tearDownWorker(): void {
+    if (worker) {
+      try {
+        worker.terminate();
+      } catch {
+        // ignore
+      }
+      worker = null;
+    }
+  }
+
+  async function runInWorker(
+    w: Worker,
+    seed: Uint8Array,
+    pool: ReadonlyArray<PoolEntry>,
+    maxIndex: number,
+    minProbe: number,
+  ): Promise<ScanResponse> {
+    return new Promise<ScanResponse>((resolve, reject) => {
+      w.onmessage = (e: MessageEvent<ScanResponse>) => resolve(e.data);
+      w.onerror = (e: ErrorEvent) => reject(new Error(e.message || "scan worker errored"));
+      w.onmessageerror = () => reject(new Error("scan worker message error"));
+      w.postMessage({
+        type: "scan",
+        seed,
+        entries: pool.map((p) => ({ ref: p.ref, a: p.a, b: p.b })),
+        maxIndex,
+        minProbe,
+      });
+    });
+  }
+
+  function runInline(
+    seed: Uint8Array,
+    pool: ReadonlyArray<PoolEntry>,
+    maxIndex: number,
+    minProbe: number,
+  ): ScanResponse {
+    if (!inlineState) inlineState = newScanState();
+    return runIncrementalScan(inlineState, {
+      seed,
+      entries: pool.map((p) => ({ ref: p.ref, a: p.a, b: p.b })),
+      maxIndex,
+      minProbe,
+    });
+  }
+
+  return {
+    async scan(seed, opts) {
+      if (disposed) throw new Error("vault scanner disposed");
+      const maxIndex = opts?.maxIndex ?? MAX_INDEX_SCAN;
+      const minProbe = opts?.minProbe ?? 8;
+      const { mixBoxAddress, denomLovelace } = ensureAddress();
+      const pool = await fetchPool({
+        provider: args.provider,
+        mixBoxAddressBech32: mixBoxAddress,
+        params: { denomLovelace },
+      });
+
+      let response: ScanResponse | null = null;
+      const w = ensureWorker();
+      if (w) {
+        try {
+          response = await runInWorker(w, seed, pool, maxIndex, minProbe);
+        } catch (e) {
+          console.warn(
+            `[lovejoin/vault] scan worker errored, falling back to inline: ${e instanceof Error ? e.message : String(e)}`,
+          );
+          tearDownWorker();
+          workerBroken = true;
+          // Inline state starts empty here, so this single rescan does
+          // a full pass; subsequent rescans amortise it the same way.
+        }
+      }
+      if (!response) {
+        response = runInline(seed, pool, maxIndex, minProbe);
+      }
+
+      const owned: OwnedBox[] = [];
+      for (const h of response.hits) {
+        const entry = pool[h.entryIdx];
+        if (!entry) continue;
+        owned.push({
+          entry,
+          index: h.depositIndex,
+          secretHex: h.secretHex,
+          secret: BigInt("0x" + h.secretHex),
+        });
+      }
+      owned.sort((a, b) => a.index - b.index);
+      return {
+        ownedBoxes: owned,
+        poolSize: pool.length,
+        nextDepositIndex: response.nextDepositIndex,
+      };
+    },
+    reset() {
+      if (disposed) return;
+      if (worker) {
+        try {
+          worker.postMessage({ type: "reset" });
+        } catch {
+          // worker is in a bad state; tear it down so the next scan
+          // re-creates it (or promotes to inline mode).
+          tearDownWorker();
+        }
+      }
+      if (inlineState) inlineState = null;
+    },
+    dispose() {
+      if (disposed) return;
+      disposed = true;
+      tearDownWorker();
+      inlineState = null;
+    },
+  };
+}
+
+/**
+ * Backwards-compatible one-shot scan. Equivalent to creating a
+ * scanner, running one scan, and disposing it — i.e. always a full
+ * (cold-cache) scan. New callers that rescan repeatedly should use
+ * `createVaultScanner` directly so the decompression + ownership
+ * caches survive across calls.
  */
 export async function scanPool(args: {
   seed: Uint8Array;
@@ -127,49 +324,15 @@ export async function scanPool(args: {
   /** Minimum gap of misses past the last hit before we stop scanning. */
   minProbe?: number;
 }): Promise<VaultScanResult> {
-  const maxIndex = args.maxIndex ?? MAX_INDEX_SCAN;
-  const minProbe = args.minProbe ?? 8;
-  const denomLovelace = BigInt(args.addresses.protocol.denom_lovelace);
-  const networkId: 0 | 1 = args.addresses.network === "mainnet" ? 1 : 0;
-  const mixBoxAddress = buildScriptAddress(args.addresses.mixBoxScriptHash, networkId);
-  const pool = await fetchPool({
-    provider: args.provider,
-    mixBoxAddressBech32: mixBoxAddress,
-    params: { denomLovelace },
-  });
-
-  const owned: OwnedBox[] = [];
-  let lastHit = -1;
-  for (let i = 0; i < maxIndex; i++) {
-    const x = deriveOwnerSecret(args.seed, i);
-    const matches = findOwnedBoxes(x, pool);
-    if (matches.length > 0) {
-      const secretBytes = scalarToBytes(x);
-      const secretHex = bytesToHex(secretBytes);
-      for (const entry of matches) {
-        owned.push({ entry, index: i, secretHex, secret: x });
-      }
-      lastHit = i;
-    }
-    if (i - lastHit >= minProbe && lastHit >= 0) {
-      // Found at least one box and have probed `minProbe` consecutive
-      // misses without finding more — the rest is empty space.
-      break;
-    }
-    if (i - lastHit >= minProbe && lastHit < 0 && i >= minProbe * 2) {
-      // Never found anything in the first 2*minProbe indices — assume
-      // the vault is empty. This keeps unlock fast on a fresh wallet.
-      break;
-    }
+  const scanner = createVaultScanner({ provider: args.provider, addresses: args.addresses });
+  try {
+    const opts: { maxIndex?: number; minProbe?: number } = {};
+    if (args.maxIndex !== undefined) opts.maxIndex = args.maxIndex;
+    if (args.minProbe !== undefined) opts.minProbe = args.minProbe;
+    return await scanner.scan(args.seed, opts);
+  } finally {
+    scanner.dispose();
   }
-
-  owned.sort((a, b) => a.index - b.index);
-  const nextDepositIndex = lastHit + 1;
-  return {
-    ownedBoxes: owned,
-    poolSize: pool.length,
-    nextDepositIndex,
-  };
 }
 
 /**

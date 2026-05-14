@@ -16,3 +16,6 @@ export * from "./wallet/index.js";
 // M4: pool scanner + N-tuple selector + Mix tx builder.
 // See  §"Pool helpers" / §"Mix tx".
 export * from "./pool/index.js";
+
+// Higher-level strategy layer composing the per-tx builders (issue #137).
+export * from "./strategy/index.js";

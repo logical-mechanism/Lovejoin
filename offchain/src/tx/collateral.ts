@@ -270,16 +270,21 @@ export interface CollateralRetryPolicy {
 /**
  * Sensible defaults; see {@link CollateralRetryPolicy}.
  *
- * Total back-off window with these defaults: 0, 1s, 2s, 4s, 8s ≈ 15 s
- * between attempt 1 and attempt 5, which covers a typical cloudflared
- * 504 blip in front of giveme.my without surfacing a toast to the user.
- * A persistent 504 still surfaces — five attempts spaced like this is
- * the longest we want a user click to hang before reporting failure.
+ * Total back-off window with these defaults: 0, 500 ms, 850 ms, 1.4 s,
+ * 2.4 s ≈ 5 s between attempt 1 and attempt 5. Covers transient 504s
+ * from the upstream reverse proxy without making the user feel the UI
+ * has frozen — a 13-mix fan-out at depth 3 multiplies any per-slot
+ * stall, and the previous 15s ceiling was wasted budget when the
+ * upstream typically recovers in < 1 s on the current DO infra.
+ *
+ * If you're seeing more 504s than this absorbs, raise `maxAttempts`
+ * rather than `initialDelayMs` — slow first-retry is a worse trade
+ * than more attempts at the fast cadence.
  */
 export const DEFAULT_COLLATERAL_RETRY: Readonly<CollateralRetryPolicy> = {
   maxAttempts: 5,
-  initialDelayMs: 1000,
-  backoffFactor: 2,
+  initialDelayMs: 500,
+  backoffFactor: 1.7,
 };
 
 export interface GivemeMyOptions {

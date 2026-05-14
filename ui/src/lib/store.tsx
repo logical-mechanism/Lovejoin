@@ -33,17 +33,22 @@ import {
   type ReactNode,
 } from "react";
 import type { BrowserWallet } from "@meshsdk/core";
-import type { LovejoinAddresses, ChainProvider } from "@lovejoin/sdk";
+import {
+  detectBatchSigningCip103,
+  type LovejoinAddresses,
+  type ChainProvider,
+} from "@lovejoin/sdk";
 
 import { BackendClient } from "./backend.js";
 import { loadAddresses, loadConfig, makeProvider, saveConfig, type RuntimeConfig } from "./sdk.js";
 import { useAfterFirstPaint } from "./use-after-first-paint.js";
 import {
-  scanPool,
+  createVaultScanner,
   unlockFromPassword,
   unlockFromWallet,
   type OwnedBox,
   type UnlockedSeed,
+  type VaultScanner,
   type VaultScanResult,
 } from "./vault.js";
 
@@ -60,6 +65,15 @@ export interface AppState {
   wallet: BrowserWallet | null;
   walletId: string | null;
   changeAddress: string | null;
+  /**
+   * Resolved CIP-103 (multi-tx signing) support for the connected
+   * wallet, probed at connect time via `detectBatchSigningCip103` and
+   * cached here so each fan-out run doesn't re-query
+   * `wallet.getExtensions()`. Null while the probe is in flight or no
+   * wallet is connected. Used by the fan-out hook to pick batch vs
+   * per-leaf signing without an extra round-trip per submit.
+   */
+  walletSupportsBatchSigning: boolean | null;
   /**
    * Cached spendable lovelace from the connected wallet, refreshed at
    * connect, after every tx submit (success or failure), and on demand
@@ -82,6 +96,20 @@ export interface AppState {
   poolSize: number;
   nextDepositIndex: number;
   scanError: string | null;
+  /**
+   * True while a pool scan is in-flight. Distinct from `vaultBusy` (which
+   * only flips during the wallet signData + initial scan during unlock).
+   * Stays true for every `runScan` call: the initial unlock-time scan
+   * (also reflected in vaultBusy), the background tab-focus / 60 s
+   * timer rescans on the Vault page, and the post-tx rescans triggered
+   * after every Mix / Withdraw / Deposit submit.
+   *
+   * Surfaces fed off `ownedBoxes` (MixPanel's fan-out path is the
+   * canonical reader) display a subtle "Loading your boxes…" affordance
+   * while this is true so the user knows the data is currently being
+   * refreshed instead of treating a brief wait as a hang.
+   */
+  scanInFlight: boolean;
 
   /**
    * Set of `${txId}#${outputIndex}` keys for boxes the user has just
@@ -125,6 +153,13 @@ export interface AppStateProviderProps {
     initialConfig?: RuntimeConfig;
     addresses?: LovejoinAddresses;
     skipAddressLoad?: boolean;
+    /**
+     * Pre-seeded wallet state. Useful for tests that need to render
+     * components which gate on a connected wallet (e.g. the
+     * wallet-funded fan-out toggle in MixPanel) without having to
+     * mount the WalletModal and walk through the connect handshake.
+     */
+    initialWallet?: { wallet: BrowserWallet; walletId: string; changeAddress: string };
   };
 }
 
@@ -137,10 +172,19 @@ export function AppStateProvider({ children, testOverrides }: AppStateProviderPr
   );
   const [addressesError, setAddressesError] = useState<string | null>(null);
 
-  const [wallet, setWalletState] = useState<BrowserWallet | null>(null);
-  const [walletId, setWalletId] = useState<string | null>(null);
-  const [changeAddress, setChangeAddress] = useState<string | null>(null);
+  const [wallet, setWalletState] = useState<BrowserWallet | null>(
+    testOverrides?.initialWallet?.wallet ?? null,
+  );
+  const [walletId, setWalletId] = useState<string | null>(
+    testOverrides?.initialWallet?.walletId ?? null,
+  );
+  const [changeAddress, setChangeAddress] = useState<string | null>(
+    testOverrides?.initialWallet?.changeAddress ?? null,
+  );
   const [walletLovelace, setWalletLovelace] = useState<bigint | null>(null);
+  const [walletSupportsBatchSigning, setWalletSupportsBatchSigning] = useState<boolean | null>(
+    null,
+  );
 
   const [vault, setVault] = useState<UnlockedSeed | null>(null);
   const [vaultError, setVaultError] = useState<string | null>(null);
@@ -152,6 +196,7 @@ export function AppStateProvider({ children, testOverrides }: AppStateProviderPr
     nextDepositIndex: 0,
   });
   const [scanError, setScanError] = useState<string | null>(null);
+  const [scanInFlight, setScanInFlight] = useState(false);
 
   // Pending-tx refs (refKey strings). `pendingExpiry` tracks when each
   // ref was marked so the safety timer can sweep stale entries even if
@@ -225,6 +270,7 @@ export function AppStateProvider({ children, testOverrides }: AppStateProviderPr
         setWalletId(null);
         setChangeAddress(null);
         setWalletLovelace(null);
+        setWalletSupportsBatchSigning(null);
         // Disconnecting the wallet implicitly locks the wallet-derived
         // vault since its seed is bound to that wallet's signature.
         setVault((cur) => (cur?.kind === "wallet" ? null : cur));
@@ -260,12 +306,55 @@ export function AppStateProvider({ children, testOverrides }: AppStateProviderPr
     void refreshWalletBalance();
   }, [wallet, refreshWalletBalance]);
 
+  // Probe CIP-103 multi-tx signing support once per wallet connection.
+  // The fan-out hook reads the resolved boolean instead of re-probing
+  // on every submit; null while in flight so the UI can render a
+  // "checking…" state if it wants to.
+  useEffect(() => {
+    if (!wallet) {
+      setWalletSupportsBatchSigning(null);
+      return;
+    }
+    let cancelled = false;
+    setWalletSupportsBatchSigning(null);
+    void (async () => {
+      const supported = await detectBatchSigningCip103(wallet, walletId);
+      if (!cancelled) setWalletSupportsBatchSigning(supported);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [wallet, walletId]);
+
+  // Long-lived scanner. Holds the worker + decompression cache + previous
+  // scan's owned set across rescans so post-tx and tab-focus rescans pay
+  // only for the pool diff (see scan-core.ts). Disposed and recreated when
+  // (provider, addresses) change, and on lock so the next unlock starts
+  // from a clean cache instead of inheriting a different vault's state.
+  const scannerRef = useRef<VaultScanner | null>(null);
+  useEffect(() => {
+    if (!provider || !addresses) {
+      scannerRef.current?.dispose();
+      scannerRef.current = null;
+      return;
+    }
+    scannerRef.current?.dispose();
+    scannerRef.current = createVaultScanner({ provider, addresses });
+    return () => {
+      scannerRef.current?.dispose();
+      scannerRef.current = null;
+    };
+  }, [provider, addresses]);
+
   const runScan = useCallback(
     async (seed: Uint8Array) => {
       if (!provider || !addresses) return;
+      const scanner = scannerRef.current;
+      if (!scanner) return;
       setScanError(null);
+      setScanInFlight(true);
       try {
-        const result = await scanPool({ seed, provider, addresses });
+        const result = await scanner.scan(seed);
         // Merge per-box `generation` from the indexer when a backend URL
         // is configured. The counter is indexer-only (the on-chain datum
         // has no room for it — see CLAUDE.md M4.5), so we degrade
@@ -316,6 +405,8 @@ export function AppStateProvider({ children, testOverrides }: AppStateProviderPr
         if (mutated) setPendingTxRefs(survivors);
       } catch (e) {
         setScanError((e as Error).message);
+      } finally {
+        setScanInFlight(false);
       }
     },
     [provider, addresses, pendingTxRefs, config.backendUrl],
@@ -399,6 +490,10 @@ export function AppStateProvider({ children, testOverrides }: AppStateProviderPr
     setScanError(null);
     pendingExpiryRef.current.clear();
     setPendingTxRefs(new Set());
+    // Drop the scanner's in-memory caches so a future unlock under a
+    // different seed/wallet starts cold instead of inheriting the
+    // previous vault's owned refs.
+    scannerRef.current?.reset();
   }, []);
 
   const rescan = useCallback(async () => {
@@ -430,6 +525,7 @@ export function AppStateProvider({ children, testOverrides }: AppStateProviderPr
     poolSize: scan.poolSize,
     nextDepositIndex: scan.nextDepositIndex,
     scanError,
+    scanInFlight,
     unlockWithWallet,
     unlockWithPassword,
     lockVault,
@@ -438,6 +534,7 @@ export function AppStateProvider({ children, testOverrides }: AppStateProviderPr
     markTxPending,
     walletLovelace,
     refreshWalletBalance,
+    walletSupportsBatchSigning,
   };
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }
