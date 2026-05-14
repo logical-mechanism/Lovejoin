@@ -11,10 +11,14 @@ import { describe, expect, it } from "vitest";
 import {
   collectFanoutResults,
   materialiseSlotInputs,
+  planFanoutTxs,
   submitFanout,
+  submitFanoutBatch,
   type FanoutEvent,
+  type UnsignedFanoutBatch,
 } from "../../src/strategy/orchestrator.js";
 import { planFanout, type FanoutSlot } from "../../src/strategy/fanout.js";
+import type { LovejoinWallet } from "../../src/wallet/cip30.js";
 import type { BuildMixArgs, MixOutputPlan, MixPlan, MixResult } from "../../src/tx/mix.js";
 import type { LovejoinAddresses } from "../../src/tx/params.js";
 import type { ChainProvider, Utxo, UtxoRef } from "../../src/chain/provider.js";
@@ -125,6 +129,7 @@ function stubMixResult(slotIdLabel: string, n: number, feeShardIn: Utxo | null):
   };
   return {
     signedTxHex: "00",
+    unsignedTxHex: "00",
     txId,
     plan,
     actualFeeLovelace: txFee,
@@ -547,5 +552,289 @@ describe("submitFanout", () => {
     expect(ySeen).toContainEqual([44n, 55n, 66n]);
     expect(pSeen).toContainEqual([2, 0, 1]);
     expect(pSeen).toContainEqual([0, 1, 2]);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// planFanoutTxs + submitFanoutBatch — issue #149 batch-sign path
+// ---------------------------------------------------------------------------
+
+function stubUnsignedMixResult(slotIdLabel: string, n: number, feeShardIn: Utxo | null): MixResult {
+  // Same as stubMixResult but with empty signedTxHex + a distinguishable
+  // unsigned CBOR. Mirrors what buildMixTx returns when buildOnly is true.
+  const base = stubMixResult(slotIdLabel, n, feeShardIn);
+  return {
+    signedTxHex: "",
+    unsignedTxHex: `un_${slotIdLabel}_${n}`,
+    txId: base.txId,
+    plan: base.plan,
+    actualFeeLovelace: base.actualFeeLovelace,
+  };
+}
+
+describe("planFanoutTxs", () => {
+  it("builds every slot in submission order without invoking the wallet", async () => {
+    const root = makeEntry(0);
+    const pool = Array.from({ length: 30 }, (_, i) => makeEntry(i + 1));
+    const plan = planFanout({ rootBox: root, pool, depth: 2, rng: zeroRng });
+
+    let buildCalls = 0;
+    const buildMix = async (args: BuildMixArgs): Promise<MixResult> => {
+      // Every leaf must arrive in buildOnly mode — that's the whole
+      // point of the planner step. A regression that forgets to flip
+      // it would silently sign N times instead of zero.
+      expect(args.buildOnly).toBe(true);
+      const label = `s${buildCalls++}`;
+      return stubUnsignedMixResult(label, args.inputs.length, feeShardUtxo(`${label}_fee`));
+    };
+
+    const batch = await planFanoutTxs({
+      plan,
+      network: "preprod",
+      provider: NULL_PROVIDER,
+      addresses: ADDRESSES,
+      feePayer: "wallet",
+      buildMix,
+    });
+    expect(batch.slots).toHaveLength(4); // 1 + 3 at depth 2
+    expect(batch.failed).toHaveLength(0);
+    expect(batch.slots.map((s) => s.slotId)).toEqual(["w0s0", "w1s0", "w1s1", "w1s2"]);
+    expect(batch.slots.every((s) => s.unsignedTxHex.startsWith("un_"))).toBe(true);
+    expect(batch.plan).toBe(plan);
+  });
+
+  it("records build-time failures and cascades descendants", async () => {
+    const root = makeEntry(0);
+    const pool = Array.from({ length: 30 }, (_, i) => makeEntry(i + 1));
+    const plan = planFanout({ rootBox: root, pool, depth: 2, rng: zeroRng });
+
+    let n = 0;
+    const buildMix = async (args: BuildMixArgs): Promise<MixResult> => {
+      const label = `s${n++}`;
+      if (label === "s0") throw new Error("simulated wave-0 build failure");
+      return stubUnsignedMixResult(label, args.inputs.length, feeShardUtxo(`${label}_fee`));
+    };
+
+    const batch = await planFanoutTxs({
+      plan,
+      network: "preprod",
+      provider: NULL_PROVIDER,
+      addresses: ADDRESSES,
+      feePayer: "wallet",
+      buildMix,
+    });
+    expect(batch.slots).toHaveLength(0); // wave-0 failed; wave-1 cascaded.
+    expect(batch.failed).toHaveLength(1);
+    expect(batch.failed[0]!.slotId).toBe("w0s0");
+    expect(batch.failed[0]!.droppedDescendants).toEqual(["w0s0", "w1s0", "w1s1", "w1s2"]);
+  });
+});
+
+describe("submitFanoutBatch", () => {
+  function buildStubBatch(plan: ReturnType<typeof planFanout>): UnsignedFanoutBatch {
+    return {
+      plan,
+      slots: plan.waves.flatMap((wave, waveIndex) =>
+        wave.slots.map((slot) => {
+          const result = stubUnsignedMixResult(slot.id, 3, feeShardUtxo(`${slot.id}_fee`));
+          return {
+            slotId: slot.id,
+            waveIndex,
+            unsignedTxHex: result.unsignedTxHex,
+            txId: result.txId,
+            plan: result.plan,
+            actualFeeLovelace: result.actualFeeLovelace,
+          };
+        }),
+      ),
+      failed: [],
+    };
+  }
+
+  function makeStubWallet(
+    opts: {
+      signedCbors?: (unsigned: string[]) => string[];
+      rejectSign?: Error;
+    } = {},
+  ): { wallet: LovejoinWallet; signCallCount: () => number; signedSeen: () => string[][] } {
+    const seen: string[][] = [];
+    const wallet = {
+      getUsedAddresses: async () => [],
+      getChangeAddress: () => "",
+      getUtxos: async () => [],
+      getCollateral: async () => [],
+      signTx: async () => {
+        throw new Error("signTx must not be called in batch path");
+      },
+      signTxs: async (unsignedTxs: string[]) => {
+        seen.push(unsignedTxs);
+        if (opts.rejectSign) throw opts.rejectSign;
+        const fn = opts.signedCbors ?? ((arr) => arr.map((u) => `signed:${u}`));
+        return fn(unsignedTxs);
+      },
+      submitTx: async () => {
+        throw new Error("wallet.submitTx must not be called — submitFanoutBatch uses provider");
+      },
+    } as LovejoinWallet;
+    return {
+      wallet,
+      signCallCount: () => seen.length,
+      signedSeen: () => seen,
+    };
+  }
+
+  it("issues exactly one signTxs prompt for the whole tree and submits via the chain provider", async () => {
+    const root = makeEntry(0);
+    const pool = Array.from({ length: 30 }, (_, i) => makeEntry(i + 1));
+    const plan = planFanout({ rootBox: root, pool, depth: 2, rng: zeroRng });
+    const batch = buildStubBatch(plan);
+
+    const submitted: string[] = [];
+    const provider = {
+      submitTx: async (signed: string) => {
+        submitted.push(signed);
+        return signed.replace(/^signed:un_/, "txid_") + "_chain";
+      },
+    } as unknown as ChainProvider;
+
+    const stub = makeStubWallet();
+    const events: FanoutEvent[] = [];
+    for await (const evt of submitFanoutBatch({ batch, wallet: stub.wallet, provider })) {
+      events.push(evt);
+    }
+
+    expect(stub.signCallCount()).toBe(1);
+    expect(stub.signedSeen()[0]).toHaveLength(4); // one CBOR per slot
+    expect(submitted).toHaveLength(4);
+    // Submission order matches batch order (wave-major).
+    expect(submitted).toEqual(batch.slots.map((s) => `signed:${s.unsignedTxHex}`));
+
+    const submittedEvts = events.filter((e) => e.kind === "slot-submitted");
+    expect(submittedEvts).toHaveLength(4);
+    expect(events.filter((e) => e.kind === "slot-failed")).toHaveLength(0);
+    expect(events.filter((e) => e.kind === "wave-started")).toHaveLength(2);
+    expect(events.filter((e) => e.kind === "wave-completed")).toHaveLength(2);
+    const completed = events.at(-1)!;
+    if (completed.kind === "plan-completed") {
+      expect(completed.submittedSlots).toBe(4);
+      expect(completed.failedSlots).toBe(0);
+    }
+  });
+
+  it("throws when the wallet does not implement signTxs", async () => {
+    const root = makeEntry(0);
+    const pool = Array.from({ length: 30 }, (_, i) => makeEntry(i + 1));
+    const plan = planFanout({ rootBox: root, pool, depth: 2, rng: zeroRng });
+    const batch = buildStubBatch(plan);
+    const noBatchWallet = {
+      getUsedAddresses: async () => [],
+      getChangeAddress: () => "",
+      getUtxos: async () => [],
+      getCollateral: async () => [],
+      signTx: async () => "",
+      submitTx: async () => "",
+    } as LovejoinWallet;
+    const provider = { submitTx: async () => "" } as unknown as ChainProvider;
+
+    await expect(async () => {
+      const iter = submitFanoutBatch({ batch, wallet: noBatchWallet, provider });
+      for await (const _evt of iter) void _evt;
+    }).rejects.toThrow(/does not implement CIP-103 signTxs/);
+  });
+
+  it("on submit failure cascades the slot's descendants and continues submitting siblings", async () => {
+    const root = makeEntry(0);
+    const pool = Array.from({ length: 50 }, (_, i) => makeEntry(i + 1));
+    const plan = planFanout({ rootBox: root, pool, depth: 3, rng: zeroRng });
+    const batch = buildStubBatch(plan);
+
+    // Reject the submission for w1s1 — its three wave-2 descendants
+    // should cascade dropped; the other two wave-1 siblings + their
+    // descendants must still submit.
+    const provider = {
+      submitTx: async (signed: string) => {
+        if (signed.includes("w1s1")) throw new Error("submitTx refused");
+        return `chain_${signed}`;
+      },
+    } as unknown as ChainProvider;
+    const stub = makeStubWallet();
+
+    const events: FanoutEvent[] = [];
+    for await (const evt of submitFanoutBatch({ batch, wallet: stub.wallet, provider })) {
+      events.push(evt);
+    }
+
+    const submitted = events.filter((e) => e.kind === "slot-submitted");
+    const failed = events.filter((e) => e.kind === "slot-failed");
+    // 1 + 2 (siblings of w1s1) + 6 (their depth-2 descendants) = 9
+    expect(submitted).toHaveLength(9);
+    expect(failed).toHaveLength(1);
+    if (failed[0]?.kind === "slot-failed") {
+      expect(failed[0].slotId).toBe("w1s1");
+      // Cascade = w1s1 + its 3 wave-2 children.
+      expect(failed[0].droppedDescendants).toEqual(["w1s1", "w2s3", "w2s4", "w2s5"]);
+    }
+  });
+
+  it("replays planner-time failures in the same wave-relative order as submitFanout", async () => {
+    // A build-time failure at depth-2 (wave 0) must surface BEFORE any
+    // depth-2 wave-completed event so the UI's reducer sees the same
+    // sequencing whether the user is on the per-leaf or batch path.
+    const root = makeEntry(0);
+    const pool = Array.from({ length: 30 }, (_, i) => makeEntry(i + 1));
+    const plan = planFanout({ rootBox: root, pool, depth: 2, rng: zeroRng });
+    const batch: UnsignedFanoutBatch = {
+      plan,
+      slots: [],
+      failed: [
+        {
+          slotId: "w0s0",
+          waveIndex: 0,
+          error: new Error("simulated build failure"),
+          droppedDescendants: ["w0s0", "w1s0", "w1s1", "w1s2"],
+        },
+      ],
+    };
+    const stub = makeStubWallet();
+    const provider = { submitTx: async () => "" } as unknown as ChainProvider;
+    const events: FanoutEvent[] = [];
+    for await (const evt of submitFanoutBatch({ batch, wallet: stub.wallet, provider })) {
+      events.push(evt);
+    }
+    // signTxs got an empty array — no slot bodies survived.
+    expect(stub.signCallCount()).toBe(0);
+    const failed = events.filter((e) => e.kind === "slot-failed");
+    expect(failed).toHaveLength(1);
+    if (failed[0]?.kind === "slot-failed") expect(failed[0].slotId).toBe("w0s0");
+    const completed = events.at(-1)!;
+    if (completed.kind === "plan-completed") {
+      expect(completed.submittedSlots).toBe(0);
+      expect(completed.failedSlots).toBe(4);
+    }
+  });
+
+  it("propagates a signTxs rejection (user-declined batch) up to the caller", async () => {
+    // Whole-tree rejection in CIP-103 is clean: the wallet returns
+    // before any tx is submitted. Caller catches the throw and shows
+    // an error toast; partial recovery is the caller's policy.
+    const root = makeEntry(0);
+    const pool = Array.from({ length: 30 }, (_, i) => makeEntry(i + 1));
+    const plan = planFanout({ rootBox: root, pool, depth: 2, rng: zeroRng });
+    const batch = buildStubBatch(plan);
+    const stub = makeStubWallet({ rejectSign: new Error("user declined") });
+    const provider = {
+      submitTx: async () => {
+        throw new Error("must not submit on signTxs failure");
+      },
+    } as unknown as ChainProvider;
+    await expect(async () => {
+      for await (const _evt of submitFanoutBatch({
+        batch,
+        wallet: stub.wallet,
+        provider,
+      })) {
+        void _evt;
+      }
+    }).rejects.toThrow(/user declined/);
   });
 });

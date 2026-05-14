@@ -52,6 +52,7 @@ import {
   type BuildMixArgs,
   type MixFeePayer,
   type MixInput,
+  type MixPlan,
   type MixResult,
 } from "../tx/mix.js";
 import type { CollateralProvider } from "../tx/collateral.js";
@@ -532,6 +533,301 @@ export interface FanoutRunSummary {
   /** Most recent `plan-completed` event, or null if the iterator was
    *  abandoned before completion. */
   completed: { submittedSlots: number; failedSlots: number } | null;
+}
+
+// ---------------------------------------------------------------------------
+// Batch-sign path — issue #149.
+//
+// Wallet-funded fan-out via the per-leaf `submitFanout` pops one CIP-30
+// signTx prompt per slot (4 at depth 2, 13 at depth 3) which makes the
+// flow user-hostile even when the chained-tx path itself works fine.
+// CIP-103 lets the wallet sign an array of unsigned txs in one prompt;
+// this two-step API splits the existing `submitFanout` loop into:
+//
+//   1. `planFanoutTxs` — runs the wave-by-wave build loop with
+//      `buildOnly: true` so each leaf returns just an unsigned tx CBOR
+//      + the derived txId. No wallet calls, no submission. Internally
+//      delegates to `submitFanout` with a wrapped buildMix that flips
+//      buildOnly on; reuses the wave coordination + fee-shard tracking
+//      logic verbatim.
+//   2. `submitFanoutBatch` — accepts the batch from (1), calls
+//      `wallet.signTxs(...)` ONCE for the whole array, then submits
+//      each signed CBOR in order, yielding the same FanoutEvent stream
+//      as submitFanout so the UI can reuse its progress reducer.
+//
+// Wallets without CIP-103 fall back to per-leaf `submitFanout`. The
+// UI gate lives in `useFanoutSubmit`; the SDK exposes both paths so
+// non-UI callers (CLI, tests) can pick either.
+// ---------------------------------------------------------------------------
+
+/** A single fan-out slot's build output, ready for batch-signing. */
+export interface UnsignedFanoutSlot {
+  slotId: FanoutSlotId;
+  waveIndex: number;
+  /** Unsigned tx CBOR ready to be handed to `wallet.signTxs(...)`. */
+  unsignedTxHex: string;
+  /** Tx id derived from the unsigned body hash. Matches the value the
+   *  chain will assign post-submission (witnesses don't affect it). */
+  txId: string;
+  plan: MixPlan;
+  actualFeeLovelace: Lovelace | null;
+}
+
+/** A built-but-unsigned fan-out tree, output of {@link planFanoutTxs}. */
+export interface UnsignedFanoutBatch {
+  /** The original plan — surfaced so `submitFanoutBatch` can cascade
+   *  failed-slot descendants the same way `submitFanout` does. */
+  plan: FanoutPlan;
+  /**
+   * Built slots in submission order (wave-major, plan-order within a
+   * wave). Pass `.map(s => s.unsignedTxHex)` directly to
+   * `wallet.signTxs(...)`.
+   */
+  slots: ReadonlyArray<UnsignedFanoutSlot>;
+  /**
+   * Slots whose `buildOnly` pass failed (e.g. fee-shard pick exhausted,
+   * evaluator error). Their descendants are already excluded from
+   * `slots` per the orchestrator's cascade rule. The UI can render
+   * these alongside the run summary in the same shape as the per-leaf
+   * path's slot-failed events.
+   */
+  failed: ReadonlyArray<{
+    slotId: FanoutSlotId;
+    waveIndex: number;
+    error: Error;
+    droppedDescendants: FanoutSlotId[];
+  }>;
+}
+
+/**
+ * Build every Mix tx for a fan-out plan without signing or submitting.
+ * Wraps the standard `submitFanout` wave loop and forces every slot's
+ * `buildMixTx` call into `buildOnly: true` mode so the wallet is never
+ * touched.
+ *
+ * Use this together with {@link submitFanoutBatch} to drive CIP-103
+ * multi-tx signing — one wallet prompt for the whole tree instead of N.
+ *
+ * Caller responsibilities:
+ *   * `args.feePayer` should be `"wallet"` for the batch path to be
+ *     meaningful — shard-mode is already wallet-anonymous and never
+ *     prompts the wallet, so batch-signing it is a no-op. Defaults to
+ *     `"shard"` to match `submitFanout` for shape compatibility, but
+ *     callers in the wallet-funded fan-out path pass `"wallet"`.
+ *   * Pass the same `wallet` here as you will pass to
+ *     `submitFanoutBatch`. The wallet here is consumed by
+ *     `WalletProvider.prepareCollateral` for each leaf (a query, not a
+ *     signature).
+ */
+export async function planFanoutTxs(args: SubmitFanoutArgs): Promise<UnsignedFanoutBatch> {
+  // Wrap the caller's buildMix (or the default) so every slot's build
+  // pass runs in `buildOnly` mode. This re-uses every coordination
+  // detail of submitFanout — fee-shard exclusion, in-flight chainFrom
+  // splicing, parent → child input resolution — without copy-pasting
+  // the wave loop.
+  const underlyingBuild = args.buildMix ?? buildMixTx;
+  const buildOnlyMix = (a: BuildMixArgs) => underlyingBuild({ ...a, buildOnly: true });
+
+  const slots: UnsignedFanoutSlot[] = [];
+  const failed: Array<UnsignedFanoutBatch["failed"][number]> = [];
+
+  for await (const evt of submitFanout({ ...args, buildMix: buildOnlyMix })) {
+    if (evt.kind === "slot-submitted") {
+      // "submitted" here means "built" because buildOnly was set.
+      slots.push({
+        slotId: evt.slotId,
+        waveIndex: evt.waveIndex,
+        unsignedTxHex: evt.result.unsignedTxHex,
+        txId: evt.txId,
+        plan: evt.result.plan,
+        actualFeeLovelace: evt.result.actualFeeLovelace,
+      });
+    } else if (evt.kind === "slot-failed") {
+      failed.push({
+        slotId: evt.slotId,
+        waveIndex: evt.waveIndex,
+        error: evt.error,
+        droppedDescendants: [...evt.droppedDescendants],
+      });
+    }
+    // wave-started / wave-completed / plan-completed are informational
+    // during planning; the caller receives the full picture in the
+    // returned UnsignedFanoutBatch.
+  }
+
+  return { plan: args.plan, slots, failed };
+}
+
+export interface SubmitFanoutBatchArgs {
+  batch: UnsignedFanoutBatch;
+  /** Wallet exposing CIP-103 `signTxs`. Probe via
+   *  `detectBatchSigningCip103` before calling — this function does NOT
+   *  re-probe and will throw at signTxs-call time on an unsupported
+   *  wallet. */
+  wallet: LovejoinWallet;
+  provider: ChainProvider;
+}
+
+/**
+ * Sign + submit a pre-built fan-out batch via CIP-103. Yields the same
+ * FanoutEvent stream as `submitFanout` so the UI can reuse its progress
+ * reducer.
+ *
+ * Flow:
+ *
+ *   1. Replay the planner's `slot-failed` events first so the UI
+ *      sees build-time failures before submit-time progress (matches
+ *      `submitFanout`'s ordering: a build failure in wave N fires
+ *      before wave N's `wave-completed`).
+ *   2. Call `wallet.signTxs(allUnsignedCbors, false)` ONCE. The wallet
+ *      shows one CIP-30 prompt covering the whole tree; rejection
+ *      throws and the entire batch is abandoned.
+ *   3. Submit each signed CBOR in submission order. On a submit
+ *      failure, cascade descendants to dropped (parent's outputs never
+ *      land on chain so children can't resolve their refs) and emit
+ *      one `slot-failed` event per failure.
+ *
+ * Wave-grouping events (`wave-started` / `wave-completed`) are
+ * reconstructed from the batch slots' `waveIndex` so consumers that
+ * count waves don't have to special-case the batch path.
+ */
+export async function* submitFanoutBatch(args: SubmitFanoutBatchArgs): AsyncIterable<FanoutEvent> {
+  const { batch, wallet, provider } = args;
+  if (!wallet.signTxs) {
+    throw new Error(
+      "submitFanoutBatch: wallet does not implement CIP-103 signTxs. " +
+        "Probe via detectBatchSigningCip103 and fall back to submitFanout.",
+    );
+  }
+
+  // Pre-compute wave grouping so wave-started / wave-completed events
+  // line up with the per-leaf path. Build-failed slots are surfaced
+  // BEFORE their wave's wave-completed event so the UI's reducer sees
+  // the same order as the per-leaf path.
+  const slotsByWave = new Map<number, UnsignedFanoutSlot[]>();
+  const failedByWave = new Map<number, UnsignedFanoutBatch["failed"][number][]>();
+  let maxWave = -1;
+  for (const slot of batch.slots) {
+    if (!slotsByWave.has(slot.waveIndex)) slotsByWave.set(slot.waveIndex, []);
+    slotsByWave.get(slot.waveIndex)!.push(slot);
+    if (slot.waveIndex > maxWave) maxWave = slot.waveIndex;
+  }
+  for (const f of batch.failed) {
+    if (!failedByWave.has(f.waveIndex)) failedByWave.set(f.waveIndex, []);
+    failedByWave.get(f.waveIndex)!.push(f);
+    if (f.waveIndex > maxWave) maxWave = f.waveIndex;
+  }
+
+  // Batch sign. One prompt for the whole tree. If the wallet refuses,
+  // the rejection bubbles up; partial recovery is the caller's call
+  // (typically: re-plan from confirmed boxes and retry).
+  const unsignedCbors = batch.slots.map((s) => s.unsignedTxHex);
+  console.log(
+    `[lovejoin/fanout] submitFanoutBatch: requesting CIP-103 signature on ${unsignedCbors.length} tx(s)`,
+  );
+  const signStart = Date.now();
+  const signedCbors = unsignedCbors.length === 0 ? [] : await wallet.signTxs(unsignedCbors, false);
+  console.log(`[lovejoin/fanout] wallet.signTxs returned in ${Date.now() - signStart}ms`);
+  if (signedCbors.length !== unsignedCbors.length) {
+    throw new Error(
+      `submitFanoutBatch: wallet.signTxs returned ${signedCbors.length} signed txs; ` +
+        `expected ${unsignedCbors.length}`,
+    );
+  }
+
+  let submittedCount = 0;
+  let failedCount = batch.failed.reduce((acc, f) => acc + f.droppedDescendants.length, 0);
+  const dropped = new Set<FanoutSlotId>();
+  for (const f of batch.failed) {
+    for (const id of f.droppedDescendants) dropped.add(id);
+  }
+
+  for (let k = 0; k <= maxWave; k++) {
+    const waveSlots = slotsByWave.get(k) ?? [];
+    const waveFailed = failedByWave.get(k) ?? [];
+    yield { kind: "wave-started", waveIndex: k, slotCount: waveSlots.length };
+
+    const submittedThisWave: FanoutSlotId[] = [];
+    const failedThisWave: FanoutSlotId[] = [];
+
+    // Replay planner-time failures first so per-leaf and batch paths
+    // emit slot-failed events in the same relative order.
+    for (const f of waveFailed) {
+      failedThisWave.push(f.slotId);
+      yield {
+        kind: "slot-failed",
+        slotId: f.slotId,
+        waveIndex: f.waveIndex,
+        error: f.error,
+        droppedDescendants: [...f.droppedDescendants],
+      };
+    }
+
+    for (const slot of waveSlots) {
+      if (dropped.has(slot.slotId)) continue;
+
+      // Find this slot's signed CBOR by position in the batch (same
+      // index as in batch.slots since we kept submission order).
+      const idx = batch.slots.indexOf(slot);
+      const signedCbor = signedCbors[idx]!;
+      const slotStartMs = Date.now();
+      let submittedTxId: string;
+      try {
+        submittedTxId = await provider.submitTx(signedCbor);
+        console.log(
+          `[lovejoin/fanout] slot ${slot.slotId} (wave ${k + 1}) submitted in ` +
+            `${Date.now() - slotStartMs}ms — tx ${submittedTxId.slice(0, 12)}…`,
+        );
+      } catch (err) {
+        const droppedList = fanoutDescendants(batch.plan, slot.slotId);
+        for (const id of droppedList) dropped.add(id);
+        failedCount += droppedList.length;
+        failedThisWave.push(slot.slotId);
+        console.warn(
+          `[lovejoin/fanout] slot ${slot.slotId} (wave ${k + 1}) submitTx failed after ` +
+            `${Date.now() - slotStartMs}ms`,
+        );
+        yield {
+          kind: "slot-failed",
+          slotId: slot.slotId,
+          waveIndex: k,
+          error: err instanceof Error ? err : new Error(String(err)),
+          droppedDescendants: droppedList,
+        };
+        continue;
+      }
+
+      const result: MixResult = {
+        signedTxHex: signedCbor,
+        unsignedTxHex: slot.unsignedTxHex,
+        txId: submittedTxId,
+        plan: slot.plan,
+        actualFeeLovelace: slot.actualFeeLovelace,
+      };
+      submittedCount += 1;
+      submittedThisWave.push(slot.slotId);
+      yield {
+        kind: "slot-submitted",
+        slotId: slot.slotId,
+        waveIndex: k,
+        txId: submittedTxId,
+        result,
+      };
+    }
+
+    yield {
+      kind: "wave-completed",
+      waveIndex: k,
+      submitted: submittedThisWave,
+      failed: failedThisWave,
+    };
+  }
+
+  yield {
+    kind: "plan-completed",
+    submittedSlots: submittedCount,
+    failedSlots: failedCount,
+  };
 }
 
 /**
