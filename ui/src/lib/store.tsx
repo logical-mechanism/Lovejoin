@@ -125,6 +125,13 @@ export interface AppStateProviderProps {
     initialConfig?: RuntimeConfig;
     addresses?: LovejoinAddresses;
     skipAddressLoad?: boolean;
+    /**
+     * Pre-seeded wallet state. Useful for tests that need to render
+     * components which gate on a connected wallet (e.g. the
+     * wallet-funded fan-out toggle in MixPanel) without having to
+     * mount the WalletModal and walk through the connect handshake.
+     */
+    initialWallet?: { wallet: BrowserWallet; walletId: string; changeAddress: string };
   };
 }
 
@@ -137,9 +144,15 @@ export function AppStateProvider({ children, testOverrides }: AppStateProviderPr
   );
   const [addressesError, setAddressesError] = useState<string | null>(null);
 
-  const [wallet, setWalletState] = useState<BrowserWallet | null>(null);
-  const [walletId, setWalletId] = useState<string | null>(null);
-  const [changeAddress, setChangeAddress] = useState<string | null>(null);
+  const [wallet, setWalletState] = useState<BrowserWallet | null>(
+    testOverrides?.initialWallet?.wallet ?? null,
+  );
+  const [walletId, setWalletId] = useState<string | null>(
+    testOverrides?.initialWallet?.walletId ?? null,
+  );
+  const [changeAddress, setChangeAddress] = useState<string | null>(
+    testOverrides?.initialWallet?.changeAddress ?? null,
+  );
   const [walletLovelace, setWalletLovelace] = useState<bigint | null>(null);
 
   const [vault, setVault] = useState<UnlockedSeed | null>(null);

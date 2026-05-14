@@ -214,8 +214,11 @@
     "confirm_submit": "Onayla ve gönder",
     "eyebrow": "Adım II · havuzu karıştır",
     "lede": "Havuzu herkes karıştırabilir; operatör yok. Her Mix tx tek seferde N havuz kutusunu yeniden rastgeleleştirir ve iki şekilde ödeme yapabilirsin. Paylaşılan fee shard'dan öde, cüzdanın tx'in tamamen dışında kalır (cüzdan-anonim). Ya da kendi cüzdanından öde; tx daha hızlı olur ama cüzdan kimliğini taşır.",
-    "fee_payer_shard_hint": "Varsayılan. Ücret paylaşılan zincir-üstü havuzdan gelir (mix başına {{cap}} ADA tavanlı), kolateral ise yapılandırılmış kolateral hizmetinden. Cüzdanın tx'in tamamen dışında kalır.",
-    "fee_payer_wallet_hint": "Cüzdanın ücreti öder ve kolateralı sağlar. Zincir-üstü tavan yok, ama cüzdan kimliğin tx'e düşer.",
+    "fee_payer_shard_hint": "Varsayılan. Ücret paylaşılan zincir üzeri havuzdan gelir ve teminat sağlanır.",
+    "fee_payer_wallet_hint": "Cüzdanınız ücreti öder ve teminat sağlar.",
+    "fee_payer_wallet_hint_fanout": "Cüzdanınız ağaçtaki her mix için ücreti öder, teminat sağlar ve her birini imzalar. Toplam {{count}} imza. Zincir üzeri tavan yok, ancak cüzdan kimliğiniz her tx'te görünür.",
+    "fanout_wallet_disclosure_title": "Cüzdan ödemeli fan-out: cüzdanınız her tx'te olacak",
+    "fanout_wallet_disclosure_body": "Cüzdan teminatı sağlar ve işlem ücretlerini öder.",
     "tx_preview_fee_wallet": "Ücreti cüzdanın öder, kolateralı da cüzdanın sağlar. Cüzdan kimliğin tx'tedir.",
     "review_collateral_value_shard": "Yapılandırılmış kolateral hizmeti tarafından sağlanır",
     "review_collateral_value_wallet": "Bağlı cüzdanın tarafından sağlanır",
@@ -225,9 +228,9 @@
     "intensity_eyebrow": "Yoğunluk",
     "intensity_option_fanout": "Derinlik {{k}}",
     "intensity_hint_fanout": "{{k}} derinliğinde yelpaze: toplam {{mixes}} Mix tx, kendi box'larından biriyle başlar.",
-    "vault_locked_at_depth": "Vault kilitli. ≥ 2 derinlik için ağacın kökü olarak senin olan bir box gerekir; önce vault'u aç.",
+    "vault_locked_at_depth": "Kasa kilitli.",
     "intensity_option_random": "Rastgele",
-    "intensity_hint_random": "Paylaşılan havuza tek bir Mix tx'i. Tur başına bağlanma olasılığı 1/3; fee shard modunda tx cüzdan kimliği taşımaz.",
+    "intensity_hint_random": "Paylaşılan havuza bir rastgele mix tx.",
     "depth_needs_wallet": "Derinlik ≥ 2 ağacı kendi box'larından birinden türetir. Vault'u açmak için bir cüzdan bağla."
   },
   "deposit": {
@@ -603,6 +606,7 @@
     "confirm_eyebrow": "Son kontrol",
     "confirm_title": "Yelpaze gönderimini onayla",
     "confirm_lede": "Lovejoin toplam {{boxes}} mix-box'a dokunan {{count}} Mix tx'i gönderecek; en kötü ücret {{ada}} ADA'ya kadar. Her tx shard modunda cüzdana göre anonimdir; kolateral hizmeti her tx'i imzalar.",
+    "confirm_lede_wallet": "Lovejoin toplamda {{boxes}} mix-box'a dokunan {{count}} Mix tx gönderecek, en kötü durumda {{ada}} ADA'ya kadar ücretle. Cüzdanınız her ücreti öder, teminat sağlar ve her tx'i imzalar. Cüzdan kimliğiniz tüm ağaçta olur.",
     "confirm_submit": "Onayla ve gönder",
     "progress_title": "Yelpaze ilerlemesi",
     "progress_summary": "{{total}} karışımdan {{done}} işlendi · {{submitted}} gönderildi · {{failed}} düşürüldü",
@@ -612,6 +616,6 @@
     "toast_partial": "Yelpaze hatalarla tamamlandı — {{submitted}} gönderildi, {{failed}} düşürüldü",
     "toast_failed": "Yelpaze başarısız",
     "gate_owned_in_flight": "Sahip olduğun her box hâlâ önceki bir tx'ten uçuyor. Bir sonraki bloğu bekle ve tekrar dene.",
-    "progress_slow_hint": "Bu adım her zamankinden uzun sürüyor. Yelpaze zinciri büyüdükçe Cardano düğümü, yeni bir tx kabul etmeden önce kuyruktaki her işlemi yeniden doğrular; dolayısıyla sonraki adımlar birkaç saniye daha uzun sürebilir. Gönderilen tx'ler yine de bir sonraki blokta yer alır."
+    "progress_slow_hint": "Bu tx normalden uzun sürüyor."
   }
 }

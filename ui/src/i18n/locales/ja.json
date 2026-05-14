@@ -214,8 +214,11 @@
     "confirm_submit": "確定して送信",
     "eyebrow": "ステップ II · プールをミックスする",
     "lede": "プールは誰でもミックスできます。運営者はいません。各 Mix トランザクションは N 個のプールボックスを一度に再ランダム化し、支払い方法は二つあります。共有の fee shard から払えばウォレットはトランザクションに一切現れません（ウォレット匿名）。あるいは自分のウォレットから払うとトランザクションは速いものの、ウォレットの身元が乗ります。",
-    "fee_payer_shard_hint": "既定。手数料はオンチェーンの共有プールから（ミックスあたり {{cap}} ADA を上限）、担保は設定済みの担保サービスから。ウォレットはトランザクションに一切現れません。",
-    "fee_payer_wallet_hint": "ウォレットが手数料を払い、担保も提供します。オンチェーンの上限はありませんが、ウォレットの身元がトランザクションに乗ります。",
+    "fee_payer_shard_hint": "デフォルト。手数料は共有のオンチェーンプールから引かれ、コラテラルが提供されます。",
+    "fee_payer_wallet_hint": "ウォレットが手数料を支払い、コラテラルを提供します。",
+    "fee_payer_wallet_hint_fanout": "ウォレットがツリー内のすべてのミックスについて手数料を支払い、コラテラルを提供し、各 tx に署名します。合計 {{count}} 個の署名。オンチェーン上限はありませんが、ウォレットの ID がすべての tx に載ります。",
+    "fanout_wallet_disclosure_title": "ウォレット支払いのファンアウト: ウォレットがすべての tx に載ります",
+    "fanout_wallet_disclosure_body": "ウォレットがコラテラルを提供し、トランザクション手数料を支払います。",
     "tx_preview_fee_wallet": "手数料はウォレットが支払い、担保もウォレットが提供します。ウォレットの身元がトランザクションに乗ります。",
     "review_collateral_value_shard": "設定済みの担保サービスから提供",
     "review_collateral_value_wallet": "接続中のウォレットから提供",
@@ -225,9 +228,9 @@
     "intensity_eyebrow": "強度",
     "intensity_option_fanout": "深さ {{k}}",
     "intensity_hint_fanout": "深さ {{k}} のファンアウト：合計 {{mixes}} 件の Mix tx、あなたの box の 1 つから出発します。",
-    "vault_locked_at_depth": "vault がロックされています。深さ ≥ 2 はあなたの box をツリーの根として必要とします。まず vault をアンロックしてください。",
+    "vault_locked_at_depth": "ボールトはロックされています。",
     "intensity_option_random": "ランダム",
-    "intensity_hint_random": "共有プールへの単一の Mix tx。ラウンドあたりのリンク確率は 1/3。fee shard モードでは tx はウォレット匿名のままです。",
+    "intensity_hint_random": "共有プールへのランダムな Mix tx を 1 つ。",
     "depth_needs_wallet": "深さ ≥ 2 ではあなたの box の 1 つからツリーを派生させます。vault を解除するためにウォレットを接続してください。"
   },
   "deposit": {
@@ -603,6 +606,7 @@
     "confirm_eyebrow": "最終確認",
     "confirm_title": "ファンアウト送信の確認",
     "confirm_lede": "Lovejoin は合計 {{boxes}} 個の mix-box に触れる {{count}} 個の Mix tx を送信します。最悪ケースの手数料は最大 {{ada}} ADA です。各 tx は shard モードでウォレットに対して匿名です。コラテラル・サービスが各 tx に署名します。",
+    "confirm_lede_wallet": "Lovejoin は合計 {{boxes}} 個の mix-box に触れる {{count}} 個の Mix tx を送信します。最悪ケースの手数料は最大 {{ada}} ADA です。ウォレットがすべての手数料を支払い、コラテラルを提供し、すべての tx に署名します。あなたのウォレット ID がツリー全体に載ります。",
     "confirm_submit": "確認して送信",
     "progress_title": "ファンアウトの進捗",
     "progress_summary": "{{total}} 個のミックスのうち {{done}} 個を処理 · {{submitted}} 個を送信 · {{failed}} 個を破棄",
@@ -612,6 +616,6 @@
     "toast_partial": "ファンアウトはエラーで終了しました — 送信 {{submitted}} 件、破棄 {{failed}} 件",
     "toast_failed": "ファンアウトに失敗しました",
     "gate_owned_in_flight": "所有するすべての box が前回の tx でまだ移動中です。次のブロックを待ってから再試行してください。",
-    "progress_slow_hint": "このスロットは通常より時間がかかっています。ファンアウトのチェーンが伸びるにつれて、Cardano ノードは新しい tx を受け入れる前にキュー内のすべてのトランザクションを再検証するため、後半のスロットは数秒余分にかかる場合があります。送信済みの tx は次のブロックには取り込まれます。"
+    "progress_slow_hint": "この tx は通常より時間がかかっています。"
   }
 }

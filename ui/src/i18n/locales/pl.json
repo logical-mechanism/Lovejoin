@@ -214,8 +214,11 @@
     "confirm_submit": "Potwierdź i wyślij",
     "eyebrow": "Krok II · zmiksować pulę",
     "lede": "Każdy może mieszać pulę; nie ma operatora. Każda tx Mix re-randomizuje N boxów puli za jednym razem, a zapłacić można na dwa sposoby. Zapłać z dzielonego fee shard i twój portfel zostanie całkowicie poza tx (anonimowo). Albo zapłać z portfela, a tx jest szybsza, ale niesie tożsamość portfela.",
-    "fee_payer_shard_hint": "Domyślnie. Opłata idzie z dzielonej puli on-chain (limit {{cap}} ADA na miks), a kolateral pochodzi ze skonfigurowanej usługi kolateralu. Twój portfel zostaje całkowicie poza tx.",
-    "fee_payer_wallet_hint": "Twój portfel płaci opłatę i dostarcza kolateral. Brak limitu on-chain, ale tożsamość portfela trafia na tx.",
+    "fee_payer_shard_hint": "Domyślnie. Opłata pochodzi ze współdzielonej puli on-chain, a zabezpieczenie jest zapewniane.",
+    "fee_payer_wallet_hint": "Twój portfel płaci opłatę i dostarcza zabezpieczenie.",
+    "fee_payer_wallet_hint_fanout": "Twój portfel płaci opłatę, dostarcza zabezpieczenie i podpisuje każdy mix w drzewie. Łącznie {{count}} podpisów. Brak limitu on-chain, ale tożsamość portfela jest na każdej tx.",
+    "fanout_wallet_disclosure_title": "Fan-out finansowany z portfela: twój portfel będzie na każdej tx",
+    "fanout_wallet_disclosure_body": "Portfel dostarcza zabezpieczenie i opłaca koszty transakcji.",
     "tx_preview_fee_wallet": "Opłatę płaci twój portfel, on też dostarcza kolateral. Tożsamość portfela jest na tx.",
     "review_collateral_value_shard": "Dostarczany przez skonfigurowaną usługę kolateralu",
     "review_collateral_value_wallet": "Dostarczany przez twój podłączony portfel",
@@ -225,9 +228,9 @@
     "intensity_eyebrow": "Intensywność",
     "intensity_option_fanout": "Głębokość {{k}}",
     "intensity_hint_fanout": "Rozgałęzienie głębokości {{k}}: łącznie {{mixes}} tx Mix, startując od jednej z twoich box.",
-    "vault_locked_at_depth": "Skarbiec jest zablokowany. Głębokość ≥ 2 wymaga własnej box jako korzenia drzewa; najpierw odblokuj skarbiec.",
+    "vault_locked_at_depth": "Skarbiec jest zablokowany.",
     "intensity_option_random": "Losowe",
-    "intensity_hint_random": "Pojedyncza tx Mix do wspólnej puli. Prawdopodobieństwo powiązania 1/3 na rundę; tx pozostaje anonimowa względem portfela w trybie fee shard.",
+    "intensity_hint_random": "Jedna losowa tx mix do wspólnej puli.",
     "depth_needs_wallet": "Głębokość ≥ 2 wyprowadza drzewo z jednej z twoich box. Podłącz portfel, aby odblokować skarbiec."
   },
   "deposit": {
@@ -603,6 +606,7 @@
     "confirm_eyebrow": "Ostateczna kontrola",
     "confirm_title": "Potwierdź wysyłkę rozgałęzienia",
     "confirm_lede": "Lovejoin wyśle {{count}} tx Mix dotykając łącznie {{boxes}} mix-box, z opłatą w najgorszym przypadku do {{ada}} ADA. Każda tx jest anonimowa dla portfela w trybie shard; usługa kolateralu podpisuje każdą tx.",
+    "confirm_lede_wallet": "Lovejoin wyśle {{count}} txs Mix dotykających łącznie {{boxes}} mix-boxes, z opłatą w najgorszym przypadku do {{ada}} ADA. Twój portfel płaci każdą opłatę, dostarcza zabezpieczenie i podpisuje każdą tx. Tożsamość twojego portfela będzie na całym drzewie.",
     "confirm_submit": "Potwierdź i wyślij",
     "progress_title": "Postęp rozgałęzienia",
     "progress_summary": "{{done}} z {{total}} mixów przetworzonych · {{submitted}} wysłanych · {{failed}} odrzuconych",
@@ -612,6 +616,6 @@
     "toast_partial": "Rozgałęzienie zakończone z błędami — wysłano {{submitted}}, odrzucono {{failed}}",
     "toast_failed": "Rozgałęzienie nieudane",
     "gate_owned_in_flight": "Wszystkie twoje boxy są jeszcze w locie z poprzedniej tx. Poczekaj na następny blok i spróbuj ponownie.",
-    "progress_slow_hint": "Ten krok trwa dłużej niż zwykle. W miarę jak łańcuch rozgałęzienia się wydłuża, węzeł Cardano ponownie waliduje każdą transakcję w kolejce przed przyjęciem nowej, więc kolejne kroki mogą zająć kilka dodatkowych sekund. Wysłane tx i tak trafią do następnego bloku."
+    "progress_slow_hint": "Ta tx trwa dłużej niż zwykle."
   }
 }

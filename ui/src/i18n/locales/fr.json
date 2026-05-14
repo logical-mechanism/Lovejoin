@@ -214,8 +214,11 @@
     "confirm_submit": "Confirmer et envoyer",
     "eyebrow": "Étape II · mixer le pool",
     "lede": "Tout le monde peut mixer le pool ; il n'y a pas d'opérateur. Chaque tx de Mix re-randomise N boxes du pool d'un coup, et vous pouvez payer de deux manières. Payez depuis le fee shard partagé et votre portefeuille reste totalement hors de la tx (anonyme côté portefeuille). Ou payez depuis votre portefeuille et la tx est plus rapide, mais elle porte votre identité de portefeuille.",
-    "fee_payer_shard_hint": "Par défaut. Les frais viennent du pool partagé on-chain (plafonnés à {{cap}} ADA par mix), et le collatéral vient du service de collatéral configuré. Votre portefeuille reste totalement hors de la tx.",
-    "fee_payer_wallet_hint": "Votre portefeuille paie les frais et fournit le collatéral. Pas de plafond on-chain, mais votre identité de portefeuille est sur la tx.",
+    "fee_payer_shard_hint": "Par défaut. Les frais proviennent du pool partagé on-chain et le collatéral est fourni.",
+    "fee_payer_wallet_hint": "Votre portefeuille paie les frais et fournit le collatéral.",
+    "fee_payer_wallet_hint_fanout": "Votre portefeuille paie les frais, fournit le collatéral et signe chaque mix de l'arbre. {{count}} signatures au total. Pas de plafond on-chain, mais votre identité de portefeuille apparaît sur chaque tx.",
+    "fanout_wallet_disclosure_title": "Fan-out financé par le portefeuille : votre portefeuille sera sur chaque tx",
+    "fanout_wallet_disclosure_body": "Le portefeuille fournit le collatéral et paie les frais de transaction.",
     "tx_preview_fee_wallet": "Frais payés par votre portefeuille, qui fournit aussi le collatéral. Votre identité de portefeuille est sur la tx.",
     "review_collateral_value_shard": "Fourni par le service de collatéral configuré",
     "review_collateral_value_wallet": "Fourni par votre portefeuille connecté",
@@ -225,9 +228,9 @@
     "intensity_eyebrow": "Intensité",
     "intensity_option_fanout": "Profondeur {{k}}",
     "intensity_hint_fanout": "Éventail de profondeur {{k}} : {{mixes}} txs de Mix au total, à partir d'une de vos boxes.",
-    "vault_locked_at_depth": "Le coffre est verrouillé. La profondeur ≥ 2 a besoin d'une box que vous possédez pour enraciner l'arbre ; déverrouillez d'abord le coffre.",
+    "vault_locked_at_depth": "Le coffre est verrouillé.",
     "intensity_option_random": "Aléatoire",
-    "intensity_hint_random": "Une tx de Mix vers le pool partagé. Probabilité de liaison 1/3 par tour ; la tx reste anonyme côté wallet en mode fee shard.",
+    "intensity_hint_random": "Une tx de mix aléatoire dans le pool partagé.",
     "depth_needs_wallet": "La profondeur ≥ 2 fait dériver l'arbre d'une de vos boxes. Connectez un wallet pour déverrouiller le coffre."
   },
   "deposit": {
@@ -603,6 +606,7 @@
     "confirm_eyebrow": "Vérification finale",
     "confirm_title": "Confirmer l'envoi de l'éventail",
     "confirm_lede": "Lovejoin enverra {{count}} txs de Mix touchant {{boxes}} mix-boxes au total, avec des frais au pire cas allant jusqu'à {{ada}} ADA. Chaque tx est anonyme côté portefeuille en mode shard ; le service de collatéral signe chaque tx.",
+    "confirm_lede_wallet": "Lovejoin enverra {{count}} txs de Mix touchant {{boxes}} mix-boxes au total, avec des frais au pire cas allant jusqu'à {{ada}} ADA. Votre portefeuille paie chaque frais, fournit le collatéral et signe chaque tx. Votre identité de portefeuille sera sur l'arbre entier.",
     "confirm_submit": "Confirmer et envoyer",
     "progress_title": "Progression de l'éventail",
     "progress_summary": "{{done}} sur {{total}} mixs traités · {{submitted}} envoyés · {{failed}} abandonnés",
@@ -612,6 +616,6 @@
     "toast_partial": "Éventail terminé avec des erreurs — {{submitted}} envoyés, {{failed}} abandonnés",
     "toast_failed": "Éventail échoué",
     "gate_owned_in_flight": "Toutes vos boxes sont encore en vol depuis une tx précédente. Attendez le prochain bloc et réessayez.",
-    "progress_slow_hint": "Cette étape prend plus de temps que d'habitude. À mesure que la chaîne de l'éventail s'allonge, le nœud Cardano revalide chaque transaction en attente avant d'en accepter une nouvelle ; les étapes plus profondes peuvent ajouter quelques secondes. Les tx envoyées seront tout de même incluses dans le prochain bloc."
+    "progress_slow_hint": "Cette tx prend plus de temps que d'habitude."
   }
 }

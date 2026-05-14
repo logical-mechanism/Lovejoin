@@ -214,8 +214,11 @@
     "confirm_submit": "Confirmar y enviar",
     "eyebrow": "Paso II · mezclar el pool",
     "lede": "Cualquiera puede mezclar el pool; no hay operador. Cada tx de Mix re-aleatoriza N cajas del pool de una vez, y puedes pagar de dos maneras. Paga desde el fee shard compartido y tu billetera queda fuera de la tx por completo (anónima para la billetera). O paga desde tu billetera y la tx es más rápida, pero lleva tu identidad de billetera.",
-    "fee_payer_shard_hint": "Por defecto. La comisión sale del pool compartido on-chain (con tope de {{cap}} ADA por mezcla), y el colateral viene del servicio de colateral configurado. Tu billetera queda fuera de la tx por completo.",
-    "fee_payer_wallet_hint": "Tu billetera paga la comisión y aporta el colateral. Sin tope on-chain, pero tu identidad de billetera queda en la tx.",
+    "fee_payer_shard_hint": "Predeterminado. La comisión sale del pool on-chain compartido y el collateral se proporciona.",
+    "fee_payer_wallet_hint": "Tu wallet paga la comisión y aporta el collateral.",
+    "fee_payer_wallet_hint_fanout": "Tu wallet paga la comisión, aporta el collateral y firma cada mix del árbol. {{count}} firmas en total. Sin tope on-chain, pero tu identidad de wallet aparece en cada tx.",
+    "fanout_wallet_disclosure_title": "Fan-out con wallet: tu wallet estará en cada tx",
+    "fanout_wallet_disclosure_body": "La wallet aporta el collateral y paga las comisiones de las transacciones.",
     "tx_preview_fee_wallet": "La comisión la paga tu billetera, y tu billetera también aporta el colateral. Tu identidad de billetera queda en la tx.",
     "review_collateral_value_shard": "Provisto por el servicio de colateral configurado",
     "review_collateral_value_wallet": "Provisto por tu billetera conectada",
@@ -225,9 +228,9 @@
     "intensity_eyebrow": "Intensidad",
     "intensity_option_fanout": "Profundidad {{k}}",
     "intensity_hint_fanout": "Abanico de profundidad {{k}}: {{mixes}} txs de Mix en total, partiendo de una de tus cajas.",
-    "vault_locked_at_depth": "La bóveda está bloqueada. La profundidad ≥ 2 necesita una caja propia para enraizar el árbol; desbloquea la bóveda primero.",
+    "vault_locked_at_depth": "La vault está bloqueada.",
     "intensity_option_random": "Aleatorio",
-    "intensity_hint_random": "Una tx de Mix al pool compartido. Probabilidad de enlace 1/3 por ronda; la tx mantiene anonimato de billetera en modo fee shard.",
+    "intensity_hint_random": "Una tx de mix aleatoria al pool compartido.",
     "depth_needs_wallet": "La profundidad ≥ 2 deriva el árbol desde una de tus cajas. Conecta una billetera para desbloquear la bóveda."
   },
   "deposit": {
@@ -603,6 +606,7 @@
     "confirm_eyebrow": "Verificación final",
     "confirm_title": "Confirmar envío del abanico",
     "confirm_lede": "Lovejoin enviará {{count}} txs de Mix tocando {{boxes}} mix-boxes en total, con una comisión en el peor caso de hasta {{ada}} ADA. Cada tx es anónima para la billetera en modo shard; el servicio de colateral firma cada tx.",
+    "confirm_lede_wallet": "Lovejoin enviará {{count}} txs de mix tocando {{boxes}} mix-boxes en total, con una comisión en el peor caso de hasta {{ada}} ADA. Tu wallet paga cada comisión, aporta el collateral y firma cada tx. Tu identidad de wallet estará en todo el árbol.",
     "confirm_submit": "Confirmar y enviar",
     "progress_title": "Progreso del abanico",
     "progress_summary": "{{done}} de {{total}} mezclas procesadas · {{submitted}} enviadas · {{failed}} descartadas",
@@ -612,6 +616,6 @@
     "toast_partial": "Abanico terminado con errores — {{submitted}} enviadas, {{failed}} descartadas",
     "toast_failed": "Abanico fallido",
     "gate_owned_in_flight": "Todas las cajas propias siguen en vuelo de una tx anterior. Espera al próximo bloque e inténtalo de nuevo.",
-    "progress_slow_hint": "Esta operación está tardando más de lo habitual. A medida que crece la cadena del abanico, el nodo de Cardano vuelve a validar cada transacción en cola antes de aceptar una nueva, por lo que los últimos pasos pueden añadir unos segundos. Las txs enviadas seguirán incluyéndose en el próximo bloque."
+    "progress_slow_hint": "Esta tx está tardando más de lo habitual."
   }
 }

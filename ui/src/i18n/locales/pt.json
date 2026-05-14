@@ -214,8 +214,11 @@
     "confirm_submit": "Confirmar e enviar",
     "eyebrow": "Passo II · misturar o pool",
     "lede": "Qualquer um pode misturar o pool; não há operador. Cada tx de Mix re-aleatoriza N boxes do pool de uma vez, e você pode pagar de duas formas. Pague pelo fee shard compartilhado e sua carteira fica totalmente fora da tx (anônima para a carteira). Ou pague pela sua carteira e a tx fica mais rápida, mas leva sua identidade de carteira.",
-    "fee_payer_shard_hint": "Padrão. A taxa sai do pool compartilhado on-chain (limitada a {{cap}} ADA por mix), e o colateral vem do serviço de colateral configurado. Sua carteira fica totalmente fora da tx.",
-    "fee_payer_wallet_hint": "Sua carteira paga a taxa e fornece o colateral. Sem teto on-chain, mas sua identidade de carteira fica na tx.",
+    "fee_payer_shard_hint": "Padrão. A taxa vem do pool on-chain compartilhado e o collateral é fornecido.",
+    "fee_payer_wallet_hint": "Sua carteira paga a taxa e fornece o collateral.",
+    "fee_payer_wallet_hint_fanout": "Sua carteira paga a taxa, fornece o collateral e assina cada mix da árvore. {{count}} assinaturas no total. Sem teto on-chain, mas sua identidade de carteira fica em cada tx.",
+    "fanout_wallet_disclosure_title": "Fan-out pago pela carteira: sua carteira estará em cada tx",
+    "fanout_wallet_disclosure_body": "A carteira fornece o collateral e paga as taxas das transações.",
     "tx_preview_fee_wallet": "Taxa paga pela sua carteira, que também fornece o colateral. Sua identidade de carteira fica na tx.",
     "review_collateral_value_shard": "Fornecido pelo serviço de colateral configurado",
     "review_collateral_value_wallet": "Fornecido pela sua carteira conectada",
@@ -225,9 +228,9 @@
     "intensity_eyebrow": "Intensidade",
     "intensity_option_fanout": "Profundidade {{k}}",
     "intensity_hint_fanout": "Leque de profundidade {{k}}: {{mixes}} txs de Mix no total, a partir de uma das tuas caixas.",
-    "vault_locked_at_depth": "O cofre está bloqueado. A profundidade ≥ 2 precisa de uma caixa tua para raiz da árvore; desbloqueia primeiro o cofre.",
+    "vault_locked_at_depth": "A vault está bloqueada.",
     "intensity_option_random": "Aleatório",
-    "intensity_hint_random": "Uma tx de Mix no pool partilhado. Probabilidade de ligação 1/3 por ronda; a tx mantém anonimato da carteira no modo fee shard.",
+    "intensity_hint_random": "Uma tx de mix aleatória para o pool compartilhado.",
     "depth_needs_wallet": "A profundidade ≥ 2 deriva a árvore a partir de uma das tuas caixas. Liga uma carteira para desbloquear o cofre."
   },
   "deposit": {
@@ -603,6 +606,7 @@
     "confirm_eyebrow": "Verificação final",
     "confirm_title": "Confirmar envio do leque",
     "confirm_lede": "Lovejoin enviará {{count}} txs de Mix tocando {{boxes}} mix-boxes no total, com taxa no pior caso de até {{ada}} ADA. Cada tx é anônima para a carteira em modo shard; o serviço de colateral assina cada tx.",
+    "confirm_lede_wallet": "O Lovejoin enviará {{count}} txs de Mix tocando {{boxes}} mix-boxes no total, com taxa no pior caso de até {{ada}} ADA. Sua carteira paga cada taxa, fornece o collateral e assina cada tx. Sua identidade de carteira ficará na árvore inteira.",
     "confirm_submit": "Confirmar e enviar",
     "progress_title": "Progresso do leque",
     "progress_summary": "{{done}} de {{total}} mixes processados · {{submitted}} enviados · {{failed}} descartados",
@@ -612,6 +616,6 @@
     "toast_partial": "Leque terminou com erros — {{submitted}} enviados, {{failed}} descartados",
     "toast_failed": "Leque falhou",
     "gate_owned_in_flight": "Todas as suas boxes ainda estão em trânsito de uma tx anterior. Aguarde o próximo bloco e tente de novo.",
-    "progress_slow_hint": "Este passo está a demorar mais do que o habitual. À medida que a cadeia em leque cresce, o nó Cardano revalida cada transação em fila antes de aceitar uma nova, por isso os passos mais profundos podem somar alguns segundos. As txs submetidas continuam a entrar no próximo bloco."
+    "progress_slow_hint": "Esta tx está demorando mais que o normal."
   }
 }

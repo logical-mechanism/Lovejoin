@@ -7,15 +7,19 @@
 //
 //   • Intensity dial offers k=1, k=2, k=3 by default; k=4 only when
 //     `advanced` is true.
-//   • At k=1 the fee-payer toggle is visible.
-//   • At k≥2 the fee-payer toggle is HIDDEN (wallet mode would publish
-//     the user's identity across every leaf).
+//   • At k=1 the fee-payer toggle is always visible.
+//   • At k≥2 the fee-payer toggle is HIDDEN unless a wallet on the
+//     chained-tx allowlist is connected (issue #147). Hidden when no
+//     wallet, hidden when the wallet isn't on the allowlist.
+//   • Picking the wallet fee path at k≥2 surfaces a load-bearing
+//     disclosure banner about the privacy + signing trade-off.
 //   • When the vault is locked, picking k≥2 surfaces the
 //     vault-locked-at-depth hint and the CTA stays disabled.
 
 import { fireEvent, render, screen } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
-import { describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it } from "vitest";
+import type { BrowserWallet } from "@meshsdk/core";
 import type { ChainProvider, LovejoinAddresses } from "@lovejoin/sdk";
 
 import { MixPanel } from "../src/components/MixPanel.js";
@@ -48,9 +52,39 @@ function makePoolEntries(n: number) {
   }));
 }
 
-function renderPanel(opts: { advanced?: boolean; initialIntensity?: number } = {}) {
+// Minimal BrowserWallet stub. MixPanel only reads its presence (truthy)
+// from the props; the wallet capability check upstream is keyed on
+// walletId in the store, not the wallet object's methods. Cast through
+// `unknown` so TS doesn't insist on the full mesh BrowserWallet shape.
+function fakeBrowserWallet(): BrowserWallet {
+  return { getLovelace: async () => "0" } as unknown as BrowserWallet;
+}
+
+interface RenderOpts {
+  advanced?: boolean;
+  initialIntensity?: number;
+  /** Wallet id to seed in the store (e.g. "eternl", "lace", "nami"). */
+  walletId?: string;
+}
+
+function renderPanel(opts: RenderOpts = {}) {
+  const wallet = opts.walletId ? fakeBrowserWallet() : null;
   return render(
-    <AppStateProvider testOverrides={{ skipAddressLoad: true, addresses: FAKE_ADDRESSES }}>
+    <AppStateProvider
+      testOverrides={{
+        skipAddressLoad: true,
+        addresses: FAKE_ADDRESSES,
+        ...(opts.walletId
+          ? {
+              initialWallet: {
+                wallet: wallet!,
+                walletId: opts.walletId,
+                changeAddress: "addr_test1_fixture",
+              },
+            }
+          : {}),
+      }}
+    >
       <ToasterProvider>
         <CollateralStatusProvider endpoint={null} testOverrides={{ skipPolling: true }}>
           <BackendStatusProvider backendUrl={null} testOverrides={{ skipPolling: true }}>
@@ -59,7 +93,7 @@ function renderPanel(opts: { advanced?: boolean; initialIntensity?: number } = {
                 network="preprod"
                 provider={FAKE_PROVIDER}
                 addresses={FAKE_ADDRESSES}
-                wallet={null}
+                wallet={wallet}
                 poolEntries={makePoolEntries(5)}
                 advanced={opts.advanced ?? false}
                 {...(opts.initialIntensity !== undefined
@@ -77,6 +111,13 @@ function renderPanel(opts: { advanced?: boolean; initialIntensity?: number } = {
 }
 
 describe("MixPanel", () => {
+  // The fee-payer toggle persists across reloads via localStorage. Clear
+  // it between tests so a "wallet"-leaning prior test can't leak its
+  // selection into a sibling test that expects the default "shard".
+  beforeEach(() => {
+    window.localStorage.clear();
+  });
+
   it("offers k=1, k=2, k=3 on the intensity dial by default", () => {
     renderPanel();
     const group = screen.getByRole("group", { name: /Intensity/i });
@@ -100,13 +141,58 @@ describe("MixPanel", () => {
     expect(screen.getByRole("group", { name: "Fee payer" })).toBeInTheDocument();
   });
 
-  it("hides the fee-payer toggle at k≥2", () => {
+  it("hides the fee-payer toggle at k≥2 when no wallet is connected", () => {
     renderPanel();
-    // Wallet mode at every leaf of a fan-out would publish the
-    // submitter's identity across N txs, so we force shard and drop
-    // the toggle entirely once intensity goes above 1.
+    // Without a wallet there's no one to sign the leaf txs, so the
+    // wallet-fee path can't even be attempted; hide the toggle to
+    // keep the surface honest about which actions are reachable.
     fireEvent.click(screen.getByRole("button", { name: /Depth 2/i }));
     expect(screen.queryByRole("group", { name: "Fee payer" })).toBeNull();
+  });
+
+  it("keeps the toggle hidden at k≥2 when wallet is connected but NOT on the chained-tx allowlist", () => {
+    // Nami isn't on the allowlist (issue #147 — empirical addition only).
+    // Allowed wallets handle a tx whose inputs include mempool-only
+    // parents; un-validated wallets would crash the tree mid-run.
+    renderPanel({ walletId: "nami" });
+    fireEvent.click(screen.getByRole("button", { name: /Depth 2/i }));
+    expect(screen.queryByRole("group", { name: "Fee payer" })).toBeNull();
+  });
+
+  it("exposes the fee-payer toggle at k≥2 when an allowlisted wallet is connected (issue #147)", () => {
+    // No `advanced` flag — wallet-funded fan-out is reachable from the
+    // default surface as long as the wallet can handle it.
+    renderPanel({ walletId: "eternl" });
+    fireEvent.click(screen.getByRole("button", { name: /Depth 2/i }));
+    expect(screen.getByRole("group", { name: "Fee payer" })).toBeInTheDocument();
+  });
+
+  it("also exposes the toggle at k=3 with an allowlisted wallet", () => {
+    renderPanel({ walletId: "eternl" });
+    fireEvent.click(screen.getByRole("button", { name: /Depth 3/i }));
+    expect(screen.getByRole("group", { name: "Fee payer" })).toBeInTheDocument();
+  });
+
+  it("renders the wallet-funded fan-out disclosure when the user picks the wallet path at k≥2", () => {
+    renderPanel({ walletId: "eternl" });
+    fireEvent.click(screen.getByRole("button", { name: /Depth 2/i }));
+    // Toggle is visible; flip it to wallet.
+    const toggle = screen.getByRole("group", { name: "Fee payer" });
+    const walletBtn = toggle.querySelectorAll("button")[1]!;
+    fireEvent.click(walletBtn);
+    // The disclosure title flags that the wallet is on every tx, and
+    // the body names what the wallet covers (collateral + fees).
+    const alert = screen.getByRole("alert").textContent ?? "";
+    expect(alert).toMatch(/wallet/i);
+    expect(alert).toMatch(/collateral/i);
+    expect(alert).toMatch(/transaction fees/i);
+  });
+
+  it("does NOT render the disclosure when the user stays on the fee-shard path at k≥2", () => {
+    renderPanel({ walletId: "eternl" });
+    fireEvent.click(screen.getByRole("button", { name: /Depth 2/i }));
+    // Toggle is visible but stays on shard; no banner.
+    expect(screen.queryByRole("alert")).toBeNull();
   });
 
   it("surfaces an inline Connect wallet CTA at k≥2 when no wallet is connected", () => {

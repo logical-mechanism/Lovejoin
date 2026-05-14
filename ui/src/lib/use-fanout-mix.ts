@@ -28,6 +28,7 @@ import {
   type FanoutPlan,
   type FanoutSlotId,
   type LovejoinAddresses,
+  type MixFeePayer,
   type PoolEntry,
   type Utxo,
 } from "@lovejoin/sdk";
@@ -73,6 +74,15 @@ export interface UseFanoutSubmitArgs {
     b: Uint8Array;
   }>;
   depth: number;
+  /**
+   * Who pays the per-tx fee for every leaf in the tree. Default `"shard"`,
+   * which keeps every Mix wallet-anonymous (no wallet input or signature).
+   * `"wallet"` opts the user out of wallet anonymity in exchange for not
+   * depending on the giveme.my collateral host: the connected wallet
+   * signs and funds every leaf. The MixPanel only exposes this option
+   * when the connected wallet is on the chained-tx capability allowlist.
+   */
+  feePayer?: MixFeePayer;
 }
 
 export interface UseFanoutSubmitResult {
@@ -98,6 +108,7 @@ export interface UseFanoutSubmitResult {
 
 export function useFanoutSubmit(args: UseFanoutSubmitArgs): UseFanoutSubmitResult {
   const { network, provider, addresses, wallet, ownedBoxes, poolEntries, depth } = args;
+  const feePayer: MixFeePayer = args.feePayer ?? "shard";
   const { t } = useTranslation();
   const toast = useToast();
   const { pendingTxRefs, markTxPending, rescan, refreshWalletBalance } = useAppState();
@@ -197,6 +208,7 @@ export function useFanoutSubmit(args: UseFanoutSubmitArgs): UseFanoutSubmitResul
         provider,
         addresses,
         ...(wallet ? { wallet } : {}),
+        feePayer,
         retry: { maxAttempts: 3, delayBetweenAttemptsMs: 2_000 },
       });
       setLastProgressAt(Date.now());

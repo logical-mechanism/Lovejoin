@@ -214,8 +214,11 @@
     "confirm_submit": "Xác nhận và gửi",
     "eyebrow": "Bước II · trộn pool",
     "lede": "Ai cũng có thể trộn pool; không có người vận hành. Mỗi tx Mix tái-ngẫu-nhiên N box trong pool một lần, và bạn có hai cách trả phí. Trả từ fee shard chung và ví của bạn hoàn toàn không xuất hiện trên tx (ẩn danh phía ví). Hoặc trả từ ví của bạn, tx nhanh hơn nhưng mang theo danh tính ví.",
-    "fee_payer_shard_hint": "Mặc định. Phí lấy từ pool chung trên chuỗi (giới hạn {{cap}} ADA mỗi lần mix), tài sản thế chấp đến từ dịch vụ collateral đã cấu hình. Ví của bạn hoàn toàn không xuất hiện trên tx.",
-    "fee_payer_wallet_hint": "Ví của bạn trả phí và cung cấp tài sản thế chấp. Không có trần trên chuỗi, nhưng danh tính ví đi vào tx.",
+    "fee_payer_shard_hint": "Mặc định. Phí đến từ pool on-chain dùng chung và tài sản thế chấp được cung cấp.",
+    "fee_payer_wallet_hint": "Ví của bạn trả phí và cấp tài sản thế chấp.",
+    "fee_payer_wallet_hint_fanout": "Ví của bạn trả phí, cấp tài sản thế chấp và ký mọi mix trong cây. Tổng {{count}} chữ ký. Không có trần on-chain, nhưng danh tính ví xuất hiện trên mọi tx.",
+    "fanout_wallet_disclosure_title": "Fan-out trả từ ví: ví của bạn sẽ có mặt trên mọi tx",
+    "fanout_wallet_disclosure_body": "Ví cấp tài sản thế chấp và trả phí giao dịch.",
     "tx_preview_fee_wallet": "Phí do ví của bạn trả, ví cũng cung cấp tài sản thế chấp. Danh tính ví đi vào tx.",
     "review_collateral_value_shard": "Cung cấp bởi dịch vụ collateral đã cấu hình",
     "review_collateral_value_wallet": "Cung cấp bởi ví đã kết nối của bạn",
@@ -225,9 +228,9 @@
     "intensity_eyebrow": "Cường độ",
     "intensity_option_fanout": "Độ sâu {{k}}",
     "intensity_hint_fanout": "Trộn theo cây độ sâu {{k}}: tổng {{mixes}} tx Mix, bắt đầu từ một box của bạn.",
-    "vault_locked_at_depth": "Vault đang khoá. Độ sâu ≥ 2 cần một box của bạn để làm gốc cây; hãy mở khoá vault trước.",
+    "vault_locked_at_depth": "Vault đang khóa.",
     "intensity_option_random": "Ngẫu nhiên",
-    "intensity_hint_random": "Một tx Mix vào pool dùng chung. Xác suất liên kết 1/3 mỗi vòng; ở chế độ fee shard, tx giữ ẩn danh ví.",
+    "intensity_hint_random": "Một tx mix ngẫu nhiên vào pool chung.",
     "depth_needs_wallet": "Độ sâu ≥ 2 dựng cây từ một box của bạn. Hãy kết nối ví để mở khoá vault."
   },
   "deposit": {
@@ -603,6 +606,7 @@
     "confirm_eyebrow": "Kiểm tra cuối",
     "confirm_title": "Xác nhận gửi trộn cây",
     "confirm_lede": "Lovejoin sẽ gửi {{count}} tx Mix chạm tổng cộng {{boxes}} mix-box, với phí xấu nhất lên đến {{ada}} ADA. Mỗi tx ẩn danh với ví trong chế độ shard; dịch vụ collateral ký mỗi tx.",
+    "confirm_lede_wallet": "Lovejoin sẽ gửi {{count}} tx Mix chạm vào tổng cộng {{boxes}} mix-boxes, với phí trong trường hợp xấu nhất lên tới {{ada}} ADA. Ví của bạn trả mọi phí, cấp tài sản thế chấp và ký mọi tx. Danh tính ví của bạn sẽ có trên toàn bộ cây.",
     "confirm_submit": "Xác nhận và gửi",
     "progress_title": "Tiến độ trộn cây",
     "progress_summary": "Đã xử lý {{done}} trên {{total}} · {{submitted}} đã gửi · {{failed}} bị hủy",
@@ -612,6 +616,6 @@
     "toast_partial": "Trộn cây kết thúc với lỗi — {{submitted}} đã gửi, {{failed}} bị hủy",
     "toast_failed": "Trộn cây thất bại",
     "gate_owned_in_flight": "Mọi box bạn sở hữu vẫn đang bay từ tx trước. Hãy đợi khối tiếp theo và thử lại.",
-    "progress_slow_hint": "Bước này đang lâu hơn bình thường. Khi chuỗi fan-out kéo dài, node Cardano sẽ xác thực lại mọi giao dịch đang chờ trước khi chấp nhận một giao dịch mới, nên các bước sau có thể mất thêm vài giây. Các tx đã gửi vẫn sẽ vào block tiếp theo."
+    "progress_slow_hint": "tx này đang mất nhiều thời gian hơn bình thường."
   }
 }

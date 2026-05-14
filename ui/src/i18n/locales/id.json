@@ -214,8 +214,11 @@
     "confirm_submit": "Konfirmasi dan kirim",
     "eyebrow": "Langkah II · acak pool",
     "lede": "Siapa saja boleh mengacak pool; tidak ada operator. Setiap tx Mix mengacak ulang N box pool sekaligus, dan kamu bisa membayar dengan dua cara. Bayar dari fee shard bersama dan dompetmu sama sekali tidak masuk ke tx (anonim untuk dompet). Atau bayar dari dompetmu sendiri dan tx-nya lebih cepat, tetapi membawa identitas dompetmu.",
-    "fee_payer_shard_hint": "Default. Biaya berasal dari pool bersama on-chain (dibatasi {{cap}} ADA per mix), dan jaminan datang dari layanan collateral yang dikonfigurasi. Dompetmu sepenuhnya tidak masuk ke tx.",
-    "fee_payer_wallet_hint": "Dompetmu membayar biaya dan menyediakan jaminan. Tanpa batas on-chain, tapi identitas dompetmu masuk ke tx.",
+    "fee_payer_shard_hint": "Default. Biaya berasal dari pool on-chain bersama dan jaminan disediakan.",
+    "fee_payer_wallet_hint": "Wallet Anda membayar biaya dan menyediakan jaminan.",
+    "fee_payer_wallet_hint_fanout": "Wallet Anda membayar biaya, menyediakan jaminan untuk setiap mix di pohon, dan menandatangani masing-masing. Total {{count}} tanda tangan. Tidak ada batas on-chain, tetapi identitas wallet Anda ada pada setiap tx.",
+    "fanout_wallet_disclosure_title": "Fan-out berbiaya wallet: wallet Anda akan ada di setiap tx",
+    "fanout_wallet_disclosure_body": "Wallet menyediakan jaminan dan membayar biaya transaksi.",
     "tx_preview_fee_wallet": "Biaya dibayar dompetmu, dan dompetmu juga menyediakan jaminan. Identitas dompetmu masuk ke tx.",
     "review_collateral_value_shard": "Disediakan oleh layanan collateral yang dikonfigurasi",
     "review_collateral_value_wallet": "Disediakan oleh dompet yang terhubung",
@@ -225,9 +228,9 @@
     "intensity_eyebrow": "Intensitas",
     "intensity_option_fanout": "Kedalaman {{k}}",
     "intensity_hint_fanout": "Fan-out kedalaman {{k}}: total {{mixes}} tx Mix, dimulai dari salah satu box milikmu.",
-    "vault_locked_at_depth": "Vault terkunci. Kedalaman ≥ 2 perlu satu box milikmu untuk menjadi akar pohon; buka vault terlebih dahulu.",
+    "vault_locked_at_depth": "Vault terkunci.",
     "intensity_option_random": "Acak",
-    "intensity_hint_random": "Satu tx Mix ke pool bersama. Probabilitas keterhubungan 1/3 per ronde; di mode fee shard tx tetap anonim terhadap wallet.",
+    "intensity_hint_random": "Satu tx mix acak ke pool bersama.",
     "depth_needs_wallet": "Kedalaman ≥ 2 menurunkan pohon dari salah satu box milikmu. Sambungkan wallet untuk membuka kunci vault."
   },
   "deposit": {
@@ -603,6 +606,7 @@
     "confirm_eyebrow": "Pemeriksaan akhir",
     "confirm_title": "Konfirmasi pengiriman kipas",
     "confirm_lede": "Lovejoin akan mengirim {{count}} tx Mix yang menyentuh total {{boxes}} mix-box, dengan biaya kasus terburuk hingga {{ada}} ADA. Setiap tx anonim terhadap dompet dalam mode shard; layanan collateral menandatangani setiap tx.",
+    "confirm_lede_wallet": "Lovejoin akan mengirim {{count}} tx Mix menyentuh total {{boxes}} mix-boxes, dengan biaya kasus terburuk hingga {{ada}} ADA. Wallet Anda membayar setiap biaya, menyediakan jaminan, dan menandatangani setiap tx. Identitas wallet Anda akan ada di seluruh pohon.",
     "confirm_submit": "Konfirmasi dan kirim",
     "progress_title": "Kemajuan kipas",
     "progress_summary": "{{done}} dari {{total}} mix diproses · {{submitted}} terkirim · {{failed}} digugurkan",
@@ -612,6 +616,6 @@
     "toast_partial": "Kipas selesai dengan kesalahan — {{submitted}} terkirim, {{failed}} digugurkan",
     "toast_failed": "Kipas gagal",
     "gate_owned_in_flight": "Semua box kepunyaanmu masih dalam penerbangan dari tx sebelumnya. Tunggu blok berikutnya, lalu coba lagi.",
-    "progress_slow_hint": "Langkah ini berjalan lebih lama dari biasanya. Saat rantai fan-out bertambah panjang, node Cardano memvalidasi ulang setiap transaksi di antrean sebelum menerima yang baru, sehingga langkah-langkah berikutnya bisa memakan beberapa detik tambahan. Tx yang sudah dikirim tetap akan masuk ke blok berikutnya."
+    "progress_slow_hint": "tx ini memakan waktu lebih lama dari biasanya."
   }
 }
