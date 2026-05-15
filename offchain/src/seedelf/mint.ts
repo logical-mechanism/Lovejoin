@@ -275,8 +275,13 @@ export async function mintSeedelfTx(args: BuildSeedelfMintArgs): Promise<Seedelf
   // Trust evaluator-returned exec units exactly (mesh defaults to 1.1×).
   tx.txEvaluationMultiplier = 1;
 
-  // Mint reference input (seedelf mint validator script).
-  tx.readOnlyTxInReference(plan.mintReferenceUtxoRef.txId, plan.mintReferenceUtxoRef.outputIndex);
+  // NOTE: the mint validator's reference script lives at
+  // `plan.mintReferenceUtxoRef`. We attach it via `mintTxInReference`
+  // below, which doubles as the read-only reference declaration. Calling
+  // `readOnlyTxInReference` on the SAME UTxO before that would register
+  // it twice with different scriptSize values (undefined vs the real
+  // size), tripping mesh-csl's "Different script sizes for the same ref
+  // input <ref>" rejection.
 
   // Wallet inputs — let mesh select, but pin the lex-smallest ref so the
   // validator's expected token name matches the plan. mesh's `txIn` adds

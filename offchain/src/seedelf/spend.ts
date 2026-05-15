@@ -374,10 +374,13 @@ export async function spendFromSeedelfTx(args: BuildSeedelfSpendArgs): Promise<S
     redeemerHexForInput: (i: number) => string,
     fee: Lovelace,
   ) => {
-    tx.readOnlyTxInReference(
-      plan.walletReferenceUtxoRef.txId,
-      plan.walletReferenceUtxoRef.outputIndex,
-    );
+    // NOTE: the wallet validator's reference script lives at
+    // `plan.walletReferenceUtxoRef`. We attach it per-input via
+    // `spendingTxInReference` below, which doubles as the read-only
+    // reference declaration. Calling `readOnlyTxInReference` on the SAME
+    // UTxO would register it twice with different scriptSize values
+    // (undefined vs the real size), tripping mesh-csl's "Different
+    // script sizes for the same ref input <ref>" rejection.
 
     for (let i = 0; i < args.inputs.length; i++) {
       const inp = args.inputs[i]!;
