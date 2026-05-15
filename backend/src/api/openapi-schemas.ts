@@ -62,7 +62,7 @@ export const OPENAPI_TAGS = [
   {
     name: "address",
     description:
-      "Per-address UTxOs for the two protocol-managed addresses (mix-box, fee-contract), served from indexer state.",
+      "Per-address UTxOs for allowlisted addresses (mix-box + fee-contract from indexer state, Seedelf wallet contract from db-sync).",
   },
 ] as const;
 
@@ -366,9 +366,9 @@ export const ROUTE_SCHEMAS = {
   },
 
   addressUtxos: {
-    summary: "UTxOs at a protocol-managed address",
+    summary: "UTxOs at an allowlisted address",
     description:
-      "Live UTxOs at the mix-box or fee-contract address, served from in-memory indexer state. Any other address returns 400 `address_not_protocol_managed` — the route is allowlisted to the two SDK call sites (`fetchPool` and the fee-shard fetch).",
+      "Live UTxOs at mix-box / fee-contract (served from in-memory indexer state) or the Seedelf wallet contract (served from db-sync). Any other address returns 400 `address_not_protocol_managed`. The Seedelf branch returns 503 `dbsync_unavailable` when the backend was started without DBSYNC_URL.",
     tags: ["address"],
     params: {
       type: "object",
@@ -377,6 +377,7 @@ export const ROUTE_SCHEMAS = {
     },
     response: {
       400: ERROR_REF,
+      503: ERROR_REF,
     },
   },
 

@@ -32,3 +32,4 @@ export * from "./addresses.js";
 export * from "./mint.js";
 export * from "./send.js";
 export * from "./spend.js";
+export * from "./rng.js";
