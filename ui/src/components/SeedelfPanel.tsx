@@ -58,7 +58,10 @@ function parseAdaInput(input: string): bigint | null {
 export function SeedelfPanel() {
   const { t } = useTranslation();
   const { config, provider, wallet, vault } = useAppState();
-  const seedelfAddresses = loadSeedelfAddresses(config.network);
+  // Memoize so the hook's effect doesn't re-fire on every render —
+  // loadSeedelfAddresses returns a fresh object each call, and the
+  // hook depends on identity, which would otherwise loop the scan.
+  const seedelfAddresses = useMemo(() => loadSeedelfAddresses(config.network), [config.network]);
   const state = useSeedelfState(seedelfAddresses);
   const toast = useToast();
 
