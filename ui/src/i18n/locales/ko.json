@@ -488,7 +488,10 @@
       "error_unknown_recipient": "이 네트워크에서 해당 id에 대한 Seedelf 레지스터를 찾을 수 없습니다.",
       "error_missing_destination": "목적지 주소를 붙여넣으세요.",
       "error_no_id_to_copy": "이 레지스터에는 복사할 로케이터 id가 없습니다.",
-      "error_copy_failed": "클립보드에 복사할 수 없습니다."
+      "error_copy_failed": "클립보드에 복사할 수 없습니다.",
+      "registers_help": "레지스터는 당신의 스텔스 주소입니다 — seedelf id를 송신자와 공유하세요. 사용할 수 있는 잔액이 아닙니다.",
+      "funds_heading": "자금",
+      "funds_help": "자금은 당신의 레지스터로 송금된 결제이며, 송신자가 추적할 수 없도록 재무작위화됩니다. 자금을 사용해 ADA를 외부로 보내거나 새 레지스터로 회전시키세요."
     }
   },
   "secret_card": {

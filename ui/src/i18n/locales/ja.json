@@ -488,7 +488,10 @@
       "error_unknown_recipient": "このネットワーク上にその id の Seedelf レジスタは見つかりませんでした。",
       "error_missing_destination": "宛先アドレスを貼り付けてください。",
       "error_no_id_to_copy": "このレジスタにはコピーできるロケータ id がありません。",
-      "error_copy_failed": "クリップボードへコピーできませんでした。"
+      "error_copy_failed": "クリップボードへコピーできませんでした。",
+      "registers_help": "レジスタはあなたのステルスアドレスです — その seedelf id を送信者と共有してください。残高として使うものではありません。",
+      "funds_heading": "資金",
+      "funds_help": "資金はあなたのレジスタに送られた支払いで、送信者が追跡できないよう再ランダム化されています。資金を使って ADA を外部へ送るか、新しいレジスタへローテートしてください。"
     }
   },
   "secret_card": {

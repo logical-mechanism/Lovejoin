@@ -488,7 +488,10 @@
       "error_unknown_recipient": "Für diese id wurde in diesem Netzwerk kein Seedelf-Register gefunden.",
       "error_missing_destination": "Fügen Sie eine Zieladresse ein.",
       "error_no_id_to_copy": "Dieses Register hat keine Locator-id zum Kopieren.",
-      "error_copy_failed": "Konnte nicht in die Zwischenablage kopieren."
+      "error_copy_failed": "Konnte nicht in die Zwischenablage kopieren.",
+      "registers_help": "Register sind deine Tarn-Adressen — teile ihre seedelf id mit Absendern. Sie sind kein Guthaben, das du ausgeben kannst.",
+      "funds_heading": "Guthaben",
+      "funds_help": "Guthaben sind Zahlungen, die an eines deiner Register gesendet wurden, neu randomisiert, damit der Absender sie nicht verfolgen kann. Gib Guthaben aus, um ADA herauszuschicken oder in ein neues Register zu rotieren."
     }
   },
   "secret_card": {

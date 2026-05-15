@@ -488,7 +488,10 @@
       "error_unknown_recipient": "W tej sieci nie znaleziono rejestru Seedelf dla tego id.",
       "error_missing_destination": "Wklej adres docelowy.",
       "error_no_id_to_copy": "Ten rejestr nie ma id lokatora do skopiowania.",
-      "error_copy_failed": "Nie udało się skopiować do schowka."
+      "error_copy_failed": "Nie udało się skopiować do schowka.",
+      "registers_help": "Rejestry to twoje adresy stealth — udostępniaj ich seedelf id nadawcom. To nie jest saldo do wydania.",
+      "funds_heading": "Środki",
+      "funds_help": "Środki to płatności wysłane do jednego z twoich rejestrów, ponownie zrandomizowane, aby nadawca nie mógł ich śledzić. Wydaj środki, aby przesłać ADA na zewnątrz lub przenieść je do nowego rejestru."
     }
   },
   "secret_card": {

@@ -527,7 +527,10 @@
       "error_unknown_recipient": "No Seedelf register found for that id on this network.",
       "error_missing_destination": "Paste a destination address.",
       "error_no_id_to_copy": "This register has no locator id to copy.",
-      "error_copy_failed": "Could not copy to clipboard."
+      "error_copy_failed": "Could not copy to clipboard.",
+      "registers_help": "Registers are your stealth addresses — share their seedelf id with senders. They aren't a balance you spend from.",
+      "funds_heading": "Funds",
+      "funds_help": "Funds are payments sent to one of your registers, re-randomized so the sender can't follow them. Spend funds to move ADA out or rotate it into a fresh register."
     }
   },
   "secret_card": {

@@ -488,7 +488,10 @@
       "error_unknown_recipient": "Bu ağda o id'ye karşılık gelen bir Seedelf kaydı bulunamadı.",
       "error_missing_destination": "Bir hedef adres yapıştırın.",
       "error_no_id_to_copy": "Bu kayıtta kopyalanacak bir locator id yok.",
-      "error_copy_failed": "Panoya kopyalanamadı."
+      "error_copy_failed": "Panoya kopyalanamadı.",
+      "registers_help": "Kayıtlar gizli adreslerinizdir — seedelf id'lerini göndericilere paylaşın. Harcanabilir bir bakiye değildir.",
+      "funds_heading": "Bakiye",
+      "funds_help": "Bakiye, kayıtlarınızdan birine gönderilen ödemelerdir; gönderici takip edemesin diye yeniden rastgele şifrelenmiştir. ADA'yı dışarı göndermek veya yeni bir kayda döndürmek için bakiye harcayın."
     }
   },
   "secret_card": {

@@ -488,7 +488,10 @@
       "error_unknown_recipient": "Nenhum registro Seedelf encontrado para esse id nesta rede.",
       "error_missing_destination": "Cole um endereço de destino.",
       "error_no_id_to_copy": "Este registro não tem um id localizador para copiar.",
-      "error_copy_failed": "Não foi possível copiar para a área de transferência."
+      "error_copy_failed": "Não foi possível copiar para a área de transferência.",
+      "registers_help": "Os registros são seus endereços furtivos — compartilhe o seedelf id deles com os remetentes. Não é um saldo para gastar.",
+      "funds_heading": "Fundos",
+      "funds_help": "Fundos são pagamentos enviados para um dos seus registros, re-randomizados para que o remetente não possa rastreá-los. Gaste fundos para enviar ADA para fora ou rotacionar para um registro novo."
     }
   },
   "secret_card": {

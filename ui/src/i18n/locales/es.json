@@ -488,7 +488,10 @@
       "error_unknown_recipient": "No se encontró un registro Seedelf para ese id en esta red.",
       "error_missing_destination": "Pega una dirección de destino.",
       "error_no_id_to_copy": "Este registro no tiene un id de localización para copiar.",
-      "error_copy_failed": "No se pudo copiar al portapapeles."
+      "error_copy_failed": "No se pudo copiar al portapapeles.",
+      "registers_help": "Los registros son tus direcciones sigilosas — comparte su seedelf id con los remitentes. No son un saldo que gastes.",
+      "funds_heading": "Fondos",
+      "funds_help": "Los fondos son pagos enviados a uno de tus registros, re-aleatorizados para que el remitente no pueda seguirlos. Gasta fondos para mover ADA fuera o rotarlo a un registro nuevo."
     }
   },
   "secret_card": {

@@ -488,7 +488,10 @@
       "error_unknown_recipient": "Không tìm thấy register Seedelf nào cho id đó trên mạng này.",
       "error_missing_destination": "Dán một địa chỉ đích.",
       "error_no_id_to_copy": "Register này không có locator id để sao chép.",
-      "error_copy_failed": "Không thể sao chép vào clipboard."
+      "error_copy_failed": "Không thể sao chép vào clipboard.",
+      "registers_help": "Đăng ký là các địa chỉ tàng hình của bạn — chia sẻ seedelf id của chúng với người gửi. Đây không phải là số dư bạn có thể chi tiêu.",
+      "funds_heading": "Quỹ",
+      "funds_help": "Quỹ là các khoản thanh toán được gửi đến một trong các đăng ký của bạn, được ngẫu nhiên hóa lại để người gửi không thể theo dõi. Chi tiêu quỹ để chuyển ADA ra ngoài hoặc luân chuyển sang đăng ký mới."
     }
   },
   "secret_card": {

@@ -488,7 +488,10 @@
       "error_unknown_recipient": "在该网络上找不到对应该 id 的 Seedelf 注册。",
       "error_missing_destination": "请粘贴目标地址。",
       "error_no_id_to_copy": "此注册没有可复制的定位 id。",
-      "error_copy_failed": "无法复制到剪贴板。"
+      "error_copy_failed": "无法复制到剪贴板。",
+      "registers_help": "注册是你的隐身地址 — 把它们的 seedelf id 分享给发送者。它们不是用来花费的余额。",
+      "funds_heading": "资金",
+      "funds_help": "资金是别人发送到你的注册的付款，经过重新随机化以防止发送者跟踪。支出资金以转出 ADA 或将其轮换到一个新注册中。"
     }
   },
   "secret_card": {

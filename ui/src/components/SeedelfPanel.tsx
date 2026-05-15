@@ -183,23 +183,23 @@ export function SeedelfPanel() {
     }
   }
 
-  async function handleSpend(register: OwnedSeedelfUtxo) {
+  async function handleSpend(fund: OwnedSeedelfUtxo, changeRegister: OwnedSeedelfUtxo["register"]) {
     if (!canTransact || busy) return;
     setBusy(true);
     try {
       const inputs = [
         {
-          ref: register.utxo.ref,
-          register: register.register,
-          secret: register.secret,
-          lovelace: register.utxo.lovelace,
+          ref: fund.utxo.ref,
+          register: fund.register,
+          secret: fund.secret,
+          lovelace: fund.utxo.lovelace,
         },
       ];
       const destination =
         spendMode === "internal"
           ? {
               kind: "internal" as const,
-              change: { changeRegister: register.register },
+              change: { changeRegister },
             }
           : {
               kind: "external" as const,
@@ -407,12 +407,12 @@ export function SeedelfPanel() {
       {state.registers.length > 0 && (
         <div className="mt-6">
           <h4 className="text-sm font-semibold mb-2">{t("vault.seedelf.registers_heading")}</h4>
+          <p className="text-xs text-muted mb-2">{t("vault.seedelf.registers_help")}</p>
           <ul className="lj-list">
             {state.registers.map((r) => {
               const refKey = `${r.utxo.ref.txId}#${r.utxo.ref.outputIndex}`;
-              const isOpen = spendOpen === refKey;
               return (
-                <li key={refKey} className="lj-list__item flex-col items-stretch gap-2">
+                <li key={refKey} className="lj-list__item">
                   <div className="flex items-center justify-between gap-3 w-full">
                     <code className="text-xs">
                       {r.seedelfTokenHex
@@ -434,6 +434,35 @@ export function SeedelfPanel() {
                       >
                         {t("vault.seedelf.copy_id")}
                       </button>
+                    </div>
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
+        </div>
+      )}
+
+      {state.funds.length > 0 && (
+        <div className="mt-6">
+          <h4 className="text-sm font-semibold mb-2">{t("vault.seedelf.funds_heading")}</h4>
+          <p className="text-xs text-muted mb-2">{t("vault.seedelf.funds_help")}</p>
+          <ul className="lj-list">
+            {state.funds.map((f) => {
+              const refKey = `${f.utxo.ref.txId}#${f.utxo.ref.outputIndex}`;
+              const isOpen = spendOpen === refKey;
+              const changeRegister = state.registers[0]?.register ?? f.register;
+              return (
+                <li key={refKey} className="lj-list__item flex-col items-stretch gap-2">
+                  <div className="flex items-center justify-between gap-3 w-full">
+                    <code className="text-xs">{truncate(refKey)}</code>
+                    <span className="text-muted text-xs">
+                      {t("vault.seedelf.index_label", { i: f.index })}
+                    </span>
+                    <span className="text-xs">
+                      {t("vault.seedelf.balance_ada", { amount: formatAda(f.utxo.lovelace) })}
+                    </span>
+                    <div className="flex gap-1">
                       <button
                         type="button"
                         className="lj-btn lj-btn--sm"
@@ -444,7 +473,7 @@ export function SeedelfPanel() {
                           setSpendDestination("");
                           setSpendMode("external");
                         }}
-                        disabled={busy || r.utxo.lovelace < 2_000_000n}
+                        disabled={busy || f.utxo.lovelace < 2_000_000n}
                       >
                         {t("vault.seedelf.spend_button")}
                       </button>
@@ -490,17 +519,17 @@ export function SeedelfPanel() {
                       <p className="text-xs text-muted mt-2">
                         {spendMode === "external"
                           ? t("vault.seedelf.spend_external_hint", {
-                              amount: formatAda(r.utxo.lovelace),
+                              amount: formatAda(f.utxo.lovelace),
                             })
                           : t("vault.seedelf.spend_internal_hint", {
-                              amount: formatAda(r.utxo.lovelace),
+                              amount: formatAda(f.utxo.lovelace),
                             })}
                       </p>
                       <div className="mt-3 flex gap-2">
                         <button
                           type="button"
                           className="lj-btn lj-btn--primary"
-                          onClick={() => handleSpend(r)}
+                          onClick={() => handleSpend(f, changeRegister)}
                           disabled={busy}
                           data-testid={`seedelf-spend-submit-${refKey}`}
                         >

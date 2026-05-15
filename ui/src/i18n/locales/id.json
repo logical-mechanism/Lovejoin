@@ -488,7 +488,10 @@
       "error_unknown_recipient": "Tidak ada register Seedelf untuk id itu di jaringan ini.",
       "error_missing_destination": "Tempel alamat tujuan.",
       "error_no_id_to_copy": "Register ini tidak punya locator id untuk disalin.",
-      "error_copy_failed": "Tidak dapat menyalin ke clipboard."
+      "error_copy_failed": "Tidak dapat menyalin ke clipboard.",
+      "registers_help": "Register adalah alamat siluman Anda — bagikan seedelf id-nya kepada pengirim. Ini bukan saldo yang dapat dibelanjakan.",
+      "funds_heading": "Dana",
+      "funds_help": "Dana adalah pembayaran yang dikirim ke salah satu register Anda, diacak ulang agar pengirim tidak dapat melacaknya. Belanjakan dana untuk mengirim ADA ke luar atau memutarnya ke register baru."
     }
   },
   "secret_card": {
