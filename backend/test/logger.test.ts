@@ -1,8 +1,9 @@
 // Structured-logging test for the Fastify pino integration (issue #99).
 //
 // Asserts that:
-//   1. `buildServer` logs a per-request entry with the expected pino
-//      shape (`level`, `req.method`, `req.url`, `res.statusCode`, `msg`).
+//   1. `buildServer` emits NO per-request access log for a routine 2xx
+//      request — `c3b4506` set `disableRequestLogging: true` so a UI
+//      pool scan (~one request per box) no longer drowns the log.
 //   2. A route-handler error path emits an `error`-level record carrying
 //      the `raw` upstream message and a route-tagged `msg`.
 //
@@ -95,7 +96,7 @@ beforeAll(async () => {
 afterAll(async () => {});
 
 describe("backend pino logger (issue #99)", () => {
-  it("emits a structured per-request log for /health with method/url/statusCode", async () => {
+  it("emits no per-request access log for a routine 2xx request (disableRequestLogging)", async () => {
     const records: LogRecord[] = [];
     const logger = makeCapturingLogger(records);
     const server = await buildServer({
@@ -111,20 +112,15 @@ describe("backend pino logger (issue #99)", () => {
     } finally {
       await server.close();
     }
-    // Fastify's request-completed log carries `req.method`, `req.url`,
-    // and `res.statusCode`. Asserting on at least one such record proves
-    // the integration is live and structured.
-    // Fastify emits at minimum an "incoming request" record carrying
-    // `req.method` + `req.url`. Some Fastify versions emit a separate
-    // "request completed" record with `res.statusCode`; assert the
-    // intersection of fields that are stable across versions.
-    const incoming = records.find((r) => r.req && (r.req as { url?: string }).url === "/health");
-    expect(incoming, JSON.stringify(records, null, 2)).toBeDefined();
-    expect(incoming?.req?.method).toBe("GET");
-    // No raw `[prefix]` strings — every record is a JSON object with a
-    // numeric level. (parseable lines were the only ones pushed into
-    // `records`, so any record at all confirms structured output.)
-    expect(records.length).toBeGreaterThan(0);
+    // `c3b4506` set `disableRequestLogging: true`: a single UI pool scan
+    // fans out to ~one request per box and Fastify's routine 2xx access
+    // lines drowned the log. A successful /health request must emit NO
+    // per-request "incoming request" / "request completed" record — the
+    // only records carrying a `req`/`res` shape are those access lines.
+    const accessLog = records.find((r) => r.req || r.res);
+    expect(accessLog, JSON.stringify(records, null, 2)).toBeUndefined();
+    // Whatever the logger does emit stays structured: JSON objects with
+    // a numeric level, never raw `[prefix]` text lines.
     for (const r of records) {
       expect(typeof r.level).toBe("number");
     }
