@@ -50,7 +50,7 @@ import { seedelfWalletAddressBech32, type SeedelfAddresses } from "./addresses.j
 import { generateSeedelfEphemeralKey, type SeedelfEphemeralKey } from "./signer.js";
 import { drawRerandomizationScalar } from "./rng.js";
 import type { LovejoinWallet } from "../wallet/cip30.js";
-import { getMeshProtocolParams, getMeshProvider } from "../tx/mesh-bridge.js";
+import { getMeshCostModels, getMeshProtocolParams, getMeshProvider } from "../tx/mesh-bridge.js";
 import { type CollateralProvider, GivemeMyProvider, WalletProvider } from "../tx/collateral.js";
 import { appendVkeyWitness } from "../tx/witness-merge.js";
 
@@ -350,6 +350,8 @@ export async function spendFromSeedelfTx(args: BuildSeedelfSpendArgs): Promise<S
   const { MeshTxBuilder } = meshCore;
   const meshProvider = await getMeshProvider(args.provider);
   const meshParams = await getMeshProtocolParams(args.provider);
+  // Live cost models for the script-integrity hash — see getMeshCostModels.
+  const meshCostModels = await getMeshCostModels(args.provider);
   const walletContractAddress = seedelfWalletAddressBech32(args.addresses);
 
   // Mesh needs a change address even when no wallet change is emitted.
@@ -448,6 +450,9 @@ export async function spendFromSeedelfTx(args: BuildSeedelfSpendArgs): Promise<S
       verbose: false,
     });
     tx.txEvaluationMultiplier = 1;
+    // Pin live cost models for the script-integrity hash (else mesh
+    // uses stale bundled ones → ledger error 3113).
+    if (meshCostModels) tx.setNetwork(meshCostModels);
     populate(tx, redeemerHexForInput, fee);
     return tx.complete();
   };

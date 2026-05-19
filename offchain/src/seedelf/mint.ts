@@ -46,7 +46,7 @@ import type { SeedelfAddresses } from "./addresses.js";
 import { seedelfWalletAddressBech32 } from "./addresses.js";
 import type { LovejoinWallet } from "../wallet/cip30.js";
 import { meshUtxoToLovejoin, normalizeWalletUtxos } from "../wallet/cip30.js";
-import { getMeshProtocolParams, getMeshProvider } from "../tx/mesh-bridge.js";
+import { getMeshCostModels, getMeshProtocolParams, getMeshProvider } from "../tx/mesh-bridge.js";
 import { drawRerandomizationScalar } from "./rng.js";
 
 /** Inputs needed to plan a mint. */
@@ -263,6 +263,8 @@ export async function mintSeedelfTx(args: BuildSeedelfMintArgs): Promise<Seedelf
   const { MeshTxBuilder } = meshCore;
   const meshProvider = await getMeshProvider(args.provider);
   const meshParams = await getMeshProtocolParams(args.provider);
+  // Live cost models for the script-integrity hash — see getMeshCostModels.
+  const meshCostModels = await getMeshCostModels(args.provider);
 
   const changeAddress = await args.wallet.getChangeAddress();
   const tx = new MeshTxBuilder({
@@ -274,6 +276,9 @@ export async function mintSeedelfTx(args: BuildSeedelfMintArgs): Promise<Seedelf
   });
   // Trust evaluator-returned exec units exactly (mesh defaults to 1.1×).
   tx.txEvaluationMultiplier = 1;
+  // Pin live cost models for the script-integrity hash (else mesh uses
+  // stale bundled ones → ledger error 3113).
+  if (meshCostModels) tx.setNetwork(meshCostModels);
 
   // NOTE: the mint validator's reference script lives at
   // `plan.mintReferenceUtxoRef`. We attach it via `mintTxInReference`

@@ -15,7 +15,7 @@
 import type { ChainProvider, Lovelace, Utxo, UtxoRef } from "../chain/provider.js";
 import { type CollateralProvider, WalletProvider } from "./collateral.js";
 import { mergeExternalCollateralWitness } from "./witness-merge.js";
-import { getMeshProtocolParams, getMeshProvider } from "./mesh-bridge.js";
+import { getMeshCostModels, getMeshProtocolParams, getMeshProvider } from "./mesh-bridge.js";
 import { pickRandomFeeShard } from "./fee.js";
 import { REPLENISH_REDEEMER_CBOR_HEX, UNIT_DATUM_CBOR_HEX } from "./deposit.js";
 import { fetchProtocolParams, type LovejoinAddresses, parseUtxoRef } from "./params.js";
@@ -193,6 +193,8 @@ export async function buildDonateTx(args: BuildDonateArgs): Promise<DonateResult
     const { MeshTxBuilder } = await import("@meshsdk/core");
     const meshProvider = await getMeshProvider(args.provider);
     const meshParams = await getMeshProtocolParams(args.provider);
+    // Live cost models for the script-integrity hash — see getMeshCostModels.
+    const meshCostModels = await getMeshCostModels(args.provider);
     const txBuilder = new MeshTxBuilder({
       fetcher: meshProvider as never,
       submitter: meshProvider as never,
@@ -201,6 +203,9 @@ export async function buildDonateTx(args: BuildDonateArgs): Promise<DonateResult
       verbose: false,
     });
     txBuilder.txEvaluationMultiplier = 1;
+    // Pin live cost models for the script-integrity hash (else mesh uses
+    // stale bundled ones → ledger error 3113).
+    if (meshCostModels) txBuilder.setNetwork(meshCostModels);
 
     const walletUtxos = normalizeWalletUtxos(await args.wallet.getUtxos());
     const changeAddress = await args.wallet.getChangeAddress();

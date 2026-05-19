@@ -74,7 +74,7 @@ import { mergeExternalCollateralWitness } from "./witness-merge.js";
  * no longer a hand-tuned fallback.
  */
 const POPULATE_TIME_EXUNITS_PLACEHOLDER: ExUnits = { mem: 10_000, steps: 1_000_000 };
-import { getMeshProtocolParams, getMeshProvider } from "./mesh-bridge.js";
+import { getMeshCostModels, getMeshProtocolParams, getMeshProvider } from "./mesh-bridge.js";
 import { type RetryOptions, withInputCollisionRetry } from "./retry.js";
 import { computeRefScriptFee, extractFeeFromTxCbor } from "./fee-helpers.js";
 import {
@@ -430,6 +430,8 @@ export async function buildWithdrawTx(args: BuildWithdrawArgs): Promise<Withdraw
     const cst = await import("@meshsdk/core-cst");
     const meshProvider = await getMeshProvider(args.provider);
     const meshParams = await getMeshProtocolParams(args.provider);
+    // Live cost models for the script-integrity hash — see getMeshCostModels.
+    const meshCostModels = await getMeshCostModels(args.provider);
 
     // Wallet handles only matter in wallet-fee mode. Don't query them
     // (or trigger CIP-30 RPCs) in box mode — the wallet-anonymity story
@@ -469,6 +471,9 @@ export async function buildWithdrawTx(args: BuildWithdrawArgs): Promise<Withdraw
       });
       // Trust evaluator-returned exec units exactly; no 1.1× safety buffer.
       tx.txEvaluationMultiplier = 1;
+      // Pin live cost models for the script-integrity hash (else mesh
+      // uses stale bundled ones → ledger error 3113).
+      if (meshCostModels) tx.setNetwork(meshCostModels);
       if (feeOverride !== undefined) {
         // Pin the total tx fee. We use this to add the Conway
         // reference-script fee component that mesh-csl never computes
@@ -797,6 +802,8 @@ export async function buildBulkWithdrawTx(
     const cst = await import("@meshsdk/core-cst");
     const meshProvider = await getMeshProvider(args.provider);
     const meshParams = await getMeshProtocolParams(args.provider);
+    // Live cost models for the script-integrity hash — see getMeshCostModels.
+    const meshCostModels = await getMeshCostModels(args.provider);
 
     const walletUtxos =
       feePayer === "wallet" ? normalizeWalletUtxos(await args.wallet.getUtxos()) : [];
@@ -824,6 +831,9 @@ export async function buildBulkWithdrawTx(
         verbose: false,
       });
       tx.txEvaluationMultiplier = 1;
+      // Pin live cost models for the script-integrity hash (else mesh
+      // uses stale bundled ones → ledger error 3113).
+      if (meshCostModels) tx.setNetwork(meshCostModels);
       if (feeOverride !== undefined) {
         tx.setFee(feeOverride.toString());
       }
