@@ -511,12 +511,9 @@
       "send_submit": "Send",
       "send_submitted": "Send-to-Seedelf submitted",
       "spend_button": "Spend",
-      "spend_mode_external": "Send out to a Cardano address",
-      "spend_mode_internal": "Keep inside Seedelf (re-randomize)",
+      "spend_mode_external": "To a Cardano address",
       "spend_destination_label": "Destination address (bech32)",
       "spend_destination_placeholder": "addr_test1…",
-      "spend_external_hint": "Pays {{amount}} ADA minus the tx fee to the destination address.",
-      "spend_internal_hint": "Rotates {{amount}} ADA minus the tx fee back into a fresh register at the same stealth wallet.",
       "spend_submit": "Spend",
       "spend_submitted": "Seedelf spend submitted",
       "copy_id": "Copy id",
@@ -530,7 +527,13 @@
       "error_copy_failed": "Could not copy to clipboard.",
       "registers_help": "Registers are your stealth addresses — share their seedelf id with senders. They aren't a balance you spend from.",
       "funds_heading": "Funds",
-      "funds_help": "Funds are payments sent to one of your registers, re-randomized so the sender can't follow them. Spend funds to move ADA out or rotate it into a fresh register."
+      "funds_help": "Funds are payments sent to one of your registers, re-randomized so the sender can't follow them. Spend funds to move ADA out or rotate it into a fresh register.",
+      "spend_mode_seedelf": "To another Seedelf",
+      "spend_seedelf_label": "Recipient seedelf id (32-byte hex)",
+      "spend_amount_label": "Amount (ADA) — leave blank to spend it all",
+      "spend_amount_placeholder": "blank = spend all",
+      "spend_all_hint": "Spends the whole fund ({{amount}} ADA) minus the tx fee. No change.",
+      "spend_change_hint": "Sends the entered amount; the rest comes back as change to a fresh register you own (if it clears the chain minimum)."
     }
   },
   "secret_card": {

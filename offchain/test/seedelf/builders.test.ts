@@ -119,11 +119,6 @@ describe("seedelf/spend — per-input redeemer + ephemeral signer binding", () =
       addresses: SEEDELF_PREPROD_ADDRESSES,
       inputs,
       ephemeralSignerVkh: signer.vkh,
-      output: {
-        kind: "external",
-        addressBech32: "addr_test1qq...",
-        lovelace: 11_000_000n,
-      },
     });
     expect(plan.redeemers.length).toBe(inputs.length);
     for (let i = 0; i < plan.redeemers.length; i++) {
@@ -161,11 +156,6 @@ describe("seedelf/spend — per-input redeemer + ephemeral signer binding", () =
         },
       ],
       ephemeralSignerVkh: signer.vkh,
-      output: {
-        kind: "external",
-        addressBech32: "addr_test1qq...",
-        lovelace: 4_500_000n,
-      },
     });
     const real = plan.redeemers[0]!.redeemerCborHex;
     const placeholder = placeholderSpendRedeemerHex();
@@ -194,13 +184,11 @@ describe("seedelf/spend — per-input redeemer + ephemeral signer binding", () =
       addresses: SEEDELF_PREPROD_ADDRESSES,
       inputs: baseInputs,
       ephemeralSignerVkh: signer.vkh,
-      output: { kind: "external", addressBech32: "addr_test1qq...", lovelace: 4_800_000n },
     });
     const planFee2 = planSeedelfSpendTx({
       addresses: SEEDELF_PREPROD_ADDRESSES,
       inputs: baseInputs,
       ephemeralSignerVkh: signer.vkh,
-      output: { kind: "external", addressBech32: "addr_test1qq...", lovelace: 4_500_000n },
     });
     // Identical proofs across the two plans (RFC 6979 determinism + no
     // output dependency).

@@ -473,11 +473,8 @@
       "send_submitted": "Envoi vers Seedelf soumis",
       "spend_button": "Dépenser",
       "spend_mode_external": "Envoyer vers une adresse Cardano externe",
-      "spend_mode_internal": "Garder dans Seedelf (re-randomiser)",
       "spend_destination_label": "Adresse de destination (bech32)",
       "spend_destination_placeholder": "addr_test1…",
-      "spend_external_hint": "Paie {{amount}} ADA moins les frais de tx à l'adresse de destination.",
-      "spend_internal_hint": "Fait tourner {{amount}} ADA moins les frais de tx dans un nouveau registre du même portefeuille furtif.",
       "spend_submit": "Dépenser",
       "spend_submitted": "Dépense Seedelf soumise",
       "copy_id": "Copier l'id",
@@ -491,7 +488,13 @@
       "error_copy_failed": "Impossible de copier dans le presse-papiers.",
       "registers_help": "Les registres sont vos adresses furtives — partagez leur seedelf id avec les expéditeurs. Ce n'est pas un solde à dépenser.",
       "funds_heading": "Fonds",
-      "funds_help": "Les fonds sont les paiements envoyés à l'un de vos registres, re-randomisés pour que l'expéditeur ne puisse pas les suivre. Dépensez les fonds pour sortir des ADA ou les rouler vers un nouveau registre."
+      "funds_help": "Les fonds sont les paiements envoyés à l'un de vos registres, re-randomisés pour que l'expéditeur ne puisse pas les suivre. Dépensez les fonds pour sortir des ADA ou les rouler vers un nouveau registre.",
+      "spend_mode_seedelf": "Vers un autre Seedelf",
+      "spend_seedelf_label": "seedelf id du destinataire (hex 32 octets)",
+      "spend_amount_label": "Montant (ADA) — laissez vide pour tout dépenser",
+      "spend_amount_placeholder": "vide = tout dépenser",
+      "spend_all_hint": "Dépense la totalité du fonds ({{amount}} ADA) moins les frais de tx. Sans monnaie rendue.",
+      "spend_change_hint": "Envoie le montant saisi ; le reste revient en monnaie vers un nouveau registre vous appartenant (s'il dépasse le minimum de la chaîne)."
     }
   },
   "secret_card": {

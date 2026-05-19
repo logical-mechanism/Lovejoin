@@ -473,11 +473,8 @@
       "send_submitted": "Seedelf로 보내기를 제출했습니다",
       "spend_button": "지출",
       "spend_mode_external": "외부 Cardano 주소로 보내기",
-      "spend_mode_internal": "Seedelf 내에 유지 (재랜덤화)",
       "spend_destination_label": "목적지 주소 (bech32)",
       "spend_destination_placeholder": "addr_test1…",
-      "spend_external_hint": "목적지 주소로 {{amount}} ADA에서 tx 수수료를 뺀 금액을 지불합니다.",
-      "spend_internal_hint": "{{amount}} ADA에서 tx 수수료를 뺀 금액을 같은 스텔스 지갑의 새 레지스터로 순환시킵니다.",
       "spend_submit": "지출",
       "spend_submitted": "Seedelf 지출을 제출했습니다",
       "copy_id": "id 복사",
@@ -491,7 +488,13 @@
       "error_copy_failed": "클립보드에 복사할 수 없습니다.",
       "registers_help": "레지스터는 당신의 스텔스 주소입니다 — seedelf id를 송신자와 공유하세요. 사용할 수 있는 잔액이 아닙니다.",
       "funds_heading": "자금",
-      "funds_help": "자금은 당신의 레지스터로 송금된 결제이며, 송신자가 추적할 수 없도록 재무작위화됩니다. 자금을 사용해 ADA를 외부로 보내거나 새 레지스터로 회전시키세요."
+      "funds_help": "자금은 당신의 레지스터로 송금된 결제이며, 송신자가 추적할 수 없도록 재무작위화됩니다. 자금을 사용해 ADA를 외부로 보내거나 새 레지스터로 회전시키세요.",
+      "spend_mode_seedelf": "다른 Seedelf로",
+      "spend_seedelf_label": "수신자 seedelf id (32바이트 hex)",
+      "spend_amount_label": "금액 (ADA) — 전부 사용하려면 비워 두세요",
+      "spend_amount_placeholder": "공백 = 전부 사용",
+      "spend_all_hint": "전체 자금({{amount}} ADA)에서 tx 수수료를 뺀 금액을 사용합니다. 거스름돈 없음.",
+      "spend_change_hint": "입력한 금액을 보내고, 나머지는 당신이 소유한 새 레지스터로 거스름돈으로 돌아옵니다 (체인 최소액을 넘는 경우)."
     }
   },
   "secret_card": {

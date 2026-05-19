@@ -473,11 +473,8 @@
       "send_submitted": "Đã gửi giao dịch send-to-Seedelf",
       "spend_button": "Chi tiêu",
       "spend_mode_external": "Gửi ra địa chỉ Cardano bên ngoài",
-      "spend_mode_internal": "Giữ trong Seedelf (re-randomize)",
       "spend_destination_label": "Địa chỉ đích (bech32)",
       "spend_destination_placeholder": "addr_test1…",
-      "spend_external_hint": "Trả {{amount}} ADA trừ phí tx tới địa chỉ đích.",
-      "spend_internal_hint": "Luân chuyển {{amount}} ADA trừ phí tx về một register mới trong cùng ví ẩn danh.",
       "spend_submit": "Chi tiêu",
       "spend_submitted": "Đã gửi chi tiêu Seedelf",
       "copy_id": "Sao chép id",
@@ -491,7 +488,13 @@
       "error_copy_failed": "Không thể sao chép vào clipboard.",
       "registers_help": "Đăng ký là các địa chỉ tàng hình của bạn — chia sẻ seedelf id của chúng với người gửi. Đây không phải là số dư bạn có thể chi tiêu.",
       "funds_heading": "Quỹ",
-      "funds_help": "Quỹ là các khoản thanh toán được gửi đến một trong các đăng ký của bạn, được ngẫu nhiên hóa lại để người gửi không thể theo dõi. Chi tiêu quỹ để chuyển ADA ra ngoài hoặc luân chuyển sang đăng ký mới."
+      "funds_help": "Quỹ là các khoản thanh toán được gửi đến một trong các đăng ký của bạn, được ngẫu nhiên hóa lại để người gửi không thể theo dõi. Chi tiêu quỹ để chuyển ADA ra ngoài hoặc luân chuyển sang đăng ký mới.",
+      "spend_mode_seedelf": "Đến một Seedelf khác",
+      "spend_seedelf_label": "seedelf id của người nhận (hex 32 byte)",
+      "spend_amount_label": "Số tiền (ADA) — để trống để chi tiêu toàn bộ",
+      "spend_amount_placeholder": "trống = chi tiêu tất cả",
+      "spend_all_hint": "Chi tiêu toàn bộ quỹ ({{amount}} ADA) trừ phí tx. Không có tiền thừa.",
+      "spend_change_hint": "Gửi số tiền đã nhập; phần còn lại quay về dưới dạng tiền thừa vào một đăng ký mới do bạn sở hữu (nếu vượt mức tối thiểu của chuỗi)."
     }
   },
   "secret_card": {

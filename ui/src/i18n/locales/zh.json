@@ -473,11 +473,8 @@
       "send_submitted": "向 Seedelf 的发送已提交",
       "spend_button": "支出",
       "spend_mode_external": "发送到外部 Cardano 地址",
-      "spend_mode_internal": "保留在 Seedelf 内（重新随机化）",
       "spend_destination_label": "目标地址（bech32）",
       "spend_destination_placeholder": "addr_test1…",
-      "spend_external_hint": "向目标地址支付 {{amount}} ADA 减去交易费。",
-      "spend_internal_hint": "将 {{amount}} ADA 减去交易费轮换回同一隐身钱包的新注册。",
       "spend_submit": "支出",
       "spend_submitted": "Seedelf 支出已提交",
       "copy_id": "复制 id",
@@ -491,7 +488,13 @@
       "error_copy_failed": "无法复制到剪贴板。",
       "registers_help": "注册是你的隐身地址 — 把它们的 seedelf id 分享给发送者。它们不是用来花费的余额。",
       "funds_heading": "资金",
-      "funds_help": "资金是别人发送到你的注册的付款，经过重新随机化以防止发送者跟踪。支出资金以转出 ADA 或将其轮换到一个新注册中。"
+      "funds_help": "资金是别人发送到你的注册的付款，经过重新随机化以防止发送者跟踪。支出资金以转出 ADA 或将其轮换到一个新注册中。",
+      "spend_mode_seedelf": "发送到另一个 Seedelf",
+      "spend_seedelf_label": "收款人 seedelf id（32 字节十六进制）",
+      "spend_amount_label": "金额（ADA）— 留空则全部花费",
+      "spend_amount_placeholder": "留空 = 全部花费",
+      "spend_all_hint": "花费整笔资金（{{amount}} ADA）减去交易费。没有找零。",
+      "spend_change_hint": "发送输入的金额；余下部分作为找零返回到你拥有的一个新注册（若超过链上最低额）。"
     }
   },
   "secret_card": {

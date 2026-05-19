@@ -79,9 +79,12 @@ export function SeedelfPanel() {
   const [sendRecipientId, setSendRecipientId] = useState("");
   const [sendAmountAda, setSendAmountAda] = useState("");
 
-  // Spend form (driven by spendOpen ref key).
+  // Spend form (driven by spendOpen ref key). `spendDestination` holds a
+  // Cardano address when mode is "external", or a seedelf id when mode is
+  // "seedelf". `spendAmountAda` is optional — blank means "spend all".
   const [spendDestination, setSpendDestination] = useState("");
-  const [spendMode, setSpendMode] = useState<"external" | "internal">("external");
+  const [spendAmountAda, setSpendAmountAda] = useState("");
+  const [spendMode, setSpendMode] = useState<"external" | "seedelf">("external");
 
   // Pick the next-available derivation index for mint: smallest i in
   // [0, SEEDELF_MAX_INDEX_SCAN) that doesn't already back a register.
@@ -185,6 +188,21 @@ export function SeedelfPanel() {
 
   async function handleSpend(fund: OwnedSeedelfUtxo, changeRegister: OwnedSeedelfUtxo["register"]) {
     if (!canTransact || busy) return;
+    const target = spendDestination.trim();
+    if (!target) {
+      toast.push({ tone: "error", title: t("vault.seedelf.error_missing_destination") });
+      return;
+    }
+    // Optional amount — blank means "spend the whole fund (minus fee)".
+    let amountLovelace: bigint | undefined;
+    if (spendAmountAda.trim()) {
+      const parsed = parseAdaInput(spendAmountAda);
+      if (!parsed) {
+        toast.push({ tone: "error", title: t("vault.seedelf.error_invalid_amount") });
+        return;
+      }
+      amountLovelace = parsed;
+    }
     setBusy(true);
     try {
       const inputs = [
@@ -195,19 +213,24 @@ export function SeedelfPanel() {
           lovelace: fund.utxo.lovelace,
         },
       ];
-      const destination =
-        spendMode === "internal"
-          ? {
-              kind: "internal" as const,
-              change: { changeRegister },
-            }
-          : {
-              kind: "external" as const,
-              addressBech32: spendDestination.trim(),
-            };
-      if (spendMode === "external" && !spendDestination.trim()) {
-        toast.push({ tone: "error", title: t("vault.seedelf.error_missing_destination") });
-        return;
+      // "seedelf" mode resolves the pasted seedelf id to a register;
+      // "external" mode is a plain address payment.
+      let destination:
+        | { kind: "external"; addressBech32: string }
+        | { kind: "seedelf"; recipientRegister: OwnedSeedelfUtxo["register"] };
+      if (spendMode === "seedelf") {
+        const resolved = await resolveRecipientRegister({
+          provider: provider!,
+          addresses: seedelfAddresses!,
+          seedelfIdHex: target.toLowerCase(),
+        });
+        if (!resolved) {
+          toast.push({ tone: "error", title: t("vault.seedelf.error_unknown_recipient") });
+          return;
+        }
+        destination = { kind: "seedelf", recipientRegister: resolved.register };
+      } else {
+        destination = { kind: "external", addressBech32: target };
       }
       const result = await spendFromSeedelfTx({
         network: config.network as "preprod" | "preview" | "test" | "mainnet",
@@ -216,6 +239,8 @@ export function SeedelfPanel() {
         wallet: wallet!,
         inputs,
         destination,
+        changeRegister,
+        ...(amountLovelace !== undefined ? { amountLovelace } : {}),
       });
       toast.push({
         tone: "success",
@@ -225,6 +250,7 @@ export function SeedelfPanel() {
       });
       setSpendOpen(null);
       setSpendDestination("");
+      setSpendAmountAda("");
       setSpendMode("external");
       state.rescan();
     } catch (e) {
@@ -471,6 +497,7 @@ export function SeedelfPanel() {
                           setMintOpen(false);
                           setSendOpen(false);
                           setSpendDestination("");
+                          setSpendAmountAda("");
                           setSpendMode("external");
                         }}
                         disabled={busy || f.utxo.lovelace < 2_000_000n}
@@ -487,7 +514,10 @@ export function SeedelfPanel() {
                             type="radio"
                             name={`spend-mode-${refKey}`}
                             checked={spendMode === "external"}
-                            onChange={() => setSpendMode("external")}
+                            onChange={() => {
+                              setSpendMode("external");
+                              setSpendDestination("");
+                            }}
                             disabled={busy}
                           />
                           {t("vault.seedelf.spend_mode_external")}
@@ -496,32 +526,50 @@ export function SeedelfPanel() {
                           <input
                             type="radio"
                             name={`spend-mode-${refKey}`}
-                            checked={spendMode === "internal"}
-                            onChange={() => setSpendMode("internal")}
+                            checked={spendMode === "seedelf"}
+                            onChange={() => {
+                              setSpendMode("seedelf");
+                              setSpendDestination("");
+                            }}
                             disabled={busy}
                           />
-                          {t("vault.seedelf.spend_mode_internal")}
+                          {t("vault.seedelf.spend_mode_seedelf")}
                         </label>
                       </fieldset>
-                      {spendMode === "external" && (
-                        <label className="lj-label mt-2">
-                          {t("vault.seedelf.spend_destination_label")}
-                          <input
-                            type="text"
-                            className="lj-input font-mono text-xs"
-                            value={spendDestination}
-                            onChange={(e) => setSpendDestination(e.target.value)}
-                            placeholder={t("vault.seedelf.spend_destination_placeholder")}
-                            disabled={busy}
-                          />
-                        </label>
-                      )}
-                      <p className="text-xs text-muted mt-2">
+                      <label className="lj-label mt-2">
                         {spendMode === "external"
-                          ? t("vault.seedelf.spend_external_hint", {
-                              amount: formatAda(f.utxo.lovelace),
-                            })
-                          : t("vault.seedelf.spend_internal_hint", {
+                          ? t("vault.seedelf.spend_destination_label")
+                          : t("vault.seedelf.spend_seedelf_label")}
+                        <input
+                          type="text"
+                          className="lj-input font-mono text-xs"
+                          value={spendDestination}
+                          onChange={(e) => setSpendDestination(e.target.value)}
+                          placeholder={
+                            spendMode === "external"
+                              ? t("vault.seedelf.spend_destination_placeholder")
+                              : t("vault.seedelf.send_recipient_placeholder")
+                          }
+                          disabled={busy}
+                        />
+                      </label>
+                      <label className="lj-label mt-3">
+                        {t("vault.seedelf.spend_amount_label")}
+                        <input
+                          type="number"
+                          step="any"
+                          min="0"
+                          className="lj-input"
+                          value={spendAmountAda}
+                          onChange={(e) => setSpendAmountAda(e.target.value)}
+                          placeholder={t("vault.seedelf.spend_amount_placeholder")}
+                          disabled={busy}
+                        />
+                      </label>
+                      <p className="text-xs text-muted mt-2">
+                        {spendAmountAda.trim()
+                          ? t("vault.seedelf.spend_change_hint")
+                          : t("vault.seedelf.spend_all_hint", {
                               amount: formatAda(f.utxo.lovelace),
                             })}
                       </p>

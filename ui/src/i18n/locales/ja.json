@@ -473,11 +473,8 @@
       "send_submitted": "Seedelf への送信を送信しました",
       "spend_button": "支払う",
       "spend_mode_external": "外部の Cardano アドレスへ送信",
-      "spend_mode_internal": "Seedelf 内に保持（再ランダム化）",
       "spend_destination_label": "宛先アドレス（bech32）",
       "spend_destination_placeholder": "addr_test1…",
-      "spend_external_hint": "宛先アドレスへ {{amount}} ADA から tx 手数料を引いた額を支払います。",
-      "spend_internal_hint": "{{amount}} ADA から tx 手数料を引いた額を同じステルスウォレットの新しいレジスタへ移します。",
       "spend_submit": "支払う",
       "spend_submitted": "Seedelf 支払いを送信しました",
       "copy_id": "id をコピー",
@@ -491,7 +488,13 @@
       "error_copy_failed": "クリップボードへコピーできませんでした。",
       "registers_help": "レジスタはあなたのステルスアドレスです — その seedelf id を送信者と共有してください。残高として使うものではありません。",
       "funds_heading": "資金",
-      "funds_help": "資金はあなたのレジスタに送られた支払いで、送信者が追跡できないよう再ランダム化されています。資金を使って ADA を外部へ送るか、新しいレジスタへローテートしてください。"
+      "funds_help": "資金はあなたのレジスタに送られた支払いで、送信者が追跡できないよう再ランダム化されています。資金を使って ADA を外部へ送るか、新しいレジスタへローテートしてください。",
+      "spend_mode_seedelf": "別の Seedelf へ",
+      "spend_seedelf_label": "受取人の seedelf id（32 バイト hex）",
+      "spend_amount_label": "金額（ADA）— 空欄にすると全額を支払います",
+      "spend_amount_placeholder": "空欄 = 全額支払う",
+      "spend_all_hint": "ファンド全額（{{amount}} ADA）から tx 手数料を引いた額を支払います。おつりはありません。",
+      "spend_change_hint": "入力した金額を送り、残りはあなたが所有する新しいレジスタへおつりとして戻ります（チェーンの最小額を超える場合）。"
     }
   },
   "secret_card": {

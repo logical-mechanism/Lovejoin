@@ -473,11 +473,8 @@
       "send_submitted": "تم إرسال الإرسال إلى Seedelf",
       "spend_button": "إنفاق",
       "spend_mode_external": "إرسال إلى عنوان Cardano خارجي",
-      "spend_mode_internal": "الإبقاء داخل Seedelf (إعادة عشوائية)",
       "spend_destination_label": "عنوان الوجهة (bech32)",
       "spend_destination_placeholder": "addr_test1…",
-      "spend_external_hint": "يدفع {{amount}} ADA مطروحًا منه رسوم المعاملة إلى عنوان الوجهة.",
-      "spend_internal_hint": "يدوّر {{amount}} ADA مطروحًا منه رسوم المعاملة إلى سجل جديد في نفس المحفظة الخفية.",
       "spend_submit": "إنفاق",
       "spend_submitted": "تم إرسال إنفاق Seedelf",
       "copy_id": "نسخ id",
@@ -491,7 +488,13 @@
       "error_copy_failed": "تعذر النسخ إلى الحافظة.",
       "registers_help": "السجلات هي عناوينك الخفية — شارك معرف seedelf الخاص بها مع المرسلين. إنها ليست رصيدًا قابلًا للإنفاق.",
       "funds_heading": "الأموال",
-      "funds_help": "الأموال هي المدفوعات المرسلة إلى أحد سجلاتك، مُعاد توزيعها عشوائيًا حتى لا يتمكن المرسل من تتبعها. أنفق الأموال لنقل ADA إلى الخارج أو تدويرها إلى سجل جديد."
+      "funds_help": "الأموال هي المدفوعات المرسلة إلى أحد سجلاتك، مُعاد توزيعها عشوائيًا حتى لا يتمكن المرسل من تتبعها. أنفق الأموال لنقل ADA إلى الخارج أو تدويرها إلى سجل جديد.",
+      "spend_mode_seedelf": "إلى Seedelf آخر",
+      "spend_seedelf_label": "seedelf id للمستلم (هكس 32 بايت)",
+      "spend_amount_label": "المبلغ (ADA) — اتركه فارغًا لإنفاقه بالكامل",
+      "spend_amount_placeholder": "فارغ = إنفاق الكل",
+      "spend_all_hint": "ينفق الأموال بالكامل ({{amount}} ADA) مطروحًا منها رسوم المعاملة. بلا فكة.",
+      "spend_change_hint": "يرسل المبلغ المُدخل؛ ويعود الباقي كفكة إلى سجل جديد تملكه (إن تجاوز الحد الأدنى للسلسلة)."
     }
   },
   "secret_card": {

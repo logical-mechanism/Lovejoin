@@ -473,11 +473,8 @@
       "send_submitted": "Envio para Seedelf submetido",
       "spend_button": "Gastar",
       "spend_mode_external": "Enviar para um endereço Cardano externo",
-      "spend_mode_internal": "Manter dentro do Seedelf (re-randomizar)",
       "spend_destination_label": "Endereço de destino (bech32)",
       "spend_destination_placeholder": "addr_test1…",
-      "spend_external_hint": "Paga {{amount}} ADA menos a taxa de tx ao endereço de destino.",
-      "spend_internal_hint": "Rotaciona {{amount}} ADA menos a taxa de tx para um novo registro na mesma carteira furtiva.",
       "spend_submit": "Gastar",
       "spend_submitted": "Gasto de Seedelf submetido",
       "copy_id": "Copiar id",
@@ -491,7 +488,13 @@
       "error_copy_failed": "Não foi possível copiar para a área de transferência.",
       "registers_help": "Os registros são seus endereços furtivos — compartilhe o seedelf id deles com os remetentes. Não é um saldo para gastar.",
       "funds_heading": "Fundos",
-      "funds_help": "Fundos são pagamentos enviados para um dos seus registros, re-randomizados para que o remetente não possa rastreá-los. Gaste fundos para enviar ADA para fora ou rotacionar para um registro novo."
+      "funds_help": "Fundos são pagamentos enviados para um dos seus registros, re-randomizados para que o remetente não possa rastreá-los. Gaste fundos para enviar ADA para fora ou rotacionar para um registro novo.",
+      "spend_mode_seedelf": "Para outro Seedelf",
+      "spend_seedelf_label": "seedelf id do destinatário (hex de 32 bytes)",
+      "spend_amount_label": "Valor (ADA) — deixe em branco para gastar tudo",
+      "spend_amount_placeholder": "em branco = gastar tudo",
+      "spend_all_hint": "Gasta todo o fundo ({{amount}} ADA) menos a taxa de tx. Sem troco.",
+      "spend_change_hint": "Envia o valor informado; o restante volta como troco para um registro novo de sua propriedade (se ultrapassar o mínimo da cadeia)."
     }
   },
   "secret_card": {

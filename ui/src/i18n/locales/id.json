@@ -473,11 +473,8 @@
       "send_submitted": "Pengiriman ke Seedelf dikirim",
       "spend_button": "Belanja",
       "spend_mode_external": "Kirim ke alamat Cardano eksternal",
-      "spend_mode_internal": "Simpan di dalam Seedelf (acak ulang)",
       "spend_destination_label": "Alamat tujuan (bech32)",
       "spend_destination_placeholder": "addr_test1…",
-      "spend_external_hint": "Membayar {{amount}} ADA dikurangi biaya tx ke alamat tujuan.",
-      "spend_internal_hint": "Memutar {{amount}} ADA dikurangi biaya tx ke register baru di dompet siluman yang sama.",
       "spend_submit": "Belanja",
       "spend_submitted": "Belanja Seedelf dikirim",
       "copy_id": "Salin id",
@@ -491,7 +488,13 @@
       "error_copy_failed": "Tidak dapat menyalin ke clipboard.",
       "registers_help": "Register adalah alamat siluman Anda — bagikan seedelf id-nya kepada pengirim. Ini bukan saldo yang dapat dibelanjakan.",
       "funds_heading": "Dana",
-      "funds_help": "Dana adalah pembayaran yang dikirim ke salah satu register Anda, diacak ulang agar pengirim tidak dapat melacaknya. Belanjakan dana untuk mengirim ADA ke luar atau memutarnya ke register baru."
+      "funds_help": "Dana adalah pembayaran yang dikirim ke salah satu register Anda, diacak ulang agar pengirim tidak dapat melacaknya. Belanjakan dana untuk mengirim ADA ke luar atau memutarnya ke register baru.",
+      "spend_mode_seedelf": "Ke Seedelf lain",
+      "spend_seedelf_label": "seedelf id penerima (heks 32 byte)",
+      "spend_amount_label": "Jumlah (ADA) — kosongkan untuk membelanjakan semuanya",
+      "spend_amount_placeholder": "kosong = belanjakan semua",
+      "spend_all_hint": "Membelanjakan seluruh dana ({{amount}} ADA) dikurangi biaya tx. Tanpa kembalian.",
+      "spend_change_hint": "Mengirim jumlah yang dimasukkan; sisanya kembali sebagai kembalian ke register baru milik Anda (jika melewati minimum rantai)."
     }
   },
   "secret_card": {

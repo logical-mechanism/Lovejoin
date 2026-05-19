@@ -102,11 +102,6 @@ describe("seedelf/spend — Schnorr proof plan", () => {
         },
       ],
       ephemeralSignerVkh: signer.vkh,
-      output: {
-        kind: "external",
-        addressBech32: "addr_test1qq...",
-        lovelace: 10_000_000n,
-      },
     });
     expect(plan.redeemers.length).toBe(2);
     for (let i = 0; i < plan.redeemers.length; i++) {
@@ -138,49 +133,45 @@ describe("seedelf/spend — Schnorr proof plan", () => {
           },
         ],
         ephemeralSignerVkh: signer.vkh,
-        output: {
-          kind: "external",
-          addressBech32: "addr_test1qq...",
-          lovelace: 5_000_000n,
-        },
       }),
     ).toThrow();
   });
 
-  it("internal output re-randomizes the change register", () => {
+  it("plan is output-independent — proofs depend only on (register, vkh)", () => {
+    // The planner produces proofs only; output sizing (destination +
+    // change) is the builder's job. Two plans over the same inputs +
+    // signer must yield byte-identical redeemers regardless of how the
+    // caller intends to size the outputs downstream.
     const x = 0x77n;
     const reg = rerandomizeRegister(createRegister(x), 3n);
     const signer = generateSeedelfEphemeralKey();
-    const plan = planSeedelfSpendTx({
-      addresses: SEEDELF_PREPROD_ADDRESSES,
-      inputs: [
-        {
-          ref: { txId: "ab".repeat(32), outputIndex: 0 },
-          register: reg,
-          secret: x,
-          lovelace: 5_000_000n,
-        },
-      ],
-      ephemeralSignerVkh: signer.vkh,
-      output: {
-        kind: "internal",
-        changeRegister: reg,
-        rerandomizeScalar: 11n,
-        lovelace: 3_000_000n,
+    const inputs = [
+      {
+        ref: { txId: "ab".repeat(32), outputIndex: 0 },
+        register: reg,
+        secret: x,
+        lovelace: 5_000_000n,
       },
+    ];
+    const planA = planSeedelfSpendTx({
+      addresses: SEEDELF_PREPROD_ADDRESSES,
+      inputs,
+      ephemeralSignerVkh: signer.vkh,
     });
-    expect(plan.output.kind).toBe("internal");
-    if (plan.output.kind === "internal") {
-      expect(plan.output.lovelace).toBe(3_000_000n);
-      const decoded = decodeRegisterDatum(plan.output.inlineDatumHex);
-      expect(decoded).not.toBeNull();
-      // The user can still spend the change.
-      expect(ownsSeedelfRegister(decoded!, x)).toBe(true);
-      // Generator differs from the input (re-randomized).
-      expect(Buffer.from(decoded!.generator).toString("hex")).not.toBe(
-        Buffer.from(reg.generator).toString("hex"),
-      );
-    }
+    const planB = planSeedelfSpendTx({
+      addresses: SEEDELF_PREPROD_ADDRESSES,
+      inputs,
+      ephemeralSignerVkh: signer.vkh,
+    });
+    expect(planA.redeemers).toHaveLength(1);
+    expect(planA.redeemers[0]!.redeemerCborHex).toBe(planB.redeemers[0]!.redeemerCborHex);
+    expect(
+      verifySeedelfSchnorr({
+        generator: reg.generator,
+        publicValue: reg.publicValue,
+        proof: planA.redeemers[0]!.proof,
+      }),
+    ).toBe(true);
   });
 });
 

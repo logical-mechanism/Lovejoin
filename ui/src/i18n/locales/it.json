@@ -473,11 +473,8 @@
       "send_submitted": "Invio a Seedelf inviato",
       "spend_button": "Spendi",
       "spend_mode_external": "Invia a un indirizzo Cardano esterno",
-      "spend_mode_internal": "Mantieni dentro Seedelf (re-randomizza)",
       "spend_destination_label": "Indirizzo di destinazione (bech32)",
       "spend_destination_placeholder": "addr_test1…",
-      "spend_external_hint": "Paga {{amount}} ADA meno la commissione tx all'indirizzo di destinazione.",
-      "spend_internal_hint": "Sposta {{amount}} ADA meno la commissione tx in un nuovo registro dello stesso portafoglio stealth.",
       "spend_submit": "Spendi",
       "spend_submitted": "Spesa Seedelf inviata",
       "copy_id": "Copia id",
@@ -491,7 +488,13 @@
       "error_copy_failed": "Impossibile copiare negli appunti.",
       "registers_help": "I registri sono i tuoi indirizzi stealth — condividi il loro seedelf id con i mittenti. Non sono un saldo da spendere.",
       "funds_heading": "Fondi",
-      "funds_help": "I fondi sono pagamenti inviati a uno dei tuoi registri, ri-randomizzati per impedire al mittente di tracciarli. Spendi i fondi per inviare ADA fuori o ruotarli in un nuovo registro."
+      "funds_help": "I fondi sono pagamenti inviati a uno dei tuoi registri, ri-randomizzati per impedire al mittente di tracciarli. Spendi i fondi per inviare ADA fuori o ruotarli in un nuovo registro.",
+      "spend_mode_seedelf": "A un altro Seedelf",
+      "spend_seedelf_label": "seedelf id del destinatario (hex da 32 byte)",
+      "spend_amount_label": "Importo (ADA) — lascia vuoto per spenderlo tutto",
+      "spend_amount_placeholder": "vuoto = spendi tutto",
+      "spend_all_hint": "Spende l'intero fondo ({{amount}} ADA) meno la commissione di tx. Senza resto.",
+      "spend_change_hint": "Invia l'importo inserito; il resto torna come resto a un nuovo registro di tua proprietà (se supera il minimo della catena)."
     }
   },
   "secret_card": {
