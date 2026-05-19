@@ -37,13 +37,13 @@ The full architectural overview is in [ARCHITECTURE.md](ARCHITECTURE.md). The co
 
 Stack:
 
-- **Contracts:** Aiken 1.1.21, Plutus V3, BLS12-381 G1.
+- **Contracts:** Aiken 1.1.22, Plutus V3, BLS12-381 G1.
 - **Off-chain SDK:** TypeScript + mesh + `@noble/curves` (with RFC 6979 deterministic nonces).
 - **Backend indexer:** Node + Fastify + ogmios chainsync (+ optional db-sync for history).
 - **UI:** React 19 + Vite + Tailwind v4 + react-i18next (20 locales).
 - **Reference impl:** Rust + `blst`, used to generate cross-language KAT vectors.
 
-Requirements: **node ≥ 20** (nvm recommended; see node-binary note below), **pnpm 10**, **aiken 1.1.21**.
+Requirements: **node ≥ 20** (nvm recommended; see node-binary note below), **pnpm 10**, **aiken 1.1.22**.
 
 ```sh
 make install        # pnpm install across offchain/, backend/, ui/

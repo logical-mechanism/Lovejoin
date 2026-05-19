@@ -44,10 +44,15 @@ validator mix_logic(
   reference_nft_name: AssetName,
 ) {
   withdraw(redeemer: MixLogicRedeemer, _account: Credential, self: Transaction) {
-    let reference_datum =
-      read_reference_datum(self, reference_nft_policy, reference_nft_name)
-    let mix_inputs =
-      collect_well_formed_mix_inputs(self, reference_datum.mix_script_hash)
+    let reference_datum = read_reference_datum(
+      self,
+      reference_nft_policy,
+      reference_nft_name,
+    )
+    let mix_inputs = collect_well_formed_mix_inputs(
+      self,
+      reference_datum.mix_script_hash,
+    )
 
     when redeemer is {
       Owner { proofs } ->
@@ -119,14 +124,12 @@ fn validate_owner(
   //     || mix_script_hash
   // )
   let outputs_bytes = builtin.serialise_data(self.outputs)
-  let input_refs_bytes =
-    builtin.serialise_data(
-      self.inputs |> list.map(fn(i) { i.output_reference }),
-    )
-  let ctx_preimage =
-    outputs_bytes
-      |> bytearray.concat(input_refs_bytes)
-      |> bytearray.concat(reference_datum.mix_script_hash)
+  let input_refs_bytes = builtin.serialise_data(
+    self.inputs |> list.map(fn(i) { i.output_reference }),
+  )
+  let ctx_preimage = outputs_bytes
+    |> bytearray.concat(input_refs_bytes)
+    |> bytearray.concat(reference_datum.mix_script_hash)
   let ctx = builtin.blake2b_256(ctx_preimage)
 
   // Per-input Schnorr verification. Each proof proves "I know x_i such that
@@ -180,26 +183,25 @@ fn validate_mix(
   // the values fold — saves N-1 `serialise_data` calls per Mix tx.
   // Byte-equivalence between `assets.from_lovelace(denom)` and a real
   // Value at that lovelace amount is pinned by `value_serialise_parity.test.ak`.
-  let denom_value_bytes =
-    builtin.serialise_data(assets.from_lovelace(reference_datum.denom_lovelace))
-  let (statements_rev, datums_bytes, values_bytes) =
-    walk_outputs(
-      self.outputs,
-      n,
-      reference_datum,
-      denom_value_bytes,
-      [],
-      #"",
-      #"",
-    )
+  let denom_value_bytes = builtin.serialise_data(
+    assets.from_lovelace(reference_datum.denom_lovelace),
+  )
+  let (statements_rev, datums_bytes, values_bytes) = walk_outputs(
+    self.outputs,
+    n,
+    reference_datum,
+    denom_value_bytes,
+    [],
+    #"",
+    #"",
+  )
   let statements = list.reverse(statements_rev)
 
-  let ctx =
-    builtin.blake2b_256(
-      datums_bytes
-        |> bytearray.concat(values_bytes)
-        |> bytearray.concat(reference_datum.mix_script_hash),
-    )
+  let ctx = builtin.blake2b_256(
+    datums_bytes
+      |> bytearray.concat(values_bytes)
+      |> bytearray.concat(reference_datum.mix_script_hash),
+  )
 
   // Per-input OR-proof verification. `proofs[i]` proves "input i's witness
   // re-randomized to one of the N outputs" — see
@@ -271,13 +273,12 @@ fn walk_outputs(
           expect_ada_only_lovelace(output.value) == reference_datum.denom_lovelace
         expect InlineDatum(inline_data) = output.datum
         let mix_datum = decode_mix_datum_strict(inline_data)
-        let stmt =
-          DHTupleStatementPt {
-            ap: mix_datum.a,
-            bp: mix_datum.b,
-            ap_pt: bls.point_from_bytes(mix_datum.a),
-            bp_pt: bls.point_from_bytes(mix_datum.b),
-          }
+        let stmt = DHTupleStatementPt {
+          ap: mix_datum.a,
+          bp: mix_datum.b,
+          ap_pt: bls.point_from_bytes(mix_datum.a),
+          bp_pt: bls.point_from_bytes(mix_datum.b),
+        }
         walk_outputs(
           rest,
           prefix_remaining - 1,

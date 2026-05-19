@@ -91,12 +91,11 @@ const datum_b48: ByteArray =
 test serialise_data_mix_datum_uses_indefinite_array() {
   let d: Data = MixDatum { a: datum_a48, b: datum_b48 }
   let bytes = builtin.serialise_data(d)
-  let expected =
-    #"d8799f"
-      |> bytearray.concat(#"5830")
-      |> bytearray.concat(datum_a48)
-      |> bytearray.concat(#"5830")
-      |> bytearray.concat(datum_b48)
-      |> bytearray.concat(#"ff")
+  let expected = #"d8799f"
+    |> bytearray.concat(#"5830")
+    |> bytearray.concat(datum_a48)
+    |> bytearray.concat(#"5830")
+    |> bytearray.concat(datum_b48)
+    |> bytearray.concat(#"ff")
   bytes == expected
 }

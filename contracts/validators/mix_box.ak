@@ -49,8 +49,10 @@ validator mix_box(mix_logic_script_hash: ScriptHash) {
     // already-resolved `Option<Data>` we get from the spend handler.
     // Cardano guarantees exactly one match; missing match means the
     // ledger gave us a bad context — fail closed.
-    expect Some(own_input) =
-      list.find(self.inputs, fn(input) { input.output_reference == utxo })
+    expect Some(own_input) = list.find(
+      self.inputs,
+      fn(input) { input.output_reference == utxo },
+    )
 
     when own_input.output.datum is {
       InlineDatum(inline_data) ->

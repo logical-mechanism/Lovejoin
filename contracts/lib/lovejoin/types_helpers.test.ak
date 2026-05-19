@@ -44,11 +44,10 @@ test mix_datum_decode_short_b() {
 
 test mix_datum_decode_long_a() {
   // 49-byte a (out by one): malformed.
-  let d: Data =
-    MixDatum {
-      a: #"97f1d3a73197d7942695638c4fa9ac0fc3688c4f9774b905a14e3a3f171bac586c55e83ff97a1aeffb3af00adb22c6bb00",
-      b: b48,
-    }
+  let d: Data = MixDatum {
+    a: #"97f1d3a73197d7942695638c4fa9ac0fc3688c4f9774b905a14e3a3f171bac586c55e83ff97a1aeffb3af00adb22c6bb00",
+    b: b48,
+  }
   mixbox.try_decode_well_formed_data(d) == None
 }
 
@@ -58,8 +57,7 @@ test mix_datum_decode_inline_no_datum() {
 }
 
 test mix_datum_decode_datum_hash() {
-  let zero32 =
-    #"0000000000000000000000000000000000000000000000000000000000000000"
+  let zero32 = #"0000000000000000000000000000000000000000000000000000000000000000"
   mixbox.try_decode_well_formed_inline(DatumHash(zero32)) == None
 }
 
