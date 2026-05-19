@@ -8,4 +8,5 @@
 // through the SDK root each time.
 
 export * from "./fanout.js";
+export * from "./funding.js";
 export * from "./orchestrator.js";

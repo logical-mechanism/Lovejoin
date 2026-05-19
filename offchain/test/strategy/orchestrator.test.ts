@@ -18,6 +18,7 @@ import {
   type UnsignedFanoutBatch,
 } from "../../src/strategy/orchestrator.js";
 import { planFanout, type FanoutSlot } from "../../src/strategy/fanout.js";
+import type { BuildFanoutFundingTxArgs, FanoutFundingTx } from "../../src/strategy/funding.js";
 import type { LovejoinWallet } from "../../src/wallet/cip30.js";
 import type { BuildMixArgs, MixOutputPlan, MixPlan, MixResult } from "../../src/tx/mix.js";
 import type { LovejoinAddresses } from "../../src/tx/params.js";
@@ -613,16 +614,15 @@ describe("planFanoutTxs", () => {
     expect(batch.plan).toBe(plan);
   });
 
-  it("threads walletUtxosOverride across leaves in wallet mode (issue #149 fix)", async () => {
-    // Regression for the "Input utxo is spent more than once" rejection
-    // Eternl returned on the first batch run. In wallet-funded mode,
-    // mesh's coin-selection picks a wallet UTxO PER LEAF. Without
-    // chaining, every leaf builds against the same pre-mempool snapshot
-    // and mesh picks the same UTxO → all four txs in a depth-2 batch
-    // reference the same input → wallet rejects. The orchestrator's
-    // planFanoutTxs is responsible for chaining: subtract consumed
-    // inputs, add change outputs, pass the rolling set to the next
-    // leaf via `walletUtxosOverride`.
+  it("consolidates wallet funds into one funding UTxO threaded across leaves (issue #155 fix)", async () => {
+    // Regression for the on-chain `BadInputsUTxO` (ogmios 3117) a
+    // 21-leaf wallet-funded run hit — ~5 txs landed, 16 dropped. With
+    // several wallet UTxOs in the rolling set, mesh's coin selection
+    // picked different ones per leaf and two siblings double-spent the
+    // same input. Fix: a consolidation pre-tx mints ONE funding UTxO,
+    // and every leaf is handed exactly that single candidate (then
+    // strictly its predecessor's change) so coin selection has no
+    // freedom to collide.
     const root = makeEntry(0);
     const pool = Array.from({ length: 30 }, (_, i) => makeEntry(i + 1));
     const plan = planFanout({ rootBox: root, pool, depth: 2, rng: zeroRng });
@@ -644,6 +644,27 @@ describe("planFanoutTxs", () => {
       submitTx: async () => "",
     } as unknown as LovejoinWallet;
 
+    const fundingTxId = "fd".repeat(32);
+    let buildFundingCalls = 0;
+    const buildFundingTx = async (a: BuildFanoutFundingTxArgs): Promise<FanoutFundingTx> => {
+      buildFundingCalls += 1;
+      // Both spendable UTxOs feed the consolidation; collateral (none
+      // here) would have been excluded by the caller.
+      expect(a.walletUtxos).toHaveLength(2);
+      return {
+        unsignedTxHex: "un_funding",
+        txId: fundingTxId,
+        fundingUtxo: {
+          ref: { txId: fundingTxId, outputIndex: 0 },
+          address: "addr1stub",
+          lovelace: a.fundingLovelace,
+          assets: {},
+          inlineDatum: null,
+          referenceScript: null,
+        },
+      };
+    };
+
     let buildIdx = 0;
     const overridesSeen: ReadonlyArray<unknown>[] = [];
     const buildMix = async (args: BuildMixArgs): Promise<MixResult> => {
@@ -653,23 +674,31 @@ describe("planFanoutTxs", () => {
       buildIdx += 1;
       return out;
     };
-    // Stubbed chain function rolls one entry off per call to simulate
-    // "first leaf consumed the head, change recycled at the tail".
-    // Verifies that planFanoutTxs actually USES the returned list as
-    // the next leaf's override.
+    // Single-UTxO chain stub: each leaf consumes its one input and
+    // emits exactly one change UTxO, so the rolling set stays length 1.
+    let changeIdx = 0;
     const chainStub = (current: ReadonlyArray<unknown>) => {
-      const next = current.slice(1) as Array<{ input: object; output: object }>;
-      next.push(
-        makeMeshUtxo(buildIdx.toString(16).padStart(64, "f"), 1, "addr1stub", 1_000_000n) as never,
-      );
+      const head = current[0] as { input: { txHash: string; outputIndex: number } };
+      const nextHash = (changeIdx++).toString(16).padStart(64, "e");
       return {
-        rolling: next as never,
-        inFlightChange: [],
-        consumedKeys: new Set<string>(),
+        rolling: [makeMeshUtxo(nextHash, 0, "addr1stub", 5_000_000n)] as never,
+        inFlightChange: [
+          {
+            ref: { txId: nextHash, outputIndex: 0 },
+            address: "addr1stub",
+            lovelace: 5_000_000n,
+            assets: {},
+            inlineDatum: null,
+            referenceScript: null,
+          },
+        ] as Utxo[],
+        consumedKeys: new Set<string>([
+          `${head.input.txHash.toLowerCase()}#${head.input.outputIndex}`,
+        ]),
       };
     };
 
-    await planFanoutTxs({
+    const batch = await planFanoutTxs({
       plan,
       network: "preprod",
       provider: NULL_PROVIDER,
@@ -677,52 +706,144 @@ describe("planFanoutTxs", () => {
       feePayer: "wallet",
       wallet,
       buildMix,
+      buildFundingTx,
       chainWalletUtxos: chainStub,
     });
 
-    // wallet.getUtxos is called exactly once at planFanoutTxs entry —
-    // every subsequent leaf reads from the override, NOT the wallet.
+    // wallet.getUtxos is called exactly once at planFanoutTxs entry.
     expect(getUtxosCalls).toBe(1);
+    // A consolidation pre-tx was built and surfaced on the batch.
+    expect(buildFundingCalls).toBe(1);
+    expect(batch.fundingTx?.txId).toBe(fundingTxId);
+    // Every leaf is handed exactly ONE funding candidate — no freedom
+    // for coin selection to collide two siblings on the same input.
     expect(overridesSeen).toHaveLength(4);
-    // First leaf sees the pristine wallet set (2 entries).
-    expect((overridesSeen[0] as unknown[]).length).toBe(2);
-    // Each subsequent leaf sees the stub's rolled-forward set: head
-    // dropped, change appended → still length 2 but with a different
-    // first-entry txHash.
-    expect((overridesSeen[1] as unknown[]).length).toBe(2);
-    expect((overridesSeen[2] as unknown[]).length).toBe(2);
-    expect((overridesSeen[3] as unknown[]).length).toBe(2);
-    // And critically, no two leaves see the same first-entry — that's
-    // the property the wallet checks at signTxs time.
-    const firstEntryTxHashes = overridesSeen.map(
-      (arr) => (arr[0] as { input: { txHash: string } }).input.txHash,
+    for (const ov of overridesSeen) {
+      expect((ov as unknown[]).length).toBe(1);
+    }
+    // Leaf 0 funds from the consolidated UTxO; each later leaf funds
+    // from strictly its predecessor's change — all four distinct.
+    const firstHashes = overridesSeen.map(
+      (ov) => ((ov as unknown[])[0] as { input: { txHash: string } }).input.txHash,
     );
-    expect(new Set(firstEntryTxHashes).size).toBe(4);
+    expect(firstHashes[0]).toBe(fundingTxId);
+    expect(new Set(firstHashes).size).toBe(4);
   });
 
-  it("splices in-flight wallet change into chainFrom.utxos so the evaluator can resolve it", async () => {
-    // Repro for the depth-3 "validation error from the withdraw" the
-    // user hit on the 6th leaf: by leaf 6 the original chain wallet
-    // UTxOs were exhausted and mesh's coin-selection picked an
-    // in-flight wallet change from an earlier leaf as the input. Mesh's
-    // tx.complete() then asked ogmios to evaluate the tx, but the
-    // in-flight ref wasn't in the additionalUtxoSet — so ogmios
-    // returned no per-redeemer exec budgets and mesh kept the
-    // populate-time placeholders. On chain the Mix validator blew
-    // through its (~0.01 mem) budget instantly.
-    //
-    // Fix: planFanoutTxs splices any rolling wallet UTxO whose ref
-    // isn't in the initial chain set into every leaf's chainFrom.utxos.
+  it("skips the pre-tx when a single wallet UTxO already covers the run", async () => {
+    // If the wallet already holds one UTxO big enough for the whole
+    // tree, there's nothing to consolidate — chain straight off it and
+    // emit no funding pre-tx.
     const root = makeEntry(0);
     const pool = Array.from({ length: 30 }, (_, i) => makeEntry(i + 1));
     const plan = planFanout({ rootBox: root, pool, depth: 2, rng: zeroRng });
 
-    // Wallet starts with 2 chain UTxOs.
-    const chainTxA = "aa" + "00".repeat(31);
-    const chainTxB = "bb" + "00".repeat(31);
+    const wallet = {
+      getUsedAddresses: async () => [],
+      getChangeAddress: () => "addr1stub",
+      getUtxos: async () => [makeMeshUtxo("ab".repeat(32), 0, "addr1stub", 500_000_000n)],
+      getCollateral: async () => [],
+      signTx: async () => "",
+      submitTx: async () => "",
+    } as unknown as LovejoinWallet;
+
+    let buildFundingCalls = 0;
+    const buildFundingTx = async (a: BuildFanoutFundingTxArgs): Promise<FanoutFundingTx> => {
+      buildFundingCalls += 1;
+      return {
+        unsignedTxHex: "un_funding",
+        txId: "00".repeat(32),
+        fundingUtxo: {
+          ref: { txId: "00".repeat(32), outputIndex: 0 },
+          address: "addr1stub",
+          lovelace: a.fundingLovelace,
+          assets: {},
+          inlineDatum: null,
+          referenceScript: null,
+        },
+      };
+    };
+    const overridesSeen: ReadonlyArray<unknown>[] = [];
+    const buildMix = async (args: BuildMixArgs): Promise<MixResult> => {
+      overridesSeen.push(args.walletUtxosOverride ?? []);
+      return stubUnsignedMixResult(`b${overridesSeen.length}`, args.inputs.length, null);
+    };
+    let changeIdx = 0;
+    const chainStub = (current: ReadonlyArray<unknown>) => {
+      const head = current[0] as { input: { txHash: string; outputIndex: number } };
+      const nextHash = (changeIdx++).toString(16).padStart(64, "e");
+      return {
+        rolling: [makeMeshUtxo(nextHash, 0, "addr1stub", 5_000_000n)] as never,
+        inFlightChange: [] as Utxo[],
+        consumedKeys: new Set<string>([
+          `${head.input.txHash.toLowerCase()}#${head.input.outputIndex}`,
+        ]),
+      };
+    };
+
+    const batch = await planFanoutTxs({
+      plan,
+      network: "preprod",
+      provider: NULL_PROVIDER,
+      addresses: ADDRESSES,
+      feePayer: "wallet",
+      wallet,
+      buildMix,
+      buildFundingTx,
+      chainWalletUtxos: chainStub,
+    });
+
+    expect(buildFundingCalls).toBe(0);
+    expect(batch.fundingTx).toBeUndefined();
+    // Leaf 0 funds directly from the single on-chain wallet UTxO.
+    expect((overridesSeen[0] as unknown[]).length).toBe(1);
+    expect(((overridesSeen[0] as unknown[])[0] as { input: { txHash: string } }).input.txHash).toBe(
+      "ab".repeat(32),
+    );
+  });
+
+  it("throws when the wallet balance is below the fan-out funding budget", async () => {
+    const root = makeEntry(0);
+    const pool = Array.from({ length: 30 }, (_, i) => makeEntry(i + 1));
+    const plan = planFanout({ rootBox: root, pool, depth: 2, rng: zeroRng });
+
+    const wallet = {
+      getUsedAddresses: async () => [],
+      getChangeAddress: () => "addr1stub",
+      // 1 ADA total — far below the depth-2 (4-leaf) funding budget.
+      getUtxos: async () => [makeMeshUtxo("ac".repeat(32), 0, "addr1stub", 1_000_000n)],
+      getCollateral: async () => [],
+      signTx: async () => "",
+      submitTx: async () => "",
+    } as unknown as LovejoinWallet;
+
+    await expect(
+      planFanoutTxs({
+        plan,
+        network: "preprod",
+        provider: NULL_PROVIDER,
+        addresses: ADDRESSES,
+        feePayer: "wallet",
+        wallet,
+        buildMix: async (args) => stubUnsignedMixResult("b", args.inputs.length, null),
+      }),
+    ).rejects.toThrow(/below the .* funding budget|lovelace/i);
+  });
+
+  it("splices the in-flight funding UTxO + rolling change into chainFrom.utxos", async () => {
+    // Every wallet UTxO a leaf spends is in-flight: the funding pre-tx's
+    // output isn't on chain yet, and neither is any leaf's change.
+    // Each leaf's evaluator must be told about the UTxO it spends via
+    // chainFrom.utxos — otherwise ogmios returns no per-redeemer exec
+    // budgets, the redeemers ship with populate-time placeholders, and
+    // the Mix validator blows its budget on chain.
+    const root = makeEntry(0);
+    const pool = Array.from({ length: 30 }, (_, i) => makeEntry(i + 1));
+    const plan = planFanout({ rootBox: root, pool, depth: 2, rng: zeroRng });
+
     const startingUtxos = [
-      makeMeshUtxo(chainTxA, 0, "addr1stub", 100_000_000n),
-      makeMeshUtxo(chainTxB, 0, "addr1stub", 50_000_000n),
+      makeMeshUtxo("aa" + "00".repeat(31), 0, "addr1stub", 100_000_000n),
+      makeMeshUtxo("bb" + "00".repeat(31), 0, "addr1stub", 50_000_000n),
     ];
     const wallet = {
       getUsedAddresses: async () => [],
@@ -733,6 +854,20 @@ describe("planFanoutTxs", () => {
       submitTx: async () => "",
     } as unknown as LovejoinWallet;
 
+    const fundingTxId = "fd".repeat(32);
+    const buildFundingTx = async (a: BuildFanoutFundingTxArgs): Promise<FanoutFundingTx> => ({
+      unsignedTxHex: "un_funding",
+      txId: fundingTxId,
+      fundingUtxo: {
+        ref: { txId: fundingTxId, outputIndex: 0 },
+        address: "addr1stub",
+        lovelace: a.fundingLovelace,
+        assets: {},
+        inlineDatum: null,
+        referenceScript: null,
+      },
+    });
+
     const chainFromByLeaf: Array<ReadonlyArray<Utxo>> = [];
     let buildIdx = 0;
     const buildMix = async (args: BuildMixArgs): Promise<MixResult> => {
@@ -740,39 +875,31 @@ describe("planFanoutTxs", () => {
       const label = `b${buildIdx++}`;
       return stubUnsignedMixResult(label, args.inputs.length, feeShardUtxo(`${label}_fee`));
     };
-    // Simulate "consumed the chain UTxO at the head and emitted an
-    // in-flight change at the tail" — by leaf 2 the only entries in
-    // rollingWalletUtxos are in-flight refs that the chain provider
-    // cannot resolve without being told about them. The stub also
-    // surfaces the change in `inFlightChange` so the orchestrator
-    // adds it to subsequent leaves' chainFrom.utxos.
-    const inFlightRefs: Array<{ txHash: string; outputIndex: number }> = [];
+    // Single-UTxO chain: each leaf consumes its one input, emits one
+    // in-flight change. The change is surfaced in `inFlightChange` so
+    // the orchestrator splices it into the next leaf's chainFrom.
+    const inFlightRefs: Array<{ txId: string; outputIndex: number }> = [];
+    let changeIdx = 0;
     const chainStub = (current: ReadonlyArray<unknown>) => {
-      const dropped = current[0] as { input: { txHash: string; outputIndex: number } } | undefined;
-      const next = current.slice(1) as Array<{ input: object; output: object }>;
-      const newRef = {
-        txHash: buildIdx.toString(16).padStart(64, "f"),
-        outputIndex: 3,
-      };
-      inFlightRefs.push(newRef);
-      next.push(makeMeshUtxo(newRef.txHash, newRef.outputIndex, "addr1stub", 1_000_000n) as never);
-      const consumedKeys = new Set<string>();
-      if (dropped)
-        consumedKeys.add(`${dropped.input.txHash.toLowerCase()}#${dropped.input.outputIndex}`);
-      const inFlightChange: Utxo[] = [
-        {
-          ref: { txId: newRef.txHash.toLowerCase(), outputIndex: newRef.outputIndex },
-          address: "addr1stub",
-          lovelace: 1_000_000n,
-          assets: {},
-          inlineDatum: null,
-          referenceScript: null,
-        },
-      ];
+      const head = current[0] as { input: { txHash: string; outputIndex: number } };
+      const nextHash = (changeIdx++).toString(16).padStart(64, "e");
+      const ref = { txId: nextHash, outputIndex: 0 };
+      inFlightRefs.push(ref);
       return {
-        rolling: next as never,
-        inFlightChange,
-        consumedKeys,
+        rolling: [makeMeshUtxo(nextHash, 0, "addr1stub", 5_000_000n)] as never,
+        inFlightChange: [
+          {
+            ref,
+            address: "addr1stub",
+            lovelace: 5_000_000n,
+            assets: {},
+            inlineDatum: null,
+            referenceScript: null,
+          },
+        ] as Utxo[],
+        consumedKeys: new Set<string>([
+          `${head.input.txHash.toLowerCase()}#${head.input.outputIndex}`,
+        ]),
       };
     };
 
@@ -784,31 +911,25 @@ describe("planFanoutTxs", () => {
       feePayer: "wallet",
       wallet,
       buildMix,
+      buildFundingTx,
       chainWalletUtxos: chainStub,
     });
 
-    // Leaf 0 sees no in-flight wallet utxos yet (the wallet's initial
-    // set is all chain-resident).
-    expect(chainFromByLeaf[0]).toHaveLength(0);
-    // Leaves 1+ see the rolling in-flight refs spliced in. After leaf
-    // 0 builds, the rolling set has one in-flight change ("f...3");
-    // leaf 1's chainFrom must carry it so ogmios can resolve it.
+    // Leaf 0's chainFrom carries the in-flight funding pre-tx output.
+    const leaf0Keys = new Set(
+      chainFromByLeaf[0]!.map((u) => `${u.ref.txId.toLowerCase()}#${u.ref.outputIndex}`),
+    );
+    expect(leaf0Keys.has(`${fundingTxId}#0`)).toBe(true);
+    // Leaves 1+ carry the rolling in-flight change emitted by the
+    // previous leaf so ogmios can resolve it.
     expect(chainFromByLeaf[1]!.length).toBeGreaterThanOrEqual(1);
-    const seenRefKeys = new Set(
+    const leaf1Keys = new Set(
       chainFromByLeaf[1]!.map((u) => `${u.ref.txId.toLowerCase()}#${u.ref.outputIndex}`),
     );
     const firstInFlight = inFlightRefs[0]!;
-    expect(
-      seenRefKeys.has(`${firstInFlight.txHash.toLowerCase()}#${firstInFlight.outputIndex}`),
-    ).toBe(true);
-    // Critically: the CHAIN refs (chainTxA / chainTxB) must NOT be
-    // spliced in — they don't need to be in additionalUtxoSet because
-    // the evaluator can resolve them from chain state. Including them
-    // would just eat into the backend's 32-entry cap.
-    for (const u of chainFromByLeaf[1]!) {
-      expect(u.ref.txId).not.toBe(chainTxA);
-      expect(u.ref.txId).not.toBe(chainTxB);
-    }
+    expect(leaf1Keys.has(`${firstInFlight.txId.toLowerCase()}#${firstInFlight.outputIndex}`)).toBe(
+      true,
+    );
   });
 
   it("does not fetch wallet utxos in shard mode (no chaining needed)", async () => {
@@ -963,6 +1084,68 @@ describe("submitFanoutBatch", () => {
       expect(completed.submittedSlots).toBe(4);
       expect(completed.failedSlots).toBe(0);
     }
+  });
+
+  it("signs and submits the funding pre-tx ahead of every leaf", async () => {
+    const root = makeEntry(0);
+    const pool = Array.from({ length: 30 }, (_, i) => makeEntry(i + 1));
+    const plan = planFanout({ rootBox: root, pool, depth: 2, rng: zeroRng });
+    const batch: UnsignedFanoutBatch = {
+      ...buildStubBatch(plan),
+      fundingTx: { unsignedTxHex: "un_funding", txId: "fd".repeat(32) },
+    };
+
+    const submitted: string[] = [];
+    const provider = {
+      submitTx: async (signed: string) => {
+        submitted.push(signed);
+        return signed;
+      },
+    } as unknown as ChainProvider;
+
+    const stub = makeStubWallet();
+    const events: FanoutEvent[] = [];
+    for await (const evt of submitFanoutBatch({ batch, wallet: stub.wallet, provider })) {
+      events.push(evt);
+    }
+
+    // The funding pre-tx is in the single signTxs prompt (5 = 1 + 4).
+    expect(stub.signedSeen()[0]).toHaveLength(5);
+    expect(stub.signedSeen()[0]![0]).toBe("un_funding");
+    // It is submitted FIRST, before any leaf.
+    expect(submitted[0]).toBe("signed:un_funding");
+    expect(submitted).toHaveLength(5);
+    // All four leaves still land.
+    expect(events.filter((e) => e.kind === "slot-submitted")).toHaveLength(4);
+    expect(events.filter((e) => e.kind === "slot-failed")).toHaveLength(0);
+  });
+
+  it("aborts the whole run when the funding pre-tx fails to submit", async () => {
+    const root = makeEntry(0);
+    const pool = Array.from({ length: 30 }, (_, i) => makeEntry(i + 1));
+    const plan = planFanout({ rootBox: root, pool, depth: 2, rng: zeroRng });
+    const batch: UnsignedFanoutBatch = {
+      ...buildStubBatch(plan),
+      fundingTx: { unsignedTxHex: "un_funding", txId: "fd".repeat(32) },
+    };
+
+    const submitted: string[] = [];
+    const provider = {
+      submitTx: async (signed: string) => {
+        if (signed === "signed:un_funding") throw new Error("node rejected funding tx");
+        submitted.push(signed);
+        return signed;
+      },
+    } as unknown as ChainProvider;
+
+    const stub = makeStubWallet();
+    await expect(async () => {
+      for await (const _evt of submitFanoutBatch({ batch, wallet: stub.wallet, provider })) {
+        void _evt;
+      }
+    }).rejects.toThrow(/funding pre-tx failed to submit/);
+    // No leaf was submitted once the funding tx failed.
+    expect(submitted).toHaveLength(0);
   });
 
   it("throws when the wallet does not implement signTxs", async () => {
