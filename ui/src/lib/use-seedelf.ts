@@ -83,6 +83,15 @@ export function useSeedelfState(seedelfAddresses: SeedelfAddresses | null): Seed
     return seedelfWalletAddressBech32(seedelfAddresses);
   }, [seedelfAddresses]);
 
+  // Depend on the addresses' identifying string fields rather than the
+  // object reference — callers commonly resolve addresses via a helper
+  // that returns a fresh object each render, and reference-identity
+  // dependencies would re-fire the effect after every scan completes,
+  // looping forever.
+  const addressesFingerprint = seedelfAddresses
+    ? `${seedelfAddresses.walletScriptHash}:${seedelfAddresses.seedelfPolicyId}`
+    : "";
+
   useEffect(() => {
     let cancelled = false;
     if (!enabled || !provider || !vault || !seedelfAddresses) {
@@ -118,7 +127,9 @@ export function useSeedelfState(seedelfAddresses: SeedelfAddresses | null): Seed
     return () => {
       cancelled = true;
     };
-  }, [enabled, provider, vault, seedelfAddresses, rescanTick]);
+    // seedelfAddresses identity intentionally NOT a dep — see fingerprint above.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [enabled, provider, vault, addressesFingerprint, rescanTick]);
 
   const totalLovelace = useMemo(() => {
     let sum = 0n;

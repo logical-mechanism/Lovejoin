@@ -1,6 +1,6 @@
 name = "logical-mechanism/lovejoin"
 version = "0.4.0"
-compiler = "v1.1.21"
+compiler = "v1.1.22"
 plutus = "v3"
 license = "MIT"
 description = "Lovejoin — Sigmajoin privacy mixer on Cardano"

@@ -130,17 +130,15 @@ pub fn fs_hash_sigma_or(
   expect n >= 2
   expect n <= 255
   let header = fs_hash_sigma_or_header(a, b, n)
-  let with_branches =
-    list.foldl(
-      branches,
-      header,
-      fn(br, acc) { acc |> bytearray.concat(br.ap) |> bytearray.concat(br.bp) },
-    )
-  let with_commitments =
-    list.foldl(
-      commitments,
-      with_branches,
-      fn(c, acc) { acc |> bytearray.concat(c.t0) |> bytearray.concat(c.t1) },
-    )
+  let with_branches = list.foldl(
+    branches,
+    header,
+    fn(br, acc) { acc |> bytearray.concat(br.ap) |> bytearray.concat(br.bp) },
+  )
+  let with_commitments = list.foldl(
+    commitments,
+    with_branches,
+    fn(c, acc) { acc |> bytearray.concat(c.t0) |> bytearray.concat(c.t1) },
+  )
   blake2b_256(with_commitments |> bytearray.concat(ctx))
 }

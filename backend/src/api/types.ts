@@ -15,9 +15,10 @@ export interface ApiServerDeps {
   runtime: IndexerRuntime | null;
   config: BackendConfig;
   /**
-   * Primary db-sync client. Drives `/tx/:hash`, `/tx/:hash/utxos`. When
-   * null those routes return 503. `/utxos/:address` is served from
-   * indexer state and does not require db-sync.
+   * Primary db-sync client. Drives `/tx/:hash`, `/tx/:hash/utxos`, and
+   * `/utxos/<seedelf-wallet>`. When null those routes return 503. The
+   * protocol-managed `/utxos/:address` branches (mix-box, fee-contract)
+   * are served from indexer state and don't need db-sync.
    */
   dbsync: DbSyncClient | null;
   /**

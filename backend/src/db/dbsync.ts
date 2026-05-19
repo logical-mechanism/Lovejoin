@@ -102,6 +102,18 @@ export interface DbSyncClient {
   /** Confirmation summary for a tx, or null if not on chain yet. */
   txSummary(txHash: string): Promise<DbSyncTxSummary | null>;
   /**
+   * Live UTxOs at an arbitrary address, served from db-sync directly.
+   * Used by `/utxos/:address` for allowlisted off-protocol addresses
+   * (Seedelf wallet contract today) where indexer state doesn't have
+   * a snapshot. Same dual-path live filter (consumed_by_tx_id fast
+   * path + NOT EXISTS defense-in-depth) as primeProtocolState.
+   *
+   * The route layer enforces address allowlisting before calling
+   * this — db-sync queries on arbitrary public addresses are a DoS
+   * surface (see /utxos/:address docs).
+   */
+  utxosAt(address: string): Promise<DbSyncUtxo[]>;
+  /**
    * Bulk-load live mix-box UTxOs, fee-contract UTxOs, and the
    * reference NFT location at db-sync's latest stable block. Used
    * to prime the in-memory indexer at cold start so chainsync can
@@ -290,6 +302,24 @@ export class PostgresDbSyncClient implements DbSyncClient {
       slot: Number(row.slot),
       blockTime: row.block_time.toISOString(),
     };
+  }
+
+  async utxosAt(address: string): Promise<DbSyncUtxo[]> {
+    if (typeof address !== "string" || address.length < 4 || address.length > 200) {
+      throw new Error(`utxosAt: address malformed (got ${JSON.stringify(address)})`);
+    }
+    const client = await this.pool.connect();
+    try {
+      // Probe-once schema check shared with the prime path. Cached on
+      // the client so warm requests pay nothing.
+      if (this.consumedByColumnPresent === null) {
+        this.consumedByColumnPresent = await this.probeConsumedByColumn(client);
+      }
+      const useFastPath = this.consumedByColumnPresent;
+      return await this.queryAddressUtxos(client, address, useFastPath);
+    } finally {
+      client.release();
+    }
   }
 
   async primeProtocolState(params: ProtocolPrimeParams): Promise<ProtocolPrimeSnapshot> {
@@ -681,6 +711,9 @@ export class StubDbSyncClient implements DbSyncClient {
   }
   async txSummary(txHash: string): Promise<DbSyncTxSummary | null> {
     return this.txMap[txHash.toLowerCase()] ?? null;
+  }
+  async utxosAt(address: string): Promise<DbSyncUtxo[]> {
+    return this.utxos[address] ?? [];
   }
   async primeProtocolState(_params: ProtocolPrimeParams): Promise<ProtocolPrimeSnapshot> {
     if (!this.primeSnapshot) {

@@ -77,6 +77,14 @@ export interface BackendConfig {
     mixBoxAddress: string;
     feeContractAddress: string;
     referenceHolderAddress: string;
+    /**
+     * Seedelf wallet-script enterprise address — derived from the
+     * canonical Seedelf-Wallet deployment for this network (same hash
+     * on preprod + mainnet, override via SEEDELF_WALLET_SCRIPT_HASH).
+     * Allowlisted on `/utxos/:address` so the Vault's Seedelf panel
+     * pulls from db-sync instead of falling back to Blockfrost.
+     */
+    seedelfWalletAddress: string;
   };
   /**
    * Resolved chainsync intersection point, in priority order:
@@ -94,6 +102,15 @@ const DEFAULTS = {
   host: "0.0.0.0",
   rateLimitPerMin: 600,
 };
+
+/**
+ * Canonical Seedelf wallet-script hash. Same on preprod + mainnet —
+ * matches the SDK's `SEEDELF_PREPROD_ADDRESSES.walletScriptHash` /
+ * `SEEDELF_MAINNET_ADDRESSES.walletScriptHash`. Operators running a
+ * private Seedelf deployment override via `SEEDELF_WALLET_SCRIPT_HASH`.
+ */
+const DEFAULT_SEEDELF_WALLET_SCRIPT_HASH =
+  "94bca9c099e84ffd90d150316bb44c31a78702239076a0a80ea4a469";
 
 /**
  * Resolve the backend configuration from process env vars and the
@@ -119,10 +136,18 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): BackendConfig 
   const bootstrapStartPoint = resolveBootstrapStartPoint(env, addresses);
 
   const networkId: 0 | 1 = network === "mainnet" ? 1 : 0;
+  const seedelfWalletScriptHash =
+    env.SEEDELF_WALLET_SCRIPT_HASH?.trim() || DEFAULT_SEEDELF_WALLET_SCRIPT_HASH;
+  if (!/^[0-9a-f]{56}$/.test(seedelfWalletScriptHash)) {
+    throw new Error(
+      `SEEDELF_WALLET_SCRIPT_HASH must be 56-char lowercase hex, got ${JSON.stringify(seedelfWalletScriptHash)}`,
+    );
+  }
   const derived = {
     mixBoxAddress: buildScriptAddress(addresses.mixBoxScriptHash, networkId),
     feeContractAddress: buildScriptAddress(addresses.feeScriptHash, networkId),
     referenceHolderAddress: buildScriptAddress(addresses.referenceHolderScriptHash, networkId),
+    seedelfWalletAddress: buildScriptAddress(seedelfWalletScriptHash, networkId),
   };
 
   return {

@@ -73,7 +73,7 @@ flowchart LR
         BE["backend/<br/>Node + Fastify<br/>ogmios indexer + db-sync history<br/>Second ChainProvider implementation"]
     end
 
-    subgraph onchain["On-chain (Aiken 1.1.21, Plutus V3)"]
+    subgraph onchain["On-chain (Aiken 1.1.22, Plutus V3)"]
         VAL["contracts/<br/>reference_holder, one_shot_mint,<br/>mix_box, mix_logic, fee_contract"]
     end
 
@@ -107,7 +107,7 @@ flowchart LR
 
 | Workspace                                                                                  | Language                                   | Purpose                                                                                   |
 | ------------------------------------------------------------------------------------------ | ------------------------------------------ | ----------------------------------------------------------------------------------------- |
-| [contracts/](contracts/)                                                                   | Aiken 1.1.21                               | Validators (`reference_holder`, `one_shot_mint`, `mix_box`, `mix_logic`, `fee_contract`)  |
+| [contracts/](contracts/)                                                                   | Aiken 1.1.22                               | Validators (`reference_holder`, `one_shot_mint`, `mix_box`, `mix_logic`, `fee_contract`)  |
 | [offchain/](offchain/)                                                                     | TypeScript                                 | SDK: prover, tx builder, ChainProvider abstraction, CIP-30 wallet, collateral client, CLI |
 | [backend/](backend/)                                                                       | TypeScript (Node + Fastify)                | Self-hosted ChainProvider: ogmios chainsync indexer + db-sync history + REST API          |
 | [ui/](ui/)                                                                                 | TypeScript (React 19 + Vite + Tailwind v4) | User-facing app; 20 locales; talks to SDK only                                            |

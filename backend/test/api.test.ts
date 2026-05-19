@@ -14,6 +14,7 @@ import { encodeMixDatumDef } from "./helpers/datum.js";
 
 const MIX_ADDR = "addr_test1mix";
 const FEE_ADDR = "addr_test1fee";
+const SEEDELF_ADDR = "addr_test1seedelf";
 const NFT_POLICY = "deadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef";
 const NFT_NAME = "6c6f76656a6f696e";
 const NFT_UNIT = NFT_POLICY + NFT_NAME;
@@ -44,6 +45,7 @@ const CONFIG: BackendConfig = {
     mixBoxAddress: MIX_ADDR,
     feeContractAddress: FEE_ADDR,
     referenceHolderAddress: "addr_test1ref",
+    seedelfWalletAddress: SEEDELF_ADDR,
   },
   bootstrapStartPoint: null,
 };
@@ -454,6 +456,56 @@ describe("API: /utxos/:address (allowlisted, served from indexer state)", () => 
     });
     expect(res.statusCode).toBe(400);
     expect(res.json().error).toBe("address_not_protocol_managed");
+  });
+
+  it("returns Seedelf UTxOs from db-sync (allowlisted, served via dbsync.utxosAt)", async () => {
+    const seedelfRows = [
+      {
+        txHash: "ab".repeat(32),
+        outputIndex: 0,
+        address: SEEDELF_ADDR,
+        lovelace: 5_000_000n,
+        assets: {},
+        inlineDatum: "d8799f4040ff",
+        datumHash: null,
+        referenceScriptCbor: null,
+        referenceScriptHash: null,
+      },
+    ];
+    const dbsyncStub = new StubDbSyncClient({ [SEEDELF_ADDR]: seedelfRows });
+    const s = await buildServer({
+      state,
+      runtime: null,
+      config: CONFIG,
+      dbsync: dbsyncStub,
+    });
+    try {
+      const res = await s.inject({ method: "GET", url: `/utxos/${SEEDELF_ADDR}` });
+      expect(res.statusCode).toBe(200);
+      const body = res.json();
+      expect(body.address).toBe(SEEDELF_ADDR);
+      expect(body.utxos).toHaveLength(1);
+      expect(body.utxos[0].lovelace).toBe("5000000");
+      expect(body.utxos[0].inlineDatum).toBe("d8799f4040ff");
+    } finally {
+      await s.close();
+    }
+  });
+
+  it("returns 503 dbsync_unavailable for Seedelf when db-sync isn't configured", async () => {
+    const s = await buildServer({
+      state,
+      runtime: null,
+      config: CONFIG,
+      dbsync: null,
+    });
+    try {
+      const res = await s.inject({ method: "GET", url: `/utxos/${SEEDELF_ADDR}` });
+      expect(res.statusCode).toBe(503);
+      expect(res.json().error).toBe("dbsync_unavailable");
+    } finally {
+      await s.close();
+    }
   });
 
   it("does not call dbsync for a protocol-managed address (allowlist short-circuits)", async () => {

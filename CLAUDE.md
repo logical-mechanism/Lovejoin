@@ -42,7 +42,7 @@ Two related encoding rules:
 ## Component layout
 
 ```
-contracts/   Aiken 1.1.21, Plutus V3, BLS12-381 G1. Validators: reference_holder, one_shot_mint, mix_box, mix_logic (withdraw-zero), fee_contract.
+contracts/   Aiken 1.1.22, Plutus V3, BLS12-381 G1. Validators: reference_holder, one_shot_mint, mix_box, mix_logic (withdraw-zero), fee_contract.
 offchain/    TypeScript SDK (@lovejoin/sdk): crypto/ + tx/ (deposit, withdraw, mix, fee, donate, params, collateral, retry, witness-merge, fee-helpers, mesh-bridge, known-collateral-hosts) + chain/ (ChainProvider abstraction with BlockfrostProvider + BackendChainProvider, ogmios-utxo adapter, backend-mesh sibling) + strategy/ (fanout planner + orchestrator) + pool/ (identify, select) + wallet/ (cip30, seed) + cli/.
 backend/     Node + Fastify. backend/src/{indexer/{ogmios,runtime,state,datum,mempool,types},db/dbsync,api/{server,routes},config,address}. Acts as the second ChainProvider implementation; `/evaluate` forwards `additionalUtxoSet` through to ogmios for in-flight tx chaining.
 ui/          React 19 + Vite + Tailwind v4 + react-i18next + mesh. ui/src/{routes/{Home,Pool,Vault,Box,Deposit,Withdraw,Donate,Help,Protocol,Layout}, components/ (MixPanel is the unified intensity-dial Mix surface; mounts on Pool + Vault), lib/{sdk,vault,pool,backend,seedelf,bech32,store,collateral-status,polyfill}, storage/secrets, i18n/}.
@@ -76,7 +76,7 @@ Mesh handles the unconventional Mix tx shape (no submitter wallet input, externa
 
 ## Conventions baked into the codebase
 
-- **Aiken pinned to 1.1.21** ([contracts/aiken.toml](contracts/aiken.toml)). Bumps are deliberate.
+- **Aiken pinned to 1.1.22** ([contracts/aiken.toml](contracts/aiken.toml)). Bumps are deliberate.
 - **Curve: BLS12-381 G1 only.** Compressed group elements are 48 bytes; scalars are 32 bytes big-endian, strictly less than `r`. No pairings, no G2, no custom curves.
 - **Hash: blake2b-256** (Plutus builtin). Domain tag `"lovejoin/sigmajoin/v1/"`. Statement IDs: `0x01`=proveDlog, `0x02`=proveDHTuple, `0x03`=sigma-or-N (with N as a 1-byte prefix).
 - **Nonces: RFC 6979 deterministic via HMAC-SHA256-DRBG** in TS; Aiken does not generate nonces (verifier only). Secret keys still come from a CSPRNG (`crypto.getRandomValues` / `crypto.randomBytes`). See [offchain/src/crypto/nonce.ts](offchain/src/crypto/nonce.ts).

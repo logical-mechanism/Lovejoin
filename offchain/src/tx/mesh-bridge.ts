@@ -63,3 +63,50 @@ export async function getMeshProtocolParams(
   const mesh = await getMeshProvider(provider);
   return mesh.fetchProtocolParameters();
 }
+
+/**
+ * Resolve the live Plutus cost models in the shape `MeshTxBuilder.setNetwork`
+ * accepts as a custom script-integrity-hash basis.
+ *
+ * Why this exists: mesh 1.8.14's Wasm serializer (`@meshsdk/core-csl`)
+ * hashes a tx's `script_data_hash` against cost models BUNDLED inside the
+ * Wasm — mesh's `Protocol` type carries no `costModels` field, so
+ * `new MeshTxBuilder({ params })` cannot supply them. After a Cardano
+ * governance action changes the cost models, the bundled set goes stale
+ * and the ledger rejects every Plutus tx with error 3113 ("provided
+ * script integrity hash doesn't match the computed one").
+ *
+ * `MeshTxBuilder.setNetwork()` accepts a `number[][]` instead of a
+ * network-name string; core-csl's `networkToObj` wraps it as
+ * `{ custom }` and the Wasm uses those cost models verbatim. The array
+ * is indexed by Plutus language version minus one (V1 → 0, V2 → 1,
+ * V3 → 2), so every version the deployment uses must be supplied in
+ * order with no gaps.
+ *
+ * Returns `null` when the provider doesn't surface all three cost
+ * models; the caller then falls back to the network-name string (mesh's
+ * bundled defaults), which is correct as long as the chain's cost models
+ * match what the installed mesh version shipped with.
+ */
+export async function getMeshCostModels(provider: ChainProvider): Promise<number[][] | null> {
+  const params = await provider.getProtocolParameters();
+  return costModelsToMeshArray(params.costModels);
+}
+
+/**
+ * Pure conversion of a `{ PlutusV1, PlutusV2, PlutusV3 }` cost-model
+ * record into the `[v1, v2, v3]` array `setNetwork` expects. Exported
+ * for unit tests. Returns `null` if any version is missing or empty —
+ * a partial array would misalign the version → index mapping and
+ * silently corrupt the script-integrity hash.
+ */
+export function costModelsToMeshArray(
+  costModels: Record<string, number[]> | undefined | null,
+): number[][] | null {
+  if (!costModels) return null;
+  const v1 = costModels.PlutusV1;
+  const v2 = costModels.PlutusV2;
+  const v3 = costModels.PlutusV3;
+  if (!v1?.length || !v2?.length || !v3?.length) return null;
+  return [v1, v2, v3];
+}

@@ -90,7 +90,7 @@ import {
   type RetryOptions,
   withInputCollisionRetry,
 } from "./retry.js";
-import { getMeshProtocolParams, getMeshProvider } from "./mesh-bridge.js";
+import { getMeshCostModels, getMeshProtocolParams, getMeshProvider } from "./mesh-bridge.js";
 import {
   fetchProtocolParams,
   type LovejoinAddresses,
@@ -1052,6 +1052,10 @@ export async function buildMixTx(args: BuildMixArgs): Promise<MixResult> {
     const { MeshTxBuilder } = meshCore;
     const meshProvider = await getMeshProvider(args.provider);
     const meshParams = await getMeshProtocolParams(args.provider);
+    // Live Plutus cost models for the script-integrity hash — see
+    // getMeshCostModels. Without this, mesh hashes against its bundled
+    // (stale-after-gov-update) cost models and the ledger rejects with 3113.
+    const meshCostModels = await getMeshCostModels(args.provider);
     console.log(`[lovejoin/mix] mesh init done in ${Date.now() - meshInitStart}ms`);
 
     // chainFrom resolution. If the caller is chaining onto an in-flight
@@ -1353,6 +1357,9 @@ export async function buildMixTx(args: BuildMixArgs): Promise<MixResult> {
       // further over the chain's per-tx exec cap at high N. We trust the
       // evaluator's numbers exactly — they're the chain's own values.
       tx.txEvaluationMultiplier = 1;
+      // Pin live cost models for the script-integrity hash (else mesh
+      // uses stale bundled ones → ledger error 3113).
+      if (meshCostModels) tx.setNetwork(meshCostModels);
       populate(tx, feeOverride);
       const completeStart = Date.now();
       try {

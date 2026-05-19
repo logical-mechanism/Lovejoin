@@ -70,6 +70,13 @@ import {
   type FanoutSlot,
   type FanoutSlotId,
 } from "./fanout.js";
+import {
+  buildFanoutFundingTx,
+  type BuildFanoutFundingTxArgs,
+  type FanoutFundingTx,
+  PER_LEAF_FUNDING_LOVELACE,
+  TRAILING_FUNDING_LOVELACE,
+} from "./funding.js";
 
 // ---------------------------------------------------------------------------
 // Event types — yielded from submitFanout's async iterator
@@ -188,6 +195,17 @@ export interface SubmitFanoutArgs {
     unsignedTxHex: string,
     changeAddressBech32: string,
   ) => ChainWalletUtxosResult;
+  /**
+   * Internal-use seam (planFanoutTxs, wallet mode only): override the
+   * wallet-funding consolidation builder. Production leaves this
+   * undefined and the real `buildFanoutFundingTx` (which builds a plain
+   * self-send via mesh) is used. Tests inject a stub that returns a
+   * canned `FanoutFundingTx` so the consolidation path can be exercised
+   * without a chain provider.
+   *
+   * @internal
+   */
+  buildFundingTx?: (args: BuildFanoutFundingTxArgs) => Promise<FanoutFundingTx>;
 }
 
 /**
@@ -552,6 +570,35 @@ function refKey(ref: UtxoRef): string {
   return `${ref.txId.toLowerCase()}#${ref.outputIndex}`;
 }
 
+/** `(txHash, outputIndex)` key for a mesh-shaped UTxO. */
+function meshRefKey(u: MeshUtxo): string {
+  return `${u.input.txHash.toLowerCase()}#${u.input.outputIndex}`;
+}
+
+/** Lovelace value of a mesh-shaped UTxO. */
+function meshLovelace(u: MeshUtxo): bigint {
+  let total = 0n;
+  for (const a of u.output.amount) {
+    if (a.unit === "lovelace") total += BigInt(a.quantity);
+  }
+  return total;
+}
+
+/** Convert a lovejoin `Utxo` into the mesh `UTxO` shape coin selection
+ *  consumes. Only the fields mesh's `selectUtxosFrom` reads are filled. */
+function lovejoinUtxoToMesh(u: Utxo): MeshUtxo {
+  const amount: Array<{ unit: string; quantity: string }> = [
+    { unit: "lovelace", quantity: u.lovelace.toString() },
+  ];
+  for (const [unit, qty] of Object.entries(u.assets)) {
+    amount.push({ unit, quantity: qty.toString() });
+  }
+  return {
+    input: { txHash: u.ref.txId.toLowerCase(), outputIndex: u.ref.outputIndex },
+    output: { address: u.address, amount },
+  } as MeshUtxo;
+}
+
 function parseRefKey(key: string): UtxoRef {
   const hash = key.indexOf("#");
   if (hash <= 0) throw new Error(`parseRefKey: malformed key "${key}"`);
@@ -620,6 +667,16 @@ export interface UnsignedFanoutBatch {
    *  failed-slot descendants the same way `submitFanout` does. */
   plan: FanoutPlan;
   /**
+   * Wallet-funding consolidation pre-tx, present only when a wallet-mode
+   * run needed to consolidate multiple wallet UTxOs into one funding
+   * UTxO (see `funding.ts`). When set, `submitFanoutBatch` signs it in
+   * the same `signTxs` prompt as the leaves and submits it FIRST — every
+   * leaf chains off its output, so if it can't land the run is dead.
+   * Absent for shard-mode runs and for wallet-mode runs where a single
+   * wallet UTxO already covered the whole tree.
+   */
+  fundingTx?: { unsignedTxHex: string; txId: string };
+  /**
    * Built slots in submission order (wave-major, plan-order within a
    * wave). Pass `.map(s => s.unsignedTxHex)` directly to
    * `wallet.signTxs(...)`.
@@ -669,24 +726,27 @@ export async function planFanoutTxs(args: SubmitFanoutArgs): Promise<UnsignedFan
   const underlyingBuild = args.buildMix ?? buildMixTx;
   const feePayer: MixFeePayer = args.feePayer ?? "shard";
 
-  // Wallet-UTxO chaining (fixes the "Input utxo is spent more than once"
-  // signTxs rejection on Eternl). In wallet-funded mode every leaf's
-  // build calls `wallet.getUtxos()`, but inside `planFanoutTxs` no leaf
-  // ever gets submitted, so every call returns the same pre-mempool
-  // snapshot and mesh picks the SAME wallet input for every leaf. We
-  // pre-fetch once here, subtract consumed inputs + add change outputs
-  // after each build, and pass the rolling list to subsequent builds
-  // via `walletUtxosOverride`. The per-leaf `submitFanout` path doesn't
-  // need this because the wallet sees each submit and updates its own
-  // mempool view between calls.
-  const initialWalletUtxos: MeshUtxo[] = [];
+  // Wallet-UTxO chaining (fixes the on-chain `BadInputsUTxO` / ogmios
+  // 3117 the user hit on a 21-leaf wallet-funded run, where ~5 txs
+  // landed and the rest were dropped as sibling double-spends).
+  //
+  // In wallet-funded mode every leaf's build needs a wallet input.
+  // Inside `planFanoutTxs` no leaf is submitted while the tree is
+  // building, so `wallet.getUtxos()` returns the same pre-mempool
+  // snapshot every time. If that snapshot has more than one UTxO,
+  // mesh's coin selection is free to pick a different one per leaf —
+  // and two sibling leaves can pick the SAME UTxO. On chain the second
+  // one is a double-spend.
+  //
+  // The fix is to remove the freedom: consolidate the wallet's
+  // spendable balance into ONE funding UTxO up front (a self-send
+  // pre-tx), then hand every leaf exactly one candidate — the funding
+  // UTxO for leaf 0, then strictly each leaf's predecessor's change.
+  // With a single candidate, coin selection is deterministic and the
+  // funding UTxO threads cleanly leaf → leaf.
   let changeAddress: string | null = null;
-  if (feePayer === "wallet" && args.wallet) {
-    const fetched = await args.wallet.getUtxos();
-    initialWalletUtxos.push(...normalizeWalletUtxos(fetched));
-    changeAddress = await args.wallet.getChangeAddress();
-  }
-  let rollingWalletUtxos: MeshUtxo[] = initialWalletUtxos.slice();
+  let rollingWalletUtxos: MeshUtxo[] = [];
+  let fundingTx: FanoutFundingTx | null = null;
   // In-flight wallet change UTxOs (this batch's prior-leaf outputs that
   // aren't on chain yet). Keyed by refKey so the next leaf's consumed
   // inputs can remove them from the map without a linear scan, and the
@@ -696,6 +756,55 @@ export async function planFanoutTxs(args: SubmitFanoutArgs): Promise<UnsignedFan
   // placeholder (mem=10000 / steps=1_000_000), and on-chain Mix
   // validation fails out of script budget.
   const inFlightWalletExtras = new Map<string, Utxo>();
+
+  if (feePayer === "wallet" && args.wallet) {
+    changeAddress = await args.wallet.getChangeAddress();
+    const spendable = normalizeWalletUtxos(await args.wallet.getUtxos());
+    // The wallet's designated collateral UTxO(s) are reused as
+    // collateral on every leaf (legal: collateral isn't consumed when a
+    // tx succeeds). They must never be spent as a funding input, so
+    // exclude them from the consolidation set even if `getUtxos()`
+    // happens to surface them.
+    const collateralRefs = new Set(
+      normalizeWalletUtxos(await args.wallet.getCollateral()).map(meshRefKey),
+    );
+    const fundingCandidates = spendable.filter((u) => !collateralRefs.has(meshRefKey(u)));
+    if (fundingCandidates.length === 0) {
+      throw new Error(
+        "planFanoutTxs: wallet has no spendable (non-collateral) UTxOs to fund the fan-out.",
+      );
+    }
+
+    const nLeaves = args.plan.waves.reduce((acc, w) => acc + w.slots.length, 0);
+    const fundingLovelace = BigInt(nLeaves) * PER_LEAF_FUNDING_LOVELACE + TRAILING_FUNDING_LOVELACE;
+    const totalSpendable = fundingCandidates.reduce((acc, u) => acc + meshLovelace(u), 0n);
+    if (totalSpendable < fundingLovelace) {
+      throw new Error(
+        `planFanoutTxs: wallet has ${totalSpendable} lovelace spendable, but ${nLeaves} ` +
+          `fan-out leaves need ${fundingLovelace}. Top up the wallet and retry.`,
+      );
+    }
+
+    if (fundingCandidates.length === 1 && meshLovelace(fundingCandidates[0]!) >= fundingLovelace) {
+      // A single on-chain UTxO already covers the whole run — no pre-tx
+      // needed, chain straight off it.
+      rollingWalletUtxos = [fundingCandidates[0]!];
+    } else {
+      // Consolidate into one funding UTxO. The pre-tx rides in the same
+      // CIP-103 `signTxs` prompt and is submitted before any leaf.
+      const buildFunding = args.buildFundingTx ?? buildFanoutFundingTx;
+      fundingTx = await buildFunding({
+        provider: args.provider,
+        walletUtxos: fundingCandidates,
+        changeAddress,
+        fundingLovelace,
+      });
+      rollingWalletUtxos = [lovejoinUtxoToMesh(fundingTx.fundingUtxo)];
+      // The funding UTxO is itself in-flight (its tx isn't on chain
+      // yet), so leaf 0's evaluator must be told about it via chainFrom.
+      inFlightWalletExtras.set(refKey(fundingTx.fundingUtxo.ref), fundingTx.fundingUtxo);
+    }
+  }
 
   // Load core-cst once if we're in wallet mode — the real chaining
   // helper needs it to parse each unsigned tx, and a dynamic import
@@ -780,7 +889,14 @@ export async function planFanoutTxs(args: SubmitFanoutArgs): Promise<UnsignedFan
     // returned UnsignedFanoutBatch.
   }
 
-  return { plan: args.plan, slots, failed };
+  return {
+    plan: args.plan,
+    slots,
+    failed,
+    ...(fundingTx
+      ? { fundingTx: { unsignedTxHex: fundingTx.unsignedTxHex, txId: fundingTx.txId } }
+      : {}),
+  };
 }
 
 /**
@@ -900,10 +1016,13 @@ export interface SubmitFanoutBatchArgs {
  *      sees build-time failures before submit-time progress (matches
  *      `submitFanout`'s ordering: a build failure in wave N fires
  *      before wave N's `wave-completed`).
- *   2. Call `wallet.signTxs(allUnsignedCbors, false)` ONCE. The wallet
- *      shows one CIP-30 prompt covering the whole tree; rejection
- *      throws and the entire batch is abandoned.
- *   3. Submit each signed CBOR in submission order. On a submit
+ *   2. Call `wallet.signTxs(allUnsignedCbors, false)` ONCE — the wallet
+ *      funding pre-tx (when present) plus every leaf. The wallet shows
+ *      one CIP-30 prompt covering the whole tree; rejection throws and
+ *      the entire batch is abandoned.
+ *   3. Submit the funding pre-tx first (when present); a failure there
+ *      throws because no leaf can be funded without it. Then submit
+ *      each leaf's signed CBOR in submission order. On a leaf submit
  *      failure, cascade descendants to dropped (parent's outputs never
  *      land on chain so children can't resolve their refs) and emit
  *      one `slot-failed` event per failure.
@@ -942,9 +1061,19 @@ export async function* submitFanoutBatch(args: SubmitFanoutBatchArgs): AsyncIter
   // Batch sign. One prompt for the whole tree. If the wallet refuses,
   // the rejection bubbles up; partial recovery is the caller's call
   // (typically: re-plan from confirmed boxes and retry).
-  const unsignedCbors = batch.slots.map((s) => s.unsignedTxHex);
+  //
+  // When a wallet-funding consolidation pre-tx is present it is the
+  // FIRST entry in the sign array (and the first thing submitted): every
+  // leaf chains off its output.
+  const hasFunding = batch.fundingTx != null;
+  const fundingOffset = hasFunding ? 1 : 0;
+  const unsignedCbors = [
+    ...(hasFunding ? [batch.fundingTx!.unsignedTxHex] : []),
+    ...batch.slots.map((s) => s.unsignedTxHex),
+  ];
   console.log(
-    `[lovejoin/fanout] submitFanoutBatch: requesting CIP-103 signature on ${unsignedCbors.length} tx(s)`,
+    `[lovejoin/fanout] submitFanoutBatch: requesting CIP-103 signature on ` +
+      `${unsignedCbors.length} tx(s)${hasFunding ? " (incl. 1 funding pre-tx)" : ""}`,
   );
   const signStart = Date.now();
   const signedCbors = unsignedCbors.length === 0 ? [] : await wallet.signTxs(unsignedCbors, false);
@@ -954,6 +1083,27 @@ export async function* submitFanoutBatch(args: SubmitFanoutBatchArgs): AsyncIter
       `submitFanoutBatch: wallet.signTxs returned ${signedCbors.length} signed txs; ` +
         `expected ${unsignedCbors.length}`,
     );
+  }
+
+  // Submit the funding pre-tx before any leaf. Every leaf spends its
+  // output, so a funding-tx failure kills the whole run — surface it
+  // loudly rather than letting 21 leaves fail one by one with opaque
+  // `BadInputsUTxO` errors.
+  if (hasFunding) {
+    const fundingStartMs = Date.now();
+    try {
+      const fundingTxId = await provider.submitTx(signedCbors[0]!);
+      console.log(
+        `[lovejoin/fanout] funding pre-tx submitted in ${Date.now() - fundingStartMs}ms — ` +
+          `tx ${fundingTxId.slice(0, 12)}…`,
+      );
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      throw new Error(
+        `submitFanoutBatch: the wallet-funding pre-tx failed to submit, so no leaf can ` +
+          `be funded — the whole fan-out is abandoned. Original error: ${msg}`,
+      );
+    }
   }
 
   let submittedCount = 0;
@@ -988,9 +1138,10 @@ export async function* submitFanoutBatch(args: SubmitFanoutBatchArgs): AsyncIter
       if (dropped.has(slot.slotId)) continue;
 
       // Find this slot's signed CBOR by position in the batch (same
-      // index as in batch.slots since we kept submission order).
+      // index as in batch.slots since we kept submission order), shifted
+      // past the funding pre-tx when one is present.
       const idx = batch.slots.indexOf(slot);
-      const signedCbor = signedCbors[idx]!;
+      const signedCbor = signedCbors[idx + fundingOffset]!;
       const slotStartMs = Date.now();
       let submittedTxId: string;
       try {

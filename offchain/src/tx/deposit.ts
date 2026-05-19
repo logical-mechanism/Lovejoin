@@ -31,7 +31,7 @@ import { Encoder, Tag } from "cbor-x";
 import type { ChainProvider, Lovelace, Utxo, UtxoRef } from "../chain/provider.js";
 import { type CollateralProvider, WalletProvider } from "./collateral.js";
 import { mergeExternalCollateralWitness } from "./witness-merge.js";
-import { getMeshProtocolParams, getMeshProvider } from "./mesh-bridge.js";
+import { getMeshCostModels, getMeshProtocolParams, getMeshProvider } from "./mesh-bridge.js";
 import { pickFeeShardOptional, replenishOutputLovelace } from "./fee.js";
 import {
   fetchProtocolParams,
@@ -546,6 +546,8 @@ export async function buildDepositTx(args: BuildDepositArgs): Promise<DepositRes
   // that inflate the fee 10x or worse.
   const meshProvider = await getMeshProvider(args.provider);
   const meshParams = await getMeshProtocolParams(args.provider);
+  // Live cost models for the script-integrity hash — see getMeshCostModels.
+  const meshCostModels = await getMeshCostModels(args.provider);
   const txBuilder = new MeshTxBuilder({
     fetcher: meshProvider as never,
     submitter: meshProvider as never,
@@ -555,6 +557,9 @@ export async function buildDepositTx(args: BuildDepositArgs): Promise<DepositRes
   });
   // Trust evaluator-returned exec units exactly (mesh defaults to 1.1×).
   txBuilder.txEvaluationMultiplier = 1;
+  // Pin live cost models for the script-integrity hash (else mesh uses
+  // stale bundled ones → ledger error 3113).
+  if (meshCostModels) txBuilder.setNetwork(meshCostModels);
 
   // Wallet inputs (mesh handles selection).
   const walletUtxos = normalizeWalletUtxos(await args.wallet.getUtxos());
@@ -941,6 +946,8 @@ export async function buildBulkDepositTx(args: BuildBulkDepositArgs): Promise<Bu
   const { MeshTxBuilder } = await import("@meshsdk/core");
   const meshProvider = await getMeshProvider(args.provider);
   const meshParams = await getMeshProtocolParams(args.provider);
+  // Live cost models for the script-integrity hash — see getMeshCostModels.
+  const meshCostModels = await getMeshCostModels(args.provider);
   const txBuilder = new MeshTxBuilder({
     fetcher: meshProvider as never,
     submitter: meshProvider as never,
@@ -950,6 +957,9 @@ export async function buildBulkDepositTx(args: BuildBulkDepositArgs): Promise<Bu
   });
   // Trust evaluator-returned exec units exactly (mesh defaults to 1.1×).
   txBuilder.txEvaluationMultiplier = 1;
+  // Pin live cost models for the script-integrity hash (else mesh uses
+  // stale bundled ones → ledger error 3113).
+  if (meshCostModels) txBuilder.setNetwork(meshCostModels);
 
   const walletUtxos = normalizeWalletUtxos(await args.wallet.getUtxos());
   const changeAddress = await args.wallet.getChangeAddress();

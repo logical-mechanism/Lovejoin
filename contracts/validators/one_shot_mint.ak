@@ -64,11 +64,12 @@ validator one_shot_mint(
   reference_holder_hash: ScriptHash,
 ) {
   mint(_redeemer: Data, policy_id: assets.PolicyId, self: Transaction) {
-    let seed =
-      OutputReference { transaction_id: seed_tx_id, output_index: seed_idx }
-    let seed_consumed =
-      self.inputs
-        |> list.any(fn(input) { input.output_reference == seed })
+    let seed = OutputReference {
+      transaction_id: seed_tx_id,
+      output_index: seed_idx,
+    }
+    let seed_consumed = self.inputs
+      |> list.any(fn(input) { input.output_reference == seed })
 
     // Exactly one (asset_name, quantity) pair under this policy. The
     // pattern-match on `[Pair(_, _)]` enforces dict size == 1, so the
@@ -84,18 +85,17 @@ validator one_shot_mint(
     // `output_at_fee`; duplicate matches would still be rejected by the
     // ledger value-balance rule because the mint provides exactly one
     // token in total.
-    expect Some(target) =
-      self.outputs
-        |> list.find(
-            fn(o) {
-              output_at_reference_holder(
-                o,
-                reference_holder_hash,
-                policy_id,
-                asset_name,
-              )
-            },
-          )
+    expect Some(target) = self.outputs
+      |> list.find(
+          fn(o) {
+            output_at_reference_holder(
+              o,
+              reference_holder_hash,
+              policy_id,
+              asset_name,
+            )
+          },
+        )
 
     // L-02: the destination's datum must decode as a `ReferenceDatum` and
     // carry sane field values. We do NOT assert on the three downstream
@@ -109,10 +109,10 @@ validator one_shot_mint(
     expect InlineDatum(datum_data) = target.datum
     expect parsed: ReferenceDatum = datum_data
     let datum_sane = and {
-        parsed.denom_lovelace > 0,
-        parsed.max_fee_per_mix_lovelace > 0,
-        parsed.max_fee_per_mix_lovelace < parsed.denom_lovelace,
-      }
+      parsed.denom_lovelace > 0,
+      parsed.max_fee_per_mix_lovelace > 0,
+      parsed.max_fee_per_mix_lovelace < parsed.denom_lovelace,
+    }
 
     and {
       seed_consumed,

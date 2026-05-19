@@ -38,10 +38,10 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install Aiken 1.1.21
+      - name: Install Aiken 1.1.22
         uses: aiken-lang/setup-aiken@v1.0.3
         with:
-          version: v1.1.21
+          version: v1.1.22
 
       - name: aiken --version
         run: aiken --version
@@ -138,10 +138,10 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install Aiken 1.1.21
+      - name: Install Aiken 1.1.22
         uses: aiken-lang/setup-aiken@v1.0.3
         with:
-          version: v1.1.21
+          version: v1.1.22
 
       - name: scripts/check-reproducibility.sh
         run: ./scripts/check-reproducibility.sh
