@@ -397,7 +397,11 @@ export class OgmiosTxClient {
   }
 
   private onMessage(data: string | Buffer): void {
-    let parsed: { id?: number; result?: unknown; error?: { code: number; message: string } };
+    let parsed: {
+      id?: number;
+      result?: unknown;
+      error?: { code: number; message: string; data?: unknown };
+    };
     try {
       const text = typeof data === "string" ? data : data.toString("utf8");
       parsed = JSON.parse(text);
@@ -412,8 +416,23 @@ export class OgmiosTxClient {
     if (!handler) return;
     this.pending.delete(parsed.id);
     if (parsed.error) {
+      // ogmios JSON-RPC errors carry a `data` payload that names the
+      // actual offenders — `unknownOutputReferences` for 3117,
+      // `providedScriptIntegrity`/`computedScriptIntegrity` for 3113,
+      // etc. Without it a submit failure is undiagnosable; append a
+      // compact JSON dump (capped so a pathological payload can't
+      // balloon the log line).
+      let detail = "";
+      if (parsed.error.data !== undefined) {
+        try {
+          const json = JSON.stringify(parsed.error.data);
+          detail = ` data=${json.length > 2000 ? `${json.slice(0, 2000)}…` : json}`;
+        } catch {
+          detail = " data=<unserializable>";
+        }
+      }
       handler.reject(
-        new Error(`ogmios JSON-RPC error ${parsed.error.code}: ${parsed.error.message}`),
+        new Error(`ogmios JSON-RPC error ${parsed.error.code}: ${parsed.error.message}${detail}`),
       );
       return;
     }
