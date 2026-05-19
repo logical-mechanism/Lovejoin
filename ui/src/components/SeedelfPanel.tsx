@@ -124,6 +124,11 @@ export function SeedelfPanel() {
       });
       setMintTag("");
       setMintOpen(false);
+      // Wait for the tx to land before re-enabling + rescanning. The
+      // wallet's getUtxos() and the Seedelf scanner both lag the node;
+      // firing the next tx against the stale snapshot reuses spent
+      // inputs and the ledger rejects it with error 3117.
+      await provider!.awaitConfirmation(result.txId, 5 * 60_000).catch(() => undefined);
       state.rescan();
     } catch (e) {
       toast.push({
@@ -175,6 +180,8 @@ export function SeedelfPanel() {
       setSendRecipientId("");
       setSendAmountAda("");
       setSendOpen(false);
+      // Wait for confirmation before re-enabling — see handleMint.
+      await provider!.awaitConfirmation(result.txId, 5 * 60_000).catch(() => undefined);
       state.rescan();
     } catch (e) {
       toast.push({
@@ -252,6 +259,10 @@ export function SeedelfPanel() {
       setSpendDestination("");
       setSpendAmountAda("");
       setSpendMode("external");
+      // Wait for confirmation before re-enabling — see handleMint. The
+      // Seedelf scanner lags the node, so an immediate rescan would
+      // still list the fund this spend just consumed.
+      await provider!.awaitConfirmation(result.txId, 5 * 60_000).catch(() => undefined);
       state.rescan();
     } catch (e) {
       toast.push({
