@@ -61,6 +61,14 @@ export async function buildServer(deps: ApiServerDeps): Promise<FastifyInstance>
     // finding H1). `true` accepts the first hop; tighten to a CIDR list
     // if we ever sit behind multiple proxies.
     trustProxy: true,
+    // Suppress Fastify's per-request "incoming request" / "request
+    // completed" access lines. A single UI scan fans out to ~one
+    // request per pool box (~96), drowning the log in routine 2xx
+    // chatter. Routes that matter still log explicitly on failure
+    // (`req.log.error` in /submit, /evaluate, the dbsync routes), and
+    // the protocol deliberately keeps no access-log audit trail
+    // (IPs are retained <24h for rate limiting only).
+    disableRequestLogging: true,
   });
   fastify.setReplySerializer((payload) => JSON.stringify(payload, PRESERVE_BIGINT_REPLACER));
   // Map Fastify schema validation errors (introduced when route schemas
