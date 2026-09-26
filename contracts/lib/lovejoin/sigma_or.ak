@@ -151,27 +151,30 @@ pub fn verify_pre(
   // canonical wire layout — see hash.fs_hash_sigma_or for that layout
   // and encoding_parity_kat.test.ak for the byte-equal proof. Saves
   // 2N wrapper allocs per `verify_pre` call (= 2N² per Mix tx).
-  let header =
-    hash_mod.fs_hash_sigma_or_header_with_prefix(header_const_prefix, a, b)
-  let with_branches =
-    list.foldl(
-      statements,
-      header,
-      fn(s, acc) { acc |> bytearray.concat(s.ap) |> bytearray.concat(s.bp) },
-    )
-  let with_commitments =
-    list.foldl(
-      proof.branches,
-      with_branches,
-      fn(br, acc) { acc |> bytearray.concat(br.t0) |> bytearray.concat(br.t1) },
-    )
+  let header = hash_mod.fs_hash_sigma_or_header_with_prefix(
+    header_const_prefix,
+    a,
+    b,
+  )
+  let with_branches = list.foldl(
+    statements,
+    header,
+    fn(s, acc) { acc |> bytearray.concat(s.ap) |> bytearray.concat(s.bp) },
+  )
+  let with_commitments = list.foldl(
+    proof.branches,
+    with_branches,
+    fn(br, acc) { acc |> bytearray.concat(br.t0) |> bytearray.concat(br.t1) },
+  )
   let c_global = builtin.blake2b_256(with_commitments |> bytearray.concat(ctx))
 
   // c_global == XOR of all per-branch c_i.
-  let zero32 =
-    #"0000000000000000000000000000000000000000000000000000000000000000"
-  let xor_of_branch_c =
-    list.foldl(proof.branches, zero32, fn(br, acc) { xor32(acc, br.c) })
+  let zero32 = #"0000000000000000000000000000000000000000000000000000000000000000"
+  let xor_of_branch_c = list.foldl(
+    proof.branches,
+    zero32,
+    fn(br, acc) { xor32(acc, br.c) },
+  )
   expect c_global == xor_of_branch_c
 
   // Per-branch DH-tuple equations. Input points uncompressed once

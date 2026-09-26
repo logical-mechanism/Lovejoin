@@ -81,8 +81,10 @@ fn tx_with(datum: Datum, withdrawals: Pairs<Credential, Int>) -> Transaction {
 // ---------------------------------------------------------------------------
 
 test mix_box_accepts_when_mix_logic_withdraws_zero() {
-  let tx =
-    tx_with(InlineDatum(well_formed_datum()), [Pair(Script(mix_logic_hash), 0)])
+  let tx = tx_with(
+    InlineDatum(well_formed_datum()),
+    [Pair(Script(mix_logic_hash), 0)],
+  )
   mix_box.mix_box.spend(mix_logic_hash, None, Void, own_utxo, tx)
 }
 
@@ -90,22 +92,20 @@ test mix_box_accepts_when_mix_logic_withdraws_nonzero() {
   // Amount doesn't matter; presence does. Mixers / users could plausibly
   // route real rewards through the same withdrawal — the validator is
   // amount-agnostic.
-  let tx =
-    tx_with(
-      InlineDatum(well_formed_datum()),
-      [Pair(Script(mix_logic_hash), 1_000_000)],
-    )
+  let tx = tx_with(
+    InlineDatum(well_formed_datum()),
+    [Pair(Script(mix_logic_hash), 1_000_000)],
+  )
   mix_box.mix_box.spend(mix_logic_hash, None, Void, own_utxo, tx)
 }
 
 test mix_box_accepts_with_other_withdrawals_present() {
   // Ordering: Pairs<Credential, Lovelace> is sorted by ascending credential
   // per the ledger; `pairs.has_key` finds the entry regardless of position.
-  let tx =
-    tx_with(
-      InlineDatum(well_formed_datum()),
-      [Pair(Script(other_hash), 0), Pair(Script(mix_logic_hash), 0)],
-    )
+  let tx = tx_with(
+    InlineDatum(well_formed_datum()),
+    [Pair(Script(other_hash), 0), Pair(Script(mix_logic_hash), 0)],
+  )
   mix_box.mix_box.spend(mix_logic_hash, None, Void, own_utxo, tx)
 }
 
@@ -115,8 +115,10 @@ test mix_box_rejects_missing_withdrawal() {
 }
 
 test mix_box_rejects_wrong_withdrawal_credential() {
-  let tx =
-    tx_with(InlineDatum(well_formed_datum()), [Pair(Script(other_hash), 0)])
+  let tx = tx_with(
+    InlineDatum(well_formed_datum()),
+    [Pair(Script(other_hash), 0)],
+  )
   !mix_box.mix_box.spend(mix_logic_hash, None, Void, own_utxo, tx)
 }
 
@@ -178,8 +180,7 @@ test mix_box_datum_hash_with_well_formed_preimage_takes_recovery_path() {
   // gated this through "needs withdraw-zero", `pairs.has_key` would return
   // False and the spend would reject. With the F-2 fix, the typed-datum
   // walk hits the `_ -> True` arm before any withdrawal lookup.
-  let zero32: ByteArray =
-    #"0000000000000000000000000000000000000000000000000000000000000000"
+  let zero32: ByteArray = #"0000000000000000000000000000000000000000000000000000000000000000"
   let tx = tx_with(DatumHash(zero32), [])
   mix_box.mix_box.spend(mix_logic_hash, None, Void, own_utxo, tx)
 }
@@ -190,8 +191,7 @@ test mix_box_datum_hash_recovery_succeeds_even_when_other_withdrawals_present() 
   // OTHER mix-script input). The DatumHash input here must STILL take the
   // recovery path — it isn't part of the privacy pool, and including the
   // withdrawal doesn't change that.
-  let zero32: ByteArray =
-    #"0000000000000000000000000000000000000000000000000000000000000000"
+  let zero32: ByteArray = #"0000000000000000000000000000000000000000000000000000000000000000"
   let tx = tx_with(DatumHash(zero32), [Pair(Script(mix_logic_hash), 0)])
   mix_box.mix_box.spend(mix_logic_hash, None, Void, own_utxo, tx)
 }

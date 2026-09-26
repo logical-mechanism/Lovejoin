@@ -15,7 +15,7 @@ validators/
   fee_contract.ak        Sharded fee pool. Redeemers: PayMixFee, Replenish.
   *.test.ak              Per-validator positive + negative property tests.
 lib/lovejoin/            Shared helpers (BLS, hash, Fiat-Shamir context, datum types).
-aiken.toml               Pinned to compiler v1.1.21, plutus v3, stdlib v3.1.0.
+aiken.toml               Pinned to compiler v1.1.24, plutus v3, stdlib v4.0.0.
 plutus.json              Compiled blueprint emitted by `aiken build` (committed).
 build.sh                 Stage-1 build: aiken build + emit per-validator artifacts.
 ```
@@ -72,4 +72,4 @@ CI fails if any rule from spec §1-§3 lacks both a positive and a negative test
 
 ## Pinned versions
 
-Aiken `1.1.21` and stdlib `v3.1.0` are pinned in [aiken.toml](aiken.toml). Bumps are deliberate; coordinate via OQ-F.
+Aiken `1.1.24` and stdlib `v4.0.0` are pinned in [aiken.toml](aiken.toml). Bumps are deliberate; coordinate via OQ-F.

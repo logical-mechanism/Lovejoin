@@ -1,6 +1,6 @@
 name = "logical-mechanism/lovejoin"
 version = "0.4.0"
-compiler = "v1.1.21"
+compiler = "v1.1.24"
 plutus = "v3"
 license = "MIT"
 description = "Lovejoin — Sigmajoin privacy mixer on Cardano"
@@ -12,7 +12,7 @@ platform = "github"
 
 [[dependencies]]
 name = "aiken-lang/stdlib"
-version = "v3.1.0"
+version = "v4.0.0"
 source = "github"
 
 # Property-based testing — used by Q-3 (audit F-19) fuzz tests over
