@@ -41,7 +41,7 @@
 #                          configuration mistake, not a feature.
 #
 # Tool deps:
-#   aiken (1.1.21)        — `aiken build`, `aiken blueprint apply`,
+#   aiken (1.1.24)        — `aiken build`, `aiken blueprint apply`,
 #                            `aiken blueprint convert`.
 #   cardano-cli (Conway)  — `cardano-cli conway transaction policyid` to derive
 #                            script hashes from the .plutus files.
@@ -62,7 +62,7 @@ set -euo pipefail
 
 __BOOTSTRAP_DIR="$(cd "$(dirname "$0")" && pwd)"
 __ENV_FILE="$__BOOTSTRAP_DIR/.env"
-[[ -f "$__ENV_FILE" ]] && { set -a; source "$__ENV_FILE"; set +a; }
+[[ "${LOVEJOIN_BOOTSTRAP_SKIP_ENV:-0}" != "1" && -f "$__ENV_FILE" ]] && { set -a; source "$__ENV_FILE"; set +a; }
 # shellcheck source=_lib/network.sh
 source "$__BOOTSTRAP_DIR/_lib/network.sh"
 

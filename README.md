@@ -37,13 +37,13 @@ The full architectural overview is in [ARCHITECTURE.md](ARCHITECTURE.md). The co
 
 Stack:
 
-- **Contracts:** Aiken 1.1.21, Plutus V3, BLS12-381 G1.
+- **Contracts:** Aiken 1.1.24, Plutus V3, BLS12-381 G1.
 - **Off-chain SDK:** TypeScript + mesh + `@noble/curves` (with RFC 6979 deterministic nonces).
 - **Backend indexer:** Node + Fastify + ogmios chainsync (+ optional db-sync for history).
 - **UI:** React 19 + Vite + Tailwind v4 + react-i18next (20 locales).
 - **Reference impl:** Rust + `blst`, used to generate cross-language KAT vectors.
 
-Requirements: **node ≥ 20** (nvm recommended; see node-binary note below), **pnpm 10**, **aiken 1.1.21**.
+Requirements: **node ≥ 20** (nvm recommended; see node-binary note below), **pnpm 10**, **aiken 1.1.24**.
 
 ```sh
 make install        # pnpm install across offchain/, backend/, ui/
@@ -134,6 +134,8 @@ You'll need ~150 ADA on the [Preprod faucet](https://docs.cardano.org/cardano-te
 Full operator playbook (env-var setup, UTxO-layout table, chained-submit details, recovery from common failures): [`infra/bootstrap/README.md`](infra/bootstrap/README.md).
 
 After a clean run, commit `artifacts/preprod/addresses.json`. That's the canonical address book for the network.
+
+For the one-time **mainnet** launch using public Koios instead of a node or Blockfrost key, see [Automated mainnet launch through Koios](infra/bootstrap/README.md#automated-mainnet-launch-through-koios). The launcher writes `artifacts/mainnet/addresses.json` only as stages are confirmed.
 
 ## Reporting issues
 
