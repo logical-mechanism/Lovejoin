@@ -249,27 +249,27 @@ builds and signs locally; Aiken parameterizes the same validators as the
 Preprod ceremony. No node socket, Blockfrost key, or frontend change is needed.
 The existing shell stages above remain the manual Preprod path.
 
-The launcher offers two funding modes. `core` is the smallest supported
-contract deployment: it publishes all three reference scripts, registers the
-mix-logic stake credential, and mints and locks the reference NFT. It creates
-no fee UTxOs. The published fee-contract reference script remains available
-for later shard funding, and the address book records `feeShardUtxos: []`.
+The mainnet launch publishes three reference scripts, registers the mix-logic
+stake credential, and mints and locks the reference NFT. **It never creates or
+funds fee UTxOs.** There is no full-launch option. Mainnet's informational
+`fee_shard_target` is zero and the address book records `feeShardUtxos: []`.
+The fee-contract reference script is published at the launch wallet, alongside
+the other reference scripts; this is not a fee-pool output. The manual
+`03-fund-fee-contract.sh` also refuses mainnet.
+
 Deposits can run without shards. Mixes need the existing wallet-paid fee mode;
 shard-paid mixing and the Mix This Box shortcut require a funded shard pool.
-Wallet-paid fan-out is limited to supported wallets. No frontend files are
-changed by this launcher.
+Wallet-paid fan-out is limited to supported wallets. The launcher does not
+activate mainnet in the frontend.
 
-| Mode             | Minimum to fund | Temporary split                                                         | Value left on chain                                                        |
-| ---------------- | --------------: | ----------------------------------------------------------------------- | -------------------------------------------------------------------------- |
-| `core` (default) |     **105 ADA** | 85 ADA publication and registration, 10 ADA collateral, 7 ADA mint seed | 75 ADA in three reference outputs, 5 ADA with the NFT, 2 ADA stake deposit |
-| `full`           |     **160 ADA** | Core split plus 55 ADA for fee funding                                  | Core outputs plus ten 5 ADA fee shards                                     |
-
-The split totals 102 ADA in core mode and 157 ADA in full mode. The extra
-3 ADA covers the preparation transaction and initial change. Subsequent
-transaction fees come from the split outputs. These are launcher minimums,
-not a claim that the on-chain minimum UTxO cost is exactly 25 ADA per reference
-script. Funding 5 ADA above the chosen minimum gives more headroom. Unspent
-wallet ADA, including released collateral, is returned after confirmation.
+**Fund at least 105 ADA**: 85 ADA for publication and registration, 10 ADA
+collateral, 7 ADA for the mint seed, and 3 ADA for preparation fees and initial
+change. Three 25 ADA reference outputs, the 5 ADA NFT output, and the current
+2 ADA stake deposit remain on chain (82 ADA total). The final sweep sends the
+remaining wallet balance, including the unused collateral, to the return
+address after deducting transaction fees. The 105 ADA requirement is the
+launcher's funding plan; the ledger's minimum output amounts are checked
+against current Koios parameters. Funding 110 ADA provides extra headroom.
 
 The launch has three distinct operator actions:
 
@@ -277,40 +277,76 @@ The launch has three distinct operator actions:
 # 1. When ready to receive funds, create an isolated wallet offline.
 ./infra/bootstrap/koios-launch.py wallet
 
-# 2. Send at least 105 ADA for core, or 160 ADA for full, to its addr1... address.
+# 2. Send at least 105 ADA to its addr1... address, then inspect the balance.
 ./infra/bootstrap/koios-launch.py status
 
-# 3. Only after explicitly deciding to launch, set a return address and mode.
+# 3. Only after explicitly deciding to launch, set the return address.
 LOVEJOIN_MAINNET_CONFIRM=yes ./infra/bootstrap/koios-launch.py launch \
-  --mode core --return-address addr1... --confirm-mainnet-launch
-# Use --mode full for the ten-shard launch.
+  --return-address addr1... --confirm-mainnet-launch
 ```
 
 The wallet command only creates a keypair and mainnet address. Funding it does
 not submit any launch transaction. `launch` is the only command that submits.
 The return address must be a different key-controlled mainnet payment address.
-The launcher pins it and the chosen mode in a private resume journal, so
-reruns cannot redirect funds or change the deployment plan.
+The launcher verifies the signing key and pins both addresses and the contract
+hashes in a private resume journal. A wallet lock prevents concurrent runs.
 
-The launcher waits for two Koios confirmations between stages and verifies the
-reference scripts, NFT plus inline datum, and fee shards before sweeping. It
-keeps signed transactions and its resume journal under gitignored
-`infra/bootstrap/wallets/mainnet-launch/`. If submission or confirmation
-fails, rerun the **same** launch command. Do not create a different wallet or
-remove the journal midway through the ceremony. Before submitting the stake
-registration and NFT mint, it simulates each through Koios's Ogmios evaluator,
-sets execution budgets above the measured costs, and evaluates the final
-signed transaction again. A failed Plutus validation can still consume up to
-2 ADA of collateral.
+Before spending funding, the launcher saves the signed preparation transaction,
+uses its future seed output to compile and parameterize the contracts, and
+checks their hashes and reference-output minimum amounts. It then waits for
+two Koios confirmations between stages, rejects spent outputs, and verifies
+the reference scripts, registered stake credential, NFT and inline datum,
+and final refund. The three reference-script outputs remain at the launch
+wallet; they must stay unspent for the published references to work. Keep the
+launch signing key private because it can spend those outputs.
+
+Signed transactions, evaluation receipts, and the resume journal stay under
+gitignored `infra/bootstrap/wallets/mainnet-launch/`. If submission or
+confirmation fails, rerun the **same** launch command. The journal verifies
+the exact saved transaction before reusing it. Do not create a different
+wallet or remove the journal midway through the ceremony. Before submitting
+the stake registration and NFT mint, the launcher simulates each through
+Koios's Ogmios evaluator, allocates execution budgets above measured costs,
+and checks the final transaction. A saved script transaction is evaluated
+again before resubmission. A failed Plutus validation can consume up to 2 ADA
+of collateral; the launcher checks that amount against the current collateral
+percentage and transaction fee.
 
 After a successful run, review and commit `artifacts/mainnet/addresses.json`
-and the five `artifacts/mainnet/*.plutus` files. `addresses.json` records the
-seed, script hashes, reference NFT, reference-script UTxOs, fee shards, and
-stage transaction IDs and script evaluation results. Never commit the wallet
-directory or signed transactions. Mainnet's immutable reference datum currently uses a 10 ADA
-denomination and 0.8 ADA maximum fee per mix, matching
-`config/network.mainnet.json`; changing those values requires an explicit
-review before launch.
+and the five `artifacts/mainnet/*.plutus` files. The address book records the
+seed, script hashes, reference NFT, reference-script UTxOs, an empty fee-shard
+list, stage transaction IDs, script evaluation results, and the refund address
+and amount. It is created during preflight and updated as stages are confirmed;
+only a completed book contains `deploymentTxs.sweep`. Never commit the wallet
+directory or signed transactions. Mainnet's immutable reference datum uses a
+10 ADA denomination and 0.8 ADA maximum fee per mix, matching
+`config/network.mainnet.json`.
+
+### Launch validation without submission
+
+The offline safety tests cover submission guards, spent outputs, failed
+preflight, journal integrity, concurrent launches, and evaluator failures:
+
+```sh
+python3 -m unittest discover -s infra/bootstrap -p 'test_koios_launch.py'
+```
+
+An optional rehearsal uses actual Aiken and cardano-cli, current mainnet
+protocol parameters, and read-only Koios evaluation. It creates temporary test
+keys and fictitious inputs in an isolated copy, intercepts every submission,
+and simulates an interruption after each accepted stage before resuming.
+HTTP access is restricted to parameter queries and script evaluation. It
+checks transaction balance, collateral, output sizes, empty fee funding, and
+the final refund:
+
+```sh
+LOVEJOIN_KOIOS_REHEARSAL=1 python3 -m unittest discover -s infra/bootstrap \
+  -p 'test_koios_rehearsal.py'
+```
+
+This rehearsal does not broadcast transactions or generate a real launch
+wallet. Ogmios evaluation checks Plutus execution; it does not execute every
+ledger rule, so the rehearsal cannot guarantee future transaction acceptance.
 
 ## Practice run
 

@@ -38,6 +38,11 @@ __ENV_FILE="$__BOOTSTRAP_DIR/.env"
 # shellcheck source=_lib/network.sh
 source "$__BOOTSTRAP_DIR/_lib/network.sh"
 
+if [[ "$NETWORK" == "mainnet" ]]; then
+  echo "Mainnet launch does not create or fund fee UTxOs." >&2
+  exit 1
+fi
+
 BOOTSTRAP_ADDR="${BOOTSTRAP_ADDR:?}"
 PAYMENT_SKEY="${PAYMENT_SKEY:?}"
 FUNDING_STAGE3="${FUNDING_STAGE3:?FUNDING_STAGE3 required (run ./balance.sh to see the four export lines)}"

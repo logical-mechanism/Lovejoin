@@ -62,6 +62,11 @@ __ENV_FILE="$__BOOTSTRAP_DIR/.env"
 # shellcheck source=_lib/network.sh
 source "$__BOOTSTRAP_DIR/_lib/network.sh"
 
+if [[ "$NETWORK" == "mainnet" ]]; then
+  echo "Use koios-launch.py for mainnet; this manual split reserves fee-pool funding." >&2
+  exit 1
+fi
+
 BOOTSTRAP_ADDR="${BOOTSTRAP_ADDR:?BOOTSTRAP_ADDR required}"
 PAYMENT_SKEY="${PAYMENT_SKEY:?PAYMENT_SKEY required}"
 

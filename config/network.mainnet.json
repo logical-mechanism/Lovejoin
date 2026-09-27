@@ -4,7 +4,7 @@
   "max_fee_per_mix_lovelace": 800000,
   "max_n_shard": 3,
   "max_n_wallet": 4,
-  "fee_shard_target": 10,
+  "fee_shard_target": 0,
   "min_mix_rounds": 5,
   "default_mix_rounds": 30,
   "mix_script_hash": null,

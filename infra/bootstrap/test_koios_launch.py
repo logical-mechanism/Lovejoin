@@ -25,17 +25,89 @@ class LaunchSafetyTests(unittest.TestCase):
                     launch.launch("addr1placeholder", False)
             validate.assert_not_called()
 
-    def test_resume_rejects_changed_funding_mode(self):
+    def test_resume_rejects_old_fee_funding_journal(self):
         with tempfile.TemporaryDirectory() as directory:
             state_path = Path(directory) / "launch-state.json"
             state_path.write_text('{"network":"mainnet","mode":"full",'
                                   '"returnAddress":"addr1return","stages":{}}')
             with patch.object(launch, "STATE", state_path), \
+                 patch.object(launch, "WALLET", Path(directory)), \
                  patch.object(launch, "wallet_address", return_value="addr1launch"), \
                  patch.object(launch, "validate_mainnet_address"), \
                  patch.dict("os.environ", {"LOVEJOIN_MAINNET_CONFIRM": "yes"}):
-                with self.assertRaisesRegex(launch.LaunchError, "mode differs"):
-                    launch.launch("addr1return", True, "core")
+                with self.assertRaisesRegex(launch.LaunchError, "without fee UTxOs"):
+                    launch.launch("addr1return", True)
+
+    def test_spent_utxo_is_not_accepted_as_spendable(self):
+        row = {"tx_hash": "a" * 64, "tx_index": 0, "is_spent": True}
+        with patch.object(launch, "koios", return_value=[row]):
+            with self.assertRaisesRegex(launch.LaunchError, "is spent"):
+                launch.utxo("a" * 64 + "#0")
+            self.assertEqual(launch.utxo("a" * 64 + "#0", require_unspent=False), row)
+
+    def test_evaluator_retries_json_rpc_unknown_inputs(self):
+        with tempfile.TemporaryDirectory() as directory:
+            signed = Path(directory) / "tx.signed"
+            signed.write_text('{"cborHex":"80"}')
+            responses = [{"error": {"code": 3010, "message": "Unknown transaction inputs"}},
+                         {"result": [{"validator": {"purpose": "mint", "index": 0},
+                                      "budget": {"cpu": 10000, "memory": 1000}}]}]
+            with patch.object(launch, "koios", side_effect=responses) as request, \
+                 patch.object(launch.time, "sleep"):
+                self.assertEqual(launch.evaluate_tx(signed, "mint:0"), (10000, 1000))
+                self.assertEqual(request.call_count, 2)
+            with patch.object(launch, "koios", return_value={"error": {"message": "Script failed"}}) as request:
+                with self.assertRaises(launch.LaunchError):
+                    launch.evaluate_tx(signed, "mint:0")
+                self.assertEqual(request.call_count, 1)
+
+    def test_included_transaction_is_not_resubmitted(self):
+        with patch.object(launch, "prepare_stage", return_value="a" * 64), \
+             patch.object(launch, "status", return_value=1), \
+             patch.object(launch, "submit") as submit, \
+             patch.object(launch, "await_confirmed") as confirm:
+            self.assertEqual(launch.run_stage({"stages": {}}, "prep", None), "a" * 64)
+            submit.assert_not_called()
+            confirm.assert_called_once_with("a" * 64)
+
+    def test_changed_signed_file_is_rejected_on_resume(self):
+        with tempfile.TemporaryDirectory() as directory:
+            wallet = Path(directory)
+            signed = wallet / "prep.tx"
+            signed.write_text('{"cborHex":"80"}')
+            state = {"stages": {}}
+            with patch.object(launch, "STATE", wallet / "state.json"), \
+                 patch.object(launch, "cli", return_value="a" * 64):
+                launch.prepare_stage(state, "prep", lambda: (signed, "a" * 64))
+                signed.write_text('{"cborHex":"81"}')
+                with self.assertRaisesRegex(launch.LaunchError, "differs from resume journal"):
+                    launch.prepare_stage(state, "prep", None)
+
+    def test_compile_failure_happens_before_any_submission(self):
+        with tempfile.TemporaryDirectory() as directory:
+            wallet = Path(directory)
+            signed = wallet / "prep.tx"
+            signed.write_text('{"cborHex":"80"}')
+            with patch.object(launch, "WALLET", wallet), \
+                 patch.object(launch, "STATE", wallet / "state.json"), \
+                 patch.object(launch, "BOOK", wallet / "addresses.json"), \
+                 patch.object(launch, "protocol_params", return_value={}), \
+                 patch.object(launch, "address_utxos", return_value=[{"value": "105000000"}]), \
+                 patch.object(launch, "build_tx", return_value=(signed, "a" * 64)), \
+                 patch.object(launch, "cli", return_value="a" * 64), \
+                 patch.object(launch, "prepare_book", side_effect=launch.LaunchError("Compile failed")), \
+                 patch.object(launch, "submit") as submit:
+                with self.assertRaisesRegex(launch.LaunchError, "Compile failed"):
+                    launch.launch_locked("addr1return", "addr1launch")
+                submit.assert_not_called()
+
+    def test_second_launch_cannot_acquire_wallet_lock(self):
+        with tempfile.TemporaryDirectory() as directory, \
+             patch.object(launch, "WALLET", Path(directory)):
+            with launch.launch_lock():
+                with self.assertRaisesRegex(launch.LaunchError, "Another mainnet launch"):
+                    with launch.launch_lock():
+                        self.fail("Second process must not acquire the lock")
 
     def test_evaluator_result_requires_expected_redeemer(self):
         with tempfile.TemporaryDirectory() as directory:

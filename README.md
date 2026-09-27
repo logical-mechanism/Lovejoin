@@ -135,7 +135,7 @@ Full operator playbook (env-var setup, UTxO-layout table, chained-submit details
 
 After a clean run, commit `artifacts/preprod/addresses.json`. That's the canonical address book for the network.
 
-For the one-time **mainnet** launch using public Koios instead of a node or Blockfrost key, see [Automated mainnet launch through Koios](infra/bootstrap/README.md#automated-mainnet-launch-through-koios). The launcher writes `artifacts/mainnet/addresses.json` only as stages are confirmed.
+For the one-time **mainnet** launch using public Koios instead of a node or Blockfrost key, see [Automated mainnet launch through Koios](infra/bootstrap/README.md#automated-mainnet-launch-through-koios). The launcher prepares `artifacts/mainnet/addresses.json`, updates it as stages confirm, and leaves the fee pool empty.
 
 ## Reporting issues
 

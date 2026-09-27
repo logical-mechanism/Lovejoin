@@ -8,6 +8,9 @@ private wallet, signed transactions, and resume journal stay gitignored.
 from __future__ import annotations
 
 import argparse
+from contextlib import contextmanager
+import fcntl
+import hashlib
 import json
 import os
 from pathlib import Path
@@ -27,13 +30,10 @@ STATE = WALLET / "launch-state.json"
 CONFIG = ROOT / "config" / "network.mainnet.json"
 KOIOS = "https://api.koios.rest/api/v1"
 ASSET_NAME = "6c6f76656a6f696e"
-CORE_SPLIT = (85_000_000, 10_000_000, 7_000_000)
-FULL_SPLIT = CORE_SPLIT + (55_000_000,)
+SPLIT = (85_000_000, 10_000_000, 7_000_000)
 PUBLISH_LOVELACE = 25_000_000
 LOCKED_LOVELACE = 5_000_000
-SHARD_LOVELACE = 5_000_000
-SHARD_COUNT = 10
-MIN_LAUNCH_LOVELACE = {"core": 105_000_000, "full": 160_000_000}
+MIN_LAUNCH_LOVELACE = 105_000_000
 CONFIRM_TIMEOUT = 900
 
 
@@ -130,12 +130,14 @@ def address_utxos(address: str) -> list[dict]:
     return rows
 
 
-def utxo(ref: str, wait: bool = False) -> dict:
+def utxo(ref: str, wait: bool = False, require_unspent: bool = True) -> dict:
     deadline = time.monotonic() + (120 if wait else 0)
     while True:
         rows = koios("/utxo_info", {"_utxo_refs": [ref], "_extended": True})
         for row in rows:
             if f"{row.get('tx_hash')}#{row.get('tx_index')}" == ref:
+                if require_unspent and row.get("is_spent") is not False:
+                    raise LaunchError(f"Expected unspent UTxO is spent or status is unknown: {ref}")
                 return row
         if time.monotonic() >= deadline:
             raise LaunchError(f"Expected unspent UTxO missing from Koios: {ref}")
@@ -156,6 +158,11 @@ def wallet_address() -> str:
     if not (WALLET / "payment.skey").is_file() or not (WALLET / "payment.vkey").is_file() or not addr_file.is_file():
         raise LaunchError("Launch wallet missing; run `koios-launch.py wallet` locally first")
     address = addr_file.read_text().strip()
+    derived_key = WALLET / "derived-payment.vkey"
+    cli("key", "verification-key", "--signing-key-file", str(WALLET / "payment.skey"),
+        "--verification-key-file", str(derived_key))
+    if read_json(derived_key)["cborHex"] != read_json(WALLET / "payment.vkey")["cborHex"]:
+        raise LaunchError("Launch signing key does not match its verification key")
     derived = cli("address", "build", "--payment-verification-key-file",
                   str(WALLET / "payment.vkey"), "--mainnet")
     if address != derived:
@@ -198,7 +205,7 @@ def protocol_params() -> dict:
         raise LaunchError("Koios cli_protocol_params returned an unexpected response")
     required = ("costModels", "executionUnitPrices", "maxTxExecutionUnits",
                 "stakeAddressDeposit", "txFeeFixed", "txFeePerByte",
-                "utxoCostPerByte", "minFeeRefScriptCostPerByte")
+                "utxoCostPerByte", "minFeeRefScriptCostPerByte", "collateralPercentage", "maxTxSize")
     if any(p.get(field) is None for field in required):
         raise LaunchError("Koios cli_protocol_params lacks a required field")
     if not isinstance(p["costModels"].get("PlutusV3"), list):
@@ -214,15 +221,16 @@ def evaluate_tx(signed: Path, expected_validator: str) -> tuple[int, int]:
     for attempt in range(6):
         try:
             response = koios("/ogmios", request)
+            if not isinstance(response, dict) or response.get("error"):
+                raise LaunchError(f"Koios Ogmios evaluation failed: {response}")
             break
         except LaunchError as exc:
-            # Koios's indexer and Ogmios instances can see a new UTxO at
-            # slightly different times after confirmation.
-            if "Unknown transaction input" not in str(exc) or attempt == 5:
+            # Errors may arrive as JSON-RPC errors with HTTP 200 or HTTP 4xx.
+            detail = str(exc).lower()
+            if not any(marker in detail for marker in (
+                    "unknown transaction input", "unknowninputs", "unknown inputs")) or attempt == 5:
                 raise
             time.sleep(10)
-    if not isinstance(response, dict) or response.get("error"):
-        raise LaunchError(f"Koios Ogmios evaluation failed: {response}")
     result = response.get("result")
     if not isinstance(result, list) or len(result) != 1 or not isinstance(result[0], dict):
         raise LaunchError(f"Koios Ogmios returned unexpected redeemers: {result}")
@@ -258,6 +266,7 @@ def build_evaluated_tx(name: str, expected_validator: str, inputs: list[dict],
         used_cpu, used_memory = evaluate_tx(signed, expected_validator)
         if assigned_cpu >= used_cpu and assigned_memory >= used_memory:
             atomic_json(WALLET / f"{name}.evaluation.json", {
+                "txid": txid,
                 "validator": expected_validator,
                 "used": {"steps": used_cpu, "memory": used_memory},
                 "assigned": {"steps": assigned_cpu, "memory": assigned_memory},
@@ -306,6 +315,7 @@ def build_tx(name: str, inputs: list[dict], fixed: list[tuple[str, int, tuple[st
              ref_script_size: int = 0) -> tuple[Path, str]:
     if not inputs:
         raise LaunchError(f"{name}: no funding inputs")
+    params = read_json(WALLET / "protocol.json")
     fixed_total = sum(x[1] for x in fixed)
     total = sum(amount(row) for row in inputs)
     txraw = WALLET / f"{name}.txraw"
@@ -336,35 +346,74 @@ def build_tx(name: str, inputs: list[dict], fixed: list[tuple[str, int, tuple[st
         fee = adjusted
     else:
         raise LaunchError(f"{name}: fee did not converge")
+    if extra and "--tx-total-collateral" in extra:
+        provided = int(extra[extra.index("--tx-total-collateral") + 1])
+        required = (fee * int(params["collateralPercentage"]) + 99) // 100
+        if provided < required:
+            raise LaunchError(f"{name}: collateral {provided} is below required {required}")
     cli("transaction", "sign", "--tx-body-file", str(txraw),
         "--signing-key-file", str(WALLET / "payment.skey"), "--mainnet",
         "--out-file", str(signed))
+    if len(bytes.fromhex(read_json(signed)["cborHex"])) > int(params["maxTxSize"]):
+        raise LaunchError(f"{name}: signed transaction exceeds current maximum size")
     txid = re.search(r"[a-f0-9]{64}", cli("transaction", "txid", "--tx-file", str(signed)))
     if not txid:
         raise LaunchError(f"{name}: cardano-cli returned no transaction id")
     return signed, txid.group()
 
 
-def run_stage(state: dict, name: str, builder) -> str:
+def prepare_stage(state: dict, name: str, builder) -> str:
+    """Persist an exact signed transaction before any submission or seed use."""
     stages = state["stages"]
     if name not in stages:
         signed, txid = builder()
-        stages[name] = {"txid": txid, "signed": str(signed)}
+        stages[name] = {"txid": txid, "signed": str(signed),
+                        "signedSha256": hashlib.sha256(signed.read_bytes()).hexdigest()}
         atomic_json(STATE, state, private=True)
     record = stages[name]
-    txid = record["txid"]
-    saved_txid = re.search(r"[a-f0-9]{64}", cli("transaction", "txid", "--tx-file", record["signed"]))
-    if not saved_txid or saved_txid.group() != txid:
-        raise LaunchError(f"{name}: saved signed transaction does not match resume journal")
+    signed = Path(record["signed"])
+    if record.get("signedSha256") != hashlib.sha256(signed.read_bytes()).hexdigest():
+        raise LaunchError(f"{name}: saved signed transaction differs from resume journal")
+    saved_txid = re.search(r"[a-f0-9]{64}", cli("transaction", "txid", "--tx-file", str(signed)))
+    if not saved_txid or saved_txid.group() != record["txid"]:
+        raise LaunchError(f"{name}: saved transaction ID differs from resume journal")
+    return record["txid"]
+
+
+def run_stage(state: dict, name: str, builder) -> str:
+    txid = prepare_stage(state, name, builder)
     print(f"{name}: {txid}", flush=True)
-    if status(txid) < 2:
+    confirmations = status(txid)
+    if confirmations == 0:
+        if name in ("register", "mint"):
+            # A saved transaction can outlive a protocol-parameter update.
+            # Re-evaluate on resume and require its existing assigned budget.
+            receipt = read_json(WALLET / f"{name}.evaluation.json")
+            if receipt.get("txid") != txid:
+                raise LaunchError(f"{name}: evaluation receipt differs from signed transaction")
+            used_cpu, used_memory = evaluate_tx(Path(state["stages"][name]["signed"]), receipt["validator"])
+            if used_cpu > receipt["assigned"]["steps"] or used_memory > receipt["assigned"]["memory"]:
+                raise LaunchError(f"{name}: saved execution budget is insufficient; submission stopped")
         try:
-            submit(Path(record["signed"]), txid)
+            submit(Path(state["stages"][name]["signed"]), txid)
         except LaunchError as exc:
             if status(txid) == 0:
                 raise LaunchError(f"{exc}; signed transaction retained for resume") from exc
+    if confirmations < 2:
         await_confirmed(txid)
     return txid
+
+
+def verify_registration(stake_address: str) -> None:
+    deadline = time.monotonic() + 120
+    while True:
+        rows = koios("/account_info", {"_stake_addresses": [stake_address]})
+        if any(row.get("stake_address") == stake_address and row.get("status") == "registered"
+               for row in rows):
+            return
+        if time.monotonic() >= deadline:
+            raise LaunchError("Mix-logic stake credential is not registered in Koios")
+        time.sleep(5)
 
 
 def script_address(name: str) -> str:
@@ -374,7 +423,8 @@ def script_address(name: str) -> str:
 def verify_ref(ref: str, expected_hash: str, expected_addr: str) -> None:
     row = utxo(ref, wait=True)
     script = row.get("reference_script") or {}
-    if row.get("address") != expected_addr or script.get("hash") != expected_hash:
+    if (row.get("address") != expected_addr or script.get("hash") != expected_hash
+            or script.get("type") != "plutusV3" or amount(row) != PUBLISH_LOVELACE):
         raise LaunchError(f"Reference script UTxO {ref} does not match expected address/hash")
 
 
@@ -382,7 +432,7 @@ def prepare_book(seed: str) -> dict:
     config = read_json(CONFIG)
     if config["network"] != "mainnet":
         raise LaunchError("config/network.mainnet.json is not mainnet")
-    if config["denom_lovelace"] != 10_000_000 or config["max_fee_per_mix_lovelace"] != 800_000 or config["fee_shard_target"] != 10:
+    if config["denom_lovelace"] != 10_000_000 or config["max_fee_per_mix_lovelace"] != 800_000 or config["fee_shard_target"] != 0:
         raise LaunchError("Mainnet config changed; review immutable protocol parameters before launch")
     if BOOK.exists():
         book = read_json(BOOK)
@@ -402,7 +452,9 @@ def prepare_book(seed: str) -> dict:
     atomic_json(BOOK, book)
     env = os.environ.copy()
     env.update({"NETWORK": "mainnet", "LOVEJOIN_MAINNET_CONFIRM": "yes",
-                "LOVEJOIN_BOOTSTRAP_SKIP_ENV": "1", "SEED": seed})
+                "LOVEJOIN_BOOTSTRAP_SKIP_ENV": "1", "SEED": seed,
+                "REF_NFT_ASSET_NAME": ASSET_NAME})
+    env.pop("LOVEJOIN_BOOTSTRAP_NETWORK_LIB", None)
     print("Compiling and parameterizing mainnet validators", flush=True)
     subprocess.run([str(BOOTSTRAP / "00-build-reference.sh")], cwd=ROOT, env=env, check=True)
     return read_json(BOOK)
@@ -421,52 +473,66 @@ def select_sweep_inputs(rows: list[dict], protected: set[str]) -> list[dict]:
     return spendable
 
 
-def launch(return_address: str, confirmed: bool, mode: str = "core") -> None:
+@contextmanager
+def launch_lock():
+    # Two processes could otherwise overwrite the same signed stage files.
+    with open(WALLET / "launch.lock", "a", encoding="utf-8") as lock:
+        try:
+            fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except BlockingIOError as exc:
+            raise LaunchError("Another mainnet launch process holds the wallet lock") from exc
+        try:
+            yield
+        finally:
+            fcntl.flock(lock, fcntl.LOCK_UN)
+
+
+def launch(return_address: str, confirmed: bool) -> None:
     if not confirmed or os.environ.get("LOVEJOIN_MAINNET_CONFIRM") != "yes":
         raise LaunchError("Launch requires --confirm-mainnet-launch and LOVEJOIN_MAINNET_CONFIRM=yes")
-    if mode not in MIN_LAUNCH_LOVELACE:
-        raise LaunchError(f"Unknown launch mode: {mode}")
-    split = CORE_SPLIT if mode == "core" else FULL_SPLIT
     validate_mainnet_address(return_address)
     address = wallet_address()
     if return_address == address:
         raise LaunchError("Return address must differ from the one-time launch wallet")
+    with launch_lock():
+        launch_locked(return_address, address)
+
+
+def launch_locked(return_address: str, address: str) -> None:
     if STATE.exists():
         state = read_json(STATE)
         if state.get("returnAddress") != return_address:
             raise LaunchError("Return address differs from saved launch journal; refusing to resume")
-        if state.get("mode") != mode:
-            raise LaunchError("Launch mode differs from saved launch journal; refusing to resume")
+        if (state.get("network") != "mainnet" or state.get("mode") != "core"
+                or state.get("walletAddress") != address or "shards" in state.get("stages", {})):
+            raise LaunchError("Saved journal does not describe this wallet's launch without fee UTxOs")
     else:
         if BOOK.exists() and read_json(BOOK).get("referenceUtxoRef"):
             raise LaunchError("Mainnet address book already contains a deployment")
-        state = {"network": "mainnet", "mode": mode, "returnAddress": return_address, "stages": {}}
+        state = {"network": "mainnet", "mode": "core", "walletAddress": address,
+                 "returnAddress": return_address, "stages": {}}
         atomic_json(STATE, state, private=True)
     params = protocol_params()
     stages = state["stages"]
     if "prep" not in stages:
         initial = address_utxos(address)
         total = sum(amount(row) for row in initial)
-        minimum = MIN_LAUNCH_LOVELACE[mode]
-        if total < minimum:
-            raise LaunchError(f"Fund at least {minimum / 1_000_000:.0f} ADA for {mode} launch; found {total / 1_000_000:.6f}")
+        if total < MIN_LAUNCH_LOVELACE:
+            raise LaunchError(f"Fund at least {MIN_LAUNCH_LOVELACE / 1_000_000:.0f} ADA before launch; found {total / 1_000_000:.6f}")
         if any(row.get("reference_script") for row in initial):
             raise LaunchError("Launch wallet already contains reference scripts")
         def build_prep():
-            fixed = [(address, value, None, "") for value in split]
+            fixed = [(address, value, None, "") for value in SPLIT]
             return build_tx("prep", initial, fixed, address)
-        prep_tx = run_stage(state, "prep", build_prep)
+        prep_tx = prepare_stage(state, "prep", build_prep)
     else:
-        prep_tx = run_stage(state, "prep", lambda: (_ for _ in ()).throw(AssertionError()))
-    prep_refs = [f"{prep_tx}#{i}" for i in range(len(split))]
-    for i, expected in enumerate(split):
-        # Earlier stage inputs may already be spent on resume.
-        if ((i == 1 and "sweep" not in stages) or (i == 0 and "publish_mix_box" not in stages)
-                or (i == 2 and "mint" not in stages) or (i == 3 and "shards" not in stages)):
-            row = utxo(prep_refs[i], wait=True)
-            if int(row["value"]) != expected or row["address"] != address:
-                raise LaunchError(f"Unexpected preparation output at {prep_refs[i]}")
+        prep_tx = prepare_stage(state, "prep", lambda: (_ for _ in ()).throw(AssertionError()))
+    prep_refs = [f"{prep_tx}#{i}" for i in range(len(SPLIT))]
+    # Compilation, parameters and output minima are checked BEFORE spending
+    # any funding. The saved prep body already fixes the future mint seed.
     book = prepare_book(prep_refs[2])
+    if book.get("feeShardUtxos") or book.get("deploymentTxs", {}).get("shards"):
+        raise LaunchError("Mainnet launch must not contain fee UTxOs")
     for field in ("referenceNftPolicy", "referenceNftAssetName", "referenceHolderScriptHash",
                   "mixLogicScriptHash", "mixBoxScriptHash", "feeScriptHash"):
         if not book.get(field):
@@ -484,7 +550,25 @@ def launch(return_address: str, confirmed: bool, mode: str = "core") -> None:
         actual = cli("transaction", "policyid", "--script-file", str(ARTIFACTS / f"{script}.plutus"))
         if actual != book[field]:
             raise LaunchError(f"{script} bytecode hash differs from mainnet address book")
+    hashes = {field: book[field] for field in ("referenceHolderScriptHash", "referenceNftPolicy",
+              "mixLogicScriptHash", "mixBoxScriptHash", "feeScriptHash")}
+    if state.get("scriptHashes", hashes) != hashes:
+        raise LaunchError("Contract hashes differ from the saved launch journal")
+    state["scriptHashes"] = hashes
+    atomic_json(STATE, state, private=True)
+    for script in ("mix_box", "mix_logic", "fee_contract"):
+        check_min_utxo(address, PUBLISH_LOVELACE,
+                       ("--tx-out-reference-script-file", str(ARTIFACTS / f"{script}.plutus")))
+    run_stage(state, "prep", lambda: (_ for _ in ()).throw(AssertionError()))
+    for i, expected in enumerate(SPLIT):
+        # Saved downstream stages may already have consumed these outputs.
+        if ((i == 1 and "sweep" not in stages) or (i == 0 and "publish_mix_box" not in stages)
+                or (i == 2 and "mint" not in stages)):
+            row = utxo(prep_refs[i], wait=True)
+            if amount(row) != expected or row["address"] != address or row.get("reference_script"):
+                raise LaunchError(f"Unexpected preparation output at {prep_refs[i]}")
     book.setdefault("deploymentTxs", {})["prep"] = prep_tx
+    book["feeShardUtxos"] = []
     save_book(book)
 
     previous = prep_refs[0]
@@ -523,6 +607,9 @@ def launch(return_address: str, confirmed: bool, mode: str = "core") -> None:
                                   [], address, extra_for_budget, params,
                                   params["stakeAddressDeposit"], logic_size)
     register_tx = run_stage(state, "register", build_register)
+    stake_addr = cli("stake-address", "build", "--stake-script-file",
+                     str(ARTIFACTS / "mix_logic.plutus"), "--mainnet")
+    verify_registration(stake_addr)
     book["mixLogicRegisterTx"] = register_tx
     book["deploymentTxs"]["register"] = register_tx
     book.setdefault("scriptEvaluation", {})["register"] = read_json(WALLET / "register.evaluation.json")
@@ -555,7 +642,8 @@ def launch(return_address: str, confirmed: bool, mode: str = "core") -> None:
     nft_ref = f"{mint_tx}#0"
     nft = utxo(nft_ref, wait=True)
     assets = nft.get("asset_list") or []
-    if nft.get("address") != holder_addr or not any(
+    if (nft.get("address") != holder_addr or int(nft["value"]) != LOCKED_LOVELACE
+            or nft.get("reference_script") or len(assets) != 1) or not any(
         a.get("policy_id") == book["referenceNftPolicy"] and a.get("asset_name") == ASSET_NAME
         and int(a.get("quantity", 0)) == 1 for a in assets
     ) or (nft.get("inline_datum") or {}).get("value") != datum:
@@ -565,36 +653,24 @@ def launch(return_address: str, confirmed: bool, mode: str = "core") -> None:
     book.setdefault("scriptEvaluation", {})["mint"] = read_json(WALLET / "mint.evaluation.json")
     save_book(book)
 
-    if mode == "full":
-        fee_addr = script_address("fee_contract")
-        unit_file = WALLET / "unit_datum.json"
-        atomic_json(unit_file, {"constructor": 0, "fields": []}, private=True)
-        def build_shards():
-            fixed = [(fee_addr, SHARD_LOVELACE,
-                      ("--tx-out-inline-datum-file", str(unit_file)), "") for _ in range(SHARD_COUNT)]
-            return build_tx("shards", [utxo(prep_refs[3], wait=True)], fixed, address)
-        shards_tx = run_stage(state, "shards", build_shards)
-        shard_refs = [f"{shards_tx}#{i}" for i in range(SHARD_COUNT)]
-        for ref in shard_refs:
-            shard = utxo(ref, wait=True)
-            if shard.get("address") != fee_addr or int(shard["value"]) != SHARD_LOVELACE or (shard.get("inline_datum") or {}).get("value") != {"constructor": 0, "fields": []}:
-                raise LaunchError(f"Fee shard verification failed: {ref}")
-        book["feeShardUtxos"] = shard_refs
-        book["deploymentTxs"]["shards"] = shards_tx
-        save_book(book)
-
-    else:
-        book["feeShardUtxos"] = []
-        save_book(book)
-
     protected = set(book["referenceScriptUtxos"].values())
     def build_sweep():
         spendable = select_sweep_inputs(address_utxos(address), protected)
         return build_tx("sweep", spendable, [], return_address)
     sweep_tx = run_stage(state, "sweep", build_sweep)
-    remaining = [row for row in address_utxos(address) if ref_of(row) not in protected]
-    if remaining:
-        raise LaunchError(f"Sweep confirmed but {len(remaining)} spendable wallet UTxOs remain")
+    refund = utxo(f"{sweep_tx}#0", wait=True, require_unspent=False)
+    if refund["address"] != return_address or refund.get("reference_script"):
+        raise LaunchError("Confirmed refund does not match return address")
+    refunded = amount(refund)
+    deadline = time.monotonic() + 120
+    while True:
+        remaining = [row for row in address_utxos(address) if ref_of(row) not in protected]
+        if not remaining:
+            break
+        if time.monotonic() >= deadline:
+            raise LaunchError(f"Sweep confirmed but {len(remaining)} spendable wallet UTxOs remain")
+        time.sleep(5)
+    book["refund"] = {"address": return_address, "lovelace": refunded, "utxoRef": f"{sweep_tx}#0"}
     book["deploymentTxs"]["sweep"] = sweep_tx
     save_book(book)
     print(f"Mainnet launch complete. Canonical address book: {BOOK}")
@@ -609,8 +685,6 @@ def main() -> None:
     sub.add_parser("status", help="read mainnet launch wallet balance via Koios")
     launch_parser = sub.add_parser("launch", help="submit/resume the mainnet bootstrap")
     launch_parser.add_argument("--return-address", required=True)
-    launch_parser.add_argument("--mode", choices=("core", "full"), default="core",
-                               help="core omits fee shards (105 ADA); full funds ten (160 ADA)")
     launch_parser.add_argument("--confirm-mainnet-launch", action="store_true")
     args = parser.parse_args()
     if args.command == "wallet":
@@ -618,12 +692,12 @@ def main() -> None:
     elif args.command == "status":
         show_status()
     else:
-        launch(args.return_address, args.confirm_mainnet_launch, args.mode)
+        launch(args.return_address, args.confirm_mainnet_launch)
 
 
 if __name__ == "__main__":
     try:
         main()
-    except (LaunchError, subprocess.CalledProcessError, ValueError, KeyError) as exc:
+    except (LaunchError, subprocess.CalledProcessError, ValueError, KeyError, OSError) as exc:
         print(f"koios-launch: {exc}", file=sys.stderr)
         sys.exit(1)

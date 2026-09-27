@@ -54,6 +54,9 @@ jobs:
         working-directory: contracts
         run: aiken check
 
+      - name: Mainnet launcher safety tests (offline)
+        run: python3 -m unittest discover -s infra/bootstrap -p 'test_koios_launch.py'
+
   lint:
     name: TS (eslint + prettier + tsc)
     runs-on: ubuntu-latest
