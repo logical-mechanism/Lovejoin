@@ -20,7 +20,7 @@ source = "github"
 # contracts/lib/lovejoin/*_fuzz.test.ak.
 [[dependencies]]
 name = "aiken-lang/fuzz"
-version = "v2.2.0"
+version = "v3.0.0"
 source = "github"
 
 [config]
