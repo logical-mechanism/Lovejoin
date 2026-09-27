@@ -14,11 +14,11 @@ If you want destination anonymity (the address you withdraw to should also be un
 
 ## Try it
 
-Lovejoin is **live on Cardano Preprod** with a mainnet deployment of the same contracts in preparation. The hosted UI ships at **preprod.lovejo.in** for the current testnet pool and **lovejo.in** for the upcoming mainnet pool. To run the UI locally against the live Preprod deployment, see the **Develop** section below.
+Lovejoin's contracts are **live on Cardano mainnet and Preprod**. Both networks run the same validator source; mainnet was compiled with a newer Aiken toolchain, so its script hashes differ. The canonical address books are [`artifacts/mainnet/addresses.json`](artifacts/mainnet/addresses.json) and [`artifacts/preprod/addresses.json`](artifacts/preprod/addresses.json). The hosted UI serves the testnet pool at **preprod.lovejo.in**; **lovejo.in** is where the mainnet pool will be served. To run the UI locally against the live Preprod deployment, see the **Develop** section below.
 
 The protocol is live, the validators are deployed, and the contracts cannot be changed. Three operations:
 
-1. **Deposit.** Lock a fixed-denomination ADA UTxO into the pool. Each deposit also tops up a shared on-chain fee shard so future mix rounds pay for themselves.
+1. **Deposit.** Lock a fixed-denomination ADA UTxO into the pool. Where a shared on-chain fee pool exists, each deposit also tops up a fee shard so future mix rounds pay for themselves. Mainnet launched with an empty fee pool, so mixes there are wallet-paid until someone funds shards.
 2. **Mix.** Re-randomise N pool boxes at once into N new indistinguishable ones (`2 ≤ N`, with the practical cap calibrated empirically). Anyone can run a mix; no submitter wallet input or signature is required.
 3. **Withdraw.** The original depositor pulls funds out of the pool with a Schnorr proof. No long-lived signing key for the box; the proof is the spend authorisation.
 
@@ -37,13 +37,13 @@ The full architectural overview is in [ARCHITECTURE.md](ARCHITECTURE.md). The co
 
 Stack:
 
-- **Contracts:** Aiken 1.1.21, Plutus V3, BLS12-381 G1.
+- **Contracts:** Aiken 1.1.24, Plutus V3, BLS12-381 G1.
 - **Off-chain SDK:** TypeScript + mesh + `@noble/curves` (with RFC 6979 deterministic nonces).
 - **Backend indexer:** Node + Fastify + ogmios chainsync (+ optional db-sync for history).
 - **UI:** React 19 + Vite + Tailwind v4 + react-i18next (20 locales).
 - **Reference impl:** Rust + `blst`, used to generate cross-language KAT vectors.
 
-Requirements: **node ≥ 20** (nvm recommended; see node-binary note below), **pnpm 10**, **aiken 1.1.21**.
+Requirements: **node ≥ 20** (nvm recommended; see node-binary note below), **pnpm 10**, **aiken 1.1.24**.
 
 ```sh
 make install        # pnpm install across offchain/, backend/, ui/
@@ -134,6 +134,8 @@ You'll need ~150 ADA on the [Preprod faucet](https://docs.cardano.org/cardano-te
 Full operator playbook (env-var setup, UTxO-layout table, chained-submit details, recovery from common failures): [`infra/bootstrap/README.md`](infra/bootstrap/README.md).
 
 After a clean run, commit `artifacts/preprod/addresses.json`. That's the canonical address book for the network.
+
+Mainnet was launched once, on 2026-09-26, through public Koios instead of a node or Blockfrost key; see [Automated mainnet launch through Koios](infra/bootstrap/README.md#automated-mainnet-launch-through-koios). Its canonical address book is [`artifacts/mainnet/addresses.json`](artifacts/mainnet/addresses.json), and its fee pool started empty.
 
 ## Reporting issues
 

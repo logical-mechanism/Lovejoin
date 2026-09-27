@@ -2,11 +2,11 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository. It is the design context for the codebase. The README is the 5-minute summary; ARCHITECTURE.md is the one-page contributor overview; this file captures the conventions, constraints, and decisions you need to be productive without re-deriving them.
 
-## Status: live on Preprod; mainnet deployment in preparation
+## Status: contracts live on mainnet and Preprod
 
-The codebase is post-build-phase. Validators are deployed and immutable on Preprod (currently the 0.4.0 redeploy with the audit-fix bytecode); the off-chain SDK, backend, and UI all ship against the live deployment; the hardening pass (lint baseline, test coverage, Playwright E2E in CI, governance docs, component READMEs, SDK TSDoc, backend OpenAPI, user-facing docs, internal security review, disclosure-UX pass, monitoring + runbook, release automation, Dependabot) is closed. Width window is **N=3 via fee shard** (now both the empirical cap and the on-chain floor, since `fee_contract.PayMixFee` enforces `N ≥ 3` after audit) and **N=2..4 via wallet collateral**, with the upper bound blocked on a Cardano `max_tx_ex_units` bump out of our control.
+The codebase is post-build-phase. Validators are deployed and immutable on mainnet (launched 2026-09-26) and on Preprod (the 0.4.0 redeploy with the audit-fix bytecode); the off-chain SDK, backend, and UI all ship against the live Preprod deployment, and the mainnet frontend is still to be activated; the hardening pass (lint baseline, test coverage, Playwright E2E in CI, governance docs, component READMEs, SDK TSDoc, backend OpenAPI, user-facing docs, internal security review, disclosure-UX pass, monitoring + runbook, release automation, Dependabot) is closed. Width window is **N=3 via fee shard** (now both the empirical cap and the on-chain floor, since `fee_contract.PayMixFee` enforces `N ≥ 3` after audit) and **N=2..4 via wallet collateral**, with the upper bound blocked on a Cardano `max_tx_ex_units` bump out of our control.
 
-**Now: preparing the mainnet deployment of the same on-chain code.** No third-party audit will precede mainnet, and no bug bounty program is planned. The internal review pass is the only review the protocol will have before mainnet; that posture is reflected in [README.md](README.md) and [SECURITY.md](SECURITY.md) and must not be silently contradicted in user-facing copy.
+**Mainnet deployment.** The canonical address book is [artifacts/mainnet/addresses.json](artifacts/mainnet/addresses.json) (reference NFT policy `f5592689…a826`, `ReferenceDatum` pinning a 10 ADA denomination and a 1 ADA `max_fee_per_mix_lovelace`). Mainnet runs the same validator source as Preprod, but was compiled with the current toolchain (Aiken 1.1.24, stdlib v4.0.0) while Preprod was built with 1.1.21 / stdlib v3.1.0, so every script hash differs between the two networks. It was launched once by [infra/bootstrap/koios-launch.py](infra/bootstrap/koios-launch.py), which put the three reference scripts at `reference_holder` (permanent, exact minimum ADA) rather than in a wallet as on Preprod, and created no fee shards: the mainnet fee pool starts empty, so mixes are wallet-paid until someone funds shards. `reference_holder` is a parameter-free always-False script whose bytecode matches other Aiken always-False validators, so its mainnet address is shared with unrelated token burns; always locate the reference UTxO by its NFT or its ref, never by scanning that address. The mainnet frontend is a separate activation step. No third-party audit preceded mainnet, and no bug bounty program is planned. The internal review pass is the only review the protocol has had; that posture is reflected in [README.md](README.md) and [SECURITY.md](SECURITY.md) and must not be silently contradicted in user-facing copy.
 
 Day-to-day work flows through ordinary GitHub issues against `dev`; PRs target `dev` and roll up to `main` periodically (see the branch model in [CONTRIBUTING.md](CONTRIBUTING.md)). The historical commit log carries the build narrative; [CHANGELOG.md](CHANGELOG.md) is the user-facing record of what shipped and when.
 
@@ -42,7 +42,7 @@ Two related encoding rules:
 ## Component layout
 
 ```
-contracts/   Aiken 1.1.21, Plutus V3, BLS12-381 G1. Validators: reference_holder, one_shot_mint, mix_box, mix_logic (withdraw-zero), fee_contract.
+contracts/   Aiken 1.1.24, Plutus V3, BLS12-381 G1. Validators: reference_holder, one_shot_mint, mix_box, mix_logic (withdraw-zero), fee_contract.
 offchain/    TypeScript SDK (@lovejoin/sdk): crypto/ + tx/ (deposit, withdraw, mix, fee, donate, params, collateral, retry, witness-merge, fee-helpers, mesh-bridge, known-collateral-hosts) + chain/ (ChainProvider abstraction with BlockfrostProvider + BackendChainProvider, ogmios-utxo adapter, backend-mesh sibling) + strategy/ (fanout planner + orchestrator) + pool/ (identify, select) + wallet/ (cip30, seed) + cli/.
 backend/     Node + Fastify. backend/src/{indexer/{ogmios,runtime,state,datum,mempool,types},db/dbsync,api/{server,routes},config,address}. Acts as the second ChainProvider implementation; `/evaluate` forwards `additionalUtxoSet` through to ogmios for in-flight tx chaining.
 ui/          React 19 + Vite + Tailwind v4 + react-i18next + mesh. ui/src/{routes/{Home,Pool,Vault,Box,Deposit,Withdraw,Donate,Help,Protocol,Layout}, components/ (MixPanel is the unified intensity-dial Mix surface; mounts on Pool + Vault), lib/{sdk,vault,pool,backend,seedelf,bech32,store,collateral-status,polyfill}, storage/secrets, i18n/}.
@@ -50,7 +50,7 @@ crypto/      Rust reference impl using `blst` for KAT generation, plus `crypto/t
 infra/bootstrap/  cardano-cli shell scripts: 00-build-reference, 01a-publish, 01b-register, 02-mint-and-lock, 03-fund-fee-contract, plus init-wallet/balance/prep-utxos helpers. Dual-network flow centralized in `_lib/network.sh`.
 integration-tests/, stress-tests/, bench/   Preprod harnesses driven via Blockfrost.
 config/network.{test,preprod,mainnet}.json   Read into the on-chain reference UTxO at bootstrap.
-artifacts/{test,preprod}/   Compiled .plutus and addresses.json (preprod is the live deployment).
+artifacts/{test,preprod,mainnet}/   Compiled .plutus and addresses.json (preprod and mainnet are the live deployments).
 ```
 
 Workspace tool: **pnpm 10**. Top-level `Makefile` targets: `make install`, `make build`, `make test`, `make lint` (tsc --noEmit + eslint + prettier --check across TS workspaces + aiken fmt --check), `make format` (prettier --write + eslint --fix), `make contracts`, `make ui-dev`, `make backend-dev`, `make cli`/`make deposit`/`make withdraw`/`make integration-test` (.env-driven), `make clean`. `make help` lists them all. A husky `pre-commit` hook runs `lint-staged` (prettier + eslint --fix on staged files); fix locally rather than `--no-verify`. See [README.md](README.md) for the local-dev gotcha (snap-shim `node` under VSCode breaks pnpm; use nvm node on PATH).
@@ -76,7 +76,7 @@ Mesh handles the unconventional Mix tx shape (no submitter wallet input, externa
 
 ## Conventions baked into the codebase
 
-- **Aiken pinned to 1.1.21** ([contracts/aiken.toml](contracts/aiken.toml)). Bumps are deliberate.
+- **Aiken pinned to 1.1.24** ([contracts/aiken.toml](contracts/aiken.toml)). Bumps are deliberate.
 - **Curve: BLS12-381 G1 only.** Compressed group elements are 48 bytes; scalars are 32 bytes big-endian, strictly less than `r`. No pairings, no G2, no custom curves.
 - **Hash: blake2b-256** (Plutus builtin). Domain tag `"lovejoin/sigmajoin/v1/"`. Statement IDs: `0x01`=proveDlog, `0x02`=proveDHTuple, `0x03`=sigma-or-N (with N as a 1-byte prefix).
 - **Nonces: RFC 6979 deterministic via HMAC-SHA256-DRBG** in TS; Aiken does not generate nonces (verifier only). Secret keys still come from a CSPRNG (`crypto.getRandomValues` / `crypto.randomBytes`). See [offchain/src/crypto/nonce.ts](offchain/src/crypto/nonce.ts).

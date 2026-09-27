@@ -25,7 +25,7 @@ use aiken/primitive/bytearray as aiken_bytearray
 use cardano/address.{
   Address, Credential, Inline, Pointer, Script, VerificationKey,
 }
-use cardano/assets.{Value}
+use cardano/assets.{Assets}
 use cardano/transaction.{InlineDatum, Input, NoDatum, Output, OutputReference}
 use lovejoin/types.{MixDatum, ReferenceDatum}
 
@@ -234,7 +234,7 @@ pub fn mix_box_output(a: ByteArray, b: ByteArray, lovelace: Int) -> Output {
 pub fn mix_box_output_with_value(
   a: ByteArray,
   b: ByteArray,
-  value: Value,
+  value: Assets,
 ) -> Output {
   let datum: Data = MixDatum { a, b }
   Output {

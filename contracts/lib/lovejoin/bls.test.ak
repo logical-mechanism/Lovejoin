@@ -44,8 +44,7 @@ test point_sub_is_inverse_of_add() {
 
 test scalar_from_bytes_rejects_field_prime() fail {
   // 32 bytes encoding `r` itself (>= r) — must be rejected.
-  let r_bytes: ByteArray =
-    #"73eda753299d7d483339d80809a1d80553bda402fffe5bfeffffffff00000001"
+  let r_bytes: ByteArray = #"73eda753299d7d483339d80809a1d80553bda402fffe5bfeffffffff00000001"
   let s = bls.scalar_from_bytes(r_bytes)
   bls.point_equal(bls.scalar_mul(s, bls.generator), bls.generator)
 }

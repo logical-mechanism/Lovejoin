@@ -10,6 +10,22 @@ Lovejoin follows [SemVer](https://semver.org/) starting at 0.3.0. Day-to-day wor
 
 ## [Unreleased]
 
+Mainnet launch. The contracts are now live and immutable on Cardano mainnet; the disclosure posture (no third-party audit, no bug bounty) is unchanged. The mainnet frontend is a separate, later activation step.
+
+### Deployed
+
+- **Mainnet bootstrap (2026-09-26).** Reference NFT `f5592689c7ab35553a3234a54c0ee118090a5762c696819a53a5a826.lovejoin` at reference UTxO `f89cb43a55eed378fe90fe954a9d86566280e6416d97f9008937ab492b37175c#0`. The `ReferenceDatum` pins a 10 ADA denomination and a 1 ADA maximum fee per mix; a shard-paid N=3 mix costs about 0.893 ADA at current fee parameters. The three reference scripts sit permanently at `reference_holder`, each holding exactly its minimum ADA, and the `mix_logic` stake credential is registered. No fee shards were created, so mainnet mixes are wallet-paid until someone funds the fee pool. Canonical address book and validators are in `artifacts/mainnet/`.
+
+### Added
+
+- **Seedelf stealth-wallet integration.** The Vault now hosts a read-only Seedelf section that surfaces registers + funds owned by the active wallet seed. Same curve, same Schnorr shape, same collateral provider as Lovejoin's Mix flow; the per-register secret derivation is domain-separated from the Lovejoin owner derivation via the HKDF info tag `lovejoin/seedelf/v1`. The SDK ships plan helpers for mint / send / spend transactions, addresses for the canonical Seedelf deployment on Preprod + Mainnet, env-var overrides for operators running their own copy, and 40 unit tests. Mint / send / spend transactional UI flows ship in a follow-up update; today's surface is the scanner + balance display. See `docs/seedelf.md` for the wallet model and ITM caveats (#135).
+- `infra/bootstrap/koios-launch.py`: one-time mainnet launcher that builds and signs with offline `cardano-cli` and uses public Koios for parameters, script evaluation, submission, and confirmation (no node, no Blockfrost key). It keeps a resume journal, evaluates script transactions before submitting them, locks the exact minimum ADA in every permanent output, and returns leftover ADA with a repeatable sweep. Offline safety tests run in CI; an opt-in rehearsal uses real tools against read-only Koios.
+
+### Changed
+
+- Contracts build with Aiken 1.1.24, stdlib v4.0.0, and fuzz v3.0.0. Validator source is unchanged apart from formatting and the stdlib `Value` type being renamed to `Assets`, and execution costs are within 0.01% of the previous build, but the compiled bytecode differs. Mainnet script hashes therefore differ from the Preprod 0.4.0 deployment, which stays on its existing bytecode.
+- `config/network.mainnet.json`: `max_fee_per_mix_lovelace` raised from 0.8 ADA to 1 ADA so fee-paying N=3 mixes fit, and `fee_shard_target` set to 0.
+
 ## [0.4.0] - YYYY-MM-DD
 
 Preprod re-bootstrap that ships three on-chain audit follow-ups. Validator bytecode changes for `mix_logic`, `fee_contract`, and `one_shot_mint`; `mix_box` is unchanged. The off-chain SDK + backend + UI continue to ship against the live deployment, now pointing at the post-redeploy addresses. Mainnet deployment of the same on-chain code remains in preparation; the disclosure posture (no third-party audit, no bug bounty) is unchanged.

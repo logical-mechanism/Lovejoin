@@ -1,0 +1,75 @@
+{
+  "network": "mainnet",
+  "seedUtxoRef": "ba815aa54b022a347a3e5e84d5491334cf6f878916eebeeb7f9014da9dc369bb#2",
+  "protocol": {
+    "denom_lovelace": 10000000,
+    "max_fee_per_mix_lovelace": 1000000,
+    "fee_shard_target": 0
+  },
+  "referenceNftPolicy": "f5592689c7ab35553a3234a54c0ee118090a5762c696819a53a5a826",
+  "referenceNftAssetName": "6c6f76656a6f696e",
+  "referenceHolderScriptHash": "288fea77a0f674c6080aadd8ed3ca42cd5a920bf1f00c0d3e63306e4",
+  "mixLogicScriptHash": "0dad3046f90d9cf8354eb8b743d50fb2c25d581269b94ffcdf59499e",
+  "mixBoxScriptHash": "c145c10ff4bcaef7f5a4dbb3fcbfddca4b6c7b08191b0690b12f1fad",
+  "feeScriptHash": "a072c7e839ab9ddf24344d0b2f70f56971f187fee8089f5f64212406",
+  "aikenVersion": "aiken v1.1.24+bacbeb3",
+  "lockedLovelace": {
+    "mix_box": 3616090,
+    "mix_logic": 14529010,
+    "fee_contract": 10520710,
+    "reference": 1521430
+  },
+  "deploymentTxs": {
+    "prep": "ba815aa54b022a347a3e5e84d5491334cf6f878916eebeeb7f9014da9dc369bb",
+    "publish_mix_box": "7d21335ffea6d3e8144ecb55f62f045f3fecd1414c932c62d7edd2886a57416a",
+    "publish_mix_logic": "2452c3e6886e6d946837bfea730a76dad43aefff267b5bbffd0232a2af68c7b6",
+    "publish_fee_contract": "20baa1936e7feb37f8f7f511b8a62b16d33e2291c9874a048f062380abf9f25b",
+    "register": "7da669b93b79b6242bd4f1fc34dd31ac9c1f6590385c947904f3159c9aea15ef",
+    "mint": "f89cb43a55eed378fe90fe954a9d86566280e6416d97f9008937ab492b37175c"
+  },
+  "feeShardUtxos": [],
+  "referenceScriptUtxos": {
+    "mix_box": "7d21335ffea6d3e8144ecb55f62f045f3fecd1414c932c62d7edd2886a57416a#0",
+    "mix_logic": "2452c3e6886e6d946837bfea730a76dad43aefff267b5bbffd0232a2af68c7b6#0",
+    "fee_contract": "20baa1936e7feb37f8f7f511b8a62b16d33e2291c9874a048f062380abf9f25b#0"
+  },
+  "stage1ChangeUtxo": "20baa1936e7feb37f8f7f511b8a62b16d33e2291c9874a048f062380abf9f25b#1",
+  "mixLogicRegisterTx": "7da669b93b79b6242bd4f1fc34dd31ac9c1f6590385c947904f3159c9aea15ef",
+  "scriptEvaluation": {
+    "register": {
+      "txid": "7da669b93b79b6242bd4f1fc34dd31ac9c1f6590385c947904f3159c9aea15ef",
+      "validator": "certificate:0",
+      "used": {
+        "steps": 4217188,
+        "memory": 15515
+      },
+      "assigned": {
+        "steps": 5271485,
+        "memory": 20515
+      }
+    },
+    "mint": {
+      "txid": "f89cb43a55eed378fe90fe954a9d86566280e6416d97f9008937ab492b37175c",
+      "validator": "mint:0",
+      "used": {
+        "steps": 31943038,
+        "memory": 91097
+      },
+      "assigned": {
+        "steps": 39928798,
+        "memory": 113872
+      }
+    }
+  },
+  "referenceUtxoRef": "f89cb43a55eed378fe90fe954a9d86566280e6416d97f9008937ab492b37175c#0",
+  "refund": {
+    "address": "addr1qxvlcxj3fg3jk2dp3kmkxhnx2zuv7edktk5rfy2n9juj3h2m0cw9csycjc4v59ywy7fk8nqfu6qjdzjejhvayfhf8dwsttnjt6",
+    "lovelace": 30906628,
+    "txs": [
+      {
+        "txid": "d231e84f7cf5606cdf650c50b7925d1a380d3b739b96b7b8e976718c114964b6",
+        "lovelace": 30906628
+      }
+    ]
+  }
+}

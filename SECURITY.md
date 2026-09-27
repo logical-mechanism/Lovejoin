@@ -2,7 +2,7 @@
 
 ## Status of the protocol
 
-Lovejoin is **live on Cardano Preprod**, with a mainnet deployment of the same on-chain code in preparation. The validators are immutable; once a network's reference UTxO is minted, the protocol on that network cannot be changed.
+Lovejoin is **live on Cardano mainnet and Preprod**. Both networks run the same validator source; mainnet was compiled with a newer Aiken toolchain, so its script hashes differ from Preprod's. The validators are immutable; once a network's reference UTxO is minted, the protocol on that network cannot be changed.
 
 **Lovejoin has not undergone an independent third-party audit, and there are no plans to commission one.** There is **no bug bounty program**, paid or otherwise. What exists is the open code in this repository, the math in [`papers/sigmajoin.pdf`](papers/sigmajoin.pdf), and an internal review pass that the maintainers ran before launch. If you need a third-party audit before using this software, do not use it.
 

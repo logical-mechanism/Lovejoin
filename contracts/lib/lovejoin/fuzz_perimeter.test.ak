@@ -123,10 +123,11 @@ test prop_output_at_script_rejects_inline_stake_vk(payment_hash via hash28()) {
   // Inline VerificationKey stake credential — the H-01 attack shape. Must
   // reject regardless of the (matching) payment hash. The fuzzer varies the
   // payment hash so we exercise hash equality, not just one fixed pair.
-  let stake_vk: ByteArray =
-    #"deadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef"
-  let addr =
-    script_address_with_inline_stake(payment_hash, VerificationKey(stake_vk))
+  let stake_vk: ByteArray = #"deadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef"
+  let addr = script_address_with_inline_stake(
+    payment_hash,
+    VerificationKey(stake_vk),
+  )
   let out = output_at(addr, None)
   !output_at_script(out, payment_hash)
 }
@@ -134,10 +135,11 @@ test prop_output_at_script_rejects_inline_stake_vk(payment_hash via hash28()) {
 test prop_output_at_script_rejects_inline_stake_script(
   payment_hash via hash28(),
 ) {
-  let stake_script: ByteArray =
-    #"baadcafebaadcafebaadcafebaadcafebaadcafebaadcafebaadcafe"
-  let addr =
-    script_address_with_inline_stake(payment_hash, Script(stake_script))
+  let stake_script: ByteArray = #"baadcafebaadcafebaadcafebaadcafebaadcafebaadcafebaadcafe"
+  let addr = script_address_with_inline_stake(
+    payment_hash,
+    Script(stake_script),
+  )
   let out = output_at(addr, None)
   !output_at_script(out, payment_hash)
 }
@@ -155,8 +157,7 @@ test prop_output_at_script_rejects_pointer_stake(payment_hash via hash28()) {
 test prop_output_at_script_rejects_attached_reference_script(
   payment_hash via hash28(),
 ) {
-  let ref_bytes: ByteArray =
-    #"abadbabeabadbabeabadbabeabadbabeabadbabeabadbabeabadbabe"
+  let ref_bytes: ByteArray = #"abadbabeabadbabeabadbabeabadbabeabadbabeabadbabeabadbabe"
   let addr = script_address_none(payment_hash)
   let out = output_at(addr, Some(ref_bytes))
   !output_at_script(out, payment_hash)
@@ -169,19 +170,21 @@ test prop_output_at_script_rejects_attached_reference_script(
 // ---------------------------------------------------------------------------
 
 test prop_output_at_fee_rejects_inline_stake_vk(payment_hash via hash28()) {
-  let stake_vk: ByteArray =
-    #"deadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef"
-  let addr =
-    script_address_with_inline_stake(payment_hash, VerificationKey(stake_vk))
+  let stake_vk: ByteArray = #"deadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef"
+  let addr = script_address_with_inline_stake(
+    payment_hash,
+    VerificationKey(stake_vk),
+  )
   let out = output_at(addr, None)
   !output_at_fee(out, payment_hash)
 }
 
 test prop_output_at_fee_rejects_inline_stake_script(payment_hash via hash28()) {
-  let stake_script: ByteArray =
-    #"baadcafebaadcafebaadcafebaadcafebaadcafebaadcafebaadcafe"
-  let addr =
-    script_address_with_inline_stake(payment_hash, Script(stake_script))
+  let stake_script: ByteArray = #"baadcafebaadcafebaadcafebaadcafebaadcafebaadcafebaadcafe"
+  let addr = script_address_with_inline_stake(
+    payment_hash,
+    Script(stake_script),
+  )
   let out = output_at(addr, None)
   !output_at_fee(out, payment_hash)
 }
@@ -195,8 +198,7 @@ test prop_output_at_fee_rejects_pointer_stake(payment_hash via hash28()) {
 test prop_output_at_fee_rejects_attached_reference_script(
   payment_hash via hash28(),
 ) {
-  let ref_bytes: ByteArray =
-    #"abadbabeabadbabeabadbabeabadbabeabadbabeabadbabeabadbabe"
+  let ref_bytes: ByteArray = #"abadbabeabadbabeabadbabeabadbabeabadbabeabadbabeabadbabe"
   let addr = script_address_none(payment_hash)
   let out = output_at(addr, Some(ref_bytes))
   !output_at_fee(out, payment_hash)
@@ -261,10 +263,11 @@ test prop_output_at_fee_rejects_wrong_payment_hash(payment_hash via hash28()) {
 test prop_output_at_reference_holder_rejects_inline_stake_vk(
   payment_hash via hash28(),
 ) {
-  let stake_vk: ByteArray =
-    #"deadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef"
-  let addr =
-    script_address_with_inline_stake(payment_hash, VerificationKey(stake_vk))
+  let stake_vk: ByteArray = #"deadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef"
+  let addr = script_address_with_inline_stake(
+    payment_hash,
+    VerificationKey(stake_vk),
+  )
   let out = ref_output_at(addr, None)
   !output_at_reference_holder(out, payment_hash, ref_policy, ref_name)
 }
@@ -272,10 +275,11 @@ test prop_output_at_reference_holder_rejects_inline_stake_vk(
 test prop_output_at_reference_holder_rejects_inline_stake_script(
   payment_hash via hash28(),
 ) {
-  let stake_script: ByteArray =
-    #"baadcafebaadcafebaadcafebaadcafebaadcafebaadcafebaadcafe"
-  let addr =
-    script_address_with_inline_stake(payment_hash, Script(stake_script))
+  let stake_script: ByteArray = #"baadcafebaadcafebaadcafebaadcafebaadcafebaadcafebaadcafe"
+  let addr = script_address_with_inline_stake(
+    payment_hash,
+    Script(stake_script),
+  )
   let out = ref_output_at(addr, None)
   !output_at_reference_holder(out, payment_hash, ref_policy, ref_name)
 }
@@ -291,8 +295,7 @@ test prop_output_at_reference_holder_rejects_pointer_stake(
 test prop_output_at_reference_holder_rejects_attached_reference_script(
   payment_hash via hash28(),
 ) {
-  let ref_bytes: ByteArray =
-    #"abadbabeabadbabeabadbabeabadbabeabadbabeabadbabeabadbabe"
+  let ref_bytes: ByteArray = #"abadbabeabadbabeabadbabeabadbabeabadbabeabadbabeabadbabe"
   let addr = script_address_none(payment_hash)
   let out = ref_output_at(addr, Some(ref_bytes))
   !output_at_reference_holder(out, payment_hash, ref_policy, ref_name)

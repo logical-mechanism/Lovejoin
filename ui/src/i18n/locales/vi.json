@@ -442,7 +442,24 @@
     "fanout_entry_eyebrow": "Tăng cường riêng tư",
     "fanout_entry_title": "Chạy trộn theo cây",
     "fanout_entry_lede": "Liên kết nhiều tx Mix thành một cây bắt đầu từ một box của bạn. Nhánh của bạn trở nên không thể phân biệt giữa 9+ nhánh khác.",
-    "fanout_entry_cta": "Chạy trộn theo cây"
+    "fanout_entry_cta": "Chạy trộn theo cây",
+    "seedelf": {
+      "eyebrow": "Ví ẩn danh",
+      "title": "Seedelf",
+      "lede": "Các register ví ẩn danh dẫn xuất từ cùng chữ ký ví mở khóa vault Lovejoin của bạn. Mỗi register là một địa chỉ riêng để nhận ADA; chỉ bạn mới có thể tiêu. Cùng giao thức Seedelf on-chain mà bạn dùng qua seedelf-cli.",
+      "scanning": "Đang quét…",
+      "rescan": "Quét lại",
+      "scan_failed": "Quét Seedelf thất bại: {{message}}",
+      "empty_title": "Chưa có Seedelf",
+      "empty_hint": "Bạn có thể mint register ẩn danh đầu tiên từ seedelf-cli hoặc đợi luồng mint trong ứng dụng.",
+      "registers_label": "Register",
+      "funds_label": "UTxO đã nạp",
+      "balance_label": "Tổng số dư",
+      "registers_heading": "Các register của bạn",
+      "index_label": "chỉ số {{i}}",
+      "actions_coming_soon": "Các luồng mint, gửi và chi sẽ ra mắt trong bản cập nhật sau. Hiện tại hãy quản lý ví ẩn danh bằng seedelf-cli.",
+      "balance_ada": "{{amount}} ADA"
+    }
   },
   "secret_card": {
     "title": "Lưu khoá bí mật này ngay",

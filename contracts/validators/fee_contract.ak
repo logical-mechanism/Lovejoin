@@ -53,14 +53,19 @@ validator fee_contract(
       // Rule 2: not a real fee shard. Allow recovery.
       True
     } else {
-      let reference_datum =
-        read_reference_datum(self, reference_nft_policy, reference_nft_name)
+      let reference_datum = read_reference_datum(
+        self,
+        reference_nft_policy,
+        reference_nft_name,
+      )
 
       when redeemer is {
         PayMixFee -> validate_pay_mix_fee(reference_datum, self, utxo)
         Replenish -> {
-          expect Some(own_input) =
-            list.find(self.inputs, fn(input) { input.output_reference == utxo })
+          expect Some(own_input) = list.find(
+            self.inputs,
+            fn(input) { input.output_reference == utxo },
+          )
           expect Script(own_hash) = own_input.output.address.payment_credential
           expect own_hash == reference_datum.fee_script_hash
           validate_replenish(self, own_input, own_hash)
@@ -104,11 +109,10 @@ fn validate_pay_mix_fee(
   //
   // Hoisted ABOVE the input fold so Owner-redeemer attacker txs (F-1 drain)
   // reject without paying for an `self.inputs` traversal.
-  expect Some(mix_logic_redeemer_data) =
-    pairs.get_first(
-      self.redeemers,
-      Withdraw(Script(reference_datum.mix_logic_script_hash)),
-    )
+  expect Some(mix_logic_redeemer_data) = pairs.get_first(
+    self.redeemers,
+    Withdraw(Script(reference_datum.mix_logic_script_hash)),
+  )
   expect mix_logic_redeemer: MixLogicRedeemer = mix_logic_redeemer_data
   expect Mix { .. } = mix_logic_redeemer
 
@@ -121,30 +125,29 @@ fn validate_pay_mix_fee(
   //   * the mix-script input count (need >= 3),
   //   * the fee-script input count (need == 1, including own_input).
   // Saves one full traversal of `self.inputs` per Mix tx.
-  let (mix_input_count, fee_input_count, maybe_own_lovelace) =
-    list.foldl(
-      self.inputs,
-      (0, 0, None),
-      fn(input, acc) {
-        let (m, f, own) = acc
-        if input.output_reference == utxo {
-          // own_input. Cardano routes the spend here only because the
-          // input's credential is fee_script_hash; the cross-check below
-          // protects against a parameter mismatch (e.g. wrong reference
-          // NFT for this script's compiled hash).
-          expect Script(h) = input.output.address.payment_credential
-          expect h == own_hash
-          let own_lovelace = expect_ada_only_lovelace(input.output.value)
-          (m, f + 1, Some(own_lovelace))
-        } else if input_at_script(input, reference_datum.mix_script_hash) {
-          (m + 1, f, own)
-        } else if input_at_fee(input, own_hash) {
-          (m, f + 1, own)
-        } else {
-          acc
-        }
-      },
-    )
+  let (mix_input_count, fee_input_count, maybe_own_lovelace) = list.foldl(
+    self.inputs,
+    (0, 0, None),
+    fn(input, acc) {
+      let (m, f, own) = acc
+      if input.output_reference == utxo {
+        // own_input. Cardano routes the spend here only because the
+        // input's credential is fee_script_hash; the cross-check below
+        // protects against a parameter mismatch (e.g. wrong reference
+        // NFT for this script's compiled hash).
+        expect Script(h) = input.output.address.payment_credential
+        expect h == own_hash
+        let own_lovelace = expect_ada_only_lovelace(input.output.value)
+        (m, f + 1, Some(own_lovelace))
+      } else if input_at_script(input, reference_datum.mix_script_hash) {
+        (m + 1, f, own)
+      } else if input_at_fee(input, own_hash) {
+        (m, f + 1, own)
+      } else {
+        acc
+      }
+    },
+  )
   expect Some(fee_in_lovelace) = maybe_own_lovelace
   // Fee-paying mixes require N >= 3. `mix_logic.validate_mix` keeps the
   // general N >= 2 floor so wallet-collateral N=2 mixes remain legal; the
@@ -154,8 +157,8 @@ fn validate_pay_mix_fee(
   expect mix_input_count >= 3
   expect fee_input_count == 1
 
-  let fee_outputs =
-    self.outputs |> list.filter(fn(output) { output_at_fee(output, own_hash) })
+  let fee_outputs = self.outputs
+    |> list.filter(fn(output) { output_at_fee(output, own_hash) })
   expect [fee_output] = fee_outputs
 
   // expect_ada_only_lovelace fuses the ada-only check + lovelace extract
@@ -178,12 +181,12 @@ fn validate_replenish(
   own_input: Input,
   own_hash: ScriptHash,
 ) -> Bool {
-  let fee_input_count =
-    self.inputs |> list.count(fn(input) { input_at_fee(input, own_hash) })
+  let fee_input_count = self.inputs
+    |> list.count(fn(input) { input_at_fee(input, own_hash) })
   expect fee_input_count == 1
 
-  let fee_outputs =
-    self.outputs |> list.filter(fn(output) { output_at_fee(output, own_hash) })
+  let fee_outputs = self.outputs
+    |> list.filter(fn(output) { output_at_fee(output, own_hash) })
   expect [fee_output] = fee_outputs
 
   let fee_in_lovelace = expect_ada_only_lovelace(own_input.output.value)

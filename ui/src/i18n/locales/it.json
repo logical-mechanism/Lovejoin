@@ -442,7 +442,24 @@
     "fanout_entry_eyebrow": "Boost di privacy",
     "fanout_entry_title": "Avvia mix a ventaglio",
     "fanout_entry_lede": "Concatena diverse tx di Mix in un albero partendo da una delle tue box. Il tuo ramo diventa indistinguibile tra 9 o più altri.",
-    "fanout_entry_cta": "Avvia ventaglio"
+    "fanout_entry_cta": "Avvia ventaglio",
+    "seedelf": {
+      "eyebrow": "Portafoglio stealth",
+      "title": "Seedelf",
+      "lede": "Registri di portafoglio stealth derivati dalla stessa firma del wallet che sblocca il tuo caveau Lovejoin. Ogni registro è un indirizzo privato per ricevere ADA; solo tu puoi spenderlo. Lo stesso protocollo Seedelf on-chain che usi tramite seedelf-cli.",
+      "scanning": "Scansione…",
+      "rescan": "Riscansiona",
+      "scan_failed": "Scansione Seedelf fallita: {{message}}",
+      "empty_title": "Ancora nessun Seedelf",
+      "empty_hint": "Puoi coniare il tuo primo registro stealth da seedelf-cli o attendere il flusso di conio in-app.",
+      "registers_label": "Registri",
+      "funds_label": "UTxO con fondi",
+      "balance_label": "Saldo totale",
+      "registers_heading": "I tuoi registri",
+      "index_label": "indice {{i}}",
+      "actions_coming_soon": "I flussi di conio, invio e spesa arriveranno in un aggiornamento successivo. Per ora, gestisci il portafoglio stealth da seedelf-cli.",
+      "balance_ada": "{{amount}} ADA"
+    }
   },
   "secret_card": {
     "title": "Salva ora questo secret",

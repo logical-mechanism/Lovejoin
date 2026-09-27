@@ -442,7 +442,24 @@
     "fanout_entry_eyebrow": "เพิ่มความเป็นส่วนตัว",
     "fanout_entry_title": "เริ่ม Mix แบบกระจาย",
     "fanout_entry_lede": "เชื่อม Mix tx หลายรายการเป็นต้นไม้โดยเริ่มจาก box ของคุณ. สาขาของคุณจะกลายเป็นที่ไม่สามารถแยกออกจากอีก 9 สาขาขึ้นไป.",
-    "fanout_entry_cta": "เริ่มแบบกระจาย"
+    "fanout_entry_cta": "เริ่มแบบกระจาย",
+    "seedelf": {
+      "eyebrow": "กระเป๋าล่องหน",
+      "title": "Seedelf",
+      "lede": "รีจิสเตอร์กระเป๋าล่องหนที่ได้จากลายเซ็นกระเป๋าเดียวกันกับที่ปลดล็อกห้องเก็บ Lovejoin ของคุณ แต่ละรีจิสเตอร์เป็นที่อยู่ส่วนตัวสำหรับรับ ADA; เฉพาะคุณเท่านั้นที่ใช้จ่ายได้ โปรโตคอล Seedelf บนเชนเดียวกับที่คุณใช้ผ่าน seedelf-cli",
+      "scanning": "กำลังสแกน…",
+      "rescan": "สแกนอีกครั้ง",
+      "scan_failed": "สแกน Seedelf ล้มเหลว: {{message}}",
+      "empty_title": "ยังไม่มี Seedelf",
+      "empty_hint": "คุณสามารถสร้างรีจิสเตอร์ล่องหนแรกจาก seedelf-cli หรือรอขั้นตอนสร้างในแอป",
+      "registers_label": "รีจิสเตอร์",
+      "funds_label": "UTxO ที่มีเงิน",
+      "balance_label": "ยอดรวม",
+      "registers_heading": "รีจิสเตอร์ของคุณ",
+      "index_label": "ดัชนี {{i}}",
+      "actions_coming_soon": "ขั้นตอนสร้าง ส่ง และใช้จ่ายจะมาในอัปเดตถัดไป ขณะนี้ให้จัดการกระเป๋าล่องหนผ่าน seedelf-cli",
+      "balance_ada": "{{amount}} ADA"
+    }
   },
   "secret_card": {
     "title": "บันทึก secret นี้ตอนนี้",

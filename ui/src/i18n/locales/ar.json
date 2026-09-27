@@ -442,7 +442,24 @@
     "fanout_entry_eyebrow": "تعزيز الخصوصية",
     "fanout_entry_title": "تشغيل تشعب الـ Mix",
     "fanout_entry_lede": "يربط عدة معاملات Mix في شجرة تبدأ من إحدى box الخاصة بك. يصبح فرعك غير قابل للتمييز بين 9 فروع أو أكثر.",
-    "fanout_entry_cta": "تشغيل التشعب"
+    "fanout_entry_cta": "تشغيل التشعب",
+    "seedelf": {
+      "eyebrow": "محفظة خفية",
+      "title": "Seedelf",
+      "lede": "سجلات محفظة خفية مشتقة من نفس توقيع المحفظة الذي يفتح خزينة Lovejoin. كل سجل هو عنوان خاص يمكنك تلقي ADA عليه؛ أنت وحدك من يمكنه إنفاقه. نفس بروتوكول Seedelf على السلسلة الذي تستخدمه عبر seedelf-cli.",
+      "scanning": "جارٍ المسح…",
+      "rescan": "إعادة المسح",
+      "scan_failed": "فشل مسح Seedelf: {{message}}",
+      "empty_title": "لا يوجد Seedelf بعد",
+      "empty_hint": "يمكنك سك أول سجل خفي من seedelf-cli أو انتظار تدفق السك داخل التطبيق.",
+      "registers_label": "السجلات",
+      "funds_label": "UTxO الممولة",
+      "balance_label": "الرصيد الإجمالي",
+      "registers_heading": "سجلاتك",
+      "index_label": "الفهرس {{i}}",
+      "actions_coming_soon": "ستصل تدفقات السك والإرسال والإنفاق في تحديث لاحق. في الوقت الحالي، أدر محفظتك الخفية من seedelf-cli.",
+      "balance_ada": "{{amount}} ADA"
+    }
   },
   "secret_card": {
     "title": "احفظ هذا السرّ الآن",

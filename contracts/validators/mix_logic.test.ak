@@ -81,14 +81,13 @@ fn replicate_branch(n: Int, acc: List<SigmaOrBranch>) -> List<SigmaOrBranch> {
 
 test owner_rejects_zero_well_formed_inputs() fail {
   // No mix inputs at all — the `n >= 1` expect aborts.
-  let tx =
-    Transaction {
-      ..transaction.placeholder,
-      reference_inputs: [default_reference_input()],
-      inputs: [],
-      outputs: [vk_output_lovelace(random_user_vk, denom_lovelace)],
-      fee: 200_000,
-    }
+  let tx = Transaction {
+    ..transaction.placeholder,
+    reference_inputs: [default_reference_input()],
+    inputs: [],
+    outputs: [vk_output_lovelace(random_user_vk, denom_lovelace)],
+    fee: 200_000,
+  }
   mix_logic.mix_logic.withdraw(
     ref_nft_policy,
     ref_nft_name,
@@ -102,14 +101,13 @@ test owner_rejects_proof_count_mismatch() fail {
   // 2 well-formed mix inputs but only 1 proof — must be N==N.
   let i0 = mix_box_input(0xa0, 0, a48, b48, denom_lovelace)
   let i1 = mix_box_input(0xa1, 0, a48, c48, denom_lovelace)
-  let tx =
-    Transaction {
-      ..transaction.placeholder,
-      reference_inputs: [default_reference_input()],
-      inputs: [i0, i1],
-      outputs: [vk_output_lovelace(random_user_vk, denom_lovelace * 2)],
-      fee: 200_000,
-    }
+  let tx = Transaction {
+    ..transaction.placeholder,
+    reference_inputs: [default_reference_input()],
+    inputs: [i0, i1],
+    outputs: [vk_output_lovelace(random_user_vk, denom_lovelace * 2)],
+    fee: 200_000,
+  }
   mix_logic.mix_logic.withdraw(
     ref_nft_policy,
     ref_nft_name,
@@ -126,14 +124,13 @@ test owner_with_two_inputs_rejects_bogus_proofs() fail {
   // reach per-input Schnorr verification.
   let i0 = mix_box_input(0xa0, 0, a48, b48, denom_lovelace)
   let i1 = mix_box_input(0xa1, 0, a48, c48, denom_lovelace)
-  let tx =
-    Transaction {
-      ..transaction.placeholder,
-      reference_inputs: [default_reference_input()],
-      inputs: [i0, i1],
-      outputs: [vk_output_lovelace(random_user_vk, denom_lovelace * 2)],
-      fee: 200_000,
-    }
+  let tx = Transaction {
+    ..transaction.placeholder,
+    reference_inputs: [default_reference_input()],
+    inputs: [i0, i1],
+    outputs: [vk_output_lovelace(random_user_vk, denom_lovelace * 2)],
+    fee: 200_000,
+  }
   mix_logic.mix_logic.withdraw(
     ref_nft_policy,
     ref_nft_name,
@@ -150,14 +147,13 @@ test owner_with_one_well_formed_input_rejects_bogus_proof() fail {
   // — that's still a script rejection, just via the abort path rather than
   // returning False from the equation check.
   let i0 = mix_box_input(0xa0, 0, a48, b48, denom_lovelace)
-  let tx =
-    Transaction {
-      ..transaction.placeholder,
-      reference_inputs: [default_reference_input()],
-      inputs: [i0],
-      outputs: [vk_output_lovelace(random_user_vk, denom_lovelace)],
-      fee: 200_000,
-    }
+  let tx = Transaction {
+    ..transaction.placeholder,
+    reference_inputs: [default_reference_input()],
+    inputs: [i0],
+    outputs: [vk_output_lovelace(random_user_vk, denom_lovelace)],
+    fee: 200_000,
+  }
   mix_logic.mix_logic.withdraw(
     ref_nft_policy,
     ref_nft_name,
@@ -179,14 +175,13 @@ test owner_ignores_bad_datum_inputs() fail {
   // a == b → malformed
   let bad_input = mix_box_input_bad_datum(0xa0, 0, bad_datum)
   let good = mix_box_input(0xa1, 0, a48, b48, denom_lovelace)
-  let tx =
-    Transaction {
-      ..transaction.placeholder,
-      reference_inputs: [default_reference_input()],
-      inputs: [bad_input, good],
-      outputs: [vk_output_lovelace(random_user_vk, denom_lovelace * 2)],
-      fee: 200_000,
-    }
+  let tx = Transaction {
+    ..transaction.placeholder,
+    reference_inputs: [default_reference_input()],
+    inputs: [bad_input, good],
+    outputs: [vk_output_lovelace(random_user_vk, denom_lovelace * 2)],
+    fee: 200_000,
+  }
   mix_logic.mix_logic.withdraw(
     ref_nft_policy,
     ref_nft_name,
@@ -240,14 +235,13 @@ fn do_build_mix_outputs_at_b(
 test mix_rejects_n_eq_1() fail {
   let inputs = build_mix_inputs_at_a(1)
   let outputs = build_mix_outputs_at_b(1)
-  let tx =
-    Transaction {
-      ..transaction.placeholder,
-      reference_inputs: [default_reference_input()],
-      inputs,
-      outputs,
-      fee: 200_000,
-    }
+  let tx = Transaction {
+    ..transaction.placeholder,
+    reference_inputs: [default_reference_input()],
+    inputs,
+    outputs,
+    fee: 200_000,
+  }
   mix_logic.mix_logic.withdraw(
     ref_nft_policy,
     ref_nft_name,
@@ -265,14 +259,13 @@ test mix_rejects_proofs_count_mismatch() fail {
   // 3 mix inputs, but proofs.length == 2 → length mismatch.
   let inputs = build_mix_inputs_at_a(3)
   let outputs = build_mix_outputs_at_b(3)
-  let tx =
-    Transaction {
-      ..transaction.placeholder,
-      reference_inputs: [default_reference_input()],
-      inputs,
-      outputs,
-      fee: 200_000,
-    }
+  let tx = Transaction {
+    ..transaction.placeholder,
+    reference_inputs: [default_reference_input()],
+    inputs,
+    outputs,
+    fee: 200_000,
+  }
   mix_logic.mix_logic.withdraw(
     ref_nft_policy,
     ref_nft_name,
@@ -295,14 +288,13 @@ test mix_rejects_mix_output_in_tail() fail {
   let mix_out0 = mix_box_output(b48, c48, denom_lovelace)
   let fee_out = fee_shard_output(1_000_000)
   let mix_out1 = mix_box_output(c48, b48, denom_lovelace)
-  let tx =
-    Transaction {
-      ..transaction.placeholder,
-      reference_inputs: [default_reference_input()],
-      inputs,
-      outputs: [mix_out0, fee_out, mix_out1],
-      fee: 200_000,
-    }
+  let tx = Transaction {
+    ..transaction.placeholder,
+    reference_inputs: [default_reference_input()],
+    inputs,
+    outputs: [mix_out0, fee_out, mix_out1],
+    fee: 200_000,
+  }
   mix_logic.mix_logic.withdraw(
     ref_nft_policy,
     ref_nft_name,
@@ -317,15 +309,14 @@ test mix_rejects_non_mix_output_in_prefix() fail {
   let inputs = build_mix_inputs_at_a(2)
   let mix_out = mix_box_output(b48, c48, denom_lovelace)
   let fee_out = fee_shard_output(1_000_000)
-  let tx =
-    Transaction {
-      ..transaction.placeholder,
-      reference_inputs: [default_reference_input()],
-      inputs,
-      outputs: [mix_out, fee_out],
-      // prefix-N = [mix, fee]; fee fails check
-      fee: 200_000,
-    }
+  let tx = Transaction {
+    ..transaction.placeholder,
+    reference_inputs: [default_reference_input()],
+    inputs,
+    outputs: [mix_out, fee_out],
+    // prefix-N = [mix, fee]; fee fails check
+    fee: 200_000,
+  }
   mix_logic.mix_logic.withdraw(
     ref_nft_policy,
     ref_nft_name,
@@ -344,14 +335,13 @@ test mix_rejects_wrong_denom_output() fail {
   let inputs = build_mix_inputs_at_a(2)
   let bad_out = mix_box_output(b48, c48, denom_lovelace - 1)
   let good_out = mix_box_output(c48, b48, denom_lovelace)
-  let tx =
-    Transaction {
-      ..transaction.placeholder,
-      reference_inputs: [default_reference_input()],
-      inputs,
-      outputs: [bad_out, good_out],
-      fee: 200_000,
-    }
+  let tx = Transaction {
+    ..transaction.placeholder,
+    reference_inputs: [default_reference_input()],
+    inputs,
+    outputs: [bad_out, good_out],
+    fee: 200_000,
+  }
   mix_logic.mix_logic.withdraw(
     ref_nft_policy,
     ref_nft_name,
@@ -363,25 +353,23 @@ test mix_rejects_wrong_denom_output() fail {
 
 test mix_rejects_native_asset_in_output() fail {
   let inputs = build_mix_inputs_at_a(2)
-  let dirty =
-    assets.merge(
-      assets.from_lovelace(denom_lovelace),
-      assets.from_asset(
-        #"33333333333333333333333333333333333333333333333333333333",
-        "junk",
-        1,
-      ),
-    )
+  let dirty = assets.merge(
+    assets.from_lovelace(denom_lovelace),
+    assets.from_asset(
+      #"33333333333333333333333333333333333333333333333333333333",
+      "junk",
+      1,
+    ),
+  )
   let bad_out = mix_box_output_with_value(b48, c48, dirty)
   let good_out = mix_box_output(c48, b48, denom_lovelace)
-  let tx =
-    Transaction {
-      ..transaction.placeholder,
-      reference_inputs: [default_reference_input()],
-      inputs,
-      outputs: [bad_out, good_out],
-      fee: 200_000,
-    }
+  let tx = Transaction {
+    ..transaction.placeholder,
+    reference_inputs: [default_reference_input()],
+    inputs,
+    outputs: [bad_out, good_out],
+    fee: 200_000,
+  }
   mix_logic.mix_logic.withdraw(
     ref_nft_policy,
     ref_nft_name,
@@ -396,14 +384,13 @@ test mix_rejects_a_eq_b_output_datum() fail {
   // a == b on output datum → decode_mix_datum_strict aborts.
   let bad_out = mix_box_output(b48, b48, denom_lovelace)
   let good_out = mix_box_output(c48, b48, denom_lovelace)
-  let tx =
-    Transaction {
-      ..transaction.placeholder,
-      reference_inputs: [default_reference_input()],
-      inputs,
-      outputs: [bad_out, good_out],
-      fee: 200_000,
-    }
+  let tx = Transaction {
+    ..transaction.placeholder,
+    reference_inputs: [default_reference_input()],
+    inputs,
+    outputs: [bad_out, good_out],
+    fee: 200_000,
+  }
   mix_logic.mix_logic.withdraw(
     ref_nft_policy,
     ref_nft_name,
@@ -420,14 +407,13 @@ test mix_rejects_short_bytes_output_datum() fail {
   let inputs = build_mix_inputs_at_a(2)
   let bad_out = mix_box_output(#"01", b48, denom_lovelace)
   let good_out = mix_box_output(c48, b48, denom_lovelace)
-  let tx =
-    Transaction {
-      ..transaction.placeholder,
-      reference_inputs: [default_reference_input()],
-      inputs,
-      outputs: [bad_out, good_out],
-      fee: 200_000,
-    }
+  let tx = Transaction {
+    ..transaction.placeholder,
+    reference_inputs: [default_reference_input()],
+    inputs,
+    outputs: [bad_out, good_out],
+    fee: 200_000,
+  }
   mix_logic.mix_logic.withdraw(
     ref_nft_policy,
     ref_nft_name,
@@ -467,18 +453,19 @@ test mix_rejects_continuing_output_with_attacker_stake_vk() fail {
   // entire pool to the attacker until the next Mix contests it. The new
   // perimeter check (stake_credential == None) must reject.
   let inputs = build_mix_inputs_at_a(2)
-  let bad_addr =
-    script_address_with_stake_vk(mix_script_hash, attacker_stake_vk)
+  let bad_addr = script_address_with_stake_vk(
+    mix_script_hash,
+    attacker_stake_vk,
+  )
   let bad_out = mix_box_output_with_address(bad_addr, b48, c48, denom_lovelace)
   let good_out = mix_box_output(c48, b48, denom_lovelace)
-  let tx =
-    Transaction {
-      ..transaction.placeholder,
-      reference_inputs: [default_reference_input()],
-      inputs,
-      outputs: [bad_out, good_out],
-      fee: 200_000,
-    }
+  let tx = Transaction {
+    ..transaction.placeholder,
+    reference_inputs: [default_reference_input()],
+    inputs,
+    outputs: [bad_out, good_out],
+    fee: 200_000,
+  }
   mix_logic.mix_logic.withdraw(
     ref_nft_policy,
     ref_nft_name,
@@ -493,18 +480,19 @@ test mix_rejects_continuing_output_with_attacker_stake_script() fail {
   // withdraw-zero contract that auto-routes rewards). Same perimeter rule;
   // any non-None stake credential is rejected.
   let inputs = build_mix_inputs_at_a(2)
-  let bad_addr =
-    script_address_with_stake_script(mix_script_hash, attacker_stake_script)
+  let bad_addr = script_address_with_stake_script(
+    mix_script_hash,
+    attacker_stake_script,
+  )
   let bad_out = mix_box_output_with_address(bad_addr, b48, c48, denom_lovelace)
   let good_out = mix_box_output(c48, b48, denom_lovelace)
-  let tx =
-    Transaction {
-      ..transaction.placeholder,
-      reference_inputs: [default_reference_input()],
-      inputs,
-      outputs: [bad_out, good_out],
-      fee: 200_000,
-    }
+  let tx = Transaction {
+    ..transaction.placeholder,
+    reference_inputs: [default_reference_input()],
+    inputs,
+    outputs: [bad_out, good_out],
+    fee: 200_000,
+  }
   mix_logic.mix_logic.withdraw(
     ref_nft_policy,
     ref_nft_name,
@@ -523,14 +511,13 @@ test mix_rejects_continuing_output_with_pointer_stake_credential() fail {
   let bad_addr = script_address_with_stake_pointer(mix_script_hash)
   let bad_out = mix_box_output_with_address(bad_addr, b48, c48, denom_lovelace)
   let good_out = mix_box_output(c48, b48, denom_lovelace)
-  let tx =
-    Transaction {
-      ..transaction.placeholder,
-      reference_inputs: [default_reference_input()],
-      inputs,
-      outputs: [bad_out, good_out],
-      fee: 200_000,
-    }
+  let tx = Transaction {
+    ..transaction.placeholder,
+    reference_inputs: [default_reference_input()],
+    inputs,
+    outputs: [bad_out, good_out],
+    fee: 200_000,
+  }
   mix_logic.mix_logic.withdraw(
     ref_nft_policy,
     ref_nft_name,
@@ -546,22 +533,20 @@ test mix_rejects_continuing_output_with_reference_script_attached() fail {
   // storage. Bounded min-ADA bloat per output, recurring on every Mix.
   // The new perimeter check (reference_script == None) must reject.
   let inputs = build_mix_inputs_at_a(2)
-  let bad_out =
-    mix_box_output_with_ref_script(
-      b48,
-      c48,
-      denom_lovelace,
-      attacker_ref_script,
-    )
+  let bad_out = mix_box_output_with_ref_script(
+    b48,
+    c48,
+    denom_lovelace,
+    attacker_ref_script,
+  )
   let good_out = mix_box_output(c48, b48, denom_lovelace)
-  let tx =
-    Transaction {
-      ..transaction.placeholder,
-      reference_inputs: [default_reference_input()],
-      inputs,
-      outputs: [bad_out, good_out],
-      fee: 200_000,
-    }
+  let tx = Transaction {
+    ..transaction.placeholder,
+    reference_inputs: [default_reference_input()],
+    inputs,
+    outputs: [bad_out, good_out],
+    fee: 200_000,
+  }
   mix_logic.mix_logic.withdraw(
     ref_nft_policy,
     ref_nft_name,
@@ -578,14 +563,13 @@ test mix_rejects_fewer_outputs_than_inputs() fail {
   // and the `expect prefix_remaining == 0` aborts.
   let inputs = build_mix_inputs_at_a(2)
   let only_out = mix_box_output(b48, c48, denom_lovelace)
-  let tx =
-    Transaction {
-      ..transaction.placeholder,
-      reference_inputs: [default_reference_input()],
-      inputs,
-      outputs: [only_out],
-      fee: 200_000,
-    }
+  let tx = Transaction {
+    ..transaction.placeholder,
+    reference_inputs: [default_reference_input()],
+    inputs,
+    outputs: [only_out],
+    fee: 200_000,
+  }
   mix_logic.mix_logic.withdraw(
     ref_nft_policy,
     ref_nft_name,
@@ -603,14 +587,13 @@ test mix_rejects_no_reference_input() fail {
   // Forgetting to attach the reference UTxO → read_protocol_params aborts.
   let inputs = build_mix_inputs_at_a(2)
   let outputs = build_mix_outputs_at_b(2)
-  let tx =
-    Transaction {
-      ..transaction.placeholder,
-      reference_inputs: [],
-      inputs,
-      outputs,
-      fee: 200_000,
-    }
+  let tx = Transaction {
+    ..transaction.placeholder,
+    reference_inputs: [],
+    inputs,
+    outputs,
+    fee: 200_000,
+  }
   mix_logic.mix_logic.withdraw(
     ref_nft_policy,
     ref_nft_name,
@@ -622,14 +605,13 @@ test mix_rejects_no_reference_input() fail {
 
 test owner_rejects_no_reference_input() fail {
   let i0 = mix_box_input(0xa0, 0, a48, b48, denom_lovelace)
-  let tx =
-    Transaction {
-      ..transaction.placeholder,
-      reference_inputs: [],
-      inputs: [i0],
-      outputs: [vk_output_lovelace(random_user_vk, denom_lovelace)],
-      fee: 200_000,
-    }
+  let tx = Transaction {
+    ..transaction.placeholder,
+    reference_inputs: [],
+    inputs: [i0],
+    outputs: [vk_output_lovelace(random_user_vk, denom_lovelace)],
+    fee: 200_000,
+  }
   mix_logic.mix_logic.withdraw(
     ref_nft_policy,
     ref_nft_name,
@@ -649,8 +631,10 @@ test owner_rejects_no_reference_input() fail {
 // ---------------------------------------------------------------------------
 
 test publish_allows_register_credential() {
-  let cert =
-    RegisterCredential { credential: Script(mix_logic_hash), deposit: Never }
+  let cert = RegisterCredential {
+    credential: Script(mix_logic_hash),
+    deposit: Never,
+  }
   mix_logic.mix_logic.publish(
     ref_nft_policy,
     ref_nft_name,
@@ -662,8 +646,10 @@ test publish_allows_register_credential() {
 
 test publish_rejects_unregister_credential() {
   // Hyperstructure: unregistering would brick the protocol. Must reject.
-  let cert =
-    UnregisterCredential { credential: Script(mix_logic_hash), refund: Never }
+  let cert = UnregisterCredential {
+    credential: Script(mix_logic_hash),
+    refund: Never,
+  }
   !mix_logic.mix_logic.publish(
     ref_nft_policy,
     ref_nft_name,
@@ -693,17 +679,15 @@ test publish_rejects_delegate_credential() {
 }
 
 test publish_rejects_register_and_delegate_credential() {
-  let delegate =
-    DelegateBoth {
-      stake_pool: random_user_vk,
-      delegate_representative: Registered(Script(mix_logic_hash)),
-    }
-  let cert =
-    RegisterAndDelegateCredential {
-      credential: Script(mix_logic_hash),
-      delegate,
-      deposit: 2_000_000,
-    }
+  let delegate = DelegateBoth {
+    stake_pool: random_user_vk,
+    delegate_representative: Registered(Script(mix_logic_hash)),
+  }
+  let cert = RegisterAndDelegateCredential {
+    credential: Script(mix_logic_hash),
+    delegate,
+    deposit: 2_000_000,
+  }
   !mix_logic.mix_logic.publish(
     ref_nft_policy,
     ref_nft_name,
@@ -728,11 +712,10 @@ test publish_rejects_vote_delegation() {
 }
 
 test publish_rejects_register_delegate_representative() {
-  let cert =
-    RegisterDelegateRepresentative {
-      delegate_representative: Script(mix_logic_hash),
-      deposit: 500_000_000,
-    }
+  let cert = RegisterDelegateRepresentative {
+    delegate_representative: Script(mix_logic_hash),
+    deposit: 500_000_000,
+  }
   !mix_logic.mix_logic.publish(
     ref_nft_policy,
     ref_nft_name,
@@ -743,10 +726,9 @@ test publish_rejects_register_delegate_representative() {
 }
 
 test publish_rejects_update_delegate_representative() {
-  let cert =
-    UpdateDelegateRepresentative {
-      delegate_representative: Script(mix_logic_hash),
-    }
+  let cert = UpdateDelegateRepresentative {
+    delegate_representative: Script(mix_logic_hash),
+  }
   !mix_logic.mix_logic.publish(
     ref_nft_policy,
     ref_nft_name,
@@ -757,11 +739,10 @@ test publish_rejects_update_delegate_representative() {
 }
 
 test publish_rejects_unregister_delegate_representative() {
-  let cert =
-    UnregisterDelegateRepresentative {
-      delegate_representative: Script(mix_logic_hash),
-      refund: 500_000_000,
-    }
+  let cert = UnregisterDelegateRepresentative {
+    delegate_representative: Script(mix_logic_hash),
+    refund: 500_000_000,
+  }
   !mix_logic.mix_logic.publish(
     ref_nft_policy,
     ref_nft_name,
@@ -774,8 +755,10 @@ test publish_rejects_unregister_delegate_representative() {
 test publish_rejects_register_stake_pool() {
   // Defensive: a script credential isn't a valid stake-pool id, so the
   // ledger would reject this anyway. Validator should still fail closed.
-  let cert =
-    RegisterStakePool { stake_pool: random_user_vk, vrf: random_user_vk }
+  let cert = RegisterStakePool {
+    stake_pool: random_user_vk,
+    vrf: random_user_vk,
+  }
   !mix_logic.mix_logic.publish(
     ref_nft_policy,
     ref_nft_name,
@@ -797,11 +780,10 @@ test publish_rejects_retire_stake_pool() {
 }
 
 test publish_rejects_authorize_constitutional_committee_proxy() {
-  let cert =
-    AuthorizeConstitutionalCommitteeProxy {
-      constitutional_committee_member: Script(mix_logic_hash),
-      proxy: Script(mix_logic_hash),
-    }
+  let cert = AuthorizeConstitutionalCommitteeProxy {
+    constitutional_committee_member: Script(mix_logic_hash),
+    proxy: Script(mix_logic_hash),
+  }
   !mix_logic.mix_logic.publish(
     ref_nft_policy,
     ref_nft_name,
@@ -812,10 +794,9 @@ test publish_rejects_authorize_constitutional_committee_proxy() {
 }
 
 test publish_rejects_retire_from_constitutional_committee() {
-  let cert =
-    RetireFromConstitutionalCommittee {
-      constitutional_committee_member: Script(mix_logic_hash),
-    }
+  let cert = RetireFromConstitutionalCommittee {
+    constitutional_committee_member: Script(mix_logic_hash),
+  }
   !mix_logic.mix_logic.publish(
     ref_nft_policy,
     ref_nft_name,
