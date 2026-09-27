@@ -30,10 +30,18 @@ STATE = WALLET / "launch-state.json"
 CONFIG = ROOT / "config" / "network.mainnet.json"
 KOIOS = "https://api.koios.rest/api/v1"
 ASSET_NAME = "6c6f76656a6f696e"
-SPLIT = (85_000_000, 10_000_000, 7_000_000)
-PUBLISH_LOVELACE = 25_000_000
-LOCKED_LOVELACE = 5_000_000
-MIN_LAUNCH_LOVELACE = 105_000_000
+# Prep outputs: publication + registration budget, collateral, mint seed.
+SPLIT = (40_000_000, 10_000_000, 7_000_000)
+TOTAL_COLLATERAL = 2_000_000
+# Room for fees plus build_tx's 1.5 ADA change floor on top of locked outputs.
+FEE_RESERVE_LOVELACE = 3_000_000
+MIN_LAUNCH_LOVELACE = 60_000_000
+DENOM_LOVELACE = 10_000_000
+# Live Preprod N=3 shard-paid mixes pay ~0.893 ADA at mainnet's fee schedule.
+MAX_FEE_PER_MIX_LOVELACE = 1_000_000
+# Below this, a sweep cannot cover its fee plus a minimum-ADA refund output.
+MIN_SWEEP_LOVELACE = 2_000_000
+SWEEP_ROUNDS = 10
 CONFIRM_TIMEOUT = 900
 
 
@@ -290,17 +298,25 @@ def ref_of(row: dict) -> str:
     return f"{row['tx_hash']}#{row['tx_index']}"
 
 
-def check_min_utxo(address: str, lovelace: int, option: tuple[str, str] | None = None,
-                   asset: str = "") -> None:
-    value = f"{address} + {lovelace} lovelace" + (f" + 1 {asset}" if asset else "")
+def min_utxo(address: str, option: tuple[str, str] | None = None, asset: str = "") -> int:
+    # The ledger iterates to a fixed point, so the placeholder amount is irrelevant.
+    value = f"{address} + 1 lovelace" + (f" + 1 {asset}" if asset else "")
     args = ["transaction", "calculate-min-required-utxo", "--protocol-params-file",
             str(WALLET / "protocol.json"), "--tx-out", value]
     if option:
         args.extend(option)
     response = cli(*args)
     match = re.search(r"\d+", response)
-    if not match or lovelace < int(match.group()):
-        raise LaunchError(f"Output at {address} requires at least {response} lovelace; planned {lovelace}")
+    if not match:
+        raise LaunchError(f"cardano-cli returned no minimum UTxO value: {response}")
+    return int(match.group())
+
+
+def check_min_utxo(address: str, lovelace: int, option: tuple[str, str] | None = None,
+                   asset: str = "") -> None:
+    required = min_utxo(address, option, asset)
+    if lovelace < required:
+        raise LaunchError(f"Output at {address} requires at least {required} lovelace; planned {lovelace}")
 
 
 def output_args(address: str, lovelace: int, option: tuple[str, str] | None = None,
@@ -420,11 +436,11 @@ def script_address(name: str) -> str:
     return cli("address", "build", "--payment-script-file", str(ARTIFACTS / f"{name}.plutus"), "--mainnet")
 
 
-def verify_ref(ref: str, expected_hash: str, expected_addr: str) -> None:
+def verify_ref(ref: str, expected_hash: str, expected_addr: str, lovelace: int) -> None:
     row = utxo(ref, wait=True)
     script = row.get("reference_script") or {}
     if (row.get("address") != expected_addr or script.get("hash") != expected_hash
-            or script.get("type") != "plutusV3" or amount(row) != PUBLISH_LOVELACE):
+            or script.get("type") != "plutusV3" or amount(row) != lovelace):
         raise LaunchError(f"Reference script UTxO {ref} does not match expected address/hash")
 
 
@@ -432,7 +448,9 @@ def prepare_book(seed: str) -> dict:
     config = read_json(CONFIG)
     if config["network"] != "mainnet":
         raise LaunchError("config/network.mainnet.json is not mainnet")
-    if config["denom_lovelace"] != 10_000_000 or config["max_fee_per_mix_lovelace"] != 800_000 or config["fee_shard_target"] != 0:
+    if (config["denom_lovelace"] != DENOM_LOVELACE
+            or config["max_fee_per_mix_lovelace"] != MAX_FEE_PER_MIX_LOVELACE
+            or config["fee_shard_target"] != 0):
         raise LaunchError("Mainnet config changed; review immutable protocol parameters before launch")
     if BOOK.exists():
         book = read_json(BOOK)
@@ -457,20 +475,96 @@ def prepare_book(seed: str) -> dict:
     env.pop("LOVEJOIN_BOOTSTRAP_NETWORK_LIB", None)
     print("Compiling and parameterizing mainnet validators", flush=True)
     subprocess.run([str(BOOTSTRAP / "00-build-reference.sh")], cwd=ROOT, env=env, check=True)
-    return read_json(BOOK)
+    # Mainnet uses the current toolchain, so its hashes differ from Preprod's.
+    # Record the compiler so the mainnet hashes can be reproduced.
+    book = read_json(BOOK)
+    book["aikenVersion"] = subprocess.run(["aiken", "--version"], text=True, stdout=subprocess.PIPE,
+                                          check=True).stdout.strip()
+    atomic_json(BOOK, book)
+    return book
 
 
 def save_book(book: dict) -> None:
     atomic_json(BOOK, book)
 
 
-def select_sweep_inputs(rows: list[dict], protected: set[str]) -> list[dict]:
-    spendable = [row for row in rows if ref_of(row) not in protected]
-    if any(row.get("reference_script") for row in spendable):
-        raise LaunchError("Unexpected reference-script UTxO at launch wallet; sweep halted")
-    for row in spendable:
-        amount(row)  # Reject native assets before constructing a sweep transaction.
-    return spendable
+def split_wallet_utxos(rows: list[dict]) -> tuple[list[dict], list[dict]]:
+    """Separate ADA-only wallet UTxOs from ones the launcher leaves alone.
+
+    Anyone can send tokens or reference scripts to the launch address. Tokens
+    would need multi-asset change handling, and an attached reference script
+    raises the fee of any tx spending it, so both are skipped, not spent.
+    """
+    spendable, skipped = [], []
+    for row in rows:
+        (skipped if row.get("asset_list") or row.get("reference_script") else spendable).append(row)
+    return spendable, skipped
+
+
+def report_skipped(skipped: list[dict]) -> None:
+    if skipped:
+        print(f"  Left {len(skipped)} wallet UTxO(s) carrying tokens or reference scripts in place; "
+              "spend them manually with payment.skey if needed:", flush=True)
+        for row in skipped:
+            print(f"    {ref_of(row)}", flush=True)
+
+
+def unspent_rows(rows: list[dict]) -> list[dict]:
+    # address_utxos may come from a lagging Koios instance; confirm each input.
+    if not rows:
+        return []
+    info = koios("/utxo_info", {"_utxo_refs": [ref_of(row) for row in rows], "_extended": True})
+    live = {ref_of(row) for row in info if row.get("is_spent") is False}
+    return [row for row in rows if ref_of(row) in live]
+
+
+def sweep_wallet(state: dict, address: str, return_address: str) -> list[dict]:
+    """Send every ADA-only launch-wallet UTxO to the return address.
+
+    Safe to repeat. Every attempt is journaled before submission, and earlier
+    attempts are checked for confirmation first. An attempt built from a stale
+    Koios view can never land; it is superseded by a fresh sweep of whatever
+    remains, and any two attempts that both land pay the same return address.
+    """
+    attempts = state.setdefault("sweeps", [])
+    for _ in range(SWEEP_ROUNDS):
+        for attempt in attempts:
+            if not attempt.get("confirmed") and status(attempt["txid"]) >= 1:
+                await_confirmed(attempt["txid"])
+                attempt["confirmed"] = True
+                atomic_json(STATE, state, private=True)
+        rows, skipped = split_wallet_utxos(address_utxos(address))
+        if len(unspent_rows(rows)) != len(rows):
+            # Koios instances disagree about the wallet; wait for them to converge.
+            time.sleep(10)
+            continue
+        if sum(int(row["value"]) for row in rows) < MIN_SWEEP_LOVELACE:
+            report_skipped(skipped)
+            break
+        signed, txid = build_tx(f"sweep-{len(attempts) + 1}", rows, [], return_address)
+        if not any(attempt["txid"] == txid for attempt in attempts):
+            attempts.append({"txid": txid, "signed": str(signed),
+                             "signedSha256": hashlib.sha256(signed.read_bytes()).hexdigest()})
+            atomic_json(STATE, state, private=True)
+        print(f"sweep: {txid}", flush=True)
+        try:
+            submit(signed, txid)
+        except LaunchError as exc:
+            if status(txid) == 0:
+                raise LaunchError(f"{exc}; contracts are deployed, rerun launch to retry the refund") from exc
+        await_confirmed(txid)
+        next(attempt for attempt in attempts if attempt["txid"] == txid)["confirmed"] = True
+        atomic_json(STATE, state, private=True)
+    else:
+        raise LaunchError("Launch wallet still holds ADA after repeated sweeps; rerun launch to continue")
+    refunds = []
+    for attempt in attempts:
+        if attempt.get("confirmed"):
+            row = utxo(f"{attempt['txid']}#0", wait=True, require_unspent=False)
+            if row["address"] != return_address or row.get("reference_script"):
+                raise LaunchError(f"Confirmed refund {attempt['txid']} does not match return address")
+            refunds.append({"txid": attempt["txid"], "lovelace": amount(row)})
+    return refunds
 
 
 @contextmanager
@@ -515,12 +609,11 @@ def launch_locked(return_address: str, address: str) -> None:
     params = protocol_params()
     stages = state["stages"]
     if "prep" not in stages:
-        initial = address_utxos(address)
+        initial, skipped = split_wallet_utxos(address_utxos(address))
+        report_skipped(skipped)
         total = sum(amount(row) for row in initial)
         if total < MIN_LAUNCH_LOVELACE:
             raise LaunchError(f"Fund at least {MIN_LAUNCH_LOVELACE / 1_000_000:.0f} ADA before launch; found {total / 1_000_000:.6f}")
-        if any(row.get("reference_script") for row in initial):
-            raise LaunchError("Launch wallet already contains reference scripts")
         def build_prep():
             fixed = [(address, value, None, "") for value in SPLIT]
             return build_tx("prep", initial, fixed, address)
@@ -539,9 +632,6 @@ def launch_locked(return_address: str, address: str) -> None:
             raise LaunchError(f"Missing parameterized contract field: {field}")
     if book["referenceNftAssetName"] != ASSET_NAME:
         raise LaunchError("Unexpected reference NFT name")
-    preprod_holder = read_json(ROOT / "artifacts" / "preprod" / "addresses.json")["referenceHolderScriptHash"]
-    if book["referenceHolderScriptHash"] != preprod_holder:
-        raise LaunchError("Parameter-free reference holder bytecode differs from live Preprod")
     for script, field in (("reference_holder", "referenceHolderScriptHash"),
                           ("one_shot_mint", "referenceNftPolicy"),
                           ("mix_logic", "mixLogicScriptHash"),
@@ -556,13 +646,44 @@ def launch_locked(return_address: str, address: str) -> None:
         raise LaunchError("Contract hashes differ from the saved launch journal")
     state["scriptHashes"] = hashes
     atomic_json(STATE, state, private=True)
-    for script in ("mix_box", "mix_logic", "fee_contract"):
-        check_min_utxo(address, PUBLISH_LOVELACE,
-                       ("--tx-out-reference-script-file", str(ARTIFACTS / f"{script}.plutus")))
+    # Reference scripts and the NFT both live at the always-False holder, so
+    # nothing the protocol depends on can ever be spent, including by this key.
+    holder_addr = script_address("reference_holder")
+    asset = f"{book['referenceNftPolicy']}.{ASSET_NAME}"
+    datum = {"constructor": 0, "fields": [
+        {"int": book["protocol"]["denom_lovelace"]},
+        {"int": book["protocol"]["max_fee_per_mix_lovelace"]},
+        {"bytes": book["mixBoxScriptHash"]},
+        {"bytes": book["mixLogicScriptHash"]},
+        {"bytes": book["feeScriptHash"]},
+    ]}
+    datum_file = WALLET / "reference_datum.json"
+    atomic_json(datum_file, datum, private=True)
+    # Nothing can ever reclaim ADA at the holder, so each locked output carries
+    # exactly the ledger minimum. An amount follows current parameters until
+    # its stage is signed, then stays fixed with the saved transaction.
+    locked_outputs = {
+        script: (f"publish_{script}", ("--tx-out-reference-script-file", str(ARTIFACTS / f"{script}.plutus")), "")
+        for script in ("mix_box", "mix_logic", "fee_contract")
+    }
+    locked_outputs["reference"] = ("mint", ("--tx-out-inline-datum-file", str(datum_file)), asset)
+    locked = state.setdefault("lockedLovelace", {})
+    for key, (stage, option, token) in locked_outputs.items():
+        if stage not in stages:
+            locked[key] = min_utxo(holder_addr, option, token)
+    atomic_json(STATE, state, private=True)
+    publish_total = locked["mix_box"] + locked["mix_logic"] + locked["fee_contract"]
+    if ("publish_fee_contract" not in stages
+            and SPLIT[0] - publish_total - params["stakeAddressDeposit"] < FEE_RESERVE_LOVELACE):
+        raise LaunchError(f"Publication budget {SPLIT[0]} cannot cover {publish_total} locked lovelace, "
+                          "the stake deposit, and fees")
+    if "mint" not in stages and SPLIT[2] - locked["reference"] < FEE_RESERVE_LOVELACE:
+        raise LaunchError(f"Mint seed {SPLIT[2]} cannot cover {locked['reference']} locked lovelace and fees")
+    book["lockedLovelace"] = dict(locked)
     run_stage(state, "prep", lambda: (_ for _ in ()).throw(AssertionError()))
     for i, expected in enumerate(SPLIT):
         # Saved downstream stages may already have consumed these outputs.
-        if ((i == 1 and "sweep" not in stages) or (i == 0 and "publish_mix_box" not in stages)
+        if ((i == 1 and not state.get("sweeps")) or (i == 0 and "publish_mix_box" not in stages)
                 or (i == 2 and "mint" not in stages)):
             row = utxo(prep_refs[i], wait=True)
             if amount(row) != expected or row["address"] != address or row.get("reference_script"):
@@ -576,18 +697,21 @@ def launch_locked(return_address: str, address: str) -> None:
                                     ("publish_mix_logic", "mix_logic", "mixLogicScriptHash"),
                                     ("publish_fee_contract", "fee_contract", "feeScriptHash")):
         def build_publish(ref=previous, tag=tag, script=script):
-            fixed = [(address, PUBLISH_LOVELACE,
+            fixed = [(holder_addr, locked[script],
                       ("--tx-out-reference-script-file", str(ARTIFACTS / f"{script}.plutus")), "")]
             return build_tx(tag, [utxo(ref, wait=True)], fixed, address)
         txid = run_stage(state, tag, build_publish)
         ref = f"{txid}#0"
-        verify_ref(ref, book[hash_field], address)
+        verify_ref(ref, book[hash_field], holder_addr, locked[script])
         book.setdefault("referenceScriptUtxos", {})[script] = ref
         book["deploymentTxs"][tag] = txid
         book["stage1ChangeUtxo"] = f"{txid}#1"
         save_book(book)
         previous = f"{txid}#1"
 
+    collateral_args = ["--tx-in-collateral", prep_refs[1],
+                       "--tx-total-collateral", str(TOTAL_COLLATERAL),
+                       "--tx-out-return-collateral", f"{address} + {SPLIT[1] - TOTAL_COLLATERAL} lovelace"]
     logic_ref = book["referenceScriptUtxos"]["mix_logic"]
     logic_size = int(utxo(logic_ref)["reference_script"]["size"])
     def build_register():
@@ -596,9 +720,7 @@ def launch_locked(return_address: str, address: str) -> None:
             str(ARTIFACTS / "mix_logic.plutus"), "--key-reg-deposit-amt",
             str(params["stakeAddressDeposit"]), "--out-file", str(cert))
         def extra_for_budget(budget: str) -> list[str]:
-            return ["--tx-in-collateral", prep_refs[1],
-                    "--tx-total-collateral", "2000000",
-                    "--tx-out-return-collateral", f"{address} + 8000000 lovelace",
+            return [*collateral_args,
                     "--certificate-file", str(cert), "--certificate-tx-in-reference", logic_ref,
                     "--certificate-plutus-script-v3", "--certificate-reference-tx-in-redeemer-value",
                     '{"constructor":0,"fields":[]}',
@@ -615,26 +737,13 @@ def launch_locked(return_address: str, address: str) -> None:
     book.setdefault("scriptEvaluation", {})["register"] = read_json(WALLET / "register.evaluation.json")
     save_book(book)
 
-    holder_addr = script_address("reference_holder")
-    asset = f"{book['referenceNftPolicy']}.{ASSET_NAME}"
-    datum = {"constructor": 0, "fields": [
-        {"int": book["protocol"]["denom_lovelace"]},
-        {"int": book["protocol"]["max_fee_per_mix_lovelace"]},
-        {"bytes": book["mixBoxScriptHash"]},
-        {"bytes": book["mixLogicScriptHash"]},
-        {"bytes": book["feeScriptHash"]},
-    ]}
-    datum_file = WALLET / "reference_datum.json"
-    atomic_json(datum_file, datum, private=True)
     def build_mint():
         def extra_for_budget(budget: str) -> list[str]:
-            return ["--tx-in-collateral", prep_refs[1],
-                    "--tx-total-collateral", "2000000",
-                    "--tx-out-return-collateral", f"{address} + 8000000 lovelace",
+            return [*collateral_args,
                     "--mint", f"1 {asset}", "--mint-script-file", str(ARTIFACTS / "one_shot_mint.plutus"),
                     "--mint-redeemer-value", '{"constructor":0,"fields":[]}',
                     "--mint-execution-units", budget]
-        fixed = [(holder_addr, LOCKED_LOVELACE,
+        fixed = [(holder_addr, locked["reference"],
                   ("--tx-out-inline-datum-file", str(datum_file)), asset)]
         return build_evaluated_tx("mint", "mint:0", [utxo(prep_refs[2], wait=True)],
                                   fixed, address, extra_for_budget, params)
@@ -642,7 +751,7 @@ def launch_locked(return_address: str, address: str) -> None:
     nft_ref = f"{mint_tx}#0"
     nft = utxo(nft_ref, wait=True)
     assets = nft.get("asset_list") or []
-    if (nft.get("address") != holder_addr or int(nft["value"]) != LOCKED_LOVELACE
+    if (nft.get("address") != holder_addr or int(nft["value"]) != locked["reference"]
             or nft.get("reference_script") or len(assets) != 1) or not any(
         a.get("policy_id") == book["referenceNftPolicy"] and a.get("asset_name") == ASSET_NAME
         and int(a.get("quantity", 0)) == 1 for a in assets
@@ -652,29 +761,16 @@ def launch_locked(return_address: str, address: str) -> None:
     book["deploymentTxs"]["mint"] = mint_tx
     book.setdefault("scriptEvaluation", {})["mint"] = read_json(WALLET / "mint.evaluation.json")
     save_book(book)
+    print("Contracts deployed. Returning remaining ADA.", flush=True)
 
-    protected = set(book["referenceScriptUtxos"].values())
-    def build_sweep():
-        spendable = select_sweep_inputs(address_utxos(address), protected)
-        return build_tx("sweep", spendable, [], return_address)
-    sweep_tx = run_stage(state, "sweep", build_sweep)
-    refund = utxo(f"{sweep_tx}#0", wait=True, require_unspent=False)
-    if refund["address"] != return_address or refund.get("reference_script"):
-        raise LaunchError("Confirmed refund does not match return address")
-    refunded = amount(refund)
-    deadline = time.monotonic() + 120
-    while True:
-        remaining = [row for row in address_utxos(address) if ref_of(row) not in protected]
-        if not remaining:
-            break
-        if time.monotonic() >= deadline:
-            raise LaunchError(f"Sweep confirmed but {len(remaining)} spendable wallet UTxOs remain")
-        time.sleep(5)
-    book["refund"] = {"address": return_address, "lovelace": refunded, "utxoRef": f"{sweep_tx}#0"}
-    book["deploymentTxs"]["sweep"] = sweep_tx
+    refunds = sweep_wallet(state, address, return_address)
+    book["refund"] = {"address": return_address,
+                      "lovelace": sum(refund["lovelace"] for refund in refunds), "txs": refunds}
     save_book(book)
     print(f"Mainnet launch complete. Canonical address book: {BOOK}")
-    print(f"Remaining ADA sent to: {return_address} (tx {sweep_tx})")
+    print(f"Returned {book['refund']['lovelace'] / 1_000_000:.6f} ADA to {return_address} "
+          f"in {len(refunds)} tx(s)")
+    print("Rerun launch any time to return ADA that arrives or appears later.")
     print("Review artifacts/mainnet/addresses.json before committing it. Do not commit wallets/.")
 
 

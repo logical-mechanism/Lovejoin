@@ -148,7 +148,7 @@ class LaunchRehearsal(unittest.TestCase):
 
         def accept_locally(signed, txid):
             nonlocal registered, spent_lovelace
-            name = signed.stem
+            name = signed.stem.split("-")[0]  # sweep attempts are sweep-1, sweep-2, ...
             self.assertIn(name, stages)
             self.assertNotIn(txid, accepted, "A confirmed stage must never be submitted again")
             tx = cbor2.loads(bytes.fromhex(launch.read_json(signed)["cborHex"]))
@@ -165,7 +165,7 @@ class LaunchRehearsal(unittest.TestCase):
             self.assertLessEqual(len(bytes.fromhex(launch.read_json(signed)["cborHex"])), mainnet_params["maxTxSize"])
             if name in ("register", "mint"):
                 self.assertGreaterEqual(body[17] * 100, body[2] * mainnet_params["collateralPercentage"])
-                self.assertEqual(body[17] + body[16][1], 10_000_000)
+                self.assertEqual(body[17] + body[16][1], launch.SPLIT[1])
                 receipt = launch.read_json(launch.WALLET / f"{name}.evaluation.json")
                 self.assertEqual(receipt["txid"], txid)
             if name == "register":
@@ -196,8 +196,6 @@ class LaunchRehearsal(unittest.TestCase):
                 shutil.copytree(repo / "contracts/build/packages", root / "contracts/build/packages")
             (root / "config").mkdir()
             shutil.copy2(repo / "config/network.mainnet.json", root / "config/network.mainnet.json")
-            (root / "artifacts/preprod").mkdir(parents=True)
-            shutil.copy2(repo / "artifacts/preprod/addresses.json", root / "artifacts/preprod/addresses.json")
             wallet = bootstrap / "wallets" / "rehearsal-only"
             wallet.mkdir(parents=True, mode=0o700)
             artifacts = root / "artifacts/mainnet"
@@ -216,7 +214,7 @@ class LaunchRehearsal(unittest.TestCase):
             destination = remember_address(real_cli("address", "build", "--payment-verification-key-file", str(wallet / "refund.vkey"), "--mainnet"))
             (wallet / "payment.addr").write_text(address)
             ledger["f" * 64 + "#0"] = {"tx_hash": "f" * 64, "tx_index": 0, "address": address,
-                                         "value": "105000000", "asset_list": [], "is_spent": False,
+                                         "value": str(launch.MIN_LAUNCH_LOVELACE), "asset_list": [], "is_spent": False,
                                          "reference_script": None, "inline_datum": None}
             for _ in range(len(stages) + 1):
                 try:
@@ -234,12 +232,23 @@ class LaunchRehearsal(unittest.TestCase):
             fee_address = launch.script_address("fee_contract")
             self.assertFalse(any(row["address"] == fee_address for row in ledger.values()))
             self.assertEqual(book["refund"]["address"], destination)
-            self.assertEqual(book["refund"]["lovelace"], 105_000_000 - 82_000_000 - spent_lovelace)
-            self.assertEqual(len([row for row in ledger.values() if not row["is_spent"] and row["address"] == address]), 3)
+            locked = sum(book["lockedLovelace"].values()) + mainnet_params["stakeAddressDeposit"]
+            self.assertEqual(book["refund"]["lovelace"], launch.MIN_LAUNCH_LOVELACE - locked - spent_lovelace)
+            self.assertEqual([row for row in ledger.values() if not row["is_spent"] and row["address"] == address], [])
+            holder = [row for row in ledger.values() if row["address"] == launch.script_address("reference_holder")]
+            self.assertEqual(sorted(ref for ref in book["referenceScriptUtxos"].values()),
+                             sorted(launch.ref_of(row) for row in holder if row["reference_script"]))
+            self.assertEqual([launch.ref_of(row) for row in holder if row["asset_list"]], [book["referenceUtxoRef"]])
+            # Every permanently locked output carries exactly the ledger minimum.
+            by_ref = {launch.ref_of(row): int(row["value"]) for row in holder}
+            self.assertEqual({key: by_ref[ref] for key, ref in book["referenceScriptUtxos"].items()},
+                             {key: book["lockedLovelace"][key] for key in book["referenceScriptUtxos"]})
+            self.assertEqual(by_ref[book["referenceUtxoRef"]], book["lockedLovelace"]["reference"])
             self.assertGreaterEqual(len(evaluations), 6)
             self.assertTrue(all("result" in result for result in evaluations))
             print(f"REHEARSAL PASSED: {len(stages)} stages, {len(evaluations)} Koios evaluations, "
-                  f"fees {spent_lovelace / 1_000_000:.6f} ADA, refund {book['refund']['lovelace'] / 1_000_000:.6f} ADA")
+                  f"fees {spent_lovelace / 1_000_000:.6f} ADA, locked {locked / 1_000_000:.6f} ADA, "
+                  f"refund {book['refund']['lovelace'] / 1_000_000:.6f} ADA")
 
 
 if __name__ == "__main__":

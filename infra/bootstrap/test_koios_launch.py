@@ -101,6 +101,34 @@ class LaunchSafetyTests(unittest.TestCase):
                     launch.launch_locked("addr1return", "addr1launch")
                 submit.assert_not_called()
 
+    def test_underfunded_locked_outputs_stop_before_any_submission(self):
+        book = {"protocol": {"denom_lovelace": 10_000_000, "max_fee_per_mix_lovelace": 1_000_000},
+                "referenceNftAssetName": launch.ASSET_NAME,
+                **{field: "h" * 56 for field in ("referenceNftPolicy", "referenceHolderScriptHash",
+                                                 "mixLogicScriptHash", "mixBoxScriptHash", "feeScriptHash")}}
+        with tempfile.TemporaryDirectory() as directory:
+            wallet = Path(directory)
+            signed = wallet / "prep.tx"
+            signed.write_text('{"cborHex":"80"}')
+            def cli(*args):
+                return "h" * 56 if "policyid" in args else "a" * 64
+            with patch.object(launch, "WALLET", wallet), \
+                 patch.object(launch, "STATE", wallet / "state.json"), \
+                 patch.object(launch, "BOOK", wallet / "addresses.json"), \
+                 patch.object(launch, "protocol_params", return_value={"stakeAddressDeposit": 2_000_000}), \
+                 patch.object(launch, "address_utxos", return_value=[{"value": "60000000"}]), \
+                 patch.object(launch, "build_tx", return_value=(signed, "a" * 64)), \
+                 patch.object(launch, "cli", side_effect=cli), \
+                 patch.object(launch, "prepare_book", return_value=book), \
+                 patch.object(launch, "script_address", return_value="addr1holder"), \
+                 patch.object(launch, "min_utxo", return_value=12_000_000), \
+                 patch.object(launch, "submit") as submit:
+                with self.assertRaisesRegex(launch.LaunchError, "Publication budget"):
+                    launch.launch_locked("addr1return", "addr1launch")
+                submit.assert_not_called()
+            locked = launch.read_json(wallet / "state.json")["lockedLovelace"]
+            self.assertEqual(set(locked), {"mix_box", "mix_logic", "fee_contract", "reference"})
+
     def test_second_launch_cannot_acquire_wallet_lock(self):
         with tempfile.TemporaryDirectory() as directory, \
              patch.object(launch, "WALLET", Path(directory)):
@@ -162,17 +190,82 @@ class LaunchSafetyTests(unittest.TestCase):
             with self.assertRaises(launch.LaunchError):
                 launch.validate_mainnet_address("addr_test1wrongnetwork")
 
-    def test_final_sweep_preserves_reference_scripts_and_rejects_assets(self):
+    def test_wallet_split_skips_tokens_and_reference_scripts(self):
         ref = {"tx_hash": "a" * 64, "tx_index": 0, "value": "25000000",
                "asset_list": [], "reference_script": {"hash": "b" * 56}}
         change = {"tx_hash": "c" * 64, "tx_index": 1, "value": "3000000",
                   "asset_list": [], "reference_script": None}
-        self.assertEqual(launch.select_sweep_inputs([ref, change], {launch.ref_of(ref)}), [change])
-        with self.assertRaises(launch.LaunchError):
-            launch.select_sweep_inputs([ref, change], set())
-        asset_change = dict(change, asset_list=[{"policy_id": "d" * 56, "quantity": "1"}])
-        with self.assertRaises(launch.LaunchError):
-            launch.select_sweep_inputs([ref, asset_change], {launch.ref_of(ref)})
+        token = dict(change, tx_index=2, asset_list=[{"policy_id": "d" * 56, "quantity": "1"}])
+        self.assertEqual(launch.split_wallet_utxos([ref, change, token]), ([change], [ref, token]))
+
+    def test_sweep_skips_stale_inputs_and_repeats_until_empty(self):
+        stale = {"tx_hash": "a" * 64, "tx_index": 0, "value": "4000000", "asset_list": [],
+                 "reference_script": None}
+        late = dict(stale, tx_hash="b" * 64)
+        views = [[stale], [late], []]
+        refunds = {}
+
+        def request(path, body):
+            if path == "/address_utxos":
+                return views.pop(0)
+            refs = body["_utxo_refs"]
+            if path == "/utxo_info" and refs[0].endswith("#0") and refs[0][:64] in refunds:
+                return [{"tx_hash": refs[0][:64], "tx_index": 0, "address": "addr1return",
+                         "value": str(refunds[refs[0][:64]]), "is_spent": False}]
+            # The first address view came from a lagging instance.
+            return [dict(row, is_spent=row is stale) for row in (stale, late) if launch.ref_of(row) in refs]
+
+        def build(name, rows, fixed, change_address):
+            self.assertEqual(rows, [late])
+            self.assertEqual((fixed, change_address), ([], "addr1return"))
+            refunds["e" * 64] = 3_800_000
+            signed = Path(directory) / f"{name}.tx"
+            signed.write_text('{"cborHex":"80"}')
+            return signed, "e" * 64
+
+        with tempfile.TemporaryDirectory() as directory:
+            state = {"sweeps": [{"txid": "f" * 64, "signed": "old", "signedSha256": "0"}]}
+            with patch.object(launch, "STATE", Path(directory) / "state.json"), \
+                 patch.object(launch, "koios", side_effect=request), \
+                 patch.object(launch, "status", return_value=0), \
+                 patch.object(launch, "build_tx", side_effect=build) as build_tx, \
+                 patch.object(launch, "submit") as submit, \
+                 patch.object(launch, "await_confirmed"), \
+                 patch.object(launch.time, "sleep") as sleep:
+                result = launch.sweep_wallet(state, "addr1launch", "addr1return")
+            sleep.assert_called_once_with(10)
+            self.assertEqual(build_tx.call_count, 1)
+            submit.assert_called_once()
+            self.assertEqual(result, [{"txid": "e" * 64, "lovelace": 3_800_000}])
+            self.assertEqual([a["txid"] for a in state["sweeps"]], ["f" * 64, "e" * 64])
+            self.assertTrue(launch.read_json(Path(directory) / "state.json")["sweeps"][1]["confirmed"])
+
+    def test_sweep_leaves_dust_and_tokens_without_failing(self):
+        dust = {"tx_hash": "a" * 64, "tx_index": 0, "value": "1500000", "asset_list": [],
+                "reference_script": None}
+        token = dict(dust, tx_index=1, value="5000000", asset_list=[{"policy_id": "d" * 56}])
+        with patch.object(launch, "address_utxos", return_value=[dust, token]), \
+             patch.object(launch, "koios", return_value=[dict(dust, is_spent=False)]), \
+             patch.object(launch, "build_tx") as build_tx:
+            self.assertEqual(launch.sweep_wallet({}, "addr1launch", "addr1return"), [])
+            build_tx.assert_not_called()
+
+    def test_failed_sweep_reports_deployed_contracts(self):
+        row = {"tx_hash": "a" * 64, "tx_index": 0, "value": "4000000", "asset_list": [],
+               "reference_script": None}
+        with tempfile.TemporaryDirectory() as directory:
+            signed = Path(directory) / "sweep-1.tx"
+            signed.write_text('{"cborHex":"80"}')
+            state = {}
+            with patch.object(launch, "STATE", Path(directory) / "state.json"), \
+                 patch.object(launch, "address_utxos", return_value=[row]), \
+                 patch.object(launch, "koios", return_value=[dict(row, is_spent=False)]), \
+                 patch.object(launch, "build_tx", return_value=(signed, "e" * 64)), \
+                 patch.object(launch, "submit", side_effect=launch.LaunchError("BadInputsUTxO")), \
+                 patch.object(launch, "status", return_value=0):
+                with self.assertRaisesRegex(launch.LaunchError, "contracts are deployed"):
+                    launch.sweep_wallet(state, "addr1launch", "addr1return")
+            self.assertEqual(state["sweeps"][0]["txid"], "e" * 64)
 
 
 if __name__ == "__main__":

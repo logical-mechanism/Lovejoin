@@ -245,31 +245,46 @@ takes one block window (~20 s) end to end.
 `koios-launch.py` is the mainnet-only path for a one-time wallet. It uses public
 [Koios](https://www.koios.rest/guide/introduction.html) for UTxOs, current
 protocol parameters, transaction submission, and confirmation. `cardano-cli`
-builds and signs locally; Aiken parameterizes the same validators as the
+builds and signs locally; Aiken parameterizes the same validator source as the
 Preprod ceremony. No node socket, Blockfrost key, or frontend change is needed.
 The existing shell stages above remain the manual Preprod path.
+
+Mainnet compiles with the current toolchain (Aiken 1.1.24, stdlib v4.0.0). The
+live Preprod deployment was compiled with Aiken 1.1.21 and stdlib v3.1.0, so
+every parameterized script hash differs between the two networks even though
+the validator source and execution costs are the same. Each network's hashes
+live in its own `artifacts/<network>/addresses.json`; the mainnet book also
+records the `aikenVersion` that built it.
 
 The mainnet launch publishes three reference scripts, registers the mix-logic
 stake credential, and mints and locks the reference NFT. **It never creates or
 funds fee UTxOs.** There is no full-launch option. Mainnet's informational
 `fee_shard_target` is zero and the address book records `feeShardUtxos: []`.
-The fee-contract reference script is published at the launch wallet, alongside
-the other reference scripts; this is not a fee-pool output. The manual
-`03-fund-fee-contract.sh` also refuses mainnet.
+All three reference scripts are published to the always-False
+`reference_holder` address, next to the protocol NFT, so they can never be
+spent. The fee-contract reference script is not a fee-pool output. The manual
+`03-fund-fee-contract.sh` also refuses mainnet. (Preprod keeps its reference
+scripts in the bootstrap wallet because repeated testing redeploys needed them
+to be recoverable.)
 
 Deposits can run without shards. Mixes need the existing wallet-paid fee mode;
 shard-paid mixing and the Mix This Box shortcut require a funded shard pool.
 Wallet-paid fan-out is limited to supported wallets. The launcher does not
 activate mainnet in the frontend.
 
-**Fund at least 105 ADA**: 85 ADA for publication and registration, 10 ADA
+**Fund at least 60 ADA**: 40 ADA for publication and registration, 10 ADA
 collateral, 7 ADA for the mint seed, and 3 ADA for preparation fees and initial
-change. Three 25 ADA reference outputs, the 5 ADA NFT output, and the current
-2 ADA stake deposit remain on chain (82 ADA total). The final sweep sends the
-remaining wallet balance, including the unused collateral, to the return
-address after deducting transaction fees. The 105 ADA requirement is the
-launcher's funding plan; the ledger's minimum output amounts are checked
-against current Koios parameters. Funding 110 ADA provides extra headroom.
+change. Nothing can ever reclaim ADA at `reference_holder`, so every output
+locked there carries exactly the ledger's minimum, computed from current Koios
+parameters. At current parameters that is 3.62 ADA (`mix_box`), 14.53 ADA
+(`mix_logic`), and 10.52 ADA (`fee_contract`) for the reference scripts and
+1.52 ADA for the NFT output. With the 2 ADA stake deposit, which cannot be
+reclaimed because `mix_logic` rejects deregistration, about 32.2 ADA stays on
+chain permanently. Before any funds move, the launcher checks that the
+publication budget and mint seed cover these amounts plus fees. The final
+sweep sends the remaining wallet balance, including the unused collateral, to
+the return address after deducting transaction fees (about 25.9 ADA from a
+60 ADA launch). Funding 65 ADA provides extra headroom.
 
 The launch has three distinct operator actions:
 
@@ -277,7 +292,7 @@ The launch has three distinct operator actions:
 # 1. When ready to receive funds, create an isolated wallet offline.
 ./infra/bootstrap/koios-launch.py wallet
 
-# 2. Send at least 105 ADA to its addr1... address, then inspect the balance.
+# 2. Send at least 60 ADA to its addr1... address, then inspect the balance.
 ./infra/bootstrap/koios-launch.py status
 
 # 3. Only after explicitly deciding to launch, set the return address.
@@ -293,20 +308,28 @@ hashes in a private resume journal. A wallet lock prevents concurrent runs.
 
 Before spending funding, the launcher saves the signed preparation transaction,
 uses its future seed output to compile and parameterize the contracts, and
-checks their hashes and reference-output minimum amounts. It then waits for
+checks their hashes and the locked outputs' exact minimum amounts. It then waits for
 two Koios confirmations between stages, rejects spent outputs, and verifies
 the reference scripts, registered stake credential, NFT and inline datum,
-and final refund. The three reference-script outputs remain at the launch
-wallet; they must stay unspent for the published references to work. Keep the
-launch signing key private because it can spend those outputs.
+and final refund. Once the NFT is minted, the launch key controls nothing the
+protocol depends on; only leftover change remains at the launch wallet.
+
+The refund is repeatable. The sweep journals each attempt, confirms every input
+is unspent before signing, and waits and retries while Koios instances
+disagree about the wallet. If a sweep fails after the contracts are deployed,
+rerun the same launch command: it confirms or supersedes earlier attempts and
+sweeps whatever ADA-only UTxOs remain, including ADA that arrives later. UTxOs
+carrying tokens or reference scripts (which anyone can send to the address)
+are skipped and listed rather than blocking the launch; spend them manually
+with `payment.skey` if needed. Leftovers under 2 ADA are also left in place.
 
 Signed transactions, evaluation receipts, and the resume journal stay under
 gitignored `infra/bootstrap/wallets/mainnet-launch/`. If submission or
 confirmation fails, rerun the **same** launch command. The journal verifies
-the exact saved transaction before reusing it. Do not create a different
-wallet or remove the journal midway through the ceremony. Before submitting
-the stake registration and NFT mint, the launcher simulates each through
-Koios's Ogmios evaluator, allocates execution budgets above measured costs,
+the exact saved deployment transaction before reusing it. Do not create a
+different wallet or remove the journal midway through the ceremony. Before
+submitting the stake registration and NFT mint, the launcher simulates each
+through Koios's Ogmios evaluator, allocates execution budgets above measured costs,
 and checks the final transaction. A saved script transaction is evaluated
 again before resubmission. A failed Plutus validation can consume up to 2 ADA
 of collateral; the launcher checks that amount against the current collateral
@@ -315,17 +338,22 @@ percentage and transaction fee.
 After a successful run, review and commit `artifacts/mainnet/addresses.json`
 and the five `artifacts/mainnet/*.plutus` files. The address book records the
 seed, script hashes, reference NFT, reference-script UTxOs, an empty fee-shard
-list, stage transaction IDs, script evaluation results, and the refund address
-and amount. It is created during preflight and updated as stages are confirmed;
-only a completed book contains `deploymentTxs.sweep`. Never commit the wallet
-directory or signed transactions. Mainnet's immutable reference datum uses a
-10 ADA denomination and 0.8 ADA maximum fee per mix, matching
-`config/network.mainnet.json`.
+list, the ADA locked in each holder output, stage transaction IDs, script
+evaluation results, the Aiken version, and the refund address, amount, and
+transactions. It is created during preflight
+and updated as stages are confirmed; only a completed book contains `refund`.
+Never commit the wallet directory or signed transactions. Mainnet's immutable
+reference datum uses a 10 ADA denomination and 1 ADA maximum fee per mix,
+matching `config/network.mainnet.json`. A shard-paid N=3 mix costs about
+0.893 ADA at current mainnet fee parameters (measured on Preprod, whose fee
+schedule is identical), so the cap covers a fee-paying N=3 mix with about
+0.1 ADA to spare.
 
 ### Launch validation without submission
 
 The offline safety tests cover submission guards, spent outputs, failed
-preflight, journal integrity, concurrent launches, and evaluator failures:
+preflight, journal integrity, concurrent launches, evaluator failures, and
+refund sweeps over stale Koios data, tokens, and dust:
 
 ```sh
 python3 -m unittest discover -s infra/bootstrap -p 'test_koios_launch.py'
@@ -336,8 +364,9 @@ protocol parameters, and read-only Koios evaluation. It creates temporary test
 keys and fictitious inputs in an isolated copy, intercepts every submission,
 and simulates an interruption after each accepted stage before resuming.
 HTTP access is restricted to parameter queries and script evaluation. It
-checks transaction balance, collateral, output sizes, empty fee funding, and
-the final refund:
+checks transaction balance, collateral, output sizes, empty fee funding,
+reference-script and NFT placement at `reference_holder`, and the final
+refund:
 
 ```sh
 LOVEJOIN_KOIOS_REHEARSAL=1 python3 -m unittest discover -s infra/bootstrap \
