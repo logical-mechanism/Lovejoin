@@ -235,12 +235,31 @@ takes one block window (~20 s) end to end.
   so you're not getting that ADA back.
 - **Mainnet.** None of these scripts default to mainnet. `_lib/network.sh`
   refuses to run with `NETWORK=mainnet` unless `LOVEJOIN_MAINNET_CONFIRM=yes`
-  is set, so a stale shell or typo can't burn a real seed UTxO. The actual
-  mainnet posture for this protocol — no third-party audit, no bug bounty,
-  same on-chain code as Preprod — is in [SECURITY.md](../../SECURITY.md);
-  this guard is a procedural safety net, not a release gate.
+  is set, so a stale shell or typo can't burn a real seed UTxO. Mainnet itself
+  was launched with `koios-launch.py` (below). The mainnet posture for this
+  protocol (no third-party audit, no bug bounty, same validator source as
+  Preprod) is in [SECURITY.md](../../SECURITY.md); this guard is a procedural
+  safety net, not a release gate.
 
 ## Automated mainnet launch through Koios
+
+**Mainnet was launched with this tool on 2026-09-26.** The canonical address
+book is [`artifacts/mainnet/addresses.json`](../../artifacts/mainnet/addresses.json):
+reference NFT `f5592689c7ab35553a3234a54c0ee118090a5762c696819a53a5a826.lovejoin`
+at reference UTxO `f89cb43a…175c#0`. The seed is spent, so the launcher refuses
+to start a second mainnet deployment against that address book. The run
+locked 32.19 ADA permanently, paid 1.91 ADA in fees, and returned the rest of
+the 65 ADA funding. This section documents how it works and how to reproduce
+or verify it.
+
+`reference_holder` takes no parameters, and its always-False bytecode matches
+other Aiken always-False validators, so its mainnet address
+(`addr1wy5gl6nh5rm8f3sgp2ka3mfu5skdt2fqhu0spsxnucesdeqatlhxl`) was already in
+use as a token burn address before this launch. The unrelated token UTxOs there
+are harmless: only the one-shot policy can mint the protocol NFT, and the
+validators select the reference UTxO by that NFT. Off-chain code should look
+the reference UTxO up by NFT or by `referenceUtxoRef`, not by scanning the
+address.
 
 `koios-launch.py` is the mainnet-only path for a one-time wallet. It uses public
 [Koios](https://www.koios.rest/guide/introduction.html) for UTxOs, current

@@ -14,11 +14,11 @@ If you want destination anonymity (the address you withdraw to should also be un
 
 ## Try it
 
-Lovejoin is **live on Cardano Preprod** with a mainnet deployment of the same contracts in preparation. The hosted UI ships at **preprod.lovejo.in** for the current testnet pool and **lovejo.in** for the upcoming mainnet pool. To run the UI locally against the live Preprod deployment, see the **Develop** section below.
+Lovejoin's contracts are **live on Cardano mainnet and Preprod**. Both networks run the same validator source; mainnet was compiled with a newer Aiken toolchain, so its script hashes differ. The canonical address books are [`artifacts/mainnet/addresses.json`](artifacts/mainnet/addresses.json) and [`artifacts/preprod/addresses.json`](artifacts/preprod/addresses.json). The hosted UI serves the testnet pool at **preprod.lovejo.in**; **lovejo.in** is where the mainnet pool will be served. To run the UI locally against the live Preprod deployment, see the **Develop** section below.
 
 The protocol is live, the validators are deployed, and the contracts cannot be changed. Three operations:
 
-1. **Deposit.** Lock a fixed-denomination ADA UTxO into the pool. Each deposit also tops up a shared on-chain fee shard so future mix rounds pay for themselves.
+1. **Deposit.** Lock a fixed-denomination ADA UTxO into the pool. Where a shared on-chain fee pool exists, each deposit also tops up a fee shard so future mix rounds pay for themselves. Mainnet launched with an empty fee pool, so mixes there are wallet-paid until someone funds shards.
 2. **Mix.** Re-randomise N pool boxes at once into N new indistinguishable ones (`2 ≤ N`, with the practical cap calibrated empirically). Anyone can run a mix; no submitter wallet input or signature is required.
 3. **Withdraw.** The original depositor pulls funds out of the pool with a Schnorr proof. No long-lived signing key for the box; the proof is the spend authorisation.
 
@@ -135,7 +135,7 @@ Full operator playbook (env-var setup, UTxO-layout table, chained-submit details
 
 After a clean run, commit `artifacts/preprod/addresses.json`. That's the canonical address book for the network.
 
-For the one-time **mainnet** launch using public Koios instead of a node or Blockfrost key, see [Automated mainnet launch through Koios](infra/bootstrap/README.md#automated-mainnet-launch-through-koios). The launcher prepares `artifacts/mainnet/addresses.json`, updates it as stages confirm, and leaves the fee pool empty.
+Mainnet was launched once, on 2026-09-26, through public Koios instead of a node or Blockfrost key; see [Automated mainnet launch through Koios](infra/bootstrap/README.md#automated-mainnet-launch-through-koios). Its canonical address book is [`artifacts/mainnet/addresses.json`](artifacts/mainnet/addresses.json), and its fee pool started empty.
 
 ## Reporting issues
 
