@@ -31,9 +31,8 @@ pub fn read_reference_datum(
   policy: PolicyId,
   name: AssetName,
 ) -> ReferenceDatum {
-  let carriers =
-    self.reference_inputs
-      |> list.filter(fn(input) { holds_reference_nft(input, policy, name) })
+  let carriers = self.reference_inputs
+    |> list.filter(fn(input) { holds_reference_nft(input, policy, name) })
 
   expect [Input { output, .. }] = carriers
   expect InlineDatum(datum_data) = output.datum

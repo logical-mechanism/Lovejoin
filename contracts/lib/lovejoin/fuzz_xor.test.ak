@@ -57,8 +57,11 @@ test prop_xor_associative(args via ba32_triple()) {
   // it folds branches left-to-right but the math is order-invariant.
   let (a, b, c) = args
   let left = builtin.xor_bytearray(False, builtin.xor_bytearray(False, a, b), c)
-  let right =
-    builtin.xor_bytearray(False, a, builtin.xor_bytearray(False, b, c))
+  let right = builtin.xor_bytearray(
+    False,
+    a,
+    builtin.xor_bytearray(False, b, c),
+  )
   left == right
 }
 

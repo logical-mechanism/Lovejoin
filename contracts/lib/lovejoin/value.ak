@@ -7,7 +7,7 @@
 //// enforce ada-only; this is the one place that check lives.
 
 use aiken/collection/dict
-use cardano/assets.{Value}
+use cardano/assets.{Assets}
 
 /// True iff the value carries only ADA.
 ///
@@ -15,7 +15,7 @@ use cardano/assets.{Value}
 /// ADA-only value's `policies` is either `[]` (when the lovelace amount is
 /// zero) or `[ada_policy_id]` (when non-zero). Mix and fee outputs always
 /// carry non-zero ADA, so the empty case is an extra correctness margin.
-pub fn ada_only(value: Value) -> Bool {
+pub fn ada_only(value: Assets) -> Bool {
   when assets.policies(value) is {
     [] -> True
     [policy] -> policy == assets.ada_policy_id
@@ -42,7 +42,7 @@ pub fn ada_only(value: Value) -> Bool {
 /// All Lovejoin mix and fee outputs always carry exactly one asset (ada at
 /// the empty asset name), so the canonical-shape match is the right shape
 /// to enforce.
-pub fn expect_ada_only_lovelace(value: Value) -> Int {
+pub fn expect_ada_only_lovelace(value: Assets) -> Int {
   let pairs = value |> assets.to_dict |> dict.to_pairs
   expect [Pair(policy, ada_assets)] = pairs
   expect policy == assets.ada_policy_id

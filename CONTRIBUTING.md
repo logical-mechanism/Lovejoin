@@ -19,7 +19,7 @@ Requirements:
 
 - node >= 20 (nvm recommended; see the node-binary note in the README)
 - pnpm 10
-- aiken 1.1.21 (pinned in [contracts/aiken.toml](contracts/aiken.toml))
+- aiken 1.1.24 (pinned in [contracts/aiken.toml](contracts/aiken.toml))
 
 Bootstrap the workspace:
 

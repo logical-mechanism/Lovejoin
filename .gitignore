@@ -3,9 +3,12 @@ dist/
 build/
 .cache/
 .pnpm-store/
+_reference/
 
-# TypeScript
+# TypeScript / Python
 *.tsbuildinfo
+__pycache__/
+*.pyc
 
 # Vite / UI
 ui/dist/
