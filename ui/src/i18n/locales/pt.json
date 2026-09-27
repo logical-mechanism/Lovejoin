@@ -442,7 +442,24 @@
     "fanout_entry_eyebrow": "Reforço de privacidade",
     "fanout_entry_title": "Executar mix em leque",
     "fanout_entry_lede": "Encadeia várias txs de Mix numa árvore a partir de uma das tuas caixas. O teu ramo fica indistinguível entre 9 ou mais.",
-    "fanout_entry_cta": "Executar leque"
+    "fanout_entry_cta": "Executar leque",
+    "seedelf": {
+      "eyebrow": "Carteira furtiva",
+      "title": "Seedelf",
+      "lede": "Registros de carteira furtiva derivados da mesma assinatura de carteira que destrava seu cofre Lovejoin. Cada registro é um endereço privado para receber ADA; só você pode gastar. O mesmo protocolo Seedelf on-chain que você usa via seedelf-cli.",
+      "scanning": "Escaneando…",
+      "rescan": "Reescanear",
+      "scan_failed": "Falha na varredura Seedelf: {{message}}",
+      "empty_title": "Ainda não há Seedelf",
+      "empty_hint": "Você pode cunhar seu primeiro registro furtivo no seedelf-cli ou aguardar o fluxo de cunhagem no app.",
+      "registers_label": "Registros",
+      "funds_label": "UTxOs com fundos",
+      "balance_label": "Saldo total",
+      "registers_heading": "Seus registros",
+      "index_label": "índice {{i}}",
+      "actions_coming_soon": "Os fluxos de cunhar, enviar e gastar chegarão em uma atualização futura. Por enquanto, gerencie sua carteira furtiva pelo seedelf-cli.",
+      "balance_ada": "{{amount}} ADA"
+    }
   },
   "secret_card": {
     "title": "Salve este secret agora",

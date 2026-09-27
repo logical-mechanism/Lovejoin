@@ -18,6 +18,7 @@ Mainnet launch. The contracts are now live and immutable on Cardano mainnet; the
 
 ### Added
 
+- **Seedelf stealth-wallet integration.** The Vault now hosts a read-only Seedelf section that surfaces registers + funds owned by the active wallet seed. Same curve, same Schnorr shape, same collateral provider as Lovejoin's Mix flow; the per-register secret derivation is domain-separated from the Lovejoin owner derivation via the HKDF info tag `lovejoin/seedelf/v1`. The SDK ships plan helpers for mint / send / spend transactions, addresses for the canonical Seedelf deployment on Preprod + Mainnet, env-var overrides for operators running their own copy, and 40 unit tests. Mint / send / spend transactional UI flows ship in a follow-up update; today's surface is the scanner + balance display. See `docs/seedelf.md` for the wallet model and ITM caveats (#135).
 - `infra/bootstrap/koios-launch.py`: one-time mainnet launcher that builds and signs with offline `cardano-cli` and uses public Koios for parameters, script evaluation, submission, and confirmation (no node, no Blockfrost key). It keeps a resume journal, evaluates script transactions before submitting them, locks the exact minimum ADA in every permanent output, and returns leftover ADA with a repeatable sweep. Offline safety tests run in CI; an opt-in rehearsal uses real tools against read-only Koios.
 
 ### Changed

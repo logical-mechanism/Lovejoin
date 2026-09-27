@@ -442,7 +442,24 @@
     "fanout_entry_eyebrow": "رازداری کا فروغ",
     "fanout_entry_title": "فین آؤٹ مکس چلائیں",
     "fanout_entry_lede": "آپ کے کسی box سے شروع ہو کر کئی Mix tx کو ایک درخت میں جوڑتا ہے۔ آپ کی شاخ ۹ یا زائد شاخوں کے درمیان ناقابلِ تفریق ہو جاتی ہے۔",
-    "fanout_entry_cta": "فین آؤٹ چلائیں"
+    "fanout_entry_cta": "فین آؤٹ چلائیں",
+    "seedelf": {
+      "eyebrow": "خفیہ والیٹ",
+      "title": "Seedelf",
+      "lede": "وہی والیٹ سائن جو آپ کا Lovejoin والٹ کھولتا ہے، اسی سے اخذ کردہ خفیہ والیٹ رجسٹرز۔ ہر رجسٹر ایک نجی پتہ ہے جس پر آپ ADA وصول کر سکتے ہیں؛ صرف آپ خرچ کر سکتے ہیں۔ وہی آن-چین Seedelf پروٹوکول جو آپ seedelf-cli کے ذریعے استعمال کرتے ہیں۔",
+      "scanning": "اسکین جاری ہے…",
+      "rescan": "دوبارہ اسکین",
+      "scan_failed": "Seedelf اسکین ناکام: {{message}}",
+      "empty_title": "ابھی تک کوئی Seedelf نہیں",
+      "empty_hint": "آپ اپنا پہلا خفیہ رجسٹر seedelf-cli سے بنا سکتے ہیں یا ایپ کے اندر مِنٹ فلو کا انتظار کر سکتے ہیں۔",
+      "registers_label": "رجسٹرز",
+      "funds_label": "فنڈڈ UTxOs",
+      "balance_label": "کل بیلنس",
+      "registers_heading": "آپ کے رجسٹرز",
+      "index_label": "انڈیکس {{i}}",
+      "actions_coming_soon": "مِنٹ، سینڈ اور اسپینڈ فلو بعد کی اپڈیٹ میں آئیں گے۔ ابھی اپنا خفیہ والیٹ seedelf-cli سے منظم کریں۔",
+      "balance_ada": "{{amount}} ADA"
+    }
   },
   "secret_card": {
     "title": "یہ secret ابھی محفوظ کریں",

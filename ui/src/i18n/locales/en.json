@@ -481,7 +481,24 @@
     "mix_row_confirm_lede": "Submits a shard-fee mix tx that includes this box plus {{n}} - 1 other boxes picked at random from the live pool. Wallet stays off the tx; the fee is paid by a fee shard. The rounds counter for this box increases by one once the tx confirms.",
     "mix_row_confirm_submit": "Mix this box",
     "mix_disabled_collateral": "Collateral provider is unreachable. Mix submission is disabled.",
-    "mix_disabled_pool": "Pool too small to mix this box. Need {{need}} live boxes; have {{have}}."
+    "mix_disabled_pool": "Pool too small to mix this box. Need {{need}} live boxes; have {{have}}.",
+    "seedelf": {
+      "eyebrow": "Stealth wallet",
+      "title": "Seedelf",
+      "lede": "Stealth-wallet registers derived from the same wallet signature that unlocks your Lovejoin vault. Each register is a private address you can receive ADA at; only you can spend it. The same on-chain Seedelf protocol you use through the seedelf-cli.",
+      "scanning": "Scanning…",
+      "rescan": "Rescan",
+      "scan_failed": "Seedelf scan failed: {{message}}",
+      "empty_title": "No Seedelf yet",
+      "empty_hint": "You can mint your first stealth register from the seedelf-cli or wait for the in-app mint flow.",
+      "registers_label": "Registers",
+      "funds_label": "Funded UTxOs",
+      "balance_label": "Total balance",
+      "registers_heading": "Your registers",
+      "index_label": "index {{i}}",
+      "balance_ada": "{{amount}} ADA",
+      "actions_coming_soon": "Mint, send, and spend flows ship in a follow-up update. For now, manage your stealth wallet from seedelf-cli."
+    }
   },
   "secret_card": {
     "title": "Save this secret now",
