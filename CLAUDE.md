@@ -105,7 +105,7 @@ Watch out for the simulator/chain parity trap: `aiken simulate` caches original 
 
 ## Out of scope (do not add unless asked)
 
-Confidential amounts, cross-chain, account-model compatibility, native asset pools, multi-denomination, dedicated mixer-bot service, stealth withdraw (use Seedelf at the wallet layer), decentralized collateral provider.
+Confidential amounts, cross-chain, account-model compatibility, native asset pools (a per-launch design is captured in [docs/generalize-lovejoin.md](docs/generalize-lovejoin.md) but not scheduled), multi-denomination, dedicated mixer-bot service, stealth withdraw (use Seedelf at the wallet layer), decentralized collateral provider.
 
 ## Reading order for new contributors
 
