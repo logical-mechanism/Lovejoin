@@ -30,6 +30,10 @@
 #                          mainnet requires LOVEJOIN_MAINNET_CONFIRM=yes; the
 #                          per-network cardano-cli flag is derived in
 #                          _lib/network.sh.
+#   LOVEJOIN_ARTIFACTS_DIR — optional output directory (default:
+#                          artifacts/<network>). koios-token-launch.py points
+#                          it at artifacts/preprod-token so a token rehearsal
+#                          never overwrites the classic Preprod artifacts.
 #   REF_NFT_ASSET_NAME   — hex-encoded asset name for the reference NFT.
 #                          Default = "lovejoin" hex-encoded → 6c6f76656a6f696e.
 #                          Audit F-17 (next-redeploy bundle Q-2): the
@@ -87,7 +91,7 @@ if [[ "$REF_NFT_ASSET_NAME" != "6c6f76656a6f696e" ]]; then
 fi
 
 REPO_ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
-ARTIFACTS_DIR="$REPO_ROOT/artifacts/$NETWORK"
+ARTIFACTS_DIR="${LOVEJOIN_ARTIFACTS_DIR:-$REPO_ROOT/artifacts/$NETWORK}"
 mkdir -p "$ARTIFACTS_DIR"
 
 SEED_TX_ID="${SEED%#*}"

@@ -353,15 +353,15 @@ Same as M4.5: re-bootstrap on Preprod, run
 `config/network.preprod.json`'s `max_n` to the empirical maximum, re-run
 the M4 integration suite ten consecutive times.
 
-## Token pools: generalized box value (on-chain only, not deployed)
+## Token pools: generalized box value
 
 The validators now carry the generalized `ReferenceDatum` from
 [generalize-lovejoin.md](generalize-lovejoin.md): `mix_logic` requires each
 Mix output to equal `value.box_value(reference_datum)` exactly, where the
 box value is `box_lovelace` plus, for a token pool, `token_quantity` of the
-pool token. None of this is deployed. It is a separate token-mixing variant; the
-classic contracts measured in the sections above remain live and in use
-on mainnet and Preprod.
+pool token. It is a separate token-mixing variant, deployed only as a Preprod
+test launch (below); the classic contracts measured in the sections above
+remain live and in use on mainnet and Preprod.
 
 ### Full `mix_logic` runs (`aiken bench`, real proofs from `mix_kat.test.ak`)
 
@@ -388,6 +388,39 @@ Memory, token pool vs new ADA pool: +16.7K at N=2, +16.8K at N=3 and N=4.
 
 The `fee_contract` and `mix_logic` increases come from decoding three more
 reference-datum fields; `one_shot_mint` also runs the token-shape check.
-The N=4 wallet-collateral path had roughly 13M CPU of headroom after M4.6,
-so a token pool's +7M at N=4 needs a Preprod confirmation before N=4 is
-advertised for token pools.
+
+### Preprod rehearsal (2026-10-11)
+
+A token pool launched with `infra/bootstrap/koios-token-launch.py`
+([address book](../artifacts/preprod-token/addresses.json)): 2 ADA plus
+Q = 10^16 `LJTEST` per box, `max_fee_per_mix_lovelace` 1.5 ADA, no fee
+shards. `integration-tests/test/token-pool.test.ts` drove it over Koios;
+every tx below was evaluated by Koios' Ogmios and confirmed on chain. Preprod
+limits per tx: 10,000,000,000 CPU steps, 17,500,000 memory.
+
+| Tx                             | N   | CPU steps     | % CPU | Memory    | % mem | Fee (lovelace) | Bytes |
+| ------------------------------ | --- | ------------- | ----- | --------- | ----- | -------------- | ----- |
+| Deposit (no shard)             |     | 0             |       | 0         |       | 179,713        | 545   |
+| Bulk deposit, 3 boxes          |     | 0             |       | 0         |       | 197,709        | 954   |
+| Mix, wallet fee                | 2   | 2,807,218,169 | 28.1  | 783,367   | 4.5   | 597,800        | 1,629 |
+| Mix, wallet fee                | 3   | 5,801,625,834 | 58.0  | 1,255,341 | 7.2   | 889,902        | 2,742 |
+| Mix, wallet fee                | 4   | 9,881,249,489 | 98.8  | 1,845,811 | 10.5  | 1,282,045      | 4,195 |
+| Withdraw, fee from the box     |     | 420,434,703   | 4.2   | 257,067   | 1.5   | 349,586        | 589   |
+| Withdraw, fee from the wallet  |     | 440,104,102   | 4.4   | 269,209   | 1.5   | 354,916        | 662   |
+| Launch: register `mix_logic`   |     | 4,217,188     | 0.04  | 15,515    | 0.1   |                |       |
+| Launch: mint the reference NFT |     | 38,788,042    | 0.4   | 111,267   | 0.6   |                |       |
+
+`mix_logic` alone measured 2,765.3M, 5,734.9M, and 9,784.5M CPU at
+N = 2, 3, 4: 27M to 69M above the `aiken bench` figures, because the real
+script context carries the wallet input, change, and reference inputs. Each
+`mix_box` spend adds 19.7M to 30.0M.
+
+**N=4 fits a wallet-paid token Mix, with about 119M CPU (1.2%) to spare**
+(tx `980eb2902a703c50f8a910eefc3a2860441fb65d5005bf09cb38c939259cbff3`).
+That margin is thin: a bigger script context (more wallet inputs or a
+multi-asset change output) costs `mix_logic` CPU, and a fee-shard Mix adds
+`fee_contract`'s ~97M, so N=4 stays wallet-only and the shard path stays at
+`max_n_shard = 3` (not exercised in this rehearsal).
+
+A withdraw that pays its fee from the box sends 1.650414 ADA plus the full
+Q tokens to the destination, comfortably above that output's minimum UTxO.

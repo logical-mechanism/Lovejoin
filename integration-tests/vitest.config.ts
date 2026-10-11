@@ -1,3 +1,5 @@
+import { fileURLToPath } from "node:url";
+
 import { defineConfig } from "vitest/config";
 
 export default defineConfig({
@@ -7,5 +9,12 @@ export default defineConfig({
     testTimeout: 10 * 60_000,
     hookTimeout: 5 * 60_000,
     include: ["test/**/*.test.ts"],
+    // mesh cannot load under Node without this; see libsodium-hook.mjs.
+    pool: "forks",
+    poolOptions: {
+      forks: {
+        execArgv: ["--import", fileURLToPath(new URL("./libsodium-hook.mjs", import.meta.url))],
+      },
+    },
   },
 });

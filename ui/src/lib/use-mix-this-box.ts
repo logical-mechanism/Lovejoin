@@ -15,6 +15,7 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
+  boxValueFromAddresses,
   buildMixTx,
   isInputCollisionError,
   pickRandomNTuple,
@@ -146,14 +147,14 @@ export function useMixThisBox(): UseMixThisBox {
         utxo: {
           ref: e.ref,
           address: "",
-          lovelace: BigInt(addresses.protocol.denom_lovelace),
+          lovelace: boxValueFromAddresses(addresses).lovelace,
           assets: {},
           inlineDatum: null,
           referenceScript: null,
         } satisfies Utxo,
       }));
       const fillers = pickRandomNTuple({ pool: pickFrom, n: maxNShard - 1 });
-      const denom = BigInt(addresses.protocol.denom_lovelace);
+      const denom = boxValueFromAddresses(addresses).lovelace;
       const ownerInput: MixInput = {
         ref: box.entry.ref,
         a: box.entry.a,

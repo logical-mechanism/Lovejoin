@@ -36,6 +36,7 @@
 import { argon2id } from "hash-wasm";
 
 import {
+  boxValueFromAddresses,
   buildScriptAddress,
   deriveOwnerSecret,
   deriveSeedFromWalletSignature,
@@ -49,6 +50,7 @@ import {
   GENERATOR_COMPRESSED,
   RECOVERY_KDF_PARAMS_V1,
   RECOVERY_PASSWORD_MIN_LENGTH,
+  type BoxValue,
   type ChainProvider,
   type LovejoinAddresses,
   type PoolEntry,
@@ -154,14 +156,14 @@ export function createVaultScanner(args: CreateVaultScannerArgs): VaultScanner {
   // crash the moment they mount the store; they only fail if they
   // actually call `scan()`.
   let mixBoxAddress: string | null = null;
-  let denomLovelace: bigint | null = null;
-  function ensureAddress(): { mixBoxAddress: string; denomLovelace: bigint } {
-    if (mixBoxAddress === null || denomLovelace === null) {
+  let boxValue: BoxValue | null = null;
+  function ensureAddress(): { mixBoxAddress: string; boxValue: BoxValue } {
+    if (mixBoxAddress === null || boxValue === null) {
       const networkId: 0 | 1 = args.addresses.network === "mainnet" ? 1 : 0;
       mixBoxAddress = buildScriptAddress(args.addresses.mixBoxScriptHash, networkId);
-      denomLovelace = BigInt(args.addresses.protocol.denom_lovelace);
+      boxValue = boxValueFromAddresses(args.addresses);
     }
-    return { mixBoxAddress, denomLovelace };
+    return { mixBoxAddress, boxValue };
   }
 
   // Inline-mode state. Used either when no Worker is available or when
@@ -243,11 +245,11 @@ export function createVaultScanner(args: CreateVaultScannerArgs): VaultScanner {
       if (disposed) throw new Error("vault scanner disposed");
       const maxIndex = opts?.maxIndex ?? MAX_INDEX_SCAN;
       const minProbe = opts?.minProbe ?? 8;
-      const { mixBoxAddress, denomLovelace } = ensureAddress();
+      const { mixBoxAddress, boxValue } = ensureAddress();
       const pool = await fetchPool({
         provider: args.provider,
         mixBoxAddressBech32: mixBoxAddress,
-        params: { denomLovelace },
+        params: { boxValue },
       });
 
       let response: ScanResponse | null = null;

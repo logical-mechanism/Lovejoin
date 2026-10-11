@@ -291,6 +291,25 @@ describe("BlockfrostProvider", () => {
     expect(params.network).toBe("preprod");
   });
 
+  it("getProtocolParameters prefers the ordered cost_models_raw arrays", async () => {
+    const responses = new Map([
+      [
+        `${BASE}/epochs/latest/parameters`,
+        {
+          json: {
+            // Blockfrost keys `cost_models` by operation name; only the raw
+            // arrays carry the order the script-integrity hash uses.
+            cost_models: { PlutusV3: { "addInteger-cpu-arguments-intercept": 100 } },
+            cost_models_raw: { PlutusV3: [100, 200, 300] },
+          },
+        },
+      ],
+    ]);
+    const { provider: p } = provider(responses);
+    const params = await p.getProtocolParameters();
+    expect(params.costModels.PlutusV3).toEqual([100, 200, 300]);
+  });
+
   it("rejects construction when no fetch is available", () => {
     const realFetch = (globalThis as { fetch?: unknown }).fetch;
     delete (globalThis as { fetch?: unknown }).fetch;

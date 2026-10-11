@@ -82,7 +82,7 @@ describe("tx/params — decodeReferenceDatum", () => {
   it("decodes the canonical Plutus-Data CBOR", () => {
     const hex = buildReferenceDatumCborHex(SAMPLE_FIELDS);
     const params = decodeReferenceDatum(hex);
-    expect(params.denomLovelace).toBe(10_000_000n);
+    expect(params.boxValue).toEqual({ lovelace: 10_000_000n });
     expect(params.maxFeePerMixLovelace).toBe(800_000n);
     expect(params.mixScriptHash).toBe("ba176a7604f3e062a7ed315780801495ed0ffb0191c6f8e7d88362e2");
     expect(params.mixLogicScriptHash).toBe(
@@ -100,7 +100,7 @@ describe("tx/params — decodeReferenceDatum", () => {
   it("rejects field-count mismatches", () => {
     const fields = SAMPLE_FIELDS.slice(0, 4); // missing fee_script_hash
     const hex = buildReferenceDatumCborHex(fields);
-    expect(() => decodeReferenceDatum(hex)).toThrow(/5 fields/);
+    expect(() => decodeReferenceDatum(hex)).toThrow(/5 fields \(v1\) or 8 fields/);
   });
 
   it("rejects malformed script-hash bytes", () => {
@@ -108,6 +108,53 @@ describe("tx/params — decodeReferenceDatum", () => {
     fields[2] = bytes("00"); // 1-byte hash; should be 28 bytes
     const hex = buildReferenceDatumCborHex(fields);
     expect(() => decodeReferenceDatum(hex)).toThrow(/28 bytes/);
+  });
+});
+
+// v2 (8-field) datum: box lovelace + token triple ahead of the v1 tail.
+const TOKEN_POLICY = "34".repeat(28);
+const TOKEN_NAME = "544f4b454e";
+const V2_TOKEN_FIELDS = [
+  2_000_000n,
+  bytes(TOKEN_POLICY),
+  bytes(TOKEN_NAME),
+  1_000_000n,
+  ...SAMPLE_FIELDS.slice(1),
+];
+const V2_ADA_FIELDS = [
+  10_000_000n,
+  new Uint8Array(0),
+  new Uint8Array(0),
+  0n,
+  ...SAMPLE_FIELDS.slice(1),
+];
+
+describe("tx/params — decodeReferenceDatum (v2 box value)", () => {
+  it("decodes a token-pool datum", () => {
+    const params = decodeReferenceDatum(buildReferenceDatumCborHex(V2_TOKEN_FIELDS));
+    expect(params.boxValue).toEqual({
+      lovelace: 2_000_000n,
+      token: { policy: TOKEN_POLICY, name: TOKEN_NAME, quantity: 1_000_000n },
+    });
+    expect(params.maxFeePerMixLovelace).toBe(800_000n);
+    expect(params.feeScriptHash).toBe("5efd8fdd7e4d35b04de427337220dcb30352136d739055b305dd2d66");
+  });
+
+  it("decodes an ADA-only v2 datum without a token", () => {
+    const params = decodeReferenceDatum(buildReferenceDatumCborHex(V2_ADA_FIELDS));
+    expect(params.boxValue).toEqual({ lovelace: 10_000_000n });
+  });
+
+  it("rejects a half-filled token triple (name without policy)", () => {
+    const fields = [...V2_ADA_FIELDS];
+    fields[2] = bytes(TOKEN_NAME);
+    expect(() => decodeReferenceDatum(buildReferenceDatumCborHex(fields))).toThrow(/empty token/);
+  });
+
+  it("rejects a token pool with zero quantity", () => {
+    const fields = [...V2_TOKEN_FIELDS];
+    fields[3] = 0n;
+    expect(() => decodeReferenceDatum(buildReferenceDatumCborHex(fields))).toThrow(/quantity/);
   });
 });
 
@@ -155,7 +202,7 @@ describe("tx/params — fetchProtocolParams", () => {
     const datumHex = buildReferenceDatumCborHex(SAMPLE_FIELDS);
     const utxo = utxoWith(datumHex);
     const result = await fetchProtocolParams(addresses, fakeProvider(utxo));
-    expect(result.params.denomLovelace).toBe(10_000_000n);
+    expect(result.params.boxValue).toEqual({ lovelace: 10_000_000n });
     expect(result.referenceUtxo).toBe(utxo);
   });
 
@@ -163,6 +210,25 @@ describe("tx/params — fetchProtocolParams", () => {
     await expect(fetchProtocolParams(addresses, fakeProvider(utxoWith(null)))).rejects.toThrow(
       /no inline datum/,
     );
+  });
+
+  it("throws when addresses.json records a different box value than the datum", async () => {
+    // The strategy layer and the UI read the box value from addresses.json,
+    // so a stale or mistyped bundle must fail loudly here.
+    const utxo = utxoWith(buildReferenceDatumCborHex(V2_TOKEN_FIELDS));
+    await expect(fetchProtocolParams(addresses, fakeProvider(utxo))).rejects.toThrow(
+      /box value mismatch/,
+    );
+    const tokenAddresses: LovejoinAddresses = {
+      ...addresses,
+      protocol: {
+        box_lovelace: 2_000_000,
+        token: { policy: TOKEN_POLICY, name: TOKEN_NAME, quantity: "1000000" },
+        max_fee_per_mix_lovelace: 800_000,
+      },
+    };
+    const ok = await fetchProtocolParams(tokenAddresses, fakeProvider(utxo));
+    expect(ok.params.boxValue.token?.quantity).toBe(1_000_000n);
   });
 
   it("throws on script-hash mismatch between datum and addresses.json", async () => {

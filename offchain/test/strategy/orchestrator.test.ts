@@ -179,7 +179,7 @@ describe("materialiseSlotInputs", () => {
       slot: w0s0,
       plan,
       parentResults: new Map(),
-      denomLovelace: 10_000_000n,
+      boxValue: { lovelace: 10_000_000n },
       mixBoxAddressBech32: MIX_BOX_ADDRESS,
     });
     expect(inputs).toHaveLength(3);
@@ -199,7 +199,7 @@ describe("materialiseSlotInputs", () => {
       slot: w1s1,
       plan,
       parentResults: parents,
-      denomLovelace: 10_000_000n,
+      boxValue: { lovelace: 10_000_000n },
       mixBoxAddressBech32: MIX_BOX_ADDRESS,
     });
     expect(inputs).toHaveLength(3);
@@ -209,6 +209,25 @@ describe("materialiseSlotInputs", () => {
     // a' / b' came from parent's plan outputs at position 1.
     expect(inputs[0]!.a).toEqual(parentResult.plan.outputs[1]!.a);
     expect(inputs[0]!.b).toEqual(parentResult.plan.outputs[1]!.b);
+  });
+
+  it("synthesizes a token-pool parent input holding the full box value", () => {
+    // A chained child spends its parent's in-flight output; for a token pool
+    // that UTxO must carry the token or the child tx would not balance.
+    const root = makeEntry(0);
+    const pool = Array.from({ length: 20 }, (_, i) => makeEntry(i + 1));
+    const plan = planFanout({ rootBox: root, pool, depth: 2, rng: zeroRng });
+    const parentResult = stubMixResult("w0s0", 3, feeShardUtxo("w0s0fee"));
+    const token = { policy: "34".repeat(28), name: "544f4b454e", quantity: 1_000_000n };
+    const inputs = materialiseSlotInputs({
+      slot: plan.waves[1]!.slots[1]!,
+      plan,
+      parentResults: new Map([["w0s0" as const, parentResult]]),
+      boxValue: { lovelace: 2_000_000n, token },
+      mixBoxAddressBech32: MIX_BOX_ADDRESS,
+    });
+    expect(inputs[0]!.utxo.lovelace).toBe(2_000_000n);
+    expect(inputs[0]!.utxo.assets).toEqual({ [token.policy + token.name]: 1_000_000n });
   });
 
   it("throws when a wave-1 slot's parent hasn't been submitted yet", () => {
@@ -221,7 +240,7 @@ describe("materialiseSlotInputs", () => {
         slot: w1s0,
         plan,
         parentResults: new Map(),
-        denomLovelace: 10_000_000n,
+        boxValue: { lovelace: 10_000_000n },
         mixBoxAddressBech32: MIX_BOX_ADDRESS,
       }),
     ).toThrow(/parent w0s0 of slot w1s0 not submitted yet/);

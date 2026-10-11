@@ -10,6 +10,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  boxUtxoValue,
   buildMixTx,
   depositSeries,
   loadAddresses,
@@ -45,8 +46,7 @@ describe.skipIf(reason !== null)(`m4 — mix N=2 on ${NETWORK}`, () => {
       utxo: {
         ref: { txId: b.txId, outputIndex: b.outputIndex },
         address: "",
-        lovelace: BigInt(addresses.protocol.denom_lovelace),
-        assets: {},
+        ...boxUtxoValue(addresses),
         inlineDatum: null,
         referenceScript: null,
       },

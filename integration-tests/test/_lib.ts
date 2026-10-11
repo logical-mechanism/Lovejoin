@@ -14,6 +14,8 @@ import { resolve as resolvePath } from "node:path";
 import {
   BackendChainProvider,
   BlockfrostProvider,
+  boxValueAssetMap,
+  boxValueFromAddresses,
   buildDepositTx,
   buildMixTx,
   buildWithdrawTx,
@@ -27,6 +29,7 @@ import {
   type LovejoinWallet,
   type MixInput,
   type PoolEntry,
+  type Utxo,
   networkIdFor,
   ownsBox,
   type Scalar,
@@ -110,6 +113,15 @@ export function loadAddresses(): LovejoinAddresses {
 }
 
 /**
+ * The `lovelace` + `assets` fields of a mix-box UTxO in this launch, for
+ * tests that synthesize box UTxOs (in-flight or freshly deposited).
+ */
+export function boxUtxoValue(addresses: LovejoinAddresses): Pick<Utxo, "lovelace" | "assets"> {
+  const value = boxValueFromAddresses(addresses);
+  return { lovelace: value.lovelace, assets: boxValueAssetMap(value) };
+}
+
+/**
  * Deposit `count` mix-boxes back-to-back, awaiting confirmation between
  * each so they all live in the pool when the test runs the mix. Returns
  * the recorded ownership material — caller can pick subsets to mix or
@@ -165,7 +177,15 @@ export async function mixBoxAddressBech32(addresses: LovejoinAddresses): Promise
   return buildScriptAddress(addresses.mixBoxScriptHash, networkIdFor(NETWORK));
 }
 
-export { buildDepositTx, buildMixTx, buildWithdrawTx, fetchPool, fetchProtocolParams, ownsBox };
+export {
+  boxValueAssetMap,
+  buildDepositTx,
+  buildMixTx,
+  buildWithdrawTx,
+  fetchPool,
+  fetchProtocolParams,
+  ownsBox,
+};
 export type { LovejoinAddresses, MixInput, PoolEntry };
 
 export function hexToBytes(hex: string): Uint8Array {

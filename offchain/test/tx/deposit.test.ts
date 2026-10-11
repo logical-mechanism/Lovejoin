@@ -53,7 +53,7 @@ const ADDRESSES: LovejoinAddresses = {
 };
 
 const PARAMS: ProtocolParams = {
-  denomLovelace: 10_000_000n,
+  boxValue: { lovelace: 10_000_000n },
   maxFeePerMixLovelace: 800_000n,
   mixScriptHash: ADDRESSES.mixBoxScriptHash,
   mixLogicScriptHash: ADDRESSES.mixLogicScriptHash,
@@ -172,7 +172,7 @@ describe("tx/deposit — planDepositTx", () => {
       networkId: 0,
     });
     expect(plan.mixBoxOutput.addressBech32).toBe(buildScriptAddress(ADDRESSES.mixBoxScriptHash, 0));
-    expect(plan.mixBoxOutput.lovelace).toBe(10_000_000n);
+    expect(plan.mixBoxOutput.value).toEqual({ lovelace: 10_000_000n });
     // Default re-randomization: a ≠ g (would let observers fingerprint
     // fresh deposits as `a == g` otherwise).
     expect(plan.a).not.toEqual(pointToBytes(generator()));
@@ -312,7 +312,7 @@ describe("tx/deposit — planBulkDepositTx", () => {
       const expectedB = pointToBytes(publicPointG(x));
       expect(bytesToHex(plan.boxes[i]!.a)).toBe(bytesToHex(expectedA));
       expect(bytesToHex(plan.boxes[i]!.b)).toBe(bytesToHex(expectedB));
-      expect(plan.boxes[i]!.output.lovelace).toBe(PARAMS.denomLovelace);
+      expect(plan.boxes[i]!.output.value).toEqual(PARAMS.boxValue);
     }
     // Datums must all be distinct.
     const datumHexes = plan.boxes.map((b) => b.output.inlineDatumHex);

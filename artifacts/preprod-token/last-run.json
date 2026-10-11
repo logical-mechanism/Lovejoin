@@ -1,0 +1,316 @@
+{
+  "at": "2026-10-11T07:55:00.537Z",
+  "maxSteps": 10000000000,
+  "maxMem": 17500000,
+  "results": [
+    {
+      "step": "cleanup withdraw",
+      "txId": "d9e363cae5386b08e21befac12079516ad959789b446f48e80cd1d073fe6c610",
+      "n": null,
+      "redeemers": [
+        {
+          "tag": "SPEND",
+          "index": 0,
+          "mem": 56089,
+          "steps": 19671463
+        },
+        {
+          "tag": "REWARD",
+          "index": 0,
+          "mem": 200978,
+          "steps": 400763240
+        }
+      ],
+      "steps": 420434703,
+      "mem": 257067,
+      "fee": 349586,
+      "size": 589
+    },
+    {
+      "step": "cleanup withdraw",
+      "txId": "ca7efb0ee22e651be261491deb36cb000781fccc5d5c87eb5aac8e34efc7e776",
+      "n": null,
+      "redeemers": [
+        {
+          "tag": "SPEND",
+          "index": 0,
+          "mem": 56089,
+          "steps": 19671463
+        },
+        {
+          "tag": "REWARD",
+          "index": 0,
+          "mem": 200978,
+          "steps": 400763240
+        }
+      ],
+      "steps": 420434703,
+      "mem": 257067,
+      "fee": 349586,
+      "size": 589
+    },
+    {
+      "step": "cleanup withdraw",
+      "txId": "7ada3d3f66bc855a9bb2fc581e9ef6b7b7256beacb17304202192b8d23d4bdc2",
+      "n": null,
+      "redeemers": [
+        {
+          "tag": "SPEND",
+          "index": 0,
+          "mem": 56089,
+          "steps": 19671463
+        },
+        {
+          "tag": "REWARD",
+          "index": 0,
+          "mem": 200978,
+          "steps": 400763240
+        }
+      ],
+      "steps": 420434703,
+      "mem": 257067,
+      "fee": 349586,
+      "size": 589
+    },
+    {
+      "step": "cleanup withdraw",
+      "txId": "3552583125a114089df38462fec76eeb4ec6eccc9205ab3f17c11f31d5724f11",
+      "n": null,
+      "redeemers": [
+        {
+          "tag": "SPEND",
+          "index": 0,
+          "mem": 56089,
+          "steps": 19671463
+        },
+        {
+          "tag": "REWARD",
+          "index": 0,
+          "mem": 200978,
+          "steps": 400763240
+        }
+      ],
+      "steps": 420434703,
+      "mem": 257067,
+      "fee": 349586,
+      "size": 589
+    },
+    {
+      "step": "deposit",
+      "txId": "6c2ebeb54c1b5031dd4c3f48afde76d3ca6072e145e4a9e6f9879fd3c3496096",
+      "n": null,
+      "redeemers": [],
+      "steps": 0,
+      "mem": 0,
+      "fee": 179713,
+      "size": 545
+    },
+    {
+      "step": "bulk deposit (3 boxes)",
+      "txId": "2cbb3c86ef3e8da10916f4c1edbc6b352126d80b4b84da14c1bcbebf9c1b0ca3",
+      "n": null,
+      "redeemers": [],
+      "steps": 0,
+      "mem": 0,
+      "fee": 197709,
+      "size": 954
+    },
+    {
+      "step": "Mix (wallet fee)",
+      "txId": "ebe0af8aacf6ed538cb829f97b8afd05d914fb7e95de70b26fc2c566bb3f22d4",
+      "n": 2,
+      "redeemers": [
+        {
+          "tag": "SPEND",
+          "index": 0,
+          "mem": 56089,
+          "steps": 19671463
+        },
+        {
+          "tag": "SPEND",
+          "index": 1,
+          "mem": 59983,
+          "steps": 22248940
+        },
+        {
+          "tag": "REWARD",
+          "index": 0,
+          "mem": 667295,
+          "steps": 2765297766
+        }
+      ],
+      "steps": 2807218169,
+      "mem": 783367,
+      "fee": 597800,
+      "size": 1629
+    },
+    {
+      "step": "Mix (wallet fee)",
+      "txId": "af1c25658fe7e0c05ab96ade22750b303f8f49b99c1712209ed4a88f420e7197",
+      "n": 3,
+      "redeemers": [
+        {
+          "tag": "SPEND",
+          "index": 0,
+          "mem": 56089,
+          "steps": 19671463
+        },
+        {
+          "tag": "SPEND",
+          "index": 1,
+          "mem": 59983,
+          "steps": 22248940
+        },
+        {
+          "tag": "SPEND",
+          "index": 2,
+          "mem": 63877,
+          "steps": 24826417
+        },
+        {
+          "tag": "REWARD",
+          "index": 0,
+          "mem": 1075392,
+          "steps": 5734879014
+        }
+      ],
+      "steps": 5801625834,
+      "mem": 1255341,
+      "fee": 889902,
+      "size": 2742
+    },
+    {
+      "step": "Mix (wallet fee)",
+      "txId": "980eb2902a703c50f8a910eefc3a2860441fb65d5005bf09cb38c939259cbff3",
+      "n": 4,
+      "redeemers": [
+        {
+          "tag": "SPEND",
+          "index": 0,
+          "mem": 56089,
+          "steps": 19671463
+        },
+        {
+          "tag": "SPEND",
+          "index": 1,
+          "mem": 59983,
+          "steps": 22248940
+        },
+        {
+          "tag": "SPEND",
+          "index": 2,
+          "mem": 63877,
+          "steps": 24826417
+        },
+        {
+          "tag": "SPEND",
+          "index": 4,
+          "mem": 71665,
+          "steps": 29981371
+        },
+        {
+          "tag": "REWARD",
+          "index": 0,
+          "mem": 1594197,
+          "steps": 9784521298
+        }
+      ],
+      "steps": 9881249489,
+      "mem": 1845811,
+      "fee": 1282045,
+      "size": 4195
+    },
+    {
+      "step": "withdraw (box fee)",
+      "txId": "acf8474e707352accec243a2c53f49fa2145d44c6accbdf263caa5c5a030a1cc",
+      "n": null,
+      "redeemers": [
+        {
+          "tag": "SPEND",
+          "index": 0,
+          "mem": 56089,
+          "steps": 19671463
+        },
+        {
+          "tag": "REWARD",
+          "index": 0,
+          "mem": 200978,
+          "steps": 400763240
+        }
+      ],
+      "steps": 420434703,
+      "mem": 257067,
+      "fee": 349586,
+      "size": 589
+    },
+    {
+      "step": "withdraw (box fee)",
+      "txId": "4f1a7ef0dd78ceccb33a66b34bb9a1a0f920ae78431bcf37b59f31052aced4fc",
+      "n": null,
+      "redeemers": [
+        {
+          "tag": "SPEND",
+          "index": 0,
+          "mem": 56089,
+          "steps": 19671463
+        },
+        {
+          "tag": "REWARD",
+          "index": 0,
+          "mem": 200978,
+          "steps": 400763240
+        }
+      ],
+      "steps": 420434703,
+      "mem": 257067,
+      "fee": 349586,
+      "size": 589
+    },
+    {
+      "step": "withdraw (wallet fee)",
+      "txId": "be6d3b6fca19602084a9ef7e03ecde26076241113f1fc1f4066bdfd23b6ca4ab",
+      "n": null,
+      "redeemers": [
+        {
+          "tag": "SPEND",
+          "index": 0,
+          "mem": 56089,
+          "steps": 19671463
+        },
+        {
+          "tag": "REWARD",
+          "index": 0,
+          "mem": 213120,
+          "steps": 420432639
+        }
+      ],
+      "steps": 440104102,
+      "mem": 269209,
+      "fee": 354916,
+      "size": 662
+    },
+    {
+      "step": "withdraw (wallet fee)",
+      "txId": "2f95589720758fa6bb44609cedf83d2498c33b656199fc90bbe87862cf4e6723",
+      "n": null,
+      "redeemers": [
+        {
+          "tag": "SPEND",
+          "index": 0,
+          "mem": 56089,
+          "steps": 19671463
+        },
+        {
+          "tag": "REWARD",
+          "index": 0,
+          "mem": 213120,
+          "steps": 420432639
+        }
+      ],
+      "steps": 440104102,
+      "mem": 269209,
+      "fee": 354916,
+      "size": 662
+    }
+  ]
+}

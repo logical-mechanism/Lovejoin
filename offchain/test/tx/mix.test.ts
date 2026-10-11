@@ -1,7 +1,7 @@
 // Unit tests for tx/mix.ts.
 //
 // We focus on the pure planning surface (`planMixTx`, `encodeMixRedeemer`,
-// `encodeAdaOnlyValueCbor`, `computeMixCtx`, `verifyMixPlanWithHash`).
+// `encodeBoxValueCbor`, `computeMixCtx`, `verifyMixPlanWithHash`).
 // `buildMixTx` is exercised by the Preprod integration test — we don't try
 // to mock mesh's tx-builder internals here.
 
@@ -22,7 +22,6 @@ import {
   PAY_MIX_FEE_REDEEMER_CBOR_HEX,
   FEE_UNIT_DATUM_CBOR_HEX,
   computeMixCtx,
-  encodeAdaOnlyValueCbor,
   encodeMixRedeemer,
   serialiseMixDatumCanonical,
   type MixInput,
@@ -34,6 +33,7 @@ import { encodeMixDatum, UNIT_DATUM_CBOR_HEX } from "../../src/tx/deposit.js";
 import { buildScriptAddress } from "../../src/tx/address.js";
 import type { LovejoinAddresses, ProtocolParams } from "../../src/tx/params.js";
 import type { Utxo } from "../../src/chain/provider.js";
+import { type BoxValue, encodeBoxValueCbor, poolTokenUnit } from "../../src/tx/box-value.js";
 
 // ---------------------------------------------------------------------------
 // Fixtures
@@ -58,7 +58,7 @@ const ADDRESSES: LovejoinAddresses = {
 };
 
 const PARAMS: ProtocolParams = {
-  denomLovelace: 10_000_000n,
+  boxValue: { lovelace: 10_000_000n },
   maxFeePerMixLovelace: 800_000n,
   mixScriptHash: ADDRESSES.mixBoxScriptHash,
   mixLogicScriptHash: ADDRESSES.mixLogicScriptHash,
@@ -82,7 +82,7 @@ function makeMixInput(
   const utxo: Utxo = {
     ref: { txId, outputIndex },
     address: MIX_BOX_ADDRESS,
-    lovelace: PARAMS.denomLovelace,
+    lovelace: PARAMS.boxValue.lovelace,
     assets: {},
     inlineDatum: encodeMixDatum({ a, b }),
     referenceScript: null,
@@ -103,40 +103,6 @@ function makeFeeShard(lovelace: bigint = 50_000_000n): Utxo {
     referenceScript: null,
   };
 }
-
-// ---------------------------------------------------------------------------
-// encodeAdaOnlyValueCbor
-// ---------------------------------------------------------------------------
-
-describe("tx/mix — encodeAdaOnlyValueCbor", () => {
-  it("emits canonical Plutus-Data CBOR for the protocol denom", () => {
-    // 10_000_000 = 0x989680 → fits in u32 → `1A 00 98 96 80`.
-    // Outer map: A1 40 A1 40 1A 00 98 96 80
-    const out = encodeAdaOnlyValueCbor(10_000_000n);
-    expect(bytesToHex(out)).toBe("a140a1401a00989680");
-  });
-
-  it("emits the smallest CBOR int form for tiny values", () => {
-    // 0 → A1 40 A1 40 00; 5 → ... 05; 23 → ... 17.
-    expect(bytesToHex(encodeAdaOnlyValueCbor(0n))).toBe("a140a14000");
-    expect(bytesToHex(encodeAdaOnlyValueCbor(5n))).toBe("a140a14005");
-    expect(bytesToHex(encodeAdaOnlyValueCbor(23n))).toBe("a140a14017");
-  });
-
-  it("rolls into 1/2/4/8-byte forms at the right thresholds", () => {
-    expect(bytesToHex(encodeAdaOnlyValueCbor(24n))).toBe("a140a1401818");
-    expect(bytesToHex(encodeAdaOnlyValueCbor(255n))).toBe("a140a14018ff");
-    expect(bytesToHex(encodeAdaOnlyValueCbor(256n))).toBe("a140a140190100");
-    expect(bytesToHex(encodeAdaOnlyValueCbor(65_535n))).toBe("a140a14019ffff");
-    expect(bytesToHex(encodeAdaOnlyValueCbor(65_536n))).toBe("a140a1401a00010000");
-    expect(bytesToHex(encodeAdaOnlyValueCbor(4_294_967_295n))).toBe("a140a1401affffffff");
-    expect(bytesToHex(encodeAdaOnlyValueCbor(4_294_967_296n))).toBe("a140a1401b0000000100000000");
-  });
-
-  it("rejects negative input", () => {
-    expect(() => encodeAdaOnlyValueCbor(-1n)).toThrow();
-  });
-});
 
 // ---------------------------------------------------------------------------
 // encodeMixRedeemer
@@ -181,7 +147,7 @@ describe("tx/mix — encodeMixRedeemer", () => {
 describe("tx/mix — computeMixCtx", () => {
   it("produces a 32-byte digest", () => {
     const datums = [new Uint8Array(20), new Uint8Array(20)];
-    const values = [encodeAdaOnlyValueCbor(10n), encodeAdaOnlyValueCbor(10n)];
+    const values = [encodeBoxValueCbor({ lovelace: 10n }), encodeBoxValueCbor({ lovelace: 10n })];
     const ctx = computeMixCtx({
       outputDatums: datums,
       outputValues: values,
@@ -192,7 +158,7 @@ describe("tx/mix — computeMixCtx", () => {
 
   it("changes when ANY input bit flips", () => {
     const datums = [new Uint8Array(20), new Uint8Array(20)];
-    const values = [encodeAdaOnlyValueCbor(10n), encodeAdaOnlyValueCbor(10n)];
+    const values = [encodeBoxValueCbor({ lovelace: 10n }), encodeBoxValueCbor({ lovelace: 10n })];
     const ctx0 = computeMixCtx({
       outputDatums: datums,
       outputValues: values,
@@ -566,7 +532,7 @@ describe("tx/mix — sigma-OR cross-verification", () => {
     // differs by 1 byte (definite-length array header) — fine for
     // storage, wrong for ctx reconstruction.
     const datums = plan.outputs.map((o) => serialiseMixDatumCanonical({ a: o.a, b: o.b }));
-    const values = plan.outputs.map(() => encodeAdaOnlyValueCbor(PARAMS.denomLovelace));
+    const values = plan.outputs.map(() => encodeBoxValueCbor(PARAMS.boxValue));
     const ctx = computeMixCtx({
       outputDatums: datums,
       outputValues: values,
@@ -591,14 +557,66 @@ describe("tx/mix — sigma-OR cross-verification", () => {
 });
 
 // ---------------------------------------------------------------------------
-// helpers
+// Token pools (docs/generalize-lovejoin.md): the ctx hashes the two-policy
+// box value, so a plan built for one box value must not verify under another.
 // ---------------------------------------------------------------------------
 
-function bytesToHex(bytes: Uint8Array): string {
-  let s = "";
-  for (const b of bytes) s += b.toString(16).padStart(2, "0");
-  return s;
-}
+describe("tx/mix — token pool", () => {
+  const TOKEN_BOX: BoxValue = {
+    lovelace: 2_000_000n,
+    token: { policy: "34".repeat(28), name: "544f4b454e", quantity: 1_000_000n },
+  };
+  const TOKEN_PARAMS: ProtocolParams = { ...PARAMS, boxValue: TOKEN_BOX };
+
+  function tokenInput(txId: string, idx: number, secret: Scalar, d: Scalar): MixInput {
+    const base = makeMixInput(txId, idx, secret, d);
+    return {
+      ...base,
+      utxo: {
+        ...base.utxo,
+        lovelace: TOKEN_BOX.lovelace,
+        assets: { [poolTokenUnit(TOKEN_BOX.token!)]: TOKEN_BOX.token!.quantity },
+      },
+    };
+  }
+
+  function tokenPlan() {
+    return planMixTx({
+      inputs: [
+        tokenInput("aa".repeat(32), 0, 11n, 3n),
+        tokenInput("bb".repeat(32), 0, 12n, 5n),
+        tokenInput("cc".repeat(32), 0, 13n, 7n),
+      ],
+      ySecrets: [101n, 102n, 103n],
+      permutation: [2, 0, 1],
+      params: TOKEN_PARAMS,
+      addresses: ADDRESSES,
+      feePayer: "wallet",
+      networkId: 0,
+    });
+  }
+
+  it("carries the token box value on the plan and verifies locally", () => {
+    const plan = tokenPlan();
+    expect(plan.boxValue).toEqual(TOKEN_BOX);
+    expect(verifyMixPlanWithHash(plan, PARAMS.mixScriptHash)).toBe(-1);
+  });
+
+  it("binds the proofs to the box value: an ADA-valued ctx rejects them", () => {
+    const plan = tokenPlan();
+    const asAda = { ...plan, boxValue: { lovelace: TOKEN_BOX.lovelace } };
+    expect(verifyMixPlanWithHash(asAda, PARAMS.mixScriptHash)).toBe(0);
+    const wrongQ = {
+      ...plan,
+      boxValue: { ...TOKEN_BOX, token: { ...TOKEN_BOX.token!, quantity: 999_999n } },
+    };
+    expect(verifyMixPlanWithHash(wrongQ, PARAMS.mixScriptHash)).toBe(0);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// helpers
+// ---------------------------------------------------------------------------
 
 // Suppress unused-import warnings for symbols kept for readability.
 void G1_COMPRESSED_BYTES;

@@ -57,7 +57,8 @@ import {
 } from "../tx/mix.js";
 import type { CollateralProvider } from "../tx/collateral.js";
 import type { ChainProvider, Lovelace, Utxo, UtxoRef } from "../chain/provider.js";
-import { type LovejoinAddresses } from "../tx/params.js";
+import { boxValueFromAddresses, type LovejoinAddresses } from "../tx/params.js";
+import { type BoxValue, boxValueAssetMap } from "../tx/box-value.js";
 import { buildScriptAddress } from "../tx/address.js";
 import { type LovejoinWallet, networkIdFor, normalizeWalletUtxos } from "../wallet/cip30.js";
 import type { Scalar } from "../crypto/index.js";
@@ -231,7 +232,10 @@ export interface ChainWalletUtxosResult {
  */
 export async function* submitFanout(args: SubmitFanoutArgs): AsyncIterable<FanoutEvent> {
   const build = args.buildMix ?? buildMixTx;
-  const denomLovelace = readDenomLovelace(args);
+  // The box value comes from the addresses bundle rather than an extra
+  // `fetchProtocolParams` RPC per fan-out; every Mix build re-reads the
+  // reference datum, which rejects a bundle that disagrees with the chain.
+  const boxValue = boxValueFromAddresses(args.addresses);
   const mixBoxAddressBech32 = buildScriptAddress(
     args.addresses.mixBoxScriptHash,
     networkIdFor(args.network),
@@ -282,7 +286,7 @@ export async function* submitFanout(args: SubmitFanoutArgs): AsyncIterable<Fanou
           slot,
           plan: args.plan,
           parentResults: submitted,
-          denomLovelace,
+          boxValue,
           mixBoxAddressBech32,
         });
       } catch (err) {
@@ -406,8 +410,8 @@ export async function* submitFanout(args: SubmitFanoutArgs): AsyncIterable<Fanou
         thisSlotOutputs.push({
           ref: { txId: txIdLower, outputIndex: i },
           address: result.plan.mixBoxAddressBech32,
-          lovelace: denomLovelace,
-          assets: {},
+          lovelace: boxValue.lovelace,
+          assets: boxValueAssetMap(boxValue),
           inlineDatum: out.inlineDatumHex,
           referenceScript: null,
         });
@@ -472,7 +476,8 @@ export interface MaterialiseArgs {
   plan: FanoutPlan;
   /** Slot id → MixResult for every previously-submitted slot. */
   parentResults: ReadonlyMap<FanoutSlotId, MixResult>;
-  denomLovelace: Lovelace;
+  /** The launch's box value — every synthesized child input holds exactly this. */
+  boxValue: BoxValue;
   /** Bech32 mix-box address — used to synthesize child input UTxOs. */
   mixBoxAddressBech32: string;
 }
@@ -515,8 +520,8 @@ function materialiseOneInput(desc: FanoutInputDescriptor, ctx: MaterialiseArgs):
       const utxo: Utxo = {
         ref,
         address: parent.plan.mixBoxAddressBech32 || ctx.mixBoxAddressBech32,
-        lovelace: ctx.denomLovelace,
-        assets: {},
+        lovelace: ctx.boxValue.lovelace,
+        assets: boxValueAssetMap(ctx.boxValue),
         inlineDatum: out.inlineDatumHex,
         referenceScript: null,
       };
@@ -535,18 +540,6 @@ function materialiseOneInput(desc: FanoutInputDescriptor, ctx: MaterialiseArgs):
 // ---------------------------------------------------------------------------
 // Internal utilities
 // ---------------------------------------------------------------------------
-
-function readDenomLovelace(args: SubmitFanoutArgs): Lovelace {
-  // Read the protocol denom from the addresses bundle. We intentionally
-  // don't take this from the chain provider's `fetchProtocolParams` —
-  // that's an extra RPC per fan-out and the addresses bundle is
-  // authoritative for off-chain code.
-  const raw = args.addresses.protocol?.denom_lovelace;
-  if (raw === undefined || raw === null) {
-    throw new Error("submitFanout: addresses.protocol.denom_lovelace is missing");
-  }
-  return BigInt(raw);
-}
 
 function refKey(ref: UtxoRef): string {
   return `${ref.txId.toLowerCase()}#${ref.outputIndex}`;

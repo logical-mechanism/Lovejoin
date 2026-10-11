@@ -111,11 +111,39 @@ describe("pool/identify — filterPoolEntries", () => {
     const out = filterPoolEntries({
       utxos: [goodA, wrongAddr, wrongValue, withAssets, noDatum, badDatum, goodB],
       mixBoxAddressBech32: MIX_BOX_ADDR,
-      denomLovelace: DENOM,
+      boxValue: { lovelace: DENOM },
     });
     expect(out.map((e) => e.ref.txId)).toEqual([goodA.ref.txId, goodB.ref.txId]);
     expect(out[0]!.a).toEqual(aGood.a);
     expect(out[0]!.b).toEqual(aGood.b);
+  });
+
+  it("keeps only boxes holding exactly the token-pool value", () => {
+    const unit = "34".repeat(28) + "544f4b454e";
+    const boxValue = {
+      lovelace: 2_000_000n,
+      token: { policy: "34".repeat(28), name: "544f4b454e", quantity: 1_000_000n },
+    };
+    const datum = encodeMixDatum(makeAB(3n, 9n));
+    const exact = makeUtxo("aa".repeat(32), 0, datum, {
+      lovelace: 2_000_000n,
+      assets: { [unit]: 1_000_000n },
+    });
+    const wrongQ = makeUtxo("bb".repeat(32), 0, datum, {
+      lovelace: 2_000_000n,
+      assets: { [unit]: 999_999n },
+    });
+    const noToken = makeUtxo("cc".repeat(32), 0, datum, { lovelace: 2_000_000n });
+    const extraToken = makeUtxo("dd".repeat(32), 0, datum, {
+      lovelace: 2_000_000n,
+      assets: { [unit]: 1_000_000n, ["35".repeat(28)]: 1n },
+    });
+    const out = filterPoolEntries({
+      utxos: [exact, wrongQ, noToken, extraToken],
+      mixBoxAddressBech32: MIX_BOX_ADDR,
+      boxValue,
+    });
+    expect(out.map((e) => e.ref.txId)).toEqual([exact.ref.txId]);
   });
 
   it("returns an empty array when no UTxOs match", () => {
@@ -123,7 +151,7 @@ describe("pool/identify — filterPoolEntries", () => {
       filterPoolEntries({
         utxos: [],
         mixBoxAddressBech32: MIX_BOX_ADDR,
-        denomLovelace: DENOM,
+        boxValue: { lovelace: DENOM },
       }),
     ).toEqual([]);
   });
