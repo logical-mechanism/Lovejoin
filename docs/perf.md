@@ -352,3 +352,42 @@ Same as M4.5: re-bootstrap on Preprod, run
 `stress-tests/max-n-calibration.ts`, update
 `config/network.preprod.json`'s `max_n` to the empirical maximum, re-run
 the M4 integration suite ten consecutive times.
+
+## Token pools: generalized box value (on-chain only, not deployed)
+
+The validators now carry the generalized `ReferenceDatum` from
+[generalize-lovejoin.md](generalize-lovejoin.md): `mix_logic` requires each
+Mix output to equal `value.box_value(reference_datum)` exactly, where the
+box value is `box_lovelace` plus, for a token pool, `token_quantity` of the
+pool token. None of this is deployed. It is a separate token-mixing variant; the
+classic contracts measured in the sections above remain live and in use
+on mainnet and Preprod.
+
+### Full `mix_logic` runs (`aiken bench`, real proofs from `mix_kat.test.ak`)
+
+Fixtures are compile-time constants, so these measure the validator alone.
+"Today" is the same ADA scenarios on the deployed source.
+
+| N   | Today, ADA    | New, ADA pool | New, token pool | Token vs today |
+| --- | ------------- | ------------- | --------------- | -------------- |
+| 2   | 2,728,212,048 | 2,727,330,034 | 2,738,291,565   | +10,079,517    |
+| 3   | 5,681,513,645 | 5,678,466,017 | 5,690,074,137   | +8,560,492     |
+| 4   | 9,708,539,108 | 9,703,325,866 | 9,715,581,267   | +7,042,159     |
+
+Memory, token pool vs new ADA pool: +16.7K at N=2, +16.8K at N=3 and N=4.
+
+### Other validators (`aiken bench`, CPU)
+
+| Bench                                     | Today       | New         | delta      |
+| ----------------------------------------- | ----------- | ----------- | ---------- |
+| `fee_contract__pay_mix_fee__realistic_n3` | 94,453,623  | 97,343,024  | +2,889,401 |
+| `fee_contract__pay_mix_fee__realistic_n8` | 143,666,178 | 148,020,524 | +4,354,346 |
+| `fee_contract__replenish__realistic`      | 82,812,395  | 84,236,851  | +1,424,456 |
+| `one_shot_mint__mint__canonical`          | 30,160,509  | 34,972,290  | +4,811,781 |
+| `mix_box__spend__*`                       | unchanged   | unchanged   | 0          |
+
+The `fee_contract` and `mix_logic` increases come from decoding three more
+reference-datum fields; `one_shot_mint` also runs the token-shape check.
+The N=4 wallet-collateral path had roughly 13M CPU of headroom after M4.6,
+so a token pool's +7M at N=4 needs a Preprod confirmation before N=4 is
+advertised for token pools.

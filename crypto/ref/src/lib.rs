@@ -14,3 +14,4 @@ pub mod hash;
 pub mod schnorr;
 pub mod dhtuple;
 pub mod sigma_or;
+pub mod value;

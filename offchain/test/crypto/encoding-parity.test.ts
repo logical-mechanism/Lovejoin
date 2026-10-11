@@ -70,13 +70,42 @@ type OutputRefsVec = {
   refs: { tx_id: string; output_index: number }[];
   expected_serialize: string;
 };
-type ParityVec = SchnorrVec | DHTupleVec | SigmaOrVec | OutputRefsVec;
+type BoxValueVec = {
+  kind: "box_value";
+  lovelace: string;
+  token: { policy: string; name: string; quantity: string } | null;
+  expected_serialize: string;
+};
+type ParityVec = SchnorrVec | DHTupleVec | SigmaOrVec | OutputRefsVec | BoxValueVec;
 
 const vectors: ParityVec[] = JSON.parse(readFileSync(VECTORS_PATH, "utf8")) as ParityVec[];
 
-describe("crypto/hash — encoding parity (1000 vectors, TS side)", () => {
-  it("loads exactly 1000 vectors from the canonical JSON file", () => {
-    expect(vectors.length).toBe(1000);
+describe("crypto/hash: encoding parity (1000 FS vectors + box values, TS side)", () => {
+  it("loads exactly 1000 FS/output-ref vectors plus the box-value vectors", () => {
+    expect(vectors.filter((v) => v.kind !== "box_value").length).toBe(1000);
+    expect(vectors.filter((v) => v.kind === "box_value").length).toBe(64);
+  });
+
+  it("box_value vectors match the canonical Value layout (docs/generalize-lovejoin.md)", () => {
+    // Mirrors the hand-roll in gen-encoding-parity.ts. The same bytes are
+    // checked against Aiken's `serialise_data(value.box_value(..))` in
+    // encoding_parity_kat.test.ak and against the independent Rust encoder
+    // in crypto/ref/src/value.rs. An off-chain token-pool prover must
+    // produce exactly these bytes for the Mix ctx.
+    const boxValues = vectors.filter((v): v is BoxValueVec => v.kind === "box_value");
+    let withToken = 0;
+    for (const v of boxValues) {
+      const token = v.token
+        ? { policy: v.token.policy, name: v.token.name, quantity: BigInt(v.token.quantity) }
+        : undefined;
+      if (token) withToken++;
+      const bytes = encodeBoxValueCbor(
+        token ? { lovelace: BigInt(v.lovelace), token } : { lovelace: BigInt(v.lovelace) },
+      );
+      expect(hex(bytes)).toBe(v.expected_serialize);
+    }
+    expect(withToken).toBeGreaterThan(0);
+    expect(withToken).toBeLessThan(boxValues.length);
   });
 
   it("schnorr vectors match expected_input and expected_hash", () => {
@@ -187,6 +216,25 @@ function cborMinorInt(value: bigint): Uint8Array {
     value >>= 8n;
   }
   return out;
+}
+
+// Canonical Plutus-Data CBOR of a box value: a definite map of definite
+// maps, ADA's empty policy first. ADA pool: `A1 40 A1 40 <lovelace>`; token
+// pool: `A2 40 A1 40 <lovelace> 58 1C <policy> A1 <name> <quantity>`.
+function encodeBoxValueCbor(value: {
+  lovelace: bigint;
+  token?: { policy: string; name: string; quantity: bigint };
+}): Uint8Array {
+  const lovelace = concatBytes([Uint8Array.of(0x40, 0xa1, 0x40), cborMinorInt(value.lovelace)]);
+  if (!value.token) return concatBytes([Uint8Array.of(0xa1), lovelace]);
+  return concatBytes([
+    Uint8Array.of(0xa2),
+    lovelace,
+    cborBytes(bytes(value.token.policy)),
+    Uint8Array.of(0xa1),
+    cborBytes(bytes(value.token.name)),
+    cborMinorInt(value.token.quantity),
+  ]);
 }
 
 function cborBytes(b: Uint8Array): Uint8Array {
