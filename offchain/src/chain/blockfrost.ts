@@ -543,7 +543,9 @@ export class BlockfrostProvider implements ChainProvider {
       maxTxExMem: BigInt((p.max_tx_ex_mem ?? "0") as string | number),
       pricesStep: Number(p.price_step ?? 0),
       pricesMem: Number(p.price_mem ?? 0),
-      costModels: parseCostModels(p.cost_models ?? p.cost_models_raw ?? {}),
+      // `cost_models_raw` holds the ordered arrays the ledger hashes;
+      // `cost_models` is keyed by operation name and parses to [] here.
+      costModels: parseCostModels(p.cost_models_raw ?? p.cost_models ?? {}),
       network: networkFromBaseUrl(this.baseUrl),
       slotLength: 1_000,
     };

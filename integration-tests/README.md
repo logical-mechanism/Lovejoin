@@ -7,6 +7,7 @@ Preprod-only end-to-end tests for the Lovejoin SDK.
 | File                            | Milestone | What it does                                                                       |
 | ------------------------------- | --------- | ---------------------------------------------------------------------------------- |
 | `test/deposit-withdraw.test.ts` | M3        | Deposit a mix-box + withdraw it back to a fresh address. Skipped without env vars. |
+| `test/token-pool.test.ts`       | tokens    | Every operation against the Preprod token-pool launch over Koios. Opt-in.          |
 
 The M4 tests (mix, full lifecycle, fee exhaustion, collateral failure)
 land when M4 ships.
@@ -62,6 +63,31 @@ You can also invoke vitest directly if you've already exported the env:
 ```bash
 pnpm --filter integration-tests test -- deposit-withdraw
 ```
+
+### Token-pool test (Koios, no Blockfrost)
+
+`test/token-pool.test.ts` runs against the token-pool launch made by
+[`infra/bootstrap/koios-token-launch.py`](../infra/bootstrap/README.md#token-pool-rehearsal-on-preprod-through-koios),
+through `KoiosProvider`. It deposits four boxes, mixes them with the wallet
+paying at N = 2, 3, 4, checks that `mix_logic` rejects a Mix whose output value
+differs from the box value (evaluation only), and withdraws two boxes in each
+fee mode. The fee contract is out of scope: the launch funds no shards. It prints each tx's script budget, fee, and size, and writes them
+to `artifacts/preprod-token/last-run.json`.
+
+It submits real transactions, so it only runs when asked:
+
+```bash
+pnpm --filter @lovejoin/sdk build
+LOVEJOIN_TOKEN_POOL_TEST=1 pnpm --filter integration-tests exec vitest run test/token-pool.test.ts
+```
+
+It uses the launch key in `infra/bootstrap/wallets/token-preprod/` and saves
+each box's owner secret next to it before depositing; a later run first
+withdraws any box an interrupted run left behind.
+
+`vitest.config.ts` preloads `libsodium-hook.mjs`: the ESM build of
+libsodium-wrappers-sumo 0.7.16 imports a file that ships in a sibling package,
+which breaks every mesh import under Node. The hook redirects that one import.
 
 ## What "passes 10 consecutive runs" means
 

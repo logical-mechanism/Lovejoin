@@ -62,7 +62,7 @@ import {
   scalarMul,
   pointEqual,
 } from "../crypto/index.js";
-import type { ChainProvider, Lovelace, Utxo, UtxoRef } from "../chain/provider.js";
+import type { ChainProvider, Utxo, UtxoRef } from "../chain/provider.js";
 import { type CollateralProvider, WalletProvider } from "./collateral.js";
 import { mergeExternalCollateralWitness } from "./witness-merge.js";
 
@@ -74,9 +74,10 @@ import { mergeExternalCollateralWitness } from "./witness-merge.js";
  * no longer a hand-tuned fallback.
  */
 const POPULATE_TIME_EXUNITS_PLACEHOLDER: ExUnits = { mem: 10_000, steps: 1_000_000 };
-import { getMeshProtocolParams, getMeshProvider } from "./mesh-bridge.js";
+import { getMeshCostModels, getMeshProtocolParams, getMeshProvider } from "./mesh-bridge.js";
 import { type RetryOptions, withInputCollisionRetry } from "./retry.js";
 import { computeRefScriptFee, extractFeeFromTxCbor } from "./fee-helpers.js";
+import { type BoxValue, boxValueAssets, scaleBoxValue, utxoAssets } from "./box-value.js";
 import {
   fetchProtocolParams,
   type LovejoinAddresses,
@@ -118,8 +119,12 @@ export interface MixBoxRef {
 export interface WithdrawPlan {
   /** Destination of the funds (any Cardano address; can be a Seedelf). */
   destinationAddressBech32: string;
-  /** Always = denomLovelace from the protocol params. */
-  destinationLovelace: Lovelace;
+  /**
+   * The launch's box value. Wallet-fee mode pays exactly this to the
+   * destination; box-fee mode pays it minus the tx fee (in lovelace, so a
+   * token pool's destination still receives the full token amount).
+   */
+  destinationValue: BoxValue;
   /** Mix-box input being spent. */
   mixBoxInput: MixBoxRef;
   /** Reference UTxO ref for the protocol params. */
@@ -136,7 +141,7 @@ export interface PlanWithdrawArgs {
   ownerSecret: Scalar;
   /** Mix-box being spent. The `(a, b)` are mandatory; the `utxo` is optional but recommended. */
   mixBox: MixBoxRef;
-  /** Where the denom-ADA goes. */
+  /** Where the box's value goes. */
   destinationAddressBech32: string;
   params: ProtocolParams;
   addresses: LovejoinAddresses;
@@ -179,7 +184,7 @@ export function planWithdrawTx(args: PlanWithdrawArgs): WithdrawPlan {
 
   return {
     destinationAddressBech32: args.destinationAddressBech32,
-    destinationLovelace: args.params.denomLovelace,
+    destinationValue: args.params.boxValue,
     mixBoxInput: args.mixBox,
     referenceUtxoRef: parseUtxoRef(args.addresses.referenceUtxoRef),
     mixLogicRefScriptUtxoRef: parseUtxoRef(args.addresses.referenceScriptUtxos.mix_logic),
@@ -309,16 +314,16 @@ export function generateOwnerSchnorrProof(args: {
  * How the Withdraw tx pays its on-chain fee.
  *
  *   * `"box"` — the canonical, wallet-anonymous path. The mix-box's own
- *     denom_lovelace funds the tx; mesh sends `denom − fee` to the
- *     destination via change-address routing (no explicit destination
+ *     lovelace funds the tx; mesh sends the box value minus the fee to
+ *     the destination via change-address routing (no explicit destination
  *     output). Combined with `GivemeMyProvider` collateral, the user's
  *     CIP-30 wallet contributes nothing — no wallet input, no
  *     `signTx` popup. The Schnorr proof in the redeemer is the only
  *     authorisation; the user already proved control by deriving the
  *     secret from their wallet's `signData` round.
  *   * `"wallet"` — legacy / hardware-wallet-review path. Wallet pays
- *     fee + provides change, destination receives the full
- *     `denom_lovelace` exactly. Wallet's `signTx` runs as usual so a
+ *     fee + provides change, destination receives the full box value
+ *     exactly. Wallet's `signTx` runs as usual so a
  *     Ledger / Trezor / Eternl popup shows the user the destination
  *     and amount.
  */
@@ -430,6 +435,7 @@ export async function buildWithdrawTx(args: BuildWithdrawArgs): Promise<Withdraw
     const cst = await import("@meshsdk/core-cst");
     const meshProvider = await getMeshProvider(args.provider);
     const meshParams = await getMeshProtocolParams(args.provider);
+    const meshCostModels = await getMeshCostModels(args.provider);
 
     // Wallet handles only matter in wallet-fee mode. Don't query them
     // (or trigger CIP-30 RPCs) in box mode — the wallet-anonymity story
@@ -469,6 +475,7 @@ export async function buildWithdrawTx(args: BuildWithdrawArgs): Promise<Withdraw
       });
       // Trust evaluator-returned exec units exactly; no 1.1× safety buffer.
       tx.txEvaluationMultiplier = 1;
+      if (meshCostModels) tx.setNetwork(meshCostModels as never);
       if (feeOverride !== undefined) {
         // Pin the total tx fee. We use this to add the Conway
         // reference-script fee component that mesh-csl never computes
@@ -482,7 +489,7 @@ export async function buildWithdrawTx(args: BuildWithdrawArgs): Promise<Withdraw
         .txIn(
           mixBoxUtxo.ref.txId,
           mixBoxUtxo.ref.outputIndex,
-          [{ unit: "lovelace", quantity: mixBoxUtxo.lovelace.toString() }],
+          utxoAssets(mixBoxUtxo),
           mixBoxUtxo.address,
         )
         .txInInlineDatumPresent()
@@ -512,16 +519,16 @@ export async function buildWithdrawTx(args: BuildWithdrawArgs): Promise<Withdraw
         );
       if (feePayer === "box") {
         // Box mode: no explicit destination output. mesh balances
-        //   inputs (= denom_lovelace) − fee  →  one change output to destination.
+        //   inputs (= the box value) − fee  →  one change output to destination.
         // The Schnorr ctx hashes that single output, binding the destination
-        // amount and address.
+        // amount and address. A token pool's token rides along in the change;
+        // only lovelace pays the fee (docs/generalize-lovejoin.md
+        // §"Box-mode withdraw" on the 2 ADA headroom).
         tx.changeAddress(plan.destinationAddressBech32).selectUtxosFrom([]);
       } else {
-        // Wallet mode: explicit destination at full denom; wallet pays fee
-        // and absorbs change.
-        tx.txOut(plan.destinationAddressBech32, [
-          { unit: "lovelace", quantity: plan.destinationLovelace.toString() },
-        ])
+        // Wallet mode: explicit destination at the full box value; wallet
+        // pays fee and absorbs change.
+        tx.txOut(plan.destinationAddressBech32, boxValueAssets(plan.destinationValue))
           .changeAddress(walletChangeAddress!)
           .selectUtxosFrom(walletUtxos);
       }
@@ -690,13 +697,17 @@ export interface BulkWithdrawResult {
   owners: OwnerSecretMaterial[];
   /** N — the number of mix-boxes spent. */
   count: number;
-  /** Total lovelace sent to the destination (`N × denom_lovelace`). */
-  totalLovelace: Lovelace;
+  /**
+   * Total box value of the N boxes (`N ×` box lovelace and `N × Q` of the
+   * pool token). Wallet-fee mode sends exactly this to the destination;
+   * box-fee mode sends it minus the tx fee in lovelace.
+   */
+  totalValue: BoxValue;
 }
 
 /**
  * Build, sign, and (optionally) submit a bulk-withdraw tx that spends N ≥ 1
- * mix-boxes via the Owner branch and forwards their combined denom-ADA to a
+ * mix-boxes via the Owner branch and forwards their combined value to a
  * single destination address.
  *
  * Per-input proofs all bind to the same `ctx` (the tx's full output set).
@@ -781,7 +792,7 @@ export async function buildBulkWithdrawTx(
     const referenceUtxoRef = parseUtxoRef(args.addresses.referenceUtxoRef);
     const mixLogicRefScriptUtxoRef = parseUtxoRef(args.addresses.referenceScriptUtxos.mix_logic);
     const mixBoxRefScriptUtxoRef = parseUtxoRef(args.addresses.referenceScriptUtxos.mix_box);
-    const totalLovelace: Lovelace = params.denomLovelace * BigInt(n);
+    const totalValue: BoxValue = scaleBoxValue(params.boxValue, n);
     const feePayer: WithdrawFeePayer = args.feePayer ?? "box";
 
     const collateralProvider =
@@ -797,6 +808,7 @@ export async function buildBulkWithdrawTx(
     const cst = await import("@meshsdk/core-cst");
     const meshProvider = await getMeshProvider(args.provider);
     const meshParams = await getMeshProtocolParams(args.provider);
+    const meshCostModels = await getMeshCostModels(args.provider);
 
     const walletUtxos =
       feePayer === "wallet" ? normalizeWalletUtxos(await args.wallet.getUtxos()) : [];
@@ -806,8 +818,8 @@ export async function buildBulkWithdrawTx(
     // `buildWithdrawTx` for the rationale. Differences here:
     //   * N spend-script inputs (each gets its own SPEND redeemer; mesh's
     //     evaluator returns one tight unit per spend redeemer)
-    //   * box mode: change-to-destination = (N × denom) − fee
-    //   * wallet mode: explicit destination output of `N × denom`
+    //   * box mode: change-to-destination = (N × box value) − fee
+    //   * wallet mode: explicit destination output of `N × box value`
     //   * placeholder/real owner redeemer carries N proofs
     const placeholderRedeemer = placeholderOwnerRedeemerCborHex(n);
 
@@ -824,18 +836,14 @@ export async function buildBulkWithdrawTx(
         verbose: false,
       });
       tx.txEvaluationMultiplier = 1;
+      if (meshCostModels) tx.setNetwork(meshCostModels as never);
       if (feeOverride !== undefined) {
         tx.setFee(feeOverride.toString());
       }
       tx.readOnlyTxInReference(referenceUtxoRef.txId, referenceUtxoRef.outputIndex);
       mixBoxUtxos.forEach((u, i) => {
         tx.spendingPlutusScriptV3()
-          .txIn(
-            u.ref.txId,
-            u.ref.outputIndex,
-            [{ unit: "lovelace", quantity: u.lovelace.toString() }],
-            u.address,
-          )
+          .txIn(u.ref.txId, u.ref.outputIndex, utxoAssets(u), u.address)
           .txInInlineDatumPresent()
           .txInRedeemerValue("d87980", "CBOR", { ...spendUnitsForInput(i) })
           .spendingTxInReference(
@@ -860,9 +868,7 @@ export async function buildBulkWithdrawTx(
         // destination. The Schnorr proofs hash that single output.
         tx.changeAddress(args.destinationAddressBech32).selectUtxosFrom([]);
       } else {
-        tx.txOut(args.destinationAddressBech32, [
-          { unit: "lovelace", quantity: totalLovelace.toString() },
-        ])
+        tx.txOut(args.destinationAddressBech32, boxValueAssets(totalValue))
           .changeAddress(walletChangeAddress!)
           .selectUtxosFrom(walletUtxos);
       }
@@ -967,10 +973,10 @@ export async function buildBulkWithdrawTx(
     const owners = entries.map((e) => deriveOwner(e.ownerSecret, e.mixBox.a));
 
     if (args.signOnly) {
-      return { signedTxHex: signedTx, txId: "", owners, count: n, totalLovelace };
+      return { signedTxHex: signedTx, txId: "", owners, count: n, totalValue };
     }
     const txId = await args.provider.submitTx(signedTx);
-    return { signedTxHex: signedTx, txId, owners, count: n, totalLovelace };
+    return { signedTxHex: signedTx, txId, owners, count: n, totalValue };
   }, args.retry);
 }
 

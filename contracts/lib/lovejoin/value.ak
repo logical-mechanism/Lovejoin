@@ -1,13 +1,39 @@
 //// Value-shape helpers shared by mix and fee validators.
 ////
-//// All Lovejoin protocol UTxOs (mix-boxes, fee shards) are ADA-only —
-//// native assets are forbidden because they would let an attacker poison
-//// a mix-box with a token, gating later spends behind a token transfer.
-//// Both `mix_logic.validate_mix` and `fee_contract.{PayMixFee, Replenish}`
-//// enforce ada-only; this is the one place that check lives.
+//// Fee shards are always ADA-only, and mix-boxes carry exactly the launch's
+//// box value: `box_lovelace` alone for an ADA pool, or `box_lovelace` plus
+//// `token_quantity` of one `(token_policy, token_name)` for a token pool.
+//// Any other asset is forbidden because it would let an attacker poison a
+//// box with a junk token, gating later spends behind a token transfer.
+//// `mix_logic.validate_mix` enforces the exact box value and
+//// `fee_contract.{PayMixFee, Replenish}` enforce ada-only; both checks are
+//// built from the helpers in this module.
 
 use aiken/collection/dict
 use cardano/assets.{Assets}
+use lovejoin/types.{ReferenceDatum}
+
+/// The exact value every mix-box in this launch must hold.
+///
+/// Built with `assets.from_lovelace` and `assets.add`, so the result is in
+/// canonical form (sorted policies and names, no zero entries) by
+/// construction and compares equal to a ledger-provided output value with
+/// the same contents. An ADA-only pool (`token_policy == #""`) skips the
+/// `assets.add`; `one_shot_mint` guarantees `token_quantity > 0` whenever
+/// the policy is set, so the token entry is never silently dropped.
+pub fn box_value(reference_datum: ReferenceDatum) -> Assets {
+  let lovelace = assets.from_lovelace(reference_datum.box_lovelace)
+  if reference_datum.token_policy == assets.ada_policy_id {
+    lovelace
+  } else {
+    assets.add(
+      lovelace,
+      reference_datum.token_policy,
+      reference_datum.token_name,
+      reference_datum.token_quantity,
+    )
+  }
+}
 
 /// True iff the value carries only ADA.
 ///

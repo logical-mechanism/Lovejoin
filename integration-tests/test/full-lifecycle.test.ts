@@ -17,6 +17,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  boxValueAssetMap,
   buildMixTx,
   buildWithdrawTx,
   depositSeries,
@@ -62,8 +63,8 @@ describe.skipIf(reason !== null)(`m4 — full lifecycle on ${NETWORK}`, () => {
         utxo: {
           ref: { txId: b.txId, outputIndex: b.outputIndex },
           address: "",
-          lovelace: params.denomLovelace,
-          assets: {},
+          lovelace: params.boxValue.lovelace,
+          assets: boxValueAssetMap(params.boxValue),
           inlineDatum: null,
           referenceScript: null,
         },

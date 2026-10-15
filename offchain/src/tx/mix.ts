@@ -77,6 +77,7 @@ import type { ChainProvider, Hex32, Lovelace, Utxo, UtxoRef } from "../chain/pro
 import { lovejoinUtxoToOgmiosAdditional } from "../chain/ogmios-utxo.js";
 import { type CollateralProvider, GivemeMyProvider, WalletProvider } from "./collateral.js";
 import { appendVkeyWitness } from "./witness-merge.js";
+import { type BoxValue, boxValueAssets, encodeBoxValueCbor, utxoAssets } from "./box-value.js";
 import { encodeMixDatum, generateOwnerSecret as drawScalar } from "./deposit.js";
 import {
   computeMinTxFee,
@@ -90,7 +91,7 @@ import {
   type RetryOptions,
   withInputCollisionRetry,
 } from "./retry.js";
-import { getMeshProtocolParams, getMeshProvider } from "./mesh-bridge.js";
+import { getMeshCostModels, getMeshProtocolParams, getMeshProvider } from "./mesh-bridge.js";
 import {
   fetchProtocolParams,
   type LovejoinAddresses,
@@ -218,6 +219,8 @@ export interface MixPlan {
   txFeeLovelace: Lovelace | null;
   /** N (== inputs.length == outputs.length == proofs.length). */
   n: number;
+  /** The launch's box value: every output at positions 0..N-1 holds exactly this. */
+  boxValue: BoxValue;
 }
 
 // ---------------------------------------------------------------------------
@@ -339,67 +342,6 @@ export function serialiseMixDatumCanonical(args: { a: Uint8Array; b: Uint8Array 
 }
 
 /**
- * Encode an ada-only Plutus `Value` to canonical Plutus-Data CBOR. Used
- * when computing the Mix Fiat-Shamir context, which hashes the value of
- * each of the N mix outputs. Mix outputs are by spec ada-only at the
- * protocol denomination — no native assets, no extra Maps.
- *
- * Plutus shape: `Map<PolicyId, Map<AssetName, Integer>>` with `(empty,
- * (empty, lovelace))`. Canonical CBOR: `A1 40 A1 40 <int>` — Aiken's
- * `serialise_data` uses DEFINITE-length 1-entry maps for Plutus
- * canonical (verified by parity test). Maps and arrays use different
- * rules: maps are definite when ≤ 23 entries, arrays are always
- * indefinite. See `serialiseMixDatumCanonical` for the array case.
- *
- * The integer encoding follows CBOR's deterministic-form rules
- * (RFC 8949 §4.2.1 / smallest-form).
- */
-export function encodeAdaOnlyValueCbor(lovelace: bigint): Uint8Array {
-  if (lovelace < 0n) {
-    throw new Error(`encodeAdaOnlyValueCbor: lovelace must be non-negative, got ${lovelace}`);
-  }
-  const intBytes = encodeCborUInt(lovelace);
-  const out = new Uint8Array(4 + intBytes.length);
-  out[0] = 0xa1; // map(1)
-  out[1] = 0x40; // bytes(0) — empty policy id
-  out[2] = 0xa1; // map(1)
-  out[3] = 0x40; // bytes(0) — empty asset name
-  out.set(intBytes, 4);
-  return out;
-}
-
-/**
- * Canonical CBOR major-type-0 encoding of a non-negative bigint
- * (smallest form). Throws for values that exceed the spec's u64 range —
- * Plutus' `Value` quantities never go above 2^64 in practice, and
- * supporting the bignum tag(2) path here would be dead code.
- */
-function encodeCborUInt(n: bigint): Uint8Array {
-  if (n < 0n) throw new Error("encodeCborUInt: negative");
-  if (n < 24n) return new Uint8Array([Number(n)]);
-  if (n < 256n) return new Uint8Array([0x18, Number(n)]);
-  if (n < 65_536n) {
-    const v = Number(n);
-    return new Uint8Array([0x19, (v >> 8) & 0xff, v & 0xff]);
-  }
-  if (n < 4_294_967_296n) {
-    const v = Number(n);
-    return new Uint8Array([0x1a, (v >>> 24) & 0xff, (v >>> 16) & 0xff, (v >>> 8) & 0xff, v & 0xff]);
-  }
-  if (n < 18_446_744_073_709_551_616n) {
-    const out = new Uint8Array(9);
-    out[0] = 0x1b;
-    let x = n;
-    for (let i = 8; i >= 1; i--) {
-      out[i] = Number(x & 0xffn);
-      x >>= 8n;
-    }
-    return out;
-  }
-  throw new Error(`encodeCborUInt: ${n} exceeds u64; bignum path not implemented`);
-}
-
-/**
  * Compute the Mix Fiat-Shamir context.
  *
  *   ctx = blake2b_256(
@@ -408,8 +350,9 @@ function encodeCborUInt(n: bigint): Uint8Array {
  *    || mix_script_hash
  *   )
  *
- * Mix outputs all carry `denom_lovelace` ADA only, so every value
- * encoding is identical and equals `encodeAdaOnlyValueCbor(denom)`.
+ * Mix outputs all carry exactly the launch's box value, so every value
+ * encoding is identical and equals `encodeBoxValueCbor(boxValue)`
+ * (byte-identical to the validator's `serialise_data(value.box_value(..))`).
  */
 export function computeMixCtx(args: {
   outputDatums: ReadonlyArray<Uint8Array>;
@@ -546,7 +489,8 @@ export function planMixTx(args: PlanMixArgs): MixPlan {
   // matching ctx. See `serialiseMixDatumCanonical` for the byte layout
   // and the rabbit hole that led us here.
   const datumBytes = outputs.map((o) => serialiseMixDatumCanonical({ a: o.a, b: o.b }));
-  const valueBytes = outputs.map(() => encodeAdaOnlyValueCbor(args.params.denomLovelace));
+  const boxValueBytes = encodeBoxValueCbor(args.params.boxValue);
+  const valueBytes = outputs.map(() => boxValueBytes);
   const ctx = computeMixCtx({
     outputDatums: datumBytes,
     outputValues: valueBytes,
@@ -638,12 +582,13 @@ export function planMixTx(args: PlanMixArgs): MixPlan {
     ),
     txFeeLovelace: txFee,
     n,
+    boxValue: args.params.boxValue,
   };
 }
 
 /**
  * Cross-check: verify all N proofs locally before submission. This catches
- * any encoding-parity drift in `encodeMixDatum` / `encodeAdaOnlyValueCbor` /
+ * any encoding-parity drift in `encodeMixDatum` / `encodeBoxValueCbor` /
  * `computeMixCtx` before we burn a tx fee on a guaranteed-to-fail submission.
  *
  * Takes the mix script hash explicitly because the plan doesn't carry it
@@ -658,8 +603,8 @@ export function verifyMixPlanWithHash(plan: MixPlan, mixScriptHashHex: string): 
   // on-chain `serialise_data(inline_data)` produces. See
   // `serialiseMixDatumCanonical` for context.
   const datumBytes = plan.outputs.map((o) => serialiseMixDatumCanonical({ a: o.a, b: o.b }));
-  const denom = plan.inputs[0]!.utxo.lovelace;
-  const valueBytes = plan.outputs.map(() => encodeAdaOnlyValueCbor(denom));
+  const boxValueBytes = encodeBoxValueCbor(plan.boxValue);
+  const valueBytes = plan.outputs.map(() => boxValueBytes);
   const ctx = computeMixCtx({
     outputDatums: datumBytes,
     outputValues: valueBytes,
@@ -1052,6 +997,7 @@ export async function buildMixTx(args: BuildMixArgs): Promise<MixResult> {
     const { MeshTxBuilder } = meshCore;
     const meshProvider = await getMeshProvider(args.provider);
     const meshParams = await getMeshProtocolParams(args.provider);
+    const meshCostModels = await getMeshCostModels(args.provider);
     console.log(`[lovejoin/mix] mesh init done in ${Date.now() - meshInitStart}ms`);
 
     // chainFrom resolution. If the caller is chaining onto an in-flight
@@ -1208,12 +1154,7 @@ export async function buildMixTx(args: BuildMixArgs): Promise<MixResult> {
       // input order from the plan (matches the redeemer's proof order).
       for (const inp of plan.inputs) {
         tx.spendingPlutusScriptV3()
-          .txIn(
-            inp.ref.txId,
-            inp.ref.outputIndex,
-            [{ unit: "lovelace", quantity: inp.utxo.lovelace.toString() }],
-            inp.utxo.address,
-          )
+          .txIn(inp.ref.txId, inp.ref.outputIndex, utxoAssets(inp.utxo), inp.utxo.address)
           .txInInlineDatumPresent()
           // mix_box's spend redeemer is irrelevant data — it doesn't dispatch.
           .txInRedeemerValue("d87980", "CBOR", { ...exUnits })
@@ -1265,12 +1206,14 @@ export async function buildMixTx(args: BuildMixArgs): Promise<MixResult> {
           params.mixLogicScriptHash,
         );
 
-      // Outputs 0..N-1: mix-boxes. The validator asserts this slot is
-      // populated by mix-script outputs and that the tail is NOT.
+      // Outputs 0..N-1: mix-boxes, each holding exactly the box value. The
+      // validator asserts this slot is populated by mix-script outputs at
+      // that value and that the tail is NOT at the mix script.
       for (const o of plan.outputs) {
-        tx.txOut(plan.mixBoxAddressBech32, [
-          { unit: "lovelace", quantity: params.denomLovelace.toString() },
-        ]).txOutInlineDatumValue(o.inlineDatumHex, "CBOR");
+        tx.txOut(plan.mixBoxAddressBech32, boxValueAssets(plan.boxValue)).txOutInlineDatumValue(
+          o.inlineDatumHex,
+          "CBOR",
+        );
       }
       // Output N: fee shard (shard mode) or wallet change (wallet mode,
       // emitted by mesh during balancing).
@@ -1353,6 +1296,7 @@ export async function buildMixTx(args: BuildMixArgs): Promise<MixResult> {
       // further over the chain's per-tx exec cap at high N. We trust the
       // evaluator's numbers exactly — they're the chain's own values.
       tx.txEvaluationMultiplier = 1;
+      if (meshCostModels) tx.setNetwork(meshCostModels as never);
       populate(tx, feeOverride);
       const completeStart = Date.now();
       try {

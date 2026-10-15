@@ -34,6 +34,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  boxUtxoValue,
   buildDepositTx,
   buildMixTx,
   fetchPool,
@@ -79,12 +80,11 @@ describe.skipIf(reason !== null)(`m4 — chained Mix on in-flight Deposit (${NET
 
       // 3. Construct the in-flight mix-box UTxO. Output index is always 0
       // for Lovejoin deposits; inline datum encodes the owner's (a, b).
-      const denom = BigInt(addresses.protocol.denom_lovelace);
+      const boxValue = boxUtxoValue(addresses);
       const parentMixBoxUtxo: Utxo = {
         ref: { txId: parent.txId, outputIndex: parent.mixBoxOutputIndex },
         address: mixAddress,
-        lovelace: denom,
-        assets: {},
+        ...boxValue,
         inlineDatum: encodeMixDatum({
           a: hexToBytes(parent.owner.aHex),
           b: hexToBytes(parent.owner.publicPointHex),
@@ -125,8 +125,7 @@ describe.skipIf(reason !== null)(`m4 — chained Mix on in-flight Deposit (${NET
           utxo: {
             ref: confirmedEntry.ref,
             address: mixAddress,
-            lovelace: denom,
-            assets: {},
+            ...boxValue,
             inlineDatum: encodeMixDatum({ a: confirmedSeed.a, b: confirmedSeed.b }),
             referenceScript: null,
           },

@@ -18,6 +18,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { BrowserWallet } from "@meshsdk/core";
 import {
+  boxValueFromAddresses,
   fanoutBoxesTouched,
   fanoutLinkageProbability,
   fanoutTotalMixes,
@@ -144,7 +145,7 @@ export function useFanoutSubmit(args: UseFanoutSubmitArgs): UseFanoutSubmitResul
     return () => window.clearInterval(id);
   }, [running, lastProgressAt]);
 
-  const denomLovelace = addresses ? BigInt(addresses.protocol.denom_lovelace) : 0n;
+  const denomLovelace = addresses ? boxValueFromAddresses(addresses).lovelace : 0n;
   const maxFeePerMixLovelace = addresses ? BigInt(addresses.protocol.max_fee_per_mix_lovelace) : 0n;
 
   const rootBox = useMemo<OwnedBox | null>(() => {

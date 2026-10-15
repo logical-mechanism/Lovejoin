@@ -16,7 +16,7 @@
 ////     rejected by the new strict `output_at_script` / `output_at_fee`.
 ////   * `mix_box_output_with_address` / `mix_box_output_with_ref_script` —
 ////     mix-box outputs where the address or attached reference-script is
-////     overridden, holding everything else (denom, datum) at the canonical
+////     overridden, holding everything else (box value, datum) at the canonical
 ////     values so the perimeter check is the only differing variable.
 ////   * `fee_shard_output_with_address` / `fee_shard_output_with_ref_script` —
 ////     same idea for fee shards.
@@ -53,7 +53,19 @@ pub const fee_script_hash: ByteArray =
 pub const random_user_vk: ByteArray =
   #"99999999999999999999999999999999999999999999999999999999"
 
-pub const denom_lovelace: Int = 10_000_000
+/// Box lovelace for the default ADA-only test pool.
+pub const box_lovelace: Int = 10_000_000
+
+// Token-pool test launch (docs/generalize-lovejoin.md): every box holds
+// `token_box_lovelace` plus `token_quantity` of `(token_policy, token_name)`.
+pub const token_policy: ByteArray =
+  #"34343434343434343434343434343434343434343434343434343434"
+
+pub const token_name: ByteArray = "TOKEN"
+
+pub const token_quantity: Int = 1_000_000
+
+pub const token_box_lovelace: Int = 2_000_000
 
 pub const max_fee_per_mix_lovelace: Int = 800_000
 
@@ -74,12 +86,35 @@ pub const c48: ByteArray =
 
 pub fn default_reference_datum() -> ReferenceDatum {
   ReferenceDatum {
-    denom_lovelace,
+    box_lovelace,
+    token_policy: #"",
+    token_name: #"",
+    token_quantity: 0,
     max_fee_per_mix_lovelace,
     mix_script_hash,
     mix_logic_script_hash: mix_logic_hash,
     fee_script_hash,
   }
+}
+
+/// Reference datum for the token-pool test launch. Same script hashes and
+/// fee cap as the default, so the only difference from the ADA pool is the
+/// box value.
+pub fn token_reference_datum() -> ReferenceDatum {
+  ReferenceDatum {
+    ..default_reference_datum(),
+    box_lovelace: token_box_lovelace,
+    token_policy,
+    token_name,
+    token_quantity,
+  }
+}
+
+/// The exact value of a token-pool box, built independently of
+/// `value.box_value` so tests do not check that helper against itself.
+pub fn token_box_value() -> Assets {
+  assets.from_lovelace(token_box_lovelace)
+    |> assets.add(token_policy, token_name, token_quantity)
 }
 
 // ---------------------------------------------------------------------------
@@ -198,6 +233,11 @@ pub fn default_reference_input() -> Input {
   reference_input_with(default_reference_datum())
 }
 
+/// Reference input for the token-pool test launch.
+pub fn token_reference_input() -> Input {
+  reference_input_with(token_reference_datum())
+}
+
 // ---------------------------------------------------------------------------
 // Mix-box fixtures
 // ---------------------------------------------------------------------------
@@ -215,6 +255,26 @@ pub fn mix_box_input(
     output: Output {
       address: script_address(mix_script_hash),
       value: assets.from_lovelace(lovelace),
+      datum: InlineDatum(datum),
+      reference_script: None,
+    },
+  }
+}
+
+/// Mix-box input holding an arbitrary value (token-pool boxes).
+pub fn mix_box_input_with_value(
+  ref_byte: Int,
+  ref_idx: Int,
+  a: ByteArray,
+  b: ByteArray,
+  value: Assets,
+) -> Input {
+  let datum: Data = MixDatum { a, b }
+  Input {
+    output_reference: out_ref(ref_byte, ref_idx),
+    output: Output {
+      address: script_address(mix_script_hash),
+      value,
       datum: InlineDatum(datum),
       reference_script: None,
     },
@@ -290,7 +350,7 @@ pub fn mix_box_input_bad_datum(
     output_reference: out_ref(ref_byte, ref_idx),
     output: Output {
       address: script_address(mix_script_hash),
-      value: assets.from_lovelace(denom_lovelace),
+      value: assets.from_lovelace(box_lovelace),
       datum: InlineDatum(datum),
       reference_script: None,
     },

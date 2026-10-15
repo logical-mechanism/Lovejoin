@@ -12,7 +12,7 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 
-import { buildBulkDepositTx } from "@lovejoin/sdk";
+import { boxValueFromAddresses, buildBulkDepositTx } from "@lovejoin/sdk";
 
 import { useAppState } from "../lib/store.js";
 import { Eyebrow } from "../components/ui/Eyebrow.js";
@@ -133,7 +133,7 @@ export function Deposit() {
     );
   }
 
-  const denomLovelace = BigInt(addresses.protocol.denom_lovelace);
+  const denomLovelace = boxValueFromAddresses(addresses).lovelace;
   const denomAda = formatAda(denomLovelace);
 
   // Estimated minimum spendable lovelace required for the configured

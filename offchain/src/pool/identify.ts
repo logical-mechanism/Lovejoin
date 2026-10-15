@@ -4,8 +4,9 @@
 // Spec: §"Pool helpers" + §"Owning-box identification".
 //
 // A "pool entry" is a UTxO at `mixBoxScriptAddress` whose inline datum decodes
-// as a well-formed `MixDatum { a, b }` and whose value is exactly the protocol
-// denomination with no native assets. Anything else is treated as malformed
+// as a well-formed `MixDatum { a, b }` and whose value is exactly the launch's
+// box value (`utxoHoldsBoxValue`: the box lovelace, the pool token at exactly
+// `Q` for a token pool, nothing else). Anything else is treated as malformed
 // (Rule 2 hyperstructure recovery on chain) and excluded from the pool view —
 // the SDK has no use for it, but it remains spendable via mix_box's True
 // path so it isn't bricked.
@@ -25,6 +26,7 @@ import {
   scalarMul,
 } from "../crypto/index.js";
 import type { ChainProvider, Utxo, UtxoRef } from "../chain/provider.js";
+import { type BoxValue, utxoHoldsBoxValue } from "../tx/box-value.js";
 import type { ProtocolParams } from "../tx/params.js";
 
 /**
@@ -78,21 +80,21 @@ export function decodeMixDatumInline(
 /**
  * Filter a UTxO set down to the legitimate pool entries.
  *
- * Rules: address must match, value must equal `denom_lovelace`, no native
- * assets, datum must decode as a well-formed MixDatum. Anything else is
- * silently dropped — Rule 2 says it stays spendable on chain but the SDK
- * shouldn't use it as a mix candidate.
+ * Rules: address must match, value must equal the launch's box value
+ * exactly (a Mix requires every output to equal it, so any other box could
+ * never be re-randomized in place), datum must decode as a well-formed
+ * MixDatum. Anything else is silently dropped — Rule 2 says it stays
+ * spendable on chain but the SDK shouldn't use it as a mix candidate.
  */
 export function filterPoolEntries(args: {
   utxos: ReadonlyArray<Utxo>;
   mixBoxAddressBech32: string;
-  denomLovelace: bigint;
+  boxValue: BoxValue;
 }): PoolEntry[] {
   const out: PoolEntry[] = [];
   for (const u of args.utxos) {
     if (u.address !== args.mixBoxAddressBech32) continue;
-    if (u.lovelace !== args.denomLovelace) continue;
-    if (Object.keys(u.assets).length > 0) continue;
+    if (!utxoHoldsBoxValue(u, args.boxValue)) continue;
     const datum = decodeMixDatumInline(u.inlineDatum);
     if (!datum) continue;
     out.push({ ref: u.ref, a: datum.a, b: datum.b, utxo: u });
@@ -107,13 +109,13 @@ export function filterPoolEntries(args: {
 export async function fetchPool(args: {
   provider: ChainProvider;
   mixBoxAddressBech32: string;
-  params: Pick<ProtocolParams, "denomLovelace">;
+  params: Pick<ProtocolParams, "boxValue">;
 }): Promise<PoolEntry[]> {
   const utxos = await args.provider.getUtxos(args.mixBoxAddressBech32);
   return filterPoolEntries({
     utxos,
     mixBoxAddressBech32: args.mixBoxAddressBech32,
-    denomLovelace: args.params.denomLovelace,
+    boxValue: args.params.boxValue,
   });
 }
 
