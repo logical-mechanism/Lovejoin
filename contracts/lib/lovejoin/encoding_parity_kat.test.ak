@@ -10,6 +10,9 @@
 use aiken/builtin
 use cardano/transaction.{OutputReference}
 use lovejoin/hash
+use lovejoin/test_fixtures.{default_reference_datum}
+use lovejoin/types.{ReferenceDatum}
+use lovejoin/value
 
 test parity_schnorr_0() {
   hash.fs_hash_schnorr(
@@ -1529,4 +1532,900 @@ test parity_output_refs_n5_2() {
       },
     ],
   ) == #"9fd8799f582007c5ee63239a7f2340aaa52eddb9c77ba4544c06ac817fe7dc9cb2d78347d21219a033ffd8799f5820b427752253cb8c57a4a18114737a26669b85482f5689ec5adf0e38cd970b69b1194cb5ffd8799f5820c06546416530e1861e460639b5574a60efb1b353dbcacadac5a5198258483a0419844dffd8799f5820f1e57b7121f445267e476cf8c802e7055bc6bda3552fa0dce6a686926e3df14919c033ffd8799f5820da43178de3576216a556c544e3814ccc317c923ced749c2a94e841921c1478ea193deaffff"
+}
+
+test parity_box_value_0() {
+  builtin.serialise_data(
+    value.box_value(
+      ReferenceDatum {
+        ..default_reference_datum(),
+        box_lovelace: 1,
+        token_policy: #"",
+        token_name: #"",
+        token_quantity: 0,
+      },
+    ),
+  ) == #"a140a14001"
+}
+
+test parity_box_value_1() {
+  builtin.serialise_data(
+    value.box_value(
+      ReferenceDatum {
+        ..default_reference_datum(),
+        box_lovelace: 23,
+        token_policy: #"",
+        token_name: #"",
+        token_quantity: 0,
+      },
+    ),
+  ) == #"a140a14017"
+}
+
+test parity_box_value_2() {
+  builtin.serialise_data(
+    value.box_value(
+      ReferenceDatum {
+        ..default_reference_datum(),
+        box_lovelace: 24,
+        token_policy: #"",
+        token_name: #"",
+        token_quantity: 0,
+      },
+    ),
+  ) == #"a140a1401818"
+}
+
+test parity_box_value_3() {
+  builtin.serialise_data(
+    value.box_value(
+      ReferenceDatum {
+        ..default_reference_datum(),
+        box_lovelace: 10000000,
+        token_policy: #"",
+        token_name: #"",
+        token_quantity: 0,
+      },
+    ),
+  ) == #"a140a1401a00989680"
+}
+
+test parity_box_value_4() {
+  builtin.serialise_data(
+    value.box_value(
+      ReferenceDatum {
+        ..default_reference_datum(),
+        box_lovelace: 4294967301,
+        token_policy: #"",
+        token_name: #"",
+        token_quantity: 0,
+      },
+    ),
+  ) == #"a140a1401b0000000100000005"
+}
+
+test parity_box_value_5() {
+  builtin.serialise_data(
+    value.box_value(
+      ReferenceDatum {
+        ..default_reference_datum(),
+        box_lovelace: 2000000,
+        token_policy: #"8dd4c496c12570a30d997ea0185c72d3cd4884493a3d8650b55a4065",
+        token_name: #"",
+        token_quantity: 1,
+      },
+    ),
+  ) == #"a240a1401a001e8480581c8dd4c496c12570a30d997ea0185c72d3cd4884493a3d8650b55a4065a14001"
+}
+
+test parity_box_value_6() {
+  builtin.serialise_data(
+    value.box_value(
+      ReferenceDatum {
+        ..default_reference_datum(),
+        box_lovelace: 2000000,
+        token_policy: #"8dc56f4fc54fcba35d29cdbb9fa5b7b6736be4b68d4727fd797e2eaf",
+        token_name: #"96",
+        token_quantity: 23,
+      },
+    ),
+  ) == #"a240a1401a001e8480581c8dc56f4fc54fcba35d29cdbb9fa5b7b6736be4b68d4727fd797e2eafa1419617"
+}
+
+test parity_box_value_7() {
+  builtin.serialise_data(
+    value.box_value(
+      ReferenceDatum {
+        ..default_reference_datum(),
+        box_lovelace: 2000000,
+        token_policy: #"2ec9691ad8fd82754c6d0ab7570865ddb9d80cc8798b0928c13d1825",
+        token_name: #"db50b9f6e547bb2c2a6cdae52cbf34dcc2a68470ddb8a1",
+        token_quantity: 24,
+      },
+    ),
+  ) == #"a240a1401a001e8480581c2ec9691ad8fd82754c6d0ab7570865ddb9d80cc8798b0928c13d1825a157db50b9f6e547bb2c2a6cdae52cbf34dcc2a68470ddb8a11818"
+}
+
+test parity_box_value_8() {
+  builtin.serialise_data(
+    value.box_value(
+      ReferenceDatum {
+        ..default_reference_datum(),
+        box_lovelace: 2000000,
+        token_policy: #"f602317f16caab16ca1f221bdf767a209ab1ed0960833dafe715125c",
+        token_name: #"6c9b00d645b1b5e2b19b225e2f506f183a8903a5c2592985",
+        token_quantity: 255,
+      },
+    ),
+  ) == #"a240a1401a001e8480581cf602317f16caab16ca1f221bdf767a209ab1ed0960833dafe715125ca158186c9b00d645b1b5e2b19b225e2f506f183a8903a5c259298518ff"
+}
+
+test parity_box_value_9() {
+  builtin.serialise_data(
+    value.box_value(
+      ReferenceDatum {
+        ..default_reference_datum(),
+        box_lovelace: 2000000,
+        token_policy: #"e9c8f96bedd831e9bf3276a86278a5f66db1100d068bc49f1e11d79e",
+        token_name: #"113d48b0de263111defa0546eeca31802bab39c8a5a7d94561270681e06c2f5f",
+        token_quantity: 256,
+      },
+    ),
+  ) == #"a240a1401a001e8480581ce9c8f96bedd831e9bf3276a86278a5f66db1100d068bc49f1e11d79ea15820113d48b0de263111defa0546eeca31802bab39c8a5a7d94561270681e06c2f5f190100"
+}
+
+test parity_box_value_10() {
+  builtin.serialise_data(
+    value.box_value(
+      ReferenceDatum {
+        ..default_reference_datum(),
+        box_lovelace: 2000000,
+        token_policy: #"4acf81510edf01ab713472698834b78313aa5b297369bd87409743f7",
+        token_name: #"75efd616da5e610e",
+        token_quantity: 65535,
+      },
+    ),
+  ) == #"a240a1401a001e8480581c4acf81510edf01ab713472698834b78313aa5b297369bd87409743f7a14875efd616da5e610e19ffff"
+}
+
+test parity_box_value_11() {
+  builtin.serialise_data(
+    value.box_value(
+      ReferenceDatum {
+        ..default_reference_datum(),
+        box_lovelace: 2000000,
+        token_policy: #"fe7db776cc673a6318d2135a16fe289591521aec3bd23cffa6f89760",
+        token_name: #"4041ed4ef8c23ebe",
+        token_quantity: 65536,
+      },
+    ),
+  ) == #"a240a1401a001e8480581cfe7db776cc673a6318d2135a16fe289591521aec3bd23cffa6f89760a1484041ed4ef8c23ebe1a00010000"
+}
+
+test parity_box_value_12() {
+  builtin.serialise_data(
+    value.box_value(
+      ReferenceDatum {
+        ..default_reference_datum(),
+        box_lovelace: 2000000,
+        token_policy: #"45a55fe28dae738bf87e63635dbc0816781e32642933045634752c30",
+        token_name: #"9679f602f8d03fdd",
+        token_quantity: 4294967295,
+      },
+    ),
+  ) == #"a240a1401a001e8480581c45a55fe28dae738bf87e63635dbc0816781e32642933045634752c30a1489679f602f8d03fdd1affffffff"
+}
+
+test parity_box_value_13() {
+  builtin.serialise_data(
+    value.box_value(
+      ReferenceDatum {
+        ..default_reference_datum(),
+        box_lovelace: 2000000,
+        token_policy: #"1b55314f085f31e62747328a0399caddd91e43f10cd9019f31047faf",
+        token_name: #"b15b867ea071f298",
+        token_quantity: 4294967296,
+      },
+    ),
+  ) == #"a240a1401a001e8480581c1b55314f085f31e62747328a0399caddd91e43f10cd9019f31047fafa148b15b867ea071f2981b0000000100000000"
+}
+
+test parity_box_value_14() {
+  builtin.serialise_data(
+    value.box_value(
+      ReferenceDatum {
+        ..default_reference_datum(),
+        box_lovelace: 2000000,
+        token_policy: #"b08a63efa15be1cb888dd424d0b01663093062c124fa18ba5703db21",
+        token_name: #"5ad8a13f0c0a1481cc4568453fdd0a2a614c25ca14216cd698ffe380037b7ac2",
+        token_quantity: 18446744073709551615,
+      },
+    ),
+  ) == #"a240a1401a001e8480581cb08a63efa15be1cb888dd424d0b01663093062c124fa18ba5703db21a158205ad8a13f0c0a1481cc4568453fdd0a2a614c25ca14216cd698ffe380037b7ac21bffffffffffffffff"
+}
+
+test parity_box_value_15() {
+  builtin.serialise_data(
+    value.box_value(
+      ReferenceDatum {
+        ..default_reference_datum(),
+        box_lovelace: 1,
+        token_policy: #"92dc2149950a9dab5a81b5e3913b092a97e79ecd7202677114b6e2ff",
+        token_name: #"82d31eb8",
+        token_quantity: 1,
+      },
+    ),
+  ) == #"a240a14001581c92dc2149950a9dab5a81b5e3913b092a97e79ecd7202677114b6e2ffa14482d31eb801"
+}
+
+test parity_box_value_16() {
+  builtin.serialise_data(
+    value.box_value(
+      ReferenceDatum {
+        ..default_reference_datum(),
+        box_lovelace: 8,
+        token_policy: #"",
+        token_name: #"",
+        token_quantity: 0,
+      },
+    ),
+  ) == #"a140a14008"
+}
+
+test parity_box_value_17() {
+  builtin.serialise_data(
+    value.box_value(
+      ReferenceDatum {
+        ..default_reference_datum(),
+        box_lovelace: 1,
+        token_policy: #"548542b8bbbff82fca45475f7c98f2159f91c6c2c1f5fa2a0e1d2905",
+        token_name: #"6836cbe5b7e00930d27aa37ead61c2bfc8c3780eea7e0c",
+        token_quantity: 10905,
+      },
+    ),
+  ) == #"a240a14001581c548542b8bbbff82fca45475f7c98f2159f91c6c2c1f5fa2a0e1d2905a1576836cbe5b7e00930d27aa37ead61c2bfc8c3780eea7e0c192a99"
+}
+
+test parity_box_value_18() {
+  builtin.serialise_data(
+    value.box_value(
+      ReferenceDatum {
+        ..default_reference_datum(),
+        box_lovelace: 11,
+        token_policy: #"a399a3402e426d57d12b684a0d87785e031eaa05606da3bccfb1f953",
+        token_name: #"3ef56a83fd4b096340cc6bbc7070be5bcab76521ea535e338d5ed2d0ac24",
+        token_quantity: 1109211766,
+      },
+    ),
+  ) == #"a240a1400b581ca399a3402e426d57d12b684a0d87785e031eaa05606da3bccfb1f953a1581e3ef56a83fd4b096340cc6bbc7070be5bcab76521ea535e338d5ed2d0ac241a421d3a76"
+}
+
+test parity_box_value_19() {
+  builtin.serialise_data(
+    value.box_value(
+      ReferenceDatum {
+        ..default_reference_datum(),
+        box_lovelace: 14,
+        token_policy: #"e4adecca30099b83c676bc07e14dee95eeb225b1aeb61c6417151d68",
+        token_name: #"70ed196d6ead49bc0debed2146274d60778a714ec09e012c6053c3",
+        token_quantity: 1289781470,
+      },
+    ),
+  ) == #"a240a1400e581ce4adecca30099b83c676bc07e14dee95eeb225b1aeb61c6417151d68a1581b70ed196d6ead49bc0debed2146274d60778a714ec09e012c6053c31a4ce080de"
+}
+
+test parity_box_value_20() {
+  builtin.serialise_data(
+    value.box_value(
+      ReferenceDatum {
+        ..default_reference_datum(),
+        box_lovelace: 11411066699863215185,
+        token_policy: #"e3a2d8828a89dd1e4f5408805717382e1692234d633466be1abe6f39",
+        token_name: #"214218835c2e31beca367758627605b6691bef00420faade",
+        token_quantity: 1495864175,
+      },
+    ),
+  ) == #"a240a1401b9e5c40b481a2cc51581ce3a2d8828a89dd1e4f5408805717382e1692234d633466be1abe6f39a15818214218835c2e31beca367758627605b6691bef00420faade1a5929136f"
+}
+
+test parity_box_value_21() {
+  builtin.serialise_data(
+    value.box_value(
+      ReferenceDatum {
+        ..default_reference_datum(),
+        box_lovelace: 523579953704670636,
+        token_policy: #"87babfbb2c225cc70a990c8058ea1b356d66a3cd07389bd84d0d98bf",
+        token_name: #"4264cf6c20cb3bb7250ba8a827acc08c77641eb4747136edc6",
+        token_quantity: 212,
+      },
+    ),
+  ) == #"a240a1401b07442131a01515ac581c87babfbb2c225cc70a990c8058ea1b356d66a3cd07389bd84d0d98bfa158194264cf6c20cb3bb7250ba8a827acc08c77641eb4747136edc618d4"
+}
+
+test parity_box_value_22() {
+  builtin.serialise_data(
+    value.box_value(
+      ReferenceDatum {
+        ..default_reference_datum(),
+        box_lovelace: 1963891523,
+        token_policy: #"",
+        token_name: #"",
+        token_quantity: 0,
+      },
+    ),
+  ) == #"a140a1401a750e9b43"
+}
+
+test parity_box_value_23() {
+  builtin.serialise_data(
+    value.box_value(
+      ReferenceDatum {
+        ..default_reference_datum(),
+        box_lovelace: 9,
+        token_policy: #"39f605b1ba7717aa44597c170a32cce9b87e32530fcc89082e666f49",
+        token_name: #"dbfddf3b694dabc2691a1adfa1ff6193716f7c84",
+        token_quantity: 9513102764084922452,
+      },
+    ),
+  ) == #"a240a14009581c39f605b1ba7717aa44597c170a32cce9b87e32530fcc89082e666f49a154dbfddf3b694dabc2691a1adfa1ff6193716f7c841b8405548fb5118854"
+}
+
+test parity_box_value_24() {
+  builtin.serialise_data(
+    value.box_value(
+      ReferenceDatum {
+        ..default_reference_datum(),
+        box_lovelace: 6945343692089069533,
+        token_policy: #"2cad16126b51aa7aea6f3450a1a6f5dfac2b501b47e7f63ae9b75194",
+        token_name: #"24872f4a",
+        token_quantity: 68,
+      },
+    ),
+  ) == #"a240a1401b6062d14a39f80fdd581c2cad16126b51aa7aea6f3450a1a6f5dfac2b501b47e7f63ae9b75194a14424872f4a1844"
+}
+
+test parity_box_value_25() {
+  builtin.serialise_data(
+    value.box_value(
+      ReferenceDatum {
+        ..default_reference_datum(),
+        box_lovelace: 16757902665571986452,
+        token_policy: #"",
+        token_name: #"",
+        token_quantity: 0,
+      },
+    ),
+  ) == #"a140a1401be89007afe9fd6c14"
+}
+
+test parity_box_value_26() {
+  builtin.serialise_data(
+    value.box_value(
+      ReferenceDatum {
+        ..default_reference_datum(),
+        box_lovelace: 3,
+        token_policy: #"2d3d251f658e6b9bda3fd9a5d128db2ac9b151cd26634411887a4aab",
+        token_name: #"8e06b85fa8db541a",
+        token_quantity: 54979,
+      },
+    ),
+  ) == #"a240a14003581c2d3d251f658e6b9bda3fd9a5d128db2ac9b151cd26634411887a4aaba1488e06b85fa8db541a19d6c3"
+}
+
+test parity_box_value_27() {
+  builtin.serialise_data(
+    value.box_value(
+      ReferenceDatum {
+        ..default_reference_datum(),
+        box_lovelace: 36765,
+        token_policy: #"",
+        token_name: #"",
+        token_quantity: 0,
+      },
+    ),
+  ) == #"a140a140198f9d"
+}
+
+test parity_box_value_28() {
+  builtin.serialise_data(
+    value.box_value(
+      ReferenceDatum {
+        ..default_reference_datum(),
+        box_lovelace: 12840,
+        token_policy: #"",
+        token_name: #"",
+        token_quantity: 0,
+      },
+    ),
+  ) == #"a140a140193228"
+}
+
+test parity_box_value_29() {
+  builtin.serialise_data(
+    value.box_value(
+      ReferenceDatum {
+        ..default_reference_datum(),
+        box_lovelace: 15563167992302573965,
+        token_policy: #"3a49e7811f1da29912ef723598218d387420069d2f7fa3ca529e97bb",
+        token_name: #"8d71a589275e91427422155b4ee3",
+        token_quantity: 2,
+      },
+    ),
+  ) == #"a240a1401bd7fb7ad4f0ec998d581c3a49e7811f1da29912ef723598218d387420069d2f7fa3ca529e97bba14e8d71a589275e91427422155b4ee302"
+}
+
+test parity_box_value_30() {
+  builtin.serialise_data(
+    value.box_value(
+      ReferenceDatum {
+        ..default_reference_datum(),
+        box_lovelace: 34330,
+        token_policy: #"c9c9aaa0329469e2150dd2b28ff54dba30374c63f50081c990555daa",
+        token_name: #"da2d3204edeb71492979be14d6df7ca16f150b617b70097e042161",
+        token_quantity: 1536937980,
+      },
+    ),
+  ) == #"a240a14019861a581cc9c9aaa0329469e2150dd2b28ff54dba30374c63f50081c990555daaa1581bda2d3204edeb71492979be14d6df7ca16f150b617b70097e0421611a5b9bcffc"
+}
+
+test parity_box_value_31() {
+  builtin.serialise_data(
+    value.box_value(
+      ReferenceDatum {
+        ..default_reference_datum(),
+        box_lovelace: 1230255115,
+        token_policy: #"fcf4b66360d50729fb1a35a5af6f8110c806d0cca84d953248827832",
+        token_name: #"a8f915d5b0021755dbe8e255581ec3e2ad6532bf87767181d4df5e",
+        token_quantity: 15998559522598191194,
+      },
+    ),
+  ) == #"a240a1401a4954340b581cfcf4b66360d50729fb1a35a5af6f8110c806d0cca84d953248827832a1581ba8f915d5b0021755dbe8e255581ec3e2ad6532bf87767181d4df5e1bde064d1f2e68805a"
+}
+
+test parity_box_value_32() {
+  builtin.serialise_data(
+    value.box_value(
+      ReferenceDatum {
+        ..default_reference_datum(),
+        box_lovelace: 22132,
+        token_policy: #"f2866d62c0f9b01dd8cc3acd86554081736a11350a4d8bcc03a00616",
+        token_name: #"2982f623a024e20f1e615b7e1a6215200aefd8997674caca3697ae7b1d40d9",
+        token_quantity: 57715,
+      },
+    ),
+  ) == #"a240a140195674581cf2866d62c0f9b01dd8cc3acd86554081736a11350a4d8bcc03a00616a1581f2982f623a024e20f1e615b7e1a6215200aefd8997674caca3697ae7b1d40d919e173"
+}
+
+test parity_box_value_33() {
+  builtin.serialise_data(
+    value.box_value(
+      ReferenceDatum {
+        ..default_reference_datum(),
+        box_lovelace: 1146633550,
+        token_policy: #"1b8f6c480d27e7e73db463ed1c85d42f49baae2be95689489b4a1675",
+        token_name: #"f4d289dad552",
+        token_quantity: 35267,
+      },
+    ),
+  ) == #"a240a1401a44583d4e581c1b8f6c480d27e7e73db463ed1c85d42f49baae2be95689489b4a1675a146f4d289dad5521989c3"
+}
+
+test parity_box_value_34() {
+  builtin.serialise_data(
+    value.box_value(
+      ReferenceDatum {
+        ..default_reference_datum(),
+        box_lovelace: 47,
+        token_policy: #"",
+        token_name: #"",
+        token_quantity: 0,
+      },
+    ),
+  ) == #"a140a140182f"
+}
+
+test parity_box_value_35() {
+  builtin.serialise_data(
+    value.box_value(
+      ReferenceDatum {
+        ..default_reference_datum(),
+        box_lovelace: 250,
+        token_policy: #"84a3361b26724b68f888f06a582680e25be5b28ddebce0baaaaa5b50",
+        token_name: #"6f60f5cf6822ec556bab55dd248b75c2c5dae70bcc3bfd305095195f3352d0",
+        token_quantity: 6026446092535284497,
+      },
+    ),
+  ) == #"a240a14018fa581c84a3361b26724b68f888f06a582680e25be5b28ddebce0baaaaa5b50a1581f6f60f5cf6822ec556bab55dd248b75c2c5dae70bcc3bfd305095195f3352d01b53a23ccaab9b4311"
+}
+
+test parity_box_value_36() {
+  builtin.serialise_data(
+    value.box_value(
+      ReferenceDatum {
+        ..default_reference_datum(),
+        box_lovelace: 18291044523324173459,
+        token_policy: #"6c36769933fc1468dc8eb545334c2f8635f350795f4b492511c5374d",
+        token_name: #"c0dcd11635d942138f1303133ae01f2f825d9e35657a165bbc14",
+        token_quantity: 1,
+      },
+    ),
+  ) == #"a240a1401bfdd6d81577976c93581c6c36769933fc1468dc8eb545334c2f8635f350795f4b492511c5374da1581ac0dcd11635d942138f1303133ae01f2f825d9e35657a165bbc1401"
+}
+
+test parity_box_value_37() {
+  builtin.serialise_data(
+    value.box_value(
+      ReferenceDatum {
+        ..default_reference_datum(),
+        box_lovelace: 5,
+        token_policy: #"f91931a5f0c7a375dc57c5d89348de67a18e346a752b280461099fdb",
+        token_name: #"e0",
+        token_quantity: 3931557003,
+      },
+    ),
+  ) == #"a240a14005581cf91931a5f0c7a375dc57c5d89348de67a18e346a752b280461099fdba141e01aea56cc8b"
+}
+
+test parity_box_value_38() {
+  builtin.serialise_data(
+    value.box_value(
+      ReferenceDatum {
+        ..default_reference_datum(),
+        box_lovelace: 8,
+        token_policy: #"0196b7d5f29e26a97369a3456c6cc1d640bff2d22d49eb1c8387e8ae",
+        token_name: #"b53173e2f24bb4944d5c795807902bbe1984afe9b4c0c8d3b7b8b443d2",
+        token_quantity: 1639335713,
+      },
+    ),
+  ) == #"a240a14008581c0196b7d5f29e26a97369a3456c6cc1d640bff2d22d49eb1c8387e8aea1581db53173e2f24bb4944d5c795807902bbe1984afe9b4c0c8d3b7b8b443d21a61b64721"
+}
+
+test parity_box_value_39() {
+  builtin.serialise_data(
+    value.box_value(
+      ReferenceDatum {
+        ..default_reference_datum(),
+        box_lovelace: 3480103999,
+        token_policy: #"98478f3918055458d8494411ee90549cf6953a28ed6fcc12a98c5f4f",
+        token_name: #"17f5fff2915b3219",
+        token_quantity: 7886125636199304366,
+      },
+    ),
+  ) == #"a240a1401acf6e2c3f581c98478f3918055458d8494411ee90549cf6953a28ed6fcc12a98c5f4fa14817f5fff2915b32191b6d71257bcfc2ccae"
+}
+
+test parity_box_value_40() {
+  builtin.serialise_data(
+    value.box_value(
+      ReferenceDatum {
+        ..default_reference_datum(),
+        box_lovelace: 250,
+        token_policy: #"f78475863c7de343db95d9811c80f6ccdd79cf127c2a4d0ba8ef1223",
+        token_name: #"5dafb4",
+        token_quantity: 3464294868,
+      },
+    ),
+  ) == #"a240a14018fa581cf78475863c7de343db95d9811c80f6ccdd79cf127c2a4d0ba8ef1223a1435dafb41ace7cf1d4"
+}
+
+test parity_box_value_41() {
+  builtin.serialise_data(
+    value.box_value(
+      ReferenceDatum {
+        ..default_reference_datum(),
+        box_lovelace: 51346,
+        token_policy: #"7fa6cf0eda7a6bcb4730a5a052bdb3b38a777752435391e0c0f26b52",
+        token_name: #"b2a80c1c526819324680e4cad15d7267f9897f8a5daafde42f50bde9b53070d7",
+        token_quantity: 13150152387263373241,
+      },
+    ),
+  ) == #"a240a14019c892581c7fa6cf0eda7a6bcb4730a5a052bdb3b38a777752435391e0c0f26b52a15820b2a80c1c526819324680e4cad15d7267f9897f8a5daafde42f50bde9b53070d71bb67eb9ec79169fb9"
+}
+
+test parity_box_value_42() {
+  builtin.serialise_data(
+    value.box_value(
+      ReferenceDatum {
+        ..default_reference_datum(),
+        box_lovelace: 7086564062634661674,
+        token_policy: #"a43b5fd117f1b2020a9def3a3f7262d6e7e5ffb19e7ac0b6dd5bccd0",
+        token_name: #"",
+        token_quantity: 1,
+      },
+    ),
+  ) == #"a240a1401b62588877ff63572a581ca43b5fd117f1b2020a9def3a3f7262d6e7e5ffb19e7ac0b6dd5bccd0a14001"
+}
+
+test parity_box_value_43() {
+  builtin.serialise_data(
+    value.box_value(
+      ReferenceDatum {
+        ..default_reference_datum(),
+        box_lovelace: 2260,
+        token_policy: #"c66ef4b7e3feb42db390737357e2f215cc19120ba7816a1c83e4cd4c",
+        token_name: #"504e0345733acde72e646f821d8c6900e3e6c04a86a93dea8b6f49",
+        token_quantity: 5939206968807106538,
+      },
+    ),
+  ) == #"a240a1401908d4581cc66ef4b7e3feb42db390737357e2f215cc19120ba7816a1c83e4cd4ca1581b504e0345733acde72e646f821d8c6900e3e6c04a86a93dea8b6f491b526c4d455745a7ea"
+}
+
+test parity_box_value_44() {
+  builtin.serialise_data(
+    value.box_value(
+      ReferenceDatum {
+        ..default_reference_datum(),
+        box_lovelace: 9,
+        token_policy: #"",
+        token_name: #"",
+        token_quantity: 0,
+      },
+    ),
+  ) == #"a140a14009"
+}
+
+test parity_box_value_45() {
+  builtin.serialise_data(
+    value.box_value(
+      ReferenceDatum {
+        ..default_reference_datum(),
+        box_lovelace: 16210683488431713998,
+        token_policy: #"d548c1547dc490aa919951d3baee6bcd75c9ab147783204a300dc311",
+        token_name: #"d8e7a7da903df7efbc260b4c595921406c47f35238e6246a",
+        token_quantity: 9,
+      },
+    ),
+  ) == #"a240a1401be0f7eabeae432ece581cd548c1547dc490aa919951d3baee6bcd75c9ab147783204a300dc311a15818d8e7a7da903df7efbc260b4c595921406c47f35238e6246a09"
+}
+
+test parity_box_value_46() {
+  builtin.serialise_data(
+    value.box_value(
+      ReferenceDatum {
+        ..default_reference_datum(),
+        box_lovelace: 118,
+        token_policy: #"a697cbac9d7fda837cc075a9193d6364c87e054532095fe5b5a7e77d",
+        token_name: #"0f0c96a97d6223532f2f551d52eb1b3c53b256edb5f5",
+        token_quantity: 3392,
+      },
+    ),
+  ) == #"a240a1401876581ca697cbac9d7fda837cc075a9193d6364c87e054532095fe5b5a7e77da1560f0c96a97d6223532f2f551d52eb1b3c53b256edb5f5190d40"
+}
+
+test parity_box_value_47() {
+  builtin.serialise_data(
+    value.box_value(
+      ReferenceDatum {
+        ..default_reference_datum(),
+        box_lovelace: 1,
+        token_policy: #"c6db754cac52fd4f791913147cdb056f21187de6190bcd9878a31c1a",
+        token_name: #"bfebac9c27970e9bac6a00bbab7ca402",
+        token_quantity: 38179,
+      },
+    ),
+  ) == #"a240a14001581cc6db754cac52fd4f791913147cdb056f21187de6190bcd9878a31c1aa150bfebac9c27970e9bac6a00bbab7ca402199523"
+}
+
+test parity_box_value_48() {
+  builtin.serialise_data(
+    value.box_value(
+      ReferenceDatum {
+        ..default_reference_datum(),
+        box_lovelace: 51784,
+        token_policy: #"3633dc7f3680a9215fd968df26e3b84504742be3873ca4c8eded0574",
+        token_name: #"4211b3",
+        token_quantity: 14,
+      },
+    ),
+  ) == #"a240a14019ca48581c3633dc7f3680a9215fd968df26e3b84504742be3873ca4c8eded0574a1434211b30e"
+}
+
+test parity_box_value_49() {
+  builtin.serialise_data(
+    value.box_value(
+      ReferenceDatum {
+        ..default_reference_datum(),
+        box_lovelace: 8,
+        token_policy: #"b11dcdc91ce87b05ff317d3cebf9449de83e10c048d90c40bc2b7009",
+        token_name: #"a30c100ad7588a3b",
+        token_quantity: 5596562129008114409,
+      },
+    ),
+  ) == #"a240a14008581cb11dcdc91ce87b05ff317d3cebf9449de83e10c048d90c40bc2b7009a148a30c100ad7588a3b1b4daafb9abeeebae9"
+}
+
+test parity_box_value_50() {
+  builtin.serialise_data(
+    value.box_value(
+      ReferenceDatum {
+        ..default_reference_datum(),
+        box_lovelace: 1,
+        token_policy: #"17e2b87a0ededa333038944280fd315f927466135608c434a29d60cd",
+        token_name: #"982ad0e3d72b26b80c125cb824b70c527f",
+        token_quantity: 8,
+      },
+    ),
+  ) == #"a240a14001581c17e2b87a0ededa333038944280fd315f927466135608c434a29d60cda151982ad0e3d72b26b80c125cb824b70c527f08"
+}
+
+test parity_box_value_51() {
+  builtin.serialise_data(
+    value.box_value(
+      ReferenceDatum {
+        ..default_reference_datum(),
+        box_lovelace: 9,
+        token_policy: #"",
+        token_name: #"",
+        token_quantity: 0,
+      },
+    ),
+  ) == #"a140a14009"
+}
+
+test parity_box_value_52() {
+  builtin.serialise_data(
+    value.box_value(
+      ReferenceDatum {
+        ..default_reference_datum(),
+        box_lovelace: 176,
+        token_policy: #"",
+        token_name: #"",
+        token_quantity: 0,
+      },
+    ),
+  ) == #"a140a14018b0"
+}
+
+test parity_box_value_53() {
+  builtin.serialise_data(
+    value.box_value(
+      ReferenceDatum {
+        ..default_reference_datum(),
+        box_lovelace: 851574172,
+        token_policy: #"",
+        token_name: #"",
+        token_quantity: 0,
+      },
+    ),
+  ) == #"a140a1401a32c1fd9c"
+}
+
+test parity_box_value_54() {
+  builtin.serialise_data(
+    value.box_value(
+      ReferenceDatum {
+        ..default_reference_datum(),
+        box_lovelace: 156,
+        token_policy: #"f8509784e47670d2729346befb098b86dbacea94a6f06b8382ef69dc",
+        token_name: #"61d151b778249165d923baddc0e768e9c29fefb6ea7a42c552",
+        token_quantity: 61805,
+      },
+    ),
+  ) == #"a240a140189c581cf8509784e47670d2729346befb098b86dbacea94a6f06b8382ef69dca1581961d151b778249165d923baddc0e768e9c29fefb6ea7a42c55219f16d"
+}
+
+test parity_box_value_55() {
+  builtin.serialise_data(
+    value.box_value(
+      ReferenceDatum {
+        ..default_reference_datum(),
+        box_lovelace: 64242,
+        token_policy: #"",
+        token_name: #"",
+        token_quantity: 0,
+      },
+    ),
+  ) == #"a140a14019faf2"
+}
+
+test parity_box_value_56() {
+  builtin.serialise_data(
+    value.box_value(
+      ReferenceDatum {
+        ..default_reference_datum(),
+        box_lovelace: 65339,
+        token_policy: #"",
+        token_name: #"",
+        token_quantity: 0,
+      },
+    ),
+  ) == #"a140a14019ff3b"
+}
+
+test parity_box_value_57() {
+  builtin.serialise_data(
+    value.box_value(
+      ReferenceDatum {
+        ..default_reference_datum(),
+        box_lovelace: 8,
+        token_policy: #"",
+        token_name: #"",
+        token_quantity: 0,
+      },
+    ),
+  ) == #"a140a14008"
+}
+
+test parity_box_value_58() {
+  builtin.serialise_data(
+    value.box_value(
+      ReferenceDatum {
+        ..default_reference_datum(),
+        box_lovelace: 9275684101641688324,
+        token_policy: #"",
+        token_name: #"",
+        token_quantity: 0,
+      },
+    ),
+  ) == #"a140a1401b80b9d98bb7175504"
+}
+
+test parity_box_value_59() {
+  builtin.serialise_data(
+    value.box_value(
+      ReferenceDatum {
+        ..default_reference_datum(),
+        box_lovelace: 673712509,
+        token_policy: #"26f64781c60e1436a3fe2741d46b0d05903eefbe7b0515f3bdc50484",
+        token_name: #"59d9153bf3b4",
+        token_quantity: 12868548348299243731,
+      },
+    ),
+  ) == #"a240a1401a2828097d581c26f64781c60e1436a3fe2741d46b0d05903eefbe7b0515f3bdc50484a14659d9153bf3b41bb296448ad350f0d3"
+}
+
+test parity_box_value_60() {
+  builtin.serialise_data(
+    value.box_value(
+      ReferenceDatum {
+        ..default_reference_datum(),
+        box_lovelace: 4,
+        token_policy: #"3910fc56222ac2dbbb4e307fe113d6b6dc06eb040df35c10d65ba624",
+        token_name: #"69136d53da346778961ba3d4270e61",
+        token_quantity: 12,
+      },
+    ),
+  ) == #"a240a14004581c3910fc56222ac2dbbb4e307fe113d6b6dc06eb040df35c10d65ba624a14f69136d53da346778961ba3d4270e610c"
+}
+
+test parity_box_value_61() {
+  builtin.serialise_data(
+    value.box_value(
+      ReferenceDatum {
+        ..default_reference_datum(),
+        box_lovelace: 1784280060,
+        token_policy: #"a86ec3ceccb555fa1f1c5ffb4df67aee01e3ba4f55308e0ee85ecf16",
+        token_name: #"048ab458e87aea5c72e80dbe63c653b1059130d38cd5abefa94161",
+        token_quantity: 220,
+      },
+    ),
+  ) == #"a240a1401a6a59f3fc581ca86ec3ceccb555fa1f1c5ffb4df67aee01e3ba4f55308e0ee85ecf16a1581b048ab458e87aea5c72e80dbe63c653b1059130d38cd5abefa9416118dc"
+}
+
+test parity_box_value_62() {
+  builtin.serialise_data(
+    value.box_value(
+      ReferenceDatum {
+        ..default_reference_datum(),
+        box_lovelace: 65444573,
+        token_policy: #"b28e18a9e66649eefe945451c890a6d4b148bf537f5bc2cdc6c9f594",
+        token_name: #"fdb576321ef2bc4f410daaae9faf9ce4967a6b4444e42301356a",
+        token_quantity: 5173689363002570234,
+      },
+    ),
+  ) == #"a240a1401a03e69add581cb28e18a9e66649eefe945451c890a6d4b148bf537f5bc2cdc6c9f594a1581afdb576321ef2bc4f410daaae9faf9ce4967a6b4444e42301356a1b47cca31073fc35fa"
+}
+
+test parity_box_value_63() {
+  builtin.serialise_data(
+    value.box_value(
+      ReferenceDatum {
+        ..default_reference_datum(),
+        box_lovelace: 3028696158,
+        token_policy: #"705579545db7d443d317cb5ca943d064b6106f714576f0ecd5893267",
+        token_name: #"943cff7ed1948d",
+        token_quantity: 12886293205229500270,
+      },
+    ),
+  ) == #"a240a1401ab4863c5e581c705579545db7d443d317cb5ca943d064b6106f714576f0ecd5893267a147943cff7ed1948d1bb2d54f65493bf76e"
 }

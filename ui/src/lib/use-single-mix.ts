@@ -19,6 +19,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { BrowserWallet } from "@meshsdk/core";
 import {
+  boxValueFromAddresses,
   buildMixTx,
   type ChainProvider,
   type LovejoinAddresses,
@@ -268,7 +269,7 @@ export function useSingleMix(args: UseSingleMixArgs): UseSingleMixResult {
         const utxo: Utxo = recorded ?? {
           ref: e.ref,
           address: "",
-          lovelace: BigInt(addresses.protocol.denom_lovelace),
+          lovelace: boxValueFromAddresses(addresses).lovelace,
           assets: {},
           inlineDatum: null,
           referenceScript: null,
@@ -317,7 +318,7 @@ export function useSingleMix(args: UseSingleMixArgs): UseSingleMixResult {
       }
 
       const newTxId = result.txId.toLowerCase();
-      const denomLovelace = BigInt(addresses.protocol.denom_lovelace);
+      const denomLovelace = boxValueFromAddresses(addresses).lovelace;
       for (let i = 0; i < result.plan.outputs.length; i++) {
         const planOutput = result.plan.outputs[i]!;
         const outRef = { txId: newTxId, outputIndex: i };

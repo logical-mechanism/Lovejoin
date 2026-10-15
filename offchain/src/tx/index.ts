@@ -6,6 +6,7 @@
 // around without churning every importer.
 
 export * from "./params.js";
+export * from "./box-value.js";
 export * from "./fee.js";
 export * from "./collateral.js";
 export * from "./known-collateral-hosts.js";

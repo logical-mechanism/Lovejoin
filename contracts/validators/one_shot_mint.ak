@@ -25,7 +25,7 @@
 //// Audit L-01 / L-02 (issue #130): the destination + datum-sanity checks
 //// move the bootstrap-time invariants on chain. Pre-fix they were enforced
 //// only by the off-chain shell scripts — a deployer mistake (NFT to the
-//// wrong address, malformed datum, zero denom) would brick the protocol
+//// wrong address, malformed datum, zero box value) would brick the protocol
 //// permanently because the seed UTxO is single-use. Post-fix the mint tx
 //// rejects any deviation and the deployer can simply rebuild and resubmit.
 ////
@@ -47,6 +47,7 @@
 use aiken/collection/dict
 use aiken/collection/list
 use aiken/crypto.{ScriptHash}
+use aiken/primitive/bytearray
 use cardano/assets
 use cardano/transaction.{
   InlineDatum, OutputReference, Transaction, TransactionId,
@@ -103,15 +104,18 @@ validator one_shot_mint(
     // compile time, so that invariant stays operationally enforced by the
     // bootstrap script (which writes all four hashes from the same compile
     // output). The bounds we DO check are the ones whose violation would
-    // brick the protocol with no operator recourse: `denom <= 0` makes
-    // every Deposit value-check vacuous; `max_fee >= denom` lets a Mix
-    // tx drain a fee shard for more than the deposited principal.
+    // brick the protocol with no operator recourse: `box_lovelace <= 0`
+    // makes every Deposit value-check vacuous; `max_fee >= box_lovelace`
+    // lets a Mix tx drain a fee shard for more than a box's lovelace; a
+    // malformed token triple describes a box value no ledger output can
+    // ever hold, so no Mix could ever succeed.
     expect InlineDatum(datum_data) = target.datum
     expect parsed: ReferenceDatum = datum_data
     let datum_sane = and {
-      parsed.denom_lovelace > 0,
+      parsed.box_lovelace > 0,
       parsed.max_fee_per_mix_lovelace > 0,
-      parsed.max_fee_per_mix_lovelace < parsed.denom_lovelace,
+      parsed.max_fee_per_mix_lovelace < parsed.box_lovelace,
+      token_sane(parsed),
     }
 
     and {
@@ -126,3 +130,32 @@ validator one_shot_mint(
     fail
   }
 }
+
+/// Launch-time shape check for the pool token (docs/generalize-lovejoin.md).
+///
+/// ADA-only pool: `token_policy == #""`, `token_name == #""`,
+/// `token_quantity == 0`. Token pool: a 28-byte policy id, an asset name of
+/// at most 32 bytes, and `0 < token_quantity <= max_token_quantity` (the
+/// ledger's per-asset ceiling; a larger `Q` could never sit in an output).
+/// `value.box_value` relies on the quantity being positive whenever the
+/// policy is set; a zero quantity would make `assets.add` drop the token
+/// and silently turn a token launch into an ADA pool.
+fn token_sane(datum: ReferenceDatum) -> Bool {
+  if datum.token_policy == assets.ada_policy_id {
+    and {
+      datum.token_name == assets.ada_asset_name,
+      datum.token_quantity == 0,
+    }
+  } else {
+    and {
+      bytearray.length(datum.token_policy) == 28,
+      bytearray.length(datum.token_name) <= 32,
+      datum.token_quantity > 0,
+      datum.token_quantity <= max_token_quantity,
+    }
+  }
+}
+
+/// 2^64 - 1, the ledger's ceiling on one asset's quantity in an output
+/// (Conway CDDL `positive_coin = 1 .. maxWord64`).
+const max_token_quantity: Int = 18_446_744_073_709_551_615

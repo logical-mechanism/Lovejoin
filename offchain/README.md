@@ -1,6 +1,6 @@
 # offchain (`@lovejoin/sdk`)
 
-TypeScript SDK for Lovejoin: BLS sigma-protocol prover, transaction builders (deposit, withdraw, mix), CIP-30 wallet helpers, collateral-provider client, and a `ChainProvider` abstraction with a Blockfrost implementation.
+TypeScript SDK for Lovejoin: BLS sigma-protocol prover, transaction builders (deposit, withdraw, mix), CIP-30 wallet helpers, collateral-provider client, and a `ChainProvider` abstraction with Blockfrost, Koios, and self-hosted backend implementations.
 
 This README is the quickstart; [CLAUDE.md](../CLAUDE.md) carries the conventions and constraints.
 
@@ -22,13 +22,13 @@ scripts/       gen-{schnorr,dhtuple,sigmaor,negative,encoding-parity}-kat.ts.
 
 The package re-exports four module groups from [src/index.ts](src/index.ts):
 
-| Group      | What you get                                                              | Spec section |
-| ---------- | ------------------------------------------------------------------------- | ------------ |
-| `crypto/*` | `proveSchnorr`, `verifySchnorr`, `proveDHTuple`, `proveSigmaOr`, BLS ops. | §02          |
-| `chain/*`  | `ChainProvider` interface, `BlockfrostProvider`, `BackendProvider`.       | §04          |
-| `tx/*`     | `buildDepositTx`, `buildWithdrawTx`, `buildMixTx`, `CollateralProvider`.  | §04          |
-| `wallet/*` | `connectCip30`, `deriveVaultSeed`, owner-secret HKDF helpers.             | §04, §06     |
-| `pool/*`   | `findMixBoxes`, `selectMixSet` (uniform random N of M).                   | §04          |
+| Group      | What you get                                                                         | Spec section |
+| ---------- | ------------------------------------------------------------------------------------ | ------------ |
+| `crypto/*` | `proveSchnorr`, `verifySchnorr`, `proveDHTuple`, `proveSigmaOr`, BLS ops.            | §02          |
+| `chain/*`  | `ChainProvider` interface, `BlockfrostProvider`, `KoiosProvider`, `BackendProvider`. | §04          |
+| `tx/*`     | `buildDepositTx`, `buildWithdrawTx`, `buildMixTx`, `CollateralProvider`.             | §04          |
+| `wallet/*` | `connectCip30`, `deriveVaultSeed`, owner-secret HKDF helpers.                        | §04, §06     |
+| `pool/*`   | `findMixBoxes`, `selectMixSet` (uniform random N of M).                              | §04          |
 
 ## Use `@lovejoin/sdk` from another project
 

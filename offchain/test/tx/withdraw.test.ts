@@ -54,7 +54,7 @@ const ADDRESSES: LovejoinAddresses = {
 };
 
 const PARAMS: ProtocolParams = {
-  denomLovelace: 10_000_000n,
+  boxValue: { lovelace: 10_000_000n },
   maxFeePerMixLovelace: 800_000n,
   mixScriptHash: ADDRESSES.mixBoxScriptHash,
   mixLogicScriptHash: ADDRESSES.mixLogicScriptHash,
@@ -81,7 +81,7 @@ describe("tx/withdraw — planWithdrawTx", () => {
       networkId: 0,
     });
     expect(plan.destinationAddressBech32).toBe("addr_test1qabcdef");
-    expect(plan.destinationLovelace).toBe(10_000_000n);
+    expect(plan.destinationValue).toEqual({ lovelace: 10_000_000n });
     expect(plan.referenceUtxoRef).toEqual({
       txId: "b809b4e363067886174b57fd04101eb2e59f654220b6c11530c77b75f25ec945",
       outputIndex: 0,

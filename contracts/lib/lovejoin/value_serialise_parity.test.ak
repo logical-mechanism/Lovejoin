@@ -23,13 +23,18 @@
 use aiken/builtin
 use aiken/primitive/bytearray
 use cardano/assets
-use lovejoin/types.{MixDatum}
+use lovejoin/test_fixtures.{
+  box_lovelace, default_reference_datum, token_box_value, token_reference_datum,
+}
+use lovejoin/types.{MixDatum, ReferenceDatum}
+use lovejoin/value
 
 // `assets.from_lovelace(n)` is the Aiken stdlib's idiomatic way to build
-// an ada-only Value. The on-chain `mix_logic.compute_mix_ctx` calls
-// `serialise_data(output.value)` on each Mix output's value, and Mix
-// outputs are by spec ada-only at `denom_lovelace` — so this is the
-// exact codepath the validator exercises.
+// an ada-only Value, and `value.box_value` builds an ADA pool's box value
+// exactly that way. `mix_logic` hashes `serialise_data(box_value)` once per
+// Mix output, so this is the exact codepath the validator exercises. The
+// token-pool shapes are pinned by the `parity_box_value_*` vectors in
+// encoding_parity_kat.test.ak.
 
 // Run the test, observe what Aiken emits, then update both sides:
 //   * if Aiken emits indefinite-length maps (`bf … ff`), the TS
@@ -54,6 +59,36 @@ test serialise_data_value_5_uses_definite_map() {
   let value = assets.from_lovelace(5)
   let bytes = builtin.serialise_data(value)
   bytes == #"a140a14005"
+}
+
+// `value.box_value` must produce the same Value as building it by hand, or
+// a ledger output holding the box value would not compare equal to it.
+
+test box_value_of_ada_pool_is_from_lovelace() {
+  value.box_value(default_reference_datum()) == assets.from_lovelace(
+    box_lovelace,
+  )
+}
+
+test box_value_of_token_pool_adds_the_token() {
+  value.box_value(token_reference_datum()) == token_box_value()
+}
+
+test box_value_of_token_pool_is_not_ada_only() {
+  value.box_value(token_reference_datum()) != assets.from_lovelace(
+    token_reference_datum().box_lovelace,
+  )
+}
+
+test box_value_ignores_token_fields_for_ada_pool() {
+  // An ADA pool's empty policy short-circuits; the bytes are the plain
+  // lovelace map even if a malformed datum left a stray quantity (which
+  // `one_shot_mint` rejects at launch anyway).
+  builtin.serialise_data(
+    value.box_value(
+      ReferenceDatum { ..default_reference_datum(), token_quantity: 5 },
+    ),
+  ) == #"a140a1401a00989680"
 }
 
 // ---------------------------------------------------------------------------

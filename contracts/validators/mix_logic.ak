@@ -23,7 +23,7 @@ use aiken/builtin
 use aiken/collection/list
 use aiken/primitive/bytearray
 use cardano/address.{Credential}
-use cardano/assets.{AssetName, PolicyId}
+use cardano/assets.{AssetName, Assets, PolicyId}
 use cardano/certificate.{Certificate, RegisterCredential}
 use cardano/transaction.{InlineDatum, Input, Output, Transaction}
 use lovejoin/bls
@@ -36,7 +36,7 @@ use lovejoin/reference.{read_reference_datum}
 use lovejoin/schnorr
 use lovejoin/sigma_or.{DHTupleStatementPt, SigmaOrProof}
 use lovejoin/types.{Mix, MixDatum, MixLogicRedeemer, Owner, ReferenceDatum}
-use lovejoin/value.{expect_ada_only_lovelace}
+use lovejoin/value
 
 // Flat params — one CBOR atom per `aiken blueprint apply` call.
 validator mix_logic(
@@ -92,7 +92,7 @@ validator mix_logic(
 // HKDF index avoids, but a non-conforming depositor could induce). An
 // attacker observing the owner's withdraw of box 1 with proof π could
 // rebuild the same outputs against box 2 and reuse π verbatim, redirecting
-// box 2's denom to themselves. Mixing input refs into the ctx pins the
+// box 2's value to themselves. Mixing input refs into the ctx pins the
 // proof to a specific input set; Cardano's UTxO model already prevents
 // rebuilding a tx with an identical input set (those UTxOs are consumed
 // once). Mirrors the Mix branch's "one ctx, N proofs share it" pattern.
@@ -165,8 +165,8 @@ fn validate_mix(
   //   * list.drop(self.outputs, n) — N walks past the prefix.
   //   * list.all on prefix (`output_at_script`) — N walks.
   //   * list.all on tail (`!output_at_script`) — T walks.
-  //   * `list.map(check_and_decode_mix_output)` — datum decode + ada_only
-  //     + denom check.
+  //   * `list.map(check_and_decode_mix_output)`: datum decode + exact
+  //     box-value check.
   //   * `compute_mix_ctx` datums fold — `serialise_data(output.datum)`.
   //   * `compute_mix_ctx` values fold — `serialise_data(output.value)`.
   //   * `sigma_or.precompute_statements` — uncompress (a', b') into G1.
@@ -177,20 +177,22 @@ fn validate_mix(
   // exercise this whole region against the same byte-equal ctx that
   // `verify_pre` re-derives from `proof.branches`.
   //
-  // Every prefix output is forced ada-only at exactly `denom_lovelace`,
-  // so `serialise_data(output.value)` produces byte-identical output for
-  // all N. We compute the cached denom-value bytes once and reuse them in
-  // the values fold — saves N-1 `serialise_data` calls per Mix tx.
-  // Byte-equivalence between `assets.from_lovelace(denom)` and a real
-  // Value at that lovelace amount is pinned by `value_serialise_parity.test.ak`.
-  let denom_value_bytes = builtin.serialise_data(
-    assets.from_lovelace(reference_datum.denom_lovelace),
-  )
+  // Every prefix output is forced to equal the launch's box value exactly
+  // (`value.box_value`: `box_lovelace`, plus `token_quantity` of the pool
+  // token for a token pool), so `serialise_data(output.value)` produces
+  // byte-identical output for all N. We compute the cached box-value bytes
+  // once and reuse them in the values fold, saving N-1 `serialise_data`
+  // calls per Mix tx. Byte-equivalence between the canonical `box_value`
+  // and the off-chain encoder is pinned by `value_serialise_parity.test.ak`
+  // and the `box_value` vectors in `encoding_parity_kat.test.ak`.
+  let box_value = value.box_value(reference_datum)
+  let box_value_bytes = builtin.serialise_data(box_value)
   let (statements_rev, datums_bytes, values_bytes) = walk_outputs(
     self.outputs,
     n,
-    reference_datum,
-    denom_value_bytes,
+    reference_datum.mix_script_hash,
+    box_value,
+    box_value_bytes,
     [],
     #"",
     #"",
@@ -230,11 +232,12 @@ fn validate_mix(
 /// Walk `self.outputs` once; for the first N elements (the mix-output
 /// prefix):
 ///   * assert `output_at_script(output, mix_script_hash)`,
-///   * assert ada-only + canonical denom (one dict walk),
+///   * assert `output.value == box_value` (exactly the launch's box value:
+///     no missing token, no wrong quantity, no extra policy or asset name),
 ///   * decode the inline `MixDatum`,
 ///   * uncompress (a', b') into a `DHTupleStatementPt`,
 ///   * accumulate `serialise_data(output.datum)` and the cached
-///     `denom_value_bytes` into the FS-preimage byte strings.
+///     `box_value_bytes` into the FS-preimage byte strings.
 /// For the remaining (tail) elements:
 ///   * assert `!output_at_script(output, mix_script_hash)`.
 /// At end-of-list, assert we consumed exactly N prefix elements (i.e. that
@@ -243,18 +246,19 @@ fn validate_mix(
 /// Statements are accumulated in REVERSE order (cheap cons); the caller
 /// `list.reverse`s once.
 ///
-/// `denom_value_bytes` is `serialise_data(assets.from_lovelace(denom))`
-/// computed once in `validate_mix`. Every prefix output is forced ada-only
-/// at exactly `denom_lovelace`, so its serialised value bytes are identical
-/// across all N — no need to call `serialise_data(output.value)` per step.
+/// `box_value_bytes` is `serialise_data(box_value)` computed once in
+/// `validate_mix`. Every prefix output is forced to equal `box_value`, so
+/// its serialised value bytes are identical across all N and there is no
+/// need to call `serialise_data(output.value)` per step.
 ///
 /// Tuple return rather than a record — Aiken compiles tuples with less
 /// per-step overhead than a 3-field record literal in this hot path.
 fn walk_outputs(
   outputs: List<Output>,
   prefix_remaining: Int,
-  reference_datum: ReferenceDatum,
-  denom_value_bytes: ByteArray,
+  mix_script_hash: ByteArray,
+  box_value: Assets,
+  box_value_bytes: ByteArray,
   stmts_rev: List<DHTupleStatementPt>,
   datums_acc: ByteArray,
   values_acc: ByteArray,
@@ -268,9 +272,8 @@ fn walk_outputs(
     [output, ..rest] ->
       if prefix_remaining > 0 {
         // Prefix step: at_script + decode + accumulate.
-        expect output_at_script(output, reference_datum.mix_script_hash)
-        expect
-          expect_ada_only_lovelace(output.value) == reference_datum.denom_lovelace
+        expect output_at_script(output, mix_script_hash)
+        expect output.value == box_value
         expect InlineDatum(inline_data) = output.datum
         let mix_datum = decode_mix_datum_strict(inline_data)
         let stmt = DHTupleStatementPt {
@@ -282,20 +285,22 @@ fn walk_outputs(
         walk_outputs(
           rest,
           prefix_remaining - 1,
-          reference_datum,
-          denom_value_bytes,
+          mix_script_hash,
+          box_value,
+          box_value_bytes,
           [stmt, ..stmts_rev],
           datums_acc |> bytearray.concat(builtin.serialise_data(inline_data)),
-          values_acc |> bytearray.concat(denom_value_bytes),
+          values_acc |> bytearray.concat(box_value_bytes),
         )
       } else {
         // Tail step: must NOT be at the mix script.
-        expect !output_at_script(output, reference_datum.mix_script_hash)
+        expect !output_at_script(output, mix_script_hash)
         walk_outputs(
           rest,
           0,
-          reference_datum,
-          denom_value_bytes,
+          mix_script_hash,
+          box_value,
+          box_value_bytes,
           stmts_rev,
           datums_acc,
           values_acc,

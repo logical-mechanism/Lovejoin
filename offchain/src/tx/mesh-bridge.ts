@@ -63,3 +63,28 @@ export async function getMeshProtocolParams(
   const mesh = await getMeshProvider(provider);
   return mesh.fetchProtocolParameters();
 }
+
+/**
+ * The chain's live Plutus cost models in mesh's custom-network shape
+ * (`[V1, V2, V3]`), for `MeshTxBuilder.setNetwork(...)`.
+ *
+ * The script-integrity hash in every script tx covers the cost models of
+ * the Plutus languages it runs. Left alone, mesh hashes the models pinned
+ * inside its serializer, and those stopped matching the chain when Preprod
+ * and mainnet moved to protocol version 11 (a 350-entry PlutusV3 model):
+ * the ledger then rejects every script tx with ScriptIntegrityHashMismatch.
+ * Returns null, keeping mesh's pinned models, when the provider reports no
+ * complete set.
+ */
+export async function getMeshCostModels(provider: ChainProvider): Promise<number[][] | null> {
+  const { costModels } = await provider.getProtocolParameters();
+  const models = [costModels?.PlutusV1, costModels?.PlutusV2, costModels?.PlutusV3];
+  if (models.some((m) => !Array.isArray(m) || m.length === 0)) {
+    console.warn(
+      "[lovejoin/params] provider reported no Plutus V1/V2/V3 cost models; " +
+        "mesh will hash its pinned ones and the ledger may reject the script-integrity hash",
+    );
+    return null;
+  }
+  return models as number[][];
+}

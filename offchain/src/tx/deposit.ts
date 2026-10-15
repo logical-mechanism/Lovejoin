@@ -31,7 +31,7 @@ import { Encoder, Tag } from "cbor-x";
 import type { ChainProvider, Lovelace, Utxo, UtxoRef } from "../chain/provider.js";
 import { type CollateralProvider, WalletProvider } from "./collateral.js";
 import { mergeExternalCollateralWitness } from "./witness-merge.js";
-import { getMeshProtocolParams, getMeshProvider } from "./mesh-bridge.js";
+import { getMeshCostModels, getMeshProtocolParams, getMeshProvider } from "./mesh-bridge.js";
 import { pickFeeShardOptional, replenishOutputLovelace } from "./fee.js";
 import {
   fetchProtocolParams,
@@ -40,6 +40,7 @@ import {
   parseUtxoRef,
 } from "./params.js";
 import { buildScriptAddress } from "./address.js";
+import { type BoxValue, boxValueAssets, poolTokenUnit } from "./box-value.js";
 import {
   type LovejoinNetworkId,
   type LovejoinWallet,
@@ -64,7 +65,8 @@ export interface DepositPlan {
   /** Mix-box output (position 0 in the tx). */
   mixBoxOutput: {
     addressBech32: string;
-    lovelace: Lovelace;
+    /** The launch's box value; for a token pool the wallet supplies the token. */
+    value: BoxValue;
     /** Plutus-Data CBOR hex of `MixDatum { a, b }` (Constr 0 [a, b]). */
     inlineDatumHex: string;
   };
@@ -388,7 +390,7 @@ export function planDepositTx(args: PlanDepositArgs): DepositPlan {
       b,
       mixBoxOutput: {
         addressBech32: mixBoxAddress,
-        lovelace: args.params.denomLovelace,
+        value: args.params.boxValue,
         inlineDatumHex: encodeMixDatum({ a, b }),
       },
       feeShardOutput: null,
@@ -412,7 +414,7 @@ export function planDepositTx(args: PlanDepositArgs): DepositPlan {
     b,
     mixBoxOutput: {
       addressBech32: mixBoxAddress,
-      lovelace: args.params.denomLovelace,
+      value: args.params.boxValue,
       inlineDatumHex: encodeMixDatum({ a, b }),
     },
     feeShardOutput: {
@@ -546,6 +548,7 @@ export async function buildDepositTx(args: BuildDepositArgs): Promise<DepositRes
   // that inflate the fee 10x or worse.
   const meshProvider = await getMeshProvider(args.provider);
   const meshParams = await getMeshProtocolParams(args.provider);
+  const meshCostModels = await getMeshCostModels(args.provider);
   const txBuilder = new MeshTxBuilder({
     fetcher: meshProvider as never,
     submitter: meshProvider as never,
@@ -555,9 +558,11 @@ export async function buildDepositTx(args: BuildDepositArgs): Promise<DepositRes
   });
   // Trust evaluator-returned exec units exactly (mesh defaults to 1.1×).
   txBuilder.txEvaluationMultiplier = 1;
+  if (meshCostModels) txBuilder.setNetwork(meshCostModels as never);
 
   // Wallet inputs (mesh handles selection).
   const walletUtxos = normalizeWalletUtxos(await args.wallet.getUtxos());
+  assertWalletHoldsPoolToken(walletUtxos, params.boxValue, 1);
   const changeAddress = await args.wallet.getChangeAddress();
 
   // Build the tx body. Reference UTxO is always read; fee-shard spend is
@@ -596,10 +601,11 @@ export async function buildDepositTx(args: BuildDepositArgs): Promise<DepositRes
       );
   }
 
-  // Output 0: new mix-box.
-  tx.txOut(plan.mixBoxOutput.addressBech32, [
-    { unit: "lovelace", quantity: plan.mixBoxOutput.lovelace.toString() },
-  ]).txOutInlineDatumValue(plan.mixBoxOutput.inlineDatumHex, "CBOR");
+  // Output 0: new mix-box, holding exactly the box value.
+  tx.txOut(
+    plan.mixBoxOutput.addressBech32,
+    boxValueAssets(plan.mixBoxOutput.value),
+  ).txOutInlineDatumValue(plan.mixBoxOutput.inlineDatumHex, "CBOR");
 
   // Output 1 (only when replenishing): the topped-up fee shard.
   if (plan.feeShardOutput) {
@@ -653,6 +659,35 @@ export async function buildDepositTx(args: BuildDepositArgs): Promise<DepositRes
 // ---------------------------------------------------------------------------
 
 /**
+ * Fail early, with a readable message, when a token-pool deposit's wallet
+ * cannot cover `count` boxes' worth of the pool token. mesh's coin
+ * selection would otherwise fail deep inside `complete()` with an
+ * insufficient-input error that names neither the token nor the amount.
+ * No-op for an ADA pool (mesh's lovelace shortfall error is already clear).
+ */
+export function assertWalletHoldsPoolToken(
+  walletUtxos: ReadonlyArray<{
+    output: { amount: ReadonlyArray<{ unit: string; quantity: string }> };
+  }>,
+  boxValue: BoxValue,
+  count: number,
+): void {
+  if (!boxValue.token) return;
+  const unit = poolTokenUnit(boxValue.token);
+  let held = 0n;
+  for (const u of walletUtxos) {
+    for (const a of u.output.amount) if (a.unit === unit) held += BigInt(a.quantity);
+  }
+  const needed = boxValue.token.quantity * BigInt(count);
+  if (held < needed) {
+    throw new Error(
+      `wallet holds ${held} of pool token ${boxValue.token.policy}.${boxValue.token.name}; ` +
+        `${count} deposit(s) need ${needed}`,
+    );
+  }
+}
+
+/**
  * Reusable converter for callers that have an array of mesh UTxOs in hand
  * (e.g. from `wallet.getUtxos()`) and want chain/provider Utxo shape.
  */
@@ -694,7 +729,7 @@ export interface BulkDepositBoxPlan {
   b: Uint8Array;
   output: {
     addressBech32: string;
-    lovelace: Lovelace;
+    value: BoxValue;
     inlineDatumHex: string;
   };
 }
@@ -812,7 +847,7 @@ export function planBulkDepositTx(args: PlanBulkDepositArgs): BulkDepositPlan {
       b,
       output: {
         addressBech32: mixBoxAddress,
-        lovelace: args.params.denomLovelace,
+        value: args.params.boxValue,
         inlineDatumHex,
       },
     });
@@ -941,6 +976,7 @@ export async function buildBulkDepositTx(args: BuildBulkDepositArgs): Promise<Bu
   const { MeshTxBuilder } = await import("@meshsdk/core");
   const meshProvider = await getMeshProvider(args.provider);
   const meshParams = await getMeshProtocolParams(args.provider);
+  const meshCostModels = await getMeshCostModels(args.provider);
   const txBuilder = new MeshTxBuilder({
     fetcher: meshProvider as never,
     submitter: meshProvider as never,
@@ -950,8 +986,10 @@ export async function buildBulkDepositTx(args: BuildBulkDepositArgs): Promise<Bu
   });
   // Trust evaluator-returned exec units exactly (mesh defaults to 1.1×).
   txBuilder.txEvaluationMultiplier = 1;
+  if (meshCostModels) txBuilder.setNetwork(meshCostModels as never);
 
   const walletUtxos = normalizeWalletUtxos(await args.wallet.getUtxos());
+  assertWalletHoldsPoolToken(walletUtxos, params.boxValue, plan.boxes.length);
   const changeAddress = await args.wallet.getChangeAddress();
 
   // Reference UTxO is always read; the fee-shard spend is only added when
@@ -985,9 +1023,7 @@ export async function buildBulkDepositTx(args: BuildBulkDepositArgs): Promise<Bu
   // N mix-box outputs at positions 0..N-1.
   for (const box of plan.boxes) {
     txBuilder
-      .txOut(box.output.addressBech32, [
-        { unit: "lovelace", quantity: box.output.lovelace.toString() },
-      ])
+      .txOut(box.output.addressBech32, boxValueAssets(box.output.value))
       .txOutInlineDatumValue(box.output.inlineDatumHex, "CBOR");
   }
   // Position N (only when replenishing): the topped-up fee shard.

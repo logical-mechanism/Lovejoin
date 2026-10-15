@@ -86,7 +86,14 @@ type OutputRefsVec = {
   refs: { tx_id: string; output_index: number }[];
   expected_serialize: string;
 };
-type ParityVec = SchnorrVec | DHTupleVec | SigmaOrVec | OutputRefsVec;
+type BoxValueVec = {
+  kind: "box_value";
+  /** Decimal string: quantities reach 2^64 - 1, past JSON's safe integers. */
+  lovelace: string;
+  token: { policy: string; name: string; quantity: string } | null;
+  expected_serialize: string;
+};
+type ParityVec = SchnorrVec | DHTupleVec | SigmaOrVec | OutputRefsVec | BoxValueVec;
 
 // ---------------------------------------------------------------------------
 // Canonical Plutus-Data CBOR for `List<OutputReference>`. Mirrors
@@ -102,7 +109,7 @@ type ParityVec = SchnorrVec | DHTupleVec | SigmaOrVec | OutputRefsVec;
 // ---------------------------------------------------------------------------
 
 function cborMinorInt(value: bigint): Uint8Array {
-  if (value < 0n) throw new Error("output_index must be non-negative");
+  if (value < 0n) throw new Error("integer must be non-negative");
   if (value < 24n) return Uint8Array.of(Number(value));
   if (value < 0x100n) return Uint8Array.of(0x18, Number(value));
   if (value < 0x10000n) {
@@ -276,6 +283,125 @@ function buildAll(rng: () => number, count: number): ParityVec[] {
   return vecs;
 }
 
+// ---------------------------------------------------------------------------
+// Box value (docs/generalize-lovejoin.md): `serialise_data` of the value
+// every Mix output must equal, which `mix_logic` hashes into the Mix ctx.
+// Fixed cases pin every CBOR size boundary the encoding crosses (integer
+// widths for lovelace and quantity, the 23/24-byte header switch for asset
+// names, empty and 32-byte names, the 2^64 - 1 quantity ceiling); random
+// cases fill in between.
+// ---------------------------------------------------------------------------
+
+/** Ledger ceiling on one asset's quantity in an output (Conway `positive_coin`). */
+const MAX_TOKEN_QUANTITY = 0xffff_ffff_ffff_ffffn;
+
+type BoxValue = {
+  lovelace: bigint;
+  token?: { policy: string; name: string; quantity: bigint };
+};
+
+/**
+ * Canonical Plutus-Data CBOR of a box value, mirroring Aiken's
+ * `builtin.serialise_data(value.box_value(reference_datum))`: a definite
+ * map of definite maps, ADA's empty policy first, smallest-form integers.
+ *
+ *   ADA pool:   A1 40 A1 40 <lovelace>
+ *   token pool: A2 40 A1 40 <lovelace> 58 1C <policy> A1 <name> <quantity>
+ */
+function encodeBoxValueCbor(value: BoxValue): Uint8Array {
+  const lovelaceEntry = concatBytes([
+    cborBytes(new Uint8Array(0)),
+    Uint8Array.of(0xa1),
+    cborBytes(new Uint8Array(0)),
+    cborMinorInt(value.lovelace),
+  ]);
+  if (!value.token) return concatBytes([Uint8Array.of(0xa1), lovelaceEntry]);
+  return concatBytes([
+    Uint8Array.of(0xa2),
+    lovelaceEntry,
+    cborBytes(Buffer.from(value.token.policy, "hex")),
+    Uint8Array.of(0xa1),
+    cborBytes(Buffer.from(value.token.name, "hex")),
+    cborMinorInt(value.token.quantity),
+  ]);
+}
+
+const BOX_VALUE_FIXED: { lovelace: bigint; nameLen?: number; quantity?: bigint }[] = [
+  { lovelace: 1n },
+  { lovelace: 23n },
+  { lovelace: 24n },
+  { lovelace: 10_000_000n },
+  { lovelace: 0x1_0000_0005n },
+  { lovelace: 2_000_000n, nameLen: 0, quantity: 1n },
+  { lovelace: 2_000_000n, nameLen: 1, quantity: 23n },
+  { lovelace: 2_000_000n, nameLen: 23, quantity: 24n },
+  { lovelace: 2_000_000n, nameLen: 24, quantity: 255n },
+  { lovelace: 2_000_000n, nameLen: 32, quantity: 256n },
+  { lovelace: 2_000_000n, nameLen: 8, quantity: 65_535n },
+  { lovelace: 2_000_000n, nameLen: 8, quantity: 65_536n },
+  { lovelace: 2_000_000n, nameLen: 8, quantity: 0xffff_ffffn },
+  { lovelace: 2_000_000n, nameLen: 8, quantity: 0x1_0000_0000n },
+  { lovelace: 2_000_000n, nameLen: 32, quantity: MAX_TOKEN_QUANTITY },
+  { lovelace: 1n, nameLen: 4, quantity: 1n },
+];
+
+function boxValueVec(value: BoxValue): BoxValueVec {
+  return {
+    kind: "box_value",
+    lovelace: value.lovelace.toString(),
+    token: value.token
+      ? {
+          policy: value.token.policy,
+          name: value.token.name,
+          quantity: value.token.quantity.toString(),
+        }
+      : null,
+    expected_serialize: hex(encodeBoxValueCbor(value)),
+  };
+}
+
+/** Random integer whose CBOR encoding width is picked uniformly (1 to 9 bytes). */
+function randomSizedUInt(rng: () => number, min: bigint): bigint {
+  const bits = [4, 8, 16, 32, 64][Math.floor(rng() * 5)]!;
+  let n = 0n;
+  for (const b of randomBytes(rng, bits / 8 + 1)) n = (n << 8n) | BigInt(b);
+  n %= 1n << BigInt(bits);
+  return n < min ? min : n;
+}
+
+function buildBoxValues(rng: () => number, randomCount: number): BoxValueVec[] {
+  const vecs: BoxValueVec[] = [];
+  for (const f of BOX_VALUE_FIXED) {
+    const token =
+      f.nameLen === undefined
+        ? undefined
+        : {
+            policy: hex(randomBytes(rng, 28)),
+            name: hex(randomBytes(rng, f.nameLen)),
+            quantity: f.quantity!,
+          };
+    vecs.push(boxValueVec(token ? { lovelace: f.lovelace, token } : { lovelace: f.lovelace }));
+  }
+  for (let i = 0; i < randomCount; i++) {
+    const lovelace = randomSizedUInt(rng, 1n);
+    if (rng() < 0.25) {
+      vecs.push(boxValueVec({ lovelace }));
+      continue;
+    }
+    vecs.push(
+      boxValueVec({
+        lovelace,
+        token: {
+          policy: hex(randomBytes(rng, 28)),
+          name: hex(randomBytes(rng, Math.floor(rng() * 33))),
+          quantity: randomSizedUInt(rng, 1n),
+        },
+      }),
+    );
+  }
+  return vecs;
+}
+
 // --- Aiken codegen ---------------------------------------------------------
 
 function aikenHexLiteral(h: string): string {
@@ -349,7 +475,10 @@ function aikenOutputRefs(v: OutputRefsVec, idx: number): string {
   const refs = v.refs
     .map(
       (r) =>
-        `    OutputReference { transaction_id: ${aikenHexLiteral(r.tx_id)}, output_index: ${r.output_index} },`,
+        `      OutputReference {\n` +
+        `        transaction_id: ${aikenHexLiteral(r.tx_id)},\n` +
+        `        output_index: ${r.output_index},\n` +
+        `      },`,
     )
     .join("\n");
   return `test parity_output_refs_n${v.N}_${idx}() {
@@ -357,6 +486,26 @@ function aikenOutputRefs(v: OutputRefsVec, idx: number): string {
     [
 ${refs}
     ],
+  ) == ${aikenHexLiteral(v.expected_serialize)}
+}
+`;
+}
+
+function aikenBoxValue(v: BoxValueVec, idx: number): string {
+  // Drive the validator's own `value.box_value` helper, so the test pins
+  // the exact bytes `mix_logic` hashes into the Mix ctx.
+  const token = v.token ?? { policy: "", name: "", quantity: "0" };
+  return `test parity_box_value_${idx}() {
+  builtin.serialise_data(
+    value.box_value(
+      ReferenceDatum {
+        ..default_reference_datum(),
+        box_lovelace: ${v.lovelace},
+        token_policy: ${aikenHexLiteral(token.policy)},
+        token_name: ${aikenHexLiteral(token.name)},
+        token_quantity: ${token.quantity},
+      },
+    ),
   ) == ${aikenHexLiteral(v.expected_serialize)}
 }
 `;
@@ -375,6 +524,9 @@ function emitAiken(vecs: ParityVec[]): string {
 use aiken/builtin
 use cardano/transaction.{OutputReference}
 use lovejoin/hash
+use lovejoin/test_fixtures.{default_reference_datum}
+use lovejoin/types.{ReferenceDatum}
+use lovejoin/value
 
 `;
   const tests: string[] = [];
@@ -382,9 +534,11 @@ use lovejoin/hash
   let dhtupleIdx = 0;
   const sigmaOrIdx: Record<number, number> = {};
   const outputRefsIdx: Record<number, number> = {};
+  let boxValueIdx = 0;
   for (const v of vecs) {
     if (v.kind === "schnorr") tests.push(aikenSchnorr(v, schnorrIdx++));
     else if (v.kind === "dhtuple") tests.push(aikenDHTuple(v, dhtupleIdx++));
+    else if (v.kind === "box_value") tests.push(aikenBoxValue(v, boxValueIdx++));
     else if (v.kind === "sigma_or") {
       const i = (sigmaOrIdx[v.N] = (sigmaOrIdx[v.N] ?? 0) + 1) - 1;
       tests.push(aikenSigmaOr(v, i));
@@ -401,6 +555,11 @@ use lovejoin/hash
 function main() {
   const tsRng = mulberry32(0x10ce_0001);
   const tsVecs = buildAll(tsRng, 1000);
+  // Box-value vectors come from their own stream and go after the original
+  // 1000, so adding them left the earlier vectors byte-identical. All of
+  // them also go to the Aiken suite and the Rust ref (crypto/ref/tests).
+  const boxValueVecs = buildBoxValues(mulberry32(0xb0c5_0001), 48);
+  tsVecs.push(...boxValueVecs);
   const tsPath = resolve(REPO_ROOT, "crypto/test-vectors/encoding-parity.json");
   mkdirSync(dirname(tsPath), { recursive: true });
   writeFileSync(tsPath, JSON.stringify(tsVecs, null, 2) + "\n");
@@ -419,6 +578,7 @@ function main() {
   for (const N of OUTPUT_REF_NS) {
     for (let i = 0; i < 3; i++) aikenVecs.push(buildOutputRefs(aikenRng, N));
   }
+  aikenVecs.push(...boxValueVecs);
   // Throw in a couple of edge cases — empty ctx, all-zero a/b/etc. — by patching.
   // (Keep the test purely deterministic; no in-place randomness past this point.)
   const aikenPath = resolve(REPO_ROOT, "contracts/lib/lovejoin/encoding_parity_kat.test.ak");

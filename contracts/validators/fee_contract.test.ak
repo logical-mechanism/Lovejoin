@@ -13,7 +13,7 @@ use fee_contract
 use lovejoin/schnorr.{SchnorrProof}
 use lovejoin/sigma_or.{SigmaOrBranch, SigmaOrProof}
 use lovejoin/test_fixtures.{
-  a48, b48, default_reference_input, denom_lovelace, fee_script_hash,
+  a48, b48, box_lovelace, default_reference_input, fee_script_hash,
   fee_shard_input, fee_shard_output, fee_shard_output_no_datum,
   fee_shard_output_with_address, fee_shard_output_with_ref_script,
   max_fee_per_mix_lovelace, mix_box_input, mix_logic_hash, out_ref,
@@ -163,7 +163,7 @@ fn do_build_mix_inputs(
   if remaining == 0 {
     list.reverse(acc)
   } else {
-    let inp = mix_box_input(0xa0 + idx, 0, a48, b48, denom_lovelace)
+    let inp = mix_box_input(0xa0 + idx, 0, a48, b48, box_lovelace)
     do_build_mix_inputs(remaining - 1, idx + 1, [inp, ..acc])
   }
 }

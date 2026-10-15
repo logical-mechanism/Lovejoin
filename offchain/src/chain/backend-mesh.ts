@@ -92,7 +92,7 @@ interface MeshUtxo {
   };
 }
 
-interface OgmiosV6Params {
+export interface OgmiosV6Params {
   minFeeCoefficient?: number;
   minFeeConstant?: { ada?: { lovelace?: number | string } };
   minFeeReferenceScripts?: {
@@ -416,8 +416,8 @@ function shouldFallbackOnError(err: Error): boolean {
 // Translators
 // ---------------------------------------------------------------------
 
-/** Ogmios v6 redeemer purpose → mesh Action.tag. */
-const PURPOSE_TO_TAG: Record<string, string> = {
+/** Ogmios v6 redeemer purpose → mesh Action.tag. Shared with the Koios provider. */
+export const PURPOSE_TO_TAG: Record<string, string> = {
   spend: "SPEND",
   mint: "MINT",
   publish: "CERT",
@@ -448,7 +448,7 @@ function wireToMeshUtxo(w: UtxoWire): MeshUtxo {
  * field when consuming params (it's metadata for CIP-30 wallets), and
  * ogmios's params don't carry an epoch number.
  */
-function ogmiosV6ToMeshProtocol(p: OgmiosV6Params): MeshProtocolParameters {
+export function ogmiosV6ToMeshProtocol(p: OgmiosV6Params): MeshProtocolParameters {
   const minFeeA = Number(p.minFeeCoefficient ?? 0);
   const minFeeB = Number(p.minFeeConstant?.ada?.lovelace ?? 0);
   const refScriptCost = Number(p.minFeeReferenceScripts?.base ?? 0);

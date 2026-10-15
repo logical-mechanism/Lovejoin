@@ -6,6 +6,7 @@
 use lovejoin_ref::dhtuple::{verify as verify_dhtuple, DHTupleProof};
 use lovejoin_ref::schnorr::{verify as verify_schnorr, SchnorrProof};
 use lovejoin_ref::sigma_or::{verify as verify_sigma_or, DHTupleStatement, SigmaOrBranchProof};
+use lovejoin_ref::value::{encode_box_value, Token};
 
 use serde::Deserialize;
 use std::fs;
@@ -274,4 +275,57 @@ fn every_negative_is_rejected() {
             }
         }
     }
+}
+
+// --- Box value (encoding parity) --------------------------------------------
+
+#[derive(Deserialize)]
+struct BoxValueToken {
+    policy: String,
+    name: String,
+    quantity: String,
+}
+
+#[derive(Deserialize)]
+struct BoxValueCase {
+    lovelace: String,
+    token: Option<BoxValueToken>,
+    expected_serialize: String,
+}
+
+/// Every `box_value` vector in encoding-parity.json must match this crate's
+/// own encoder. Aiken checks the same bytes against
+/// `serialise_data(value.box_value(..))`, so the two agree on the value
+/// bytes `mix_logic` hashes into the Mix ctx (docs/generalize-lovejoin.md).
+#[test]
+fn box_value_encoding_parity() {
+    let all: Vec<serde_json::Value> = read_json("encoding-parity.json");
+    let cases: Vec<BoxValueCase> = all
+        .into_iter()
+        .filter(|v| v["kind"] == "box_value")
+        .map(|v| serde_json::from_value(v).expect("box_value vector"))
+        .collect();
+    assert!(cases.len() >= 32, "expected non-trivial box_value vector count");
+    let mut with_token = 0;
+    for c in &cases {
+        let lovelace: u64 = c.lovelace.parse().expect("lovelace");
+        let policy;
+        let name;
+        let token = match &c.token {
+            Some(t) => {
+                with_token += 1;
+                policy = dehex(&t.policy);
+                name = dehex(&t.name);
+                Some(Token {
+                    policy: &policy,
+                    name: &name,
+                    quantity: t.quantity.parse().expect("quantity"),
+                })
+            }
+            None => None,
+        };
+        let got = hex::encode(encode_box_value(lovelace, token.as_ref()));
+        assert_eq!(got, c.expected_serialize, "box_value lovelace={}", c.lovelace);
+    }
+    assert!(with_token > 0 && with_token < cases.len(), "need both pool kinds");
 }

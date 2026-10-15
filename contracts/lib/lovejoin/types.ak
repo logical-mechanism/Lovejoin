@@ -10,6 +10,7 @@
 //// `lovejoin/sigma_or`).
 
 use aiken/crypto.{ScriptHash}
+use cardano/assets.{AssetName, PolicyId}
 use lovejoin/schnorr.{SchnorrProof}
 use lovejoin/sigma_or.{SigmaOrProof}
 
@@ -30,8 +31,24 @@ use lovejoin/sigma_or.{SigmaOrProof}
 /// off-chain coordination — no validator reads the count, and committing it
 /// on-chain forced every reference-datum decode to walk one more field.
 /// Dropped as part of the M4.5 redeploy schema cleanup.
+///
+/// Box value (docs/generalize-lovejoin.md): every mix-box in a launch holds
+/// exactly `box_lovelace` plus, for a token pool, `token_quantity` of
+/// `(token_policy, token_name)`. An ADA-only pool sets `token_policy` and
+/// `token_name` to `#""` and `token_quantity` to 0. The token is stored as
+/// three explicit fields rather than an `Assets` value: a datum-supplied
+/// value in non-canonical form could never equal a ledger value, and Aiken
+/// rejects casting `Data` into the opaque `Assets` type. `one_shot_mint`
+/// checks the field shapes at launch time.
+///
+/// The live mainnet and Preprod ADA pools predate this layout and still
+/// carry the 5-field datum (`denom_lovelace` in place of the four box-value
+/// fields) on their own immutable bytecode.
 pub type ReferenceDatum {
-  denom_lovelace: Int,
+  box_lovelace: Int,
+  token_policy: PolicyId,
+  token_name: AssetName,
+  token_quantity: Int,
   max_fee_per_mix_lovelace: Int,
   mix_script_hash: ScriptHash,
   mix_logic_script_hash: ScriptHash,

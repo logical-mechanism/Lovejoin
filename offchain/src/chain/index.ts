@@ -19,5 +19,7 @@ export type {
 } from "./blockfrost.js";
 export { BackendChainProvider } from "./backend.js";
 export type { BackendChainProviderConfig } from "./backend.js";
+export { KoiosProvider, koiosBaseUrl, koiosScriptRefCbor } from "./koios.js";
+export type { KoiosConfig } from "./koios.js";
 export { lovejoinUtxoToOgmiosAdditional, meshUtxoToOgmiosAdditional } from "./ogmios-utxo.js";
 export type { AdditionalUtxo, OgmiosOutput, OgmiosValue } from "./ogmios-utxo.js";

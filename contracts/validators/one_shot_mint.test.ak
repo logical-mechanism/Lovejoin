@@ -7,11 +7,13 @@
 ////  - quantity == 1.
 ////  - The minted NFT is at the `reference_holder` script (audit L-01).
 ////  - The destination's inline datum decodes as `ReferenceDatum` with sane
-////    field values (audit L-02).
+////    field values (audit L-02), including the pool-token shape
+////    (docs/generalize-lovejoin.md).
 ////
 //// We exercise every rule with positive + negative cases.
 
 use aiken/fuzz
+use aiken/primitive/bytearray
 use cardano/address
 use cardano/assets
 use cardano/transaction.{
@@ -20,7 +22,7 @@ use cardano/transaction.{
 use lovejoin/test_fixtures.{
   default_reference_datum, reference_holder_hash, script_address,
   script_address_with_stake_pointer, script_address_with_stake_script,
-  script_address_with_stake_vk,
+  script_address_with_stake_vk, token_reference_datum,
 }
 use lovejoin/types.{ReferenceDatum}
 use one_shot_mint
@@ -420,13 +422,13 @@ test one_shot_mint_rejects_when_target_has_no_inline_datum() fail {
 // Negative: target datum has out-of-range field values (audit L-02).
 // ---------------------------------------------------------------------------
 
-test one_shot_mint_rejects_when_target_datum_has_zero_denom() {
-  // denom_lovelace == 0 makes every Deposit value-check vacuous (any
-  // amount of ADA satisfies "exactly denom_lovelace lovelace"). We reject
+test one_shot_mint_rejects_when_target_datum_has_zero_box_lovelace() {
+  // box_lovelace == 0 makes every Deposit value-check vacuous (any
+  // amount of ADA satisfies "exactly box_lovelace lovelace"). We reject
   // at bootstrap rather than ship a brick.
   let bad_datum: Data = ReferenceDatum {
     ..default_reference_datum(),
-    denom_lovelace: 0,
+    box_lovelace: 0,
   }
   let tx = tx_with(
     [placeholder_input(seed)],
@@ -436,12 +438,12 @@ test one_shot_mint_rejects_when_target_datum_has_zero_denom() {
   !run_mint(tx)
 }
 
-test one_shot_mint_rejects_when_target_datum_has_negative_denom() {
-  // Negative denom is even more obviously bad — fee shards would be
+test one_shot_mint_rejects_when_target_datum_has_negative_box_lovelace() {
+  // Negative box_lovelace is even more obviously bad: fee shards would be
   // expected to "increase" by spending negative lovelace.
   let bad_datum: Data = ReferenceDatum {
     ..default_reference_datum(),
-    denom_lovelace: -1,
+    box_lovelace: -1,
   }
   let tx = tx_with(
     [placeholder_input(seed)],
@@ -466,10 +468,10 @@ test one_shot_mint_rejects_when_target_datum_has_zero_max_fee() {
   !run_mint(tx)
 }
 
-test one_shot_mint_rejects_when_target_datum_has_max_fee_above_denom() {
-  // max_fee >= denom means a single Mix tx can drain a fee shard for more
-  // than the principal of one deposit, which inverts the protocol's
-  // economics. Pin max_fee strictly less than denom.
+test one_shot_mint_rejects_when_target_datum_has_max_fee_above_box_lovelace() {
+  // max_fee >= box_lovelace means a single Mix tx can drain a fee shard for
+  // more than the lovelace of one deposit, which inverts the protocol's
+  // economics. Pin max_fee strictly less than box_lovelace.
   let bad_datum: Data = ReferenceDatum {
     ..default_reference_datum(),
     max_fee_per_mix_lovelace: 10_000_001,
@@ -482,9 +484,10 @@ test one_shot_mint_rejects_when_target_datum_has_max_fee_above_denom() {
   !run_mint(tx)
 }
 
-test one_shot_mint_rejects_when_target_datum_has_max_fee_equal_to_denom() {
+test one_shot_mint_rejects_when_target_datum_has_max_fee_equal_to_box_lovelace() {
   // Equality is also rejected (strict less-than in the validator). A Mix
-  // tx that pays its full denom as fee leaves the depositor with nothing.
+  // tx that pays a box's full lovelace as fee leaves the depositor with
+  // nothing.
   let bad_datum: Data = ReferenceDatum {
     ..default_reference_datum(),
     max_fee_per_mix_lovelace: 10_000_000,
@@ -495,6 +498,132 @@ test one_shot_mint_rejects_when_target_datum_has_max_fee_equal_to_denom() {
     [reference_output_with_datum(bad_datum)],
   )
   !run_mint(tx)
+}
+
+// ---------------------------------------------------------------------------
+// Pool-token shape (docs/generalize-lovejoin.md). An ADA-only pool must
+// leave the token triple empty; a token pool needs a 28-byte policy, an
+// asset name of at most 32 bytes, and 0 < quantity <= maxWord64. A bad
+// triple describes a box value no Mix output can ever equal, so the pool
+// would be bricked at launch; rejecting it at mint time lets the deployer
+// rebuild instead.
+// ---------------------------------------------------------------------------
+
+/// Run the canonical bootstrap mint with `datum` as the reference datum.
+fn mint_with_datum(datum: ReferenceDatum) -> Bool {
+  let data: Data = datum
+  run_mint(
+    tx_with(
+      [placeholder_input(seed)],
+      assets.from_asset(policy_id, asset_name, 1),
+      [reference_output_with_datum(data)],
+    ),
+  )
+}
+
+// 32 bytes, the longest asset name the ledger allows.
+const name_32: ByteArray =
+  #"4142434445464748494a4b4c4d4e4f505152535455565758595a303132333435"
+
+// 33 bytes, one past the ledger limit.
+const name_33: ByteArray =
+  #"4142434445464748494a4b4c4d4e4f505152535455565758595a30313233343536"
+
+test one_shot_mint_accepts_token_pool_launch() {
+  mint_with_datum(token_reference_datum())
+}
+
+test one_shot_mint_accepts_token_pool_with_32_byte_name() {
+  mint_with_datum(
+    ReferenceDatum { ..token_reference_datum(), token_name: name_32 },
+  )
+}
+
+test one_shot_mint_accepts_token_pool_with_empty_name() {
+  // An empty asset name is a legal native asset under a real policy.
+  mint_with_datum(ReferenceDatum { ..token_reference_datum(), token_name: #"" })
+}
+
+test one_shot_mint_accepts_token_pool_with_max_word64_quantity() {
+  mint_with_datum(
+    ReferenceDatum {
+      ..token_reference_datum(),
+      token_quantity: 18_446_744_073_709_551_615,
+    },
+  )
+}
+
+test one_shot_mint_rejects_token_pool_with_zero_quantity() {
+  // Q == 0 would make `value.box_value` drop the token and silently turn
+  // the launch into an ADA pool at the token pool's 2 ADA box lovelace.
+  !mint_with_datum(
+    ReferenceDatum { ..token_reference_datum(), token_quantity: 0 },
+  )
+}
+
+test one_shot_mint_rejects_token_pool_with_negative_quantity() {
+  !mint_with_datum(
+    ReferenceDatum { ..token_reference_datum(), token_quantity: -1 },
+  )
+}
+
+test one_shot_mint_rejects_token_pool_with_quantity_above_max_word64() {
+  !mint_with_datum(
+    ReferenceDatum {
+      ..token_reference_datum(),
+      token_quantity: 18_446_744_073_709_551_616,
+    },
+  )
+}
+
+test one_shot_mint_rejects_token_pool_with_short_policy() {
+  !mint_with_datum(
+    ReferenceDatum {
+      ..token_reference_datum(),
+      token_policy: #"34343434343434343434343434343434343434343434343434343434"
+        |> bytearray.drop(1),
+    },
+  )
+}
+
+test one_shot_mint_rejects_token_pool_with_long_policy() {
+  !mint_with_datum(
+    ReferenceDatum {
+      ..token_reference_datum(),
+      token_policy: #"3434343434343434343434343434343434343434343434343434343434",
+    },
+  )
+}
+
+test one_shot_mint_rejects_token_pool_with_33_byte_name() {
+  !mint_with_datum(
+    ReferenceDatum { ..token_reference_datum(), token_name: name_33 },
+  )
+}
+
+test one_shot_mint_rejects_ada_pool_with_token_name() {
+  // No policy but a name: the triple is half-filled, almost certainly a
+  // mistyped launch.
+  !mint_with_datum(
+    ReferenceDatum { ..default_reference_datum(), token_name: "TOKEN" },
+  )
+}
+
+test one_shot_mint_rejects_ada_pool_with_token_quantity() {
+  !mint_with_datum(
+    ReferenceDatum { ..default_reference_datum(), token_quantity: 1 },
+  )
+}
+
+test one_shot_mint_rejects_token_pool_with_max_fee_equal_to_box_lovelace() {
+  // The fee bound applies to token pools too, against their smaller
+  // box_lovelace.
+  !mint_with_datum(
+    ReferenceDatum {
+      ..token_reference_datum(),
+      max_fee_per_mix_lovelace: 2_000_000,
+    },
+  )
 }
 
 // ---------------------------------------------------------------------------

@@ -396,6 +396,53 @@ This rehearsal does not broadcast transactions or generate a real launch
 wallet. Ogmios evaluation checks Plutus execution; it does not execute every
 ledger rule, so the rehearsal cannot guarantee future transaction acceptance.
 
+## Token-pool rehearsal on Preprod through Koios
+
+`koios-token-launch.py` launches the token-mixing contracts (the eight-field
+`ReferenceDatum` from [docs/generalize-lovejoin.md](../../docs/generalize-lovejoin.md))
+on Preprod for testing. It follows the mainnet launcher's approach (offline
+`cardano-cli`, Koios for parameters, evaluation, and submission, and a resume
+journal) and only targets Preprod. It writes to `artifacts/preprod-token/` by
+pointing `LOVEJOIN_ARTIFACTS_DIR` of `00-build-reference.sh` there, so the
+classic `artifacts/preprod/` and `artifacts/mainnet/` are never touched.
+
+The launch key lives in `wallets/token-preprod/` (`payment.skey`,
+`payment.vkey`, `payment.addr`). Fund `payment.addr` with at least 70 tADA,
+then:
+
+```sh
+./infra/bootstrap/koios-token-launch.py status
+./infra/bootstrap/koios-token-launch.py launch
+```
+
+One transaction per stage:
+
+1. **prep** splits the funding (50 tADA publication budget, 5 tADA collateral,
+   5 tADA mint seed) and mints 10^18 `LJTEST` under a native policy only the
+   launch key can sign.
+2. The validators are parameterized for that seed. The launcher then checks
+   that a mix-box fits in `box_lovelace` and prints the headroom a box-fee
+   withdraw has, before anything is submitted.
+3. **publish** puts the three reference scripts at the launch key's base
+   address (payment and stake both the launch key). The integration test's
+   wallet uses the enterprise address only, so its coin selection never
+   spends them, and the key can still reclaim them.
+4. **register** registers the `mix_logic` stake credential (2 tADA deposit,
+   not refundable: `mix_logic` rejects deregistration).
+5. **mint** locks the reference NFT at `reference_holder` with
+   `box_lovelace` = 2 ADA, `LJTEST` quantity Q = 10^16, and
+   `max_fee_per_mix_lovelace` = 1.5 ADA (`one_shot_mint` requires it to be
+   below `box_lovelace`).
+
+Like the mainnet launch it funds no fee shards, so every Mix is wallet-paid.
+The `fee_contract` reference script is still published, so shards can be
+added later with the manual tooling.
+
+Q = 10^16 is above 2^53, so every Mix context hashes an 8-byte CBOR integer,
+while every sum mesh's `Number`-based coin selection forms stays exact.
+[`integration-tests/test/token-pool.test.ts`](../../integration-tests/test/token-pool.test.ts)
+then drives the launch through every operation.
+
 ## Practice run
 
 Before doing the canonical Preprod bootstrap, do at least one full run on a
