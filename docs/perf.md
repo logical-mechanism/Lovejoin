@@ -307,6 +307,9 @@ mechanical) optimisations on top of M4.5:
    (`BLST_BAD_ENCODING`); the explicit pre-check was a duplicate.
 8. **Drop one `bytearray.length == 32` in `xor32`** — `xor_bytearray(False, ..)`
    asserts equal length, so we only need to check the first arg.
+   **Reverted:** with `False` the builtin truncates to the shorter input rather
+   than failing, so `xor32` checks both lengths again (about +6.1M CPU at N=3,
+   +10.8M at N=4). See the Security entry in `CHANGELOG.md`.
 9. **(skipped)** Replacing the `bls.scalar_from_bytes_mod` wrapper with a
    direct `scalar.from_bytes` call from stdlib is a pure cleanup with
    zero CPU effect (same UPLC). Left for a future cleanup PR.

@@ -1608,7 +1608,7 @@ The codebase is already heavily optimized — the source carries extensive inlin
 - Single-pass fold in `validate_pay_mix_fee` ([fee_contract.ak:120-143](../../contracts/lovejoin/validators/fee_contract.ak#L120-L143)) replaces 4 prior traversals (find own_input, defense-in-depth credential check, mix-input count, fee-input count).
 - `expect_ada_only_lovelace` ([value.ak:45-52](../../contracts/lovejoin/lib/lovejoin/value.ak#L45-L52)) fuses ada-only check + lovelace extract into a single dict walk.
 - Inlined `parallel_all` ([sigma_or.ak:207-222](../../contracts/lovejoin/lib/lovejoin/sigma_or.ak#L207-L222)) and `pairs_match_and_all` ([mix_logic.ak:335-346](../../contracts/lovejoin/validators/mix_logic.ak#L335-L346)) avoid `list.zip` + `list.all`.
-- `xor32` ([sigma_or.ak:75-87](../../contracts/lovejoin/lib/lovejoin/sigma_or.ak#L75-L87)) leans on `xor_bytearray`'s built-in length check, removing N² explicit length asserts.
+- `xor32` ([sigma_or.ak:75-87](../../contracts/lovejoin/lib/lovejoin/sigma_or.ak#L75-L87)) leans on `xor_bytearray`'s built-in length check, removing N² explicit length asserts. _(Later found wrong: with `False` the builtin truncates to the shorter input rather than failing. `xor32` checks both lengths again; see the Security entry in `CHANGELOG.md`.)_
 
 Stdlib red flags audit (production code only, excluding `*.test.ak` and `build/`):
 
