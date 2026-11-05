@@ -72,17 +72,11 @@ pub fn precompute_statements(
   )
 }
 
-/// XOR two equal-length 32-byte arrays via the integer-wide `xor_bytearray`
-/// builtin. The `False` padding flag aborts the builtin if the two inputs
-/// differ in length, so the right-side length is implicitly enforced.
-///
-/// The previous `expect bytearray.length(left) == 32` was redundant: in the
-/// XOR fold inside `verify_pre`, the seed is `zero32` (32 bytes) and
-/// `xor_bytearray(False, l32, r)` returns 32 bytes only when `r` is also 32
-/// (otherwise it aborts). By induction, `acc` is always 32 bytes, and a
-/// non-32-byte `br.c` is caught by the builtin on the first iteration. N²
-/// builtin pairs (length + ==) saved per Mix tx — see audit H3.
+/// XOR two 32-byte arrays. With `False`, the builtin truncates to the
+/// shorter input, so both lengths must be checked explicitly.
 fn xor32(left: ByteArray, right: ByteArray) -> ByteArray {
+  expect bytearray.length(left) == 32
+  expect bytearray.length(right) == 32
   builtin.xor_bytearray(False, left, right)
 }
 
@@ -222,4 +216,65 @@ fn parallel_all(
       }
     _ -> False
   }
+}
+
+// Boundary tests exercise xor32 itself, including its left operand.
+test xor_boundary_valid() {
+  xor32(
+    #"0000000000000000000000000000000000000000000000000000000000000000",
+    #"a5786dce1d56619647a7d510554c08b1bc5a0be344d0618906812655b5b30d64",
+  ) == #"a5786dce1d56619647a7d510554c08b1bc5a0be344d0618906812655b5b30d64"
+}
+
+test xor_boundary_short_left() fail {
+  xor32(
+    #"00",
+    #"0000000000000000000000000000000000000000000000000000000000000000",
+  ) == #"00"
+}
+
+test xor_boundary_long_right() fail {
+  xor32(
+    #"0000000000000000000000000000000000000000000000000000000000000000",
+    #"000000000000000000000000000000000000000000000000000000000000000000",
+  ) == #"0000000000000000000000000000000000000000000000000000000000000000"
+}
+
+test xor_boundary_31() fail {
+  xor32(
+    #"0000000000000000000000000000000000000000000000000000000000000000",
+    #"11111111111111111111111111111111111111111111111111111111111111",
+  ) == #"11111111111111111111111111111111111111111111111111111111111111"
+}
+
+test xor_boundary_33() fail {
+  xor32(
+    #"0000000000000000000000000000000000000000000000000000000000000000",
+    #"111111111111111111111111111111111111111111111111111111111111111111",
+  ) == #"1111111111111111111111111111111111111111111111111111111111111111"
+}
+
+test xor_boundary_64() fail {
+  xor32(
+    #"0000000000000000000000000000000000000000000000000000000000000000",
+    #"11111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111",
+  ) == #"1111111111111111111111111111111111111111111111111111111111111111"
+}
+
+test xor_boundary_empty() fail {
+  xor32(
+    #"0000000000000000000000000000000000000000000000000000000000000000",
+    #"",
+  ) == #""
+}
+
+test xor_boundary_short_last_fold() fail {
+  list.foldl(
+    [
+      #"1111111111111111111111111111111111111111111111111111111111111111",
+      #"22222222222222222222222222222222222222222222222222222222222222",
+    ],
+    #"0000000000000000000000000000000000000000000000000000000000000000",
+    fn(c, acc) { xor32(acc, c) },
+  ) == #"33333333333333333333333333333333333333333333333333333333333333"
 }

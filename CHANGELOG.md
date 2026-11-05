@@ -12,6 +12,10 @@ Lovejoin follows [SemVer](https://semver.org/) starting at 0.3.0. Day-to-day wor
 
 Mainnet launch. The contracts are now live and immutable on Cardano mainnet; the disclosure posture (no third-party audit, no bug bounty) is unchanged. The mainnet frontend is a separate, later activation step.
 
+### Security
+
+- **`xor32` checks both operands' lengths.** It relied on `xor_bytearray(False, …)` to fail on operands of different lengths, but with `False` the builtin truncates to the shorter input instead, so `mix_logic` didn't hold every challenge in a Mix proof to 32 bytes. Both lengths are checked again, which undoes optimization 8 in `docs/perf.md` (audit H3), and eight boundary tests pin the checks. A Mix costs about 0.1% more CPU (N = 3: +6.1M of 5.7B steps; N = 4: +10.8M of 9.7B). Only `mix_logic`'s unapplied hash changes (`62befd1e…` to `7fb45b75…`); `mix_box`, `one_shot_mint`, `fee_contract` and `reference_holder` build byte for byte as before. Deployed pools are immutable and keep the old `xor32`: the classic ADA pools on mainnet and Preprod, and pools launched on the token-pool contracts. The fix reaches users through a new launch.
+
 ### Deployed
 
 - **Mainnet bootstrap (2026-09-26).** Reference NFT `f5592689c7ab35553a3234a54c0ee118090a5762c696819a53a5a826.lovejoin` at reference UTxO `f89cb43a55eed378fe90fe954a9d86566280e6416d97f9008937ab492b37175c#0`. The `ReferenceDatum` pins a 10 ADA denomination and a 1 ADA maximum fee per mix; a shard-paid N=3 mix costs about 0.893 ADA at current fee parameters. The three reference scripts sit permanently at `reference_holder`, each holding exactly its minimum ADA, and the `mix_logic` stake credential is registered. No fee shards were created, so mainnet mixes are wallet-paid until someone funds the fee pool. Canonical address book and validators are in `artifacts/mainnet/`.
